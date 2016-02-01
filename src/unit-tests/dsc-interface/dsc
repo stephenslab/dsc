@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+__author__ = "Gao Wang"
+__copyright__ = "Copyright 2016, Stephens lab"
+__email__ = "contact@tigerwang.org"
+__license__ = "MIT"
+
+import sys, os
+from OmicsBMA.utils import R
+from OmicsBMA.pyper import Str4R
+from snakemake.io import load_configfile, expand
+import deepdish as dd
+import hashlib
+import numpy as np
+
+def run_scenarios(jobs, output):
+    res = {}
+    for job in jobs:
+        job_str = 'S_' + hashlib.md5(str(job).encode()).hexdigest()
+        res[job_str] = {}
+        init = []
+        with open(job['exe']) as f:
+            codes = f.read()
+        for key in job:
+            if key != 'exe':
+                init.append('{} = {}'.format(key, job[key]))
+        init.append('\n')
+        R.run('\n'.join(init) + codes)
+        for out in output:
+            res[job_str][out] = R.get("{}".format(out))
+    return res
+
+def run_methods(jobs, output, hmap):
+    res = {}
+    for job in jobs:
+        method = os.path.splitext(os.path.split(job['exe'])[-1])[0]
+        if method not in res:
+            res[method] = {}
+        scenario = []
+        for key in job:
+            if key in hmap:
+                scenario.append(job[key])
+                job[key] = Str4R(hmap[key][job[key]])
+        scenario = '_'.join(set(scenario))
+        res[method][scenario] = {}
+        init = []
+        with open(job['exe']) as f:
+            codes = f.read()
+        for key in job:
+            if key != 'exe':
+                init.append('{} = {}'.format(key, job[key]))
+        init.append('\n')
+        R.run('\n'.join(init) + codes)
+        for out in output:
+            res[method][scenario][out] = R.get("{}".format(out))
+    return res
+
+
+def run_scores(jobs, output, hmap, method_key, scenario_key):
+    res = {}
+    for job in jobs:
+        method = job[method_key]
+        if method not in res:
+            res[method] = {}
+        scenario = job[scenario_key]
+        for key in job:
+            if key in hmap:
+                if key == method_key:
+                    job[key] = Str4R(hmap[key][job[key]][scenario])
+                if key == scenario_key:
+                    job[key] = Str4R(hmap[key][scenario])
+        res[method][scenario] = {}
+        init = []
+        with open(job['exe']) as f:
+            codes = f.read()
+        for key in job:
+            if key != 'exe':
+                init.append('{} = {}'.format(key, job[key]))
+        init.append('\n')
+        R.run('\n'.join(init) + codes)
+        for out in output:
+            res[method][scenario][out] = R.get("{}".format(out))
+    return res
+
+def extract_data(tag, runtime):
+    assert tag.startswith('$')
+    tag = tag[1:]
+    fn, obj = tag.split('.')
+    data = dd.io.load(runtime['database'] + '_{}.h5'.format(fn))
+    res = {}
+    for k in data:
+        if fn == 'scenario':
+            res[k] = data[k][obj]
+        if fn == 'method':
+            res[k] = {}
+            for s in data[k]:
+                res[k][s] = data[k][s][obj]
+    return list(res.keys()), res
+
+def get_scenario(data, runtime):
+    # scenario will use hashed name
+    params = {k: ([v] if type(v) is str else v) for k, v in data.items() if k != 'return'}
+    if type(data['return']) is str:
+        data['return'] = [data['return']]
+    #
+    expand_args = ','.join(['{0}=params["{0}"]'.format(x) for x in params])
+    expand_pattern = "|".join(["('{0}', '{{{0}}}')".format(x) for x in params])
+    expand_cmd = 'expand("{}", {})'.format(expand_pattern, expand_args)
+    settings = eval(expand_cmd)
+    #
+    jobs = []
+    for item in settings:
+        jobs.append(dict(eval(x) for x in item.split('|')))
+    res = run_scenarios(jobs, data["return"])
+    dd.io.save(runtime['database'] + '_scenario.h5', res)
+
+def get_method(data, runtime):
+    # method name will use direct input name
+    params = {k: ([v] if (type(v) is str and not v.startswith('$')) else v)
+              for k, v in data.items() if k != 'return'}
+    if type(data['return']) is str:
+        data['return'] = [data['return']]
+    hmap = {}
+    for k, val in params.items():
+        if type(val) is str and val.startswith('$'):
+            params[k], hmap[k] = extract_data(val, runtime)
+    #
+    expand_args = ','.join(['{0}=params["{0}"]'.format(x) for x in params])
+    expand_pattern = "|".join(["('{0}', '{{{0}}}')".format(x) for x in params])
+    expand_cmd = 'expand("{}", {})'.format(expand_pattern, expand_args)
+    settings = eval(expand_cmd)
+    #
+    jobs = []
+    for item in settings:
+        jobs.append(dict(eval(x) for x in item.split('|')))
+    res = run_methods(jobs, data["return"], hmap)
+    dd.io.save(runtime['database'] + '_method.h5', res)
+
+def get_score(data, runtime):
+    # method name will use direct input name
+    # FIXME: should have one score function
+    params = {k: ([v] if (type(v) is str and not v.startswith('$')) else v)
+              for k, v in data.items() if k != 'return'}
+    if type(data['return']) is str:
+        data['return'] = [data['return']]
+    method_key = ''
+    scenario_key = ''
+    hmap = {}
+    for k, val in params.items():
+        if type(val) is str and val.startswith('$'):
+            params[k], hmap[k] = extract_data(val, runtime)
+            if val.startswith('$method'):
+                method_key = k
+            if val.startswith('$scenario'):
+                scenario_key = k
+    #
+    expand_args = ','.join(['{0}=params["{0}"]'.format(x) for x in params])
+    expand_pattern = "|".join(["('{0}', '{{{0}}}')".format(x) for x in params])
+    expand_cmd = 'expand("{}", {})'.format(expand_pattern, expand_args)
+    settings = eval(expand_cmd)
+    jobs = []
+    for item in settings:
+        jobs.append(dict(eval(x) for x in item.split('|')))
+    res = run_scores(jobs, data["return"], hmap, method_key, scenario_key)
+    dd.io.save(runtime['database'] + '_score.h5', res)
+
+def plot_score(fn, entry):
+    data = dd.io.load(fn)
+    df = {}
+    for method in data:
+        if method not in df:
+            df[method] = []
+        for k, val in data[method].items():
+            df[method].append(val[entry])
+    for method in df:
+        df[method] = np.array(df[method])
+    codes = '''
+    data = {0}
+    pdf("{1}.pdf", 3, 6)
+    boxplot(data$mean, data$median, names=c('mean', 'median'), ylab = '{1}')
+    dev.off()
+    '''.format(Str4R(df), entry)
+    R.run(codes)
+
+if __name__ == "__main__":
+    cfg = load_configfile(sys.argv[1])
+    print("Setup scenarios ...")
+    get_scenario(cfg['scenario'], cfg['runtime'])
+    print("Apply methods ...")
+    get_method(cfg['method'], cfg['runtime'])
+    print("Compute scores ...")
+    get_score(cfg['score'], cfg['runtime'])
+    print("Generate plot ...")
+    plot_score(cfg['runtime']['database'] + '_score.h5', 'mse')
