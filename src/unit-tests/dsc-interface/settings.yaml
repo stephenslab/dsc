@@ -1,22 +1,22 @@
 scenario:
-  exe: [R/scenarios/rnorm.R, R/scenarios/rt.R]
+  _exe: [R/scenarios/rnorm.R, R/scenarios/rt.R]
   n: 1000
   mean: [0, 1]
   seed: [1, 2, 3, 4, 5]
-  return: [x, mean]
+  _return: [x, mean]
 
 method:
-  exe: [R/methods/mean.R, R/methods/median.R]
+  _exe: [R/methods/mean.R, R/methods/median.R]
   x: $scenario.x
-  return: mean
+  _return: mean
 
 score:
-  exe: R/scores/MSE.R
+  _exe: R/scores/MSE.R
   mean_est: $method.mean
   true_mean: $scenario.mean
-  return: mse
+  _return: mse
 
 runtime:
-    lib_path:
-    bin_path:
-    database: simple
+  lib_path:
+  bin_path:
+  output: simple

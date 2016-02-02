@@ -1,0 +1,37 @@
+__doc__ = 'Installation script for dsc2'
+__author__ = "Gao Wang"
+__copyright__ = "Copyright 2016, Stephens lab"
+__email__ = "gaow@uchicago.edu"
+__license__ = "MIT"
+import os
+
+rule help:
+  shell: "snakemake -l"
+
+rule utils:
+  output: "dsc/pyper.py", "dsc/utils.py"
+  run:
+    for item in output:
+        shell('wget -O {0} https://raw.githubusercontent.com/gaow/utils/master/{1}'.\
+              format(item, os.path.split(item)[-1]))
+
+rule install:
+  input:
+    rules.utils.output
+  output:
+    touch("build.done")
+  shell: "python setup.py install"
+
+rule test:
+  shell: "echo TODO ..."
+
+rule clean:
+  shell: "rm -rf build.done dist *.egg-info"
+
+rule purge:
+  shell: "git clean -df"
+
+rule all:
+  input:
+    "build.done"
+  shell: "snakemake clean"
