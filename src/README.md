@@ -6,11 +6,7 @@ TBA
 TBA
 
 ### Interface preview
-You can test your `dsc2` installation by viewing its interface,
-
-```
-dsc -h
-```
+You can test your `dsc2` installation by viewing its interface via `dsc -h`:
 
 ```
   usage: dsc [-h] {execute,show} ...
@@ -27,9 +23,7 @@ dsc -h
   
 ```
 
-```
-dsc execute -h
-```
+and `dsc execute -h`:
 
 ```
   usage: dsc execute [-h] -c CONFIG_FILE [-v {0,1}]

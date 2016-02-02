@@ -15,7 +15,7 @@ This minimal example shows comparison of location parameter estimation methods. 
   └── settings.yaml
 ```
 
-Contents of R scripts are minimal
+Contents of R scripts are:
 
 ```
   ==> ../src/unit-tests/dsc-interface/test1/R/scores/MSE.R <==
@@ -38,7 +38,7 @@ Contents of R scripts are minimal
   
 ```
 
-And the `settings.yaml`
+And the dsc configuration file  `settings.yaml`:
 
 ```
   scenario:
@@ -79,10 +79,10 @@ dsc execute -c settings.yaml
   MESSAGE: Compute scores ...
 ```
 
-3 files will be produced in the process:
+3 files are be produced in the process:
 
 ```
   simple_method.h5  simple_scenario.h5  simple_score.h5
 ```
 
-To view contents of these files, (TBA) ...
+Contents of these files can be examined via `dsc show` or visualized via `dsc viz` ... (TBA) ...

@@ -1,6 +1,6 @@
 # DSC2
 
-Successor of `dscr`, the [Dynamic Statistical Comparisons in R]
+Successor of the [Dynamic Statistical Comparisons in R]
 (https://github.com/stephens999/dscr/)
 
 # Acknowledgment
