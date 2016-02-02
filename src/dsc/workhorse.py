@@ -19,7 +19,7 @@ env = Environment()
 class DSCController(dict):
     def __init__(self, config_file, debug = False):
         self.config_file = config_file
-        self.no_expand = ['_return']
+        self.no_expand = ['return']
         self.required_sections = ['scenario', 'method', 'score', 'runtime']
         self.output = None
         self.debug = debug
@@ -29,12 +29,12 @@ class DSCController(dict):
         jobs = self.__PrepareJobs(self['scenario'])
         res = {}
         for job in jobs:
-            lan = self.__WhichLanguage(job['_exe'])
+            lan = self.__WhichLanguage(job['exe'])
             job_str = 'S_' + hashlib.md5(str(job).encode()).hexdigest()
             res[job_str] = {}
             if lan == 'r':
                 R = self.__RunR(job)
-                for out in self['scenario']['_return']:
+                for out in self['scenario']['return']:
                     res[job_str][out] = R.get("{}".format(out))
         if self.debug:
             print(res)
@@ -48,10 +48,10 @@ class DSCController(dict):
         jobs = self.__PrepareJobs(self['method'])
         res = {}
         for job in jobs:
-            lan = self.__WhichLanguage(job['_exe'])
+            lan = self.__WhichLanguage(job['exe'])
             # FIXME: method using direct input name now
             # This may not work if method differ by input parameters
-            method = os.path.splitext(os.path.split(job['_exe'])[-1])[0]
+            method = os.path.splitext(os.path.split(job['exe'])[-1])[0]
             if method not in res:
                 res[method] = {}
             # swap data back
@@ -64,7 +64,7 @@ class DSCController(dict):
             res[method][scenario] = {}
             if lan == 'r':
                 R = self.__RunR(job)
-                for out in self['method']['_return']:
+                for out in self['method']['return']:
                     res[method][scenario][out] = R.get("{}".format(out))
         if self.debug:
             print(res)
@@ -84,7 +84,7 @@ class DSCController(dict):
         jobs = self.__PrepareJobs(self['score'])
         res = {}
         for job in jobs:
-            lan = self.__WhichLanguage(job['_exe'])
+            lan = self.__WhichLanguage(job['exe'])
             # method name will use direct input name
             # FIXME: should have one score function
             method = job[method_key]
@@ -100,7 +100,7 @@ class DSCController(dict):
             res[method][scenario] = {}
             if lan == 'r':
                 R = self.__RunR(job)
-                for out in self['score']['_return']:
+                for out in self['score']['return']:
                     res[method][scenario][out] = R.get("{}".format(out))
         if self.debug:
             print(res)
@@ -123,7 +123,7 @@ class DSCController(dict):
             if kw1 not in cfg:
                 env.error('Missing required section "{}" from [{}]'.format(kw1, self.config_file),
                           exit = True)
-            for kw2 in ['_exe', '_return']:
+            for kw2 in ['exe', 'return']:
                 if kw2 not in cfg[kw1].keys() and kw1 != 'runtime':
                     env.error('Missing required entry "{}" in section "{}" from [{}]'.\
                               format(kw2, kw1, self.config_file), exit = True)
@@ -181,7 +181,7 @@ class DSCController(dict):
         R = RClass()
         init = []
         for key in job:
-            if key == '_exe':
+            if key == 'exe':
                 continue
             if key == 'seed':
                 init.append('set.seed({})'.format(job['seed']))
@@ -189,7 +189,7 @@ class DSCController(dict):
                 job[key] = str2num(job[key])
                 init.append('{} = {}'.format(key, Str4R(job[key])))
         init.append('\n')
-        with open(job['_exe']) as f:
+        with open(job['exe']) as f:
             codes = f.read()
         if self.debug:
             print ('\n'.join(init) + codes)

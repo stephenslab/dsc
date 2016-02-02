@@ -1,0 +1,38 @@
+###
+# Example: location parameter estimate
+###
+#! DSC setup
+# This minimal example shows comparison of location parameter estimation methods. Below is a list of contents involved:
+#{out
+├── R
+│   ├── methods
+│   │   ├── mean.R
+│   │   └── median.R
+│   ├── scenarios
+│   │   ├── rnorm.R
+│   │   └── rt.R
+│   └── scores
+│       └── MSE.R
+└── settings.yaml
+#}
+# Contents of R scripts are minimal
+#{out
+output:///find ../src/unit-tests/dsc-interface/test1/R/ -type f -exec tail -n+1 {} +
+#}
+# And the @@settings.yaml@@
+#{text settings.yaml
+output:///cat ../src/unit-tests/dsc-interface/test1/settings.yaml
+#}
+# A basic configuration file should have 4 sections: `scenario`, `method`, `score`, and `runtime`. The first 3 sections ""require"" two ""reserved"" parameters: `exe` and `return`. In addition to these keywords one need to specify the parameters involved in running the benchmarking commands. All parameters in the `runtime` section are reserved.
+#! Run DSC
+dsc execute -c settings.yaml
+#{out
+MESSAGE: Setup scenarios ...
+MESSAGE: Apply methods ...
+MESSAGE: Compute scores ...
+#}
+# 3 files will be produced in the process:
+#{out
+simple_method.h5  simple_scenario.h5  simple_score.h5
+#}
+# To view contents of these files, (TBA) ...

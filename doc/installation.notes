@@ -1,0 +1,17 @@
+###
+# Installation
+###
+#! Binary releases
+# TBA
+#! Source compile
+# TBA
+#! Interface preview
+# You can test your @@dsc2@@ installation by viewing its interface,
+dsc -h
+#{out
+output:///dsc -h
+#}
+dsc execute -h
+#{out
+output:///dsc execute -h
+#}

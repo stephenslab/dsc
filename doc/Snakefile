@@ -1,0 +1,43 @@
+configfile: "config.yaml"
+
+rule index:
+  input:
+    "sidebar.notes", "TODO.notes"
+  output:
+    "README.md",
+    "wiki/sidebar.txt"
+  shell:
+    '''
+    cat {input[0]} {input[1]} > /tmp/{input[0]};
+    {config[md]} /tmp/{input[0]} -o {output[0]};
+    sed 's/\.\./\./g' {input[0]} > /tmp/{input[0]};
+    {config[wk]} /tmp/{input[0]} -o {output[1]} --compact_toc
+    '''
+
+rule installation:
+  input:
+    "installation.notes"
+  output:
+    "../src/README.md",
+    "wiki/src.txt"
+  shell:
+    '''
+    {config[md]} {input[0]} -o {output[0]};
+    {config[wk]} {input[0]} -o {output[1]} --compact_toc
+    '''
+rule interface_test1:
+  input:
+    "interface-test1.notes"
+  output:
+    "../src/unit-tests/dsc-interface/test1/README.md",
+    "wiki/src/unit-tests/dsc-interface/test1.txt"
+  shell:
+    '''
+    {config[md]} {input[0]} -o {output[0]};
+    {config[wk]} {input[0]} -o {output[1]} --compact_toc
+    '''
+
+rule all:
+  input:
+    rules.index.output, rules.installation.output,
+    rules.interface_test1.output
