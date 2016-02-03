@@ -25,12 +25,13 @@ rule installation:
     {config[md]} {input[0]} -o {output[0]};
     {config[wk]} {input[0]} -o {output[1]} --compact_toc
     '''
-rule interface_test1:
+
+rule vignettes_one_sample:
   input:
-    "interface-test1.notes"
+    "vignettes-one-sample.notes"
   output:
-    "../src/unit-tests/dsc-interface/test1/README.md",
-    "wiki/src/unit-tests/dsc-interface/test1.txt"
+    "../vignettes/one_sample_location/README.md",
+    "wiki/vignettes/one-sample-location.txt"
   shell:
     '''
     {config[md]} {input[0]} -o {output[0]};
@@ -40,4 +41,4 @@ rule interface_test1:
 rule all:
   input:
     rules.index.output, rules.installation.output,
-    rules.interface_test1.output
+    rules.vignettes_one_sample.output

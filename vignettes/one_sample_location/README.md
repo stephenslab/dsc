@@ -1,6 +1,6 @@
 ## Example: Location Parameter Estimate
 ### DSC setup
-This minimal example shows comparison of location parameter estimation methods. Below is a list of contents involved:
+This minimal example shows comparison of location parameter estimation methods. It is a re-implementation of a [DSCR example](https://github.com/stephens999/dscr/blob/master/vignettes/one_sample_location.rmd) in DSC2 framework. Below is a list of contents involved:
 
 ```
   ├── R
@@ -18,23 +18,23 @@ This minimal example shows comparison of location parameter estimation methods. 
 Contents of R scripts are:
 
 ```
-  ==> ../src/unit-tests/dsc-interface/test1/R/scores/MSE.R <==
+  ==> ../vignettes/one_sample_location/R/methods/mean.R <==
+  mean = mean(x)
+  
+  
+  ==> ../vignettes/one_sample_location/R/methods/median.R <==
+  mean = median(x)
+  
+  ==> ../vignettes/one_sample_location/R/scores/MSE.R <==
   mse = (mean_est-true_mean)^2
   
-  ==> ../src/unit-tests/dsc-interface/test1/R/scenarios/rnorm.R <==
-  # produces n random numbers from normal with specified mean
-  x=rnorm(n,mean=mean)
-  
-  ==> ../src/unit-tests/dsc-interface/test1/R/scenarios/rt.R <==
+  ==> ../vignettes/one_sample_location/R/scenarios/rt.R <==
   # produces n random numbers from t with df=2 and  with specified mean
   x=mean+rt(n,df=2)
   
-  ==> ../src/unit-tests/dsc-interface/test1/R/methods/median.R <==
-  mean = median(x)
-  
-  ==> ../src/unit-tests/dsc-interface/test1/R/methods/mean.R <==
-  mean = mean(x)
-  
+  ==> ../vignettes/one_sample_location/R/scenarios/rnorm.R <==
+  # produces n random numbers from normal with specified mean
+  x=rnorm(n,mean=mean)
   
 ```
 
