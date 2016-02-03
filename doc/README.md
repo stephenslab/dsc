@@ -1,6 +1,6 @@
-*  **Documentation((./))**
- *  Installation((../src))
-*  **Examples((../src/unit-tests/dsc-interface))**
+*  [Documentation](./)
+ *  [Installation](../src)
+*  [Examples](../src/unit-tests/dsc-interface)
 
 ## TODO
 *  Make fake dsc configs for Matthew (dsc_shrink), Mengyin, Wei and Ben's existing dsc routines

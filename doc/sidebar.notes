@@ -1,5 +1,5 @@
 #{list
-# **[Documentation|./]**
-## [Installation|../src]
-# **[Examples|../src/unit-tests/dsc-interface]**
+# **[Documentation|@./@]**
+## [Installation|@../src@]
+# **[Examples|@../src/unit-tests/dsc-interface@]**
 #}
