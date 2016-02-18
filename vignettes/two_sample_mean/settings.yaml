@@ -1,0 +1,31 @@
+scenario:
+  exe: rnorm.R, rt.R
+  seed: R(1:5)
+  params:
+    n1: 1000
+    n2: 1000
+    mean1: 0, 0
+    mean2: 0, 1
+    __logic__: Pairwise(seed, n1, n2, mean1, mean2)
+  return: data
+
+method:
+  exe: qnorm.R, ttest.R
+  __logic__: exe[2], exe[1] + exe[2]
+  params:
+    x: %scenario$x
+    y: %scenario$y
+    exe[1]:
+        __map__: x = x, x = y
+  return: output
+
+score:
+  exe: score.R
+  params:
+    data: %scenario
+    output: %method
+  return: result
+
+runtime:
+  exe_path: .
+  output: two_sample_mean

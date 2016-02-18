@@ -15,17 +15,16 @@ method:
     exe: runash.R
     params:
         args: %scenario.data
-    return: data
+    return: output
 
 score:
     exe: score.R
     params:
-        beta_true: %scenario.data$meta$beta
-        beta_est: %method.data
-    return: score
+        beta_true: %scenario$meta$beta
+        beta_est: %method
+    return: result
 
 runtime:
     R_libs: ashr
-    R_src: lib
     exe_path: bin
     output: ash

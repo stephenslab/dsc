@@ -1,9 +1,9 @@
 scenario:
   exe: rnorm.R, rt.R
+  seed: R(1:5)
   params:
     n: 1000
     mean: 0, 1
-    seed: 1, 2, 3, 4, 5
   return: x, mean
 
 method:
