@@ -20,3 +20,4 @@
 *  Go parallel
 *  Polishing up
  *  YAML parser look for duplicate entries and keyword conflicts
+*  Possibly a web server that will help greatly in boosting its popularity (Nan)?

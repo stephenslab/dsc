@@ -1,0 +1,18 @@
+###
+#! DSC2 syntax
+###
+###
+# DSC specifications
+###
+# scenario, method, score
+###
+# Keywords
+###
+# exe, seed, return, params, __map__
+###
+# Functions
+###
+#! Executable functions
+# R(), Python(), Shell()
+#! Parser functions
+# Prefix(), Suffix(), RList()
