@@ -1,0 +1,55 @@
+scenario:
+    exe: datamaker.R
+    seed: R(1:50), R(1:5)
+    return: data
+    params:
+        path: R(gsub("[[:space:]]", "", readChar(%(fileName), file.info(%(fileName))$size)))
+        tissue: Adipose-Subcutaneous, R(c("Adipose-Subcutaneous","Lung"))
+        Nsamp: 2, 10, 50
+        Ngene: 10000
+        voom.normalize: TRUE
+        breaksample: FALSE, TRUE
+        nullpi: 0.9
+        poisthin: TRUE
+        __map__: RList(args)
+        __logic__: Product(seed[1], path, tissue, Nsamp, Ngene, voom.normalize, breaksample),
+                   Product(seed[2], path, tissue[2], Nsamp, Ngene, voom.normalize, breaksample[2], nullpi),
+                   Product(seed[2], path, tissue[1], Nsamp, Ngene, voom.normalize, breaksample[1], poisthin)
+
+method:
+    exe: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
+    return: data
+    params:
+        input: %scenario.data
+        transform: voom, RUVvoom, SVAvoom, quasibinom, RUV+quasibinom, SVA+quasibinom, Myrna+quasibinom, edgeRglm
+        __map__: RList(args, -input)
+        exe[1]:
+            __logic__: NULL
+        exe[2]:
+            exacttest: TRUE, FALSE
+            RUV: FALSE, FALSE, TRUE
+            SVA: FALSE, TRUE, FALSE
+            __logic__: exacttest[1],
+                       Product(exacttest[2], Pairwise(RUV, SVA))
+        exe[3]:
+            robust: FALSE, TRUE
+            __logic__: Product(transform[1], robust), Product(transform[2,3], robust[1])
+        exe[4]:
+            __logic__: transform[1:6]
+        exe[5]:
+            singlecomp: TRUE
+
+score:
+    exe: score.R
+    return: res
+    params:
+        data: %scenario.data
+        output: %method.data
+
+runtime:
+    R_libs: ashr, DESeq2, qvalue, mixash, vash, limma, edgeR, RUVSeq, sva, data.table, DESeq
+    R_src: lib
+    exe_path: bin
+    output: vash
+    variables:
+        fileName: data_path.txt

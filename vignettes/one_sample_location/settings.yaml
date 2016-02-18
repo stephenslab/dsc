@@ -1,25 +1,24 @@
 scenario:
-  exe: [R/scenarios/rnorm.R, R/scenarios/rt.R]
+  exe: rnorm.R, rt.R
   params:
     n: 1000
-    mean: [0, 1]
-    seed: [1, 2, 3, 4, 5]
-  return: [x, mean]
+    mean: 0, 1
+    seed: 1, 2, 3, 4, 5
+  return: x, mean
 
 method:
-  exe: [R/methods/mean.R, R/methods/median.R]
+  exe: mean.R, median.R
   params:
     x: %scenario.x
   return: mean
 
 score:
-  exe: R/scores/MSE.R
+  exe: MSE.R
   params:
     mean_est: %method.mean
     true_mean: %scenario.mean
   return: mse
 
 runtime:
-  lib_path:
-  bin_path:
-  output: simple
+  exe_path: R/scenarios, R/methods, R/scores
+  output: one_sample_location

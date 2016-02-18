@@ -4,15 +4,15 @@
 ###
 # DSC specifications
 ###
-# scenario, method, score
+# scenario, method, score, runtime
 ###
 # Keywords
 ###
-# exe, seed, return, params, __map__
+# exe, seed, return, params, __map__, __logic__
 ###
 # Functions
 ###
 #! Executable functions
 # R(), Python(), Shell()
 #! Parser functions
-# Prefix(), Suffix(), RList()
+# %(), RList(), Product(), Pairwise()
