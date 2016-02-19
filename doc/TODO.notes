@@ -9,7 +9,7 @@
 # Move R interaction to rpy2 and properly source R scripts
 # Implement these fake dsc configs and refactor codes
 ## Use the idea of action classes applied to data
-## Modulize these action classes 
+## Modulize these action classes
 ## Separate Scenario, Method and Replicate (seed) and keep md5 for each of them
 # Release binary program (with Nan)
 # Start writing formal documentations
@@ -20,4 +20,9 @@
 # Polishing up
 ## YAML parser look for duplicate entries and keyword conflicts
 # Possibly a web server that will help greatly in boosting its popularity (Nan)?
+#}
+#! Feature requests
+#{list
+# Possible to execute only one of the 3 DSC sections
+# Possible to do something on the fly
 #}

@@ -3,21 +3,11 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os
 
 rule help:
   shell: "snakemake -l"
 
-rule utils:
-  output: "dsc/pyper.py", "dsc/utils.py"
-  run:
-    for item in output:
-        shell('wget -O {0} https://raw.githubusercontent.com/gaow/utils/master/{1}'.\
-              format(item, os.path.split(item)[-1]))
-
 rule install:
-  input:
-    rules.utils.output
   output:
     touch("build.done")
   shell: "python setup.py install"

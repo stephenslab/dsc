@@ -53,7 +53,6 @@ score:
 runtime:
     R_libs: mvtnorm, ape, MASS, Matrix,
             lfa (https://github.com/StoreyLab/lfa)
-    R_src: lib
     exe_path: bin
     variables:
         data_functions: mvngenotypes, discrete.cosine, discrete.cosine2, discrete.cosine.peaksel
