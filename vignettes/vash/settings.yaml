@@ -2,7 +2,7 @@ scenario:
     exe: datamaker.R
     seed: R(1:50), R(1:5)
     params:
-        path: R(gsub("[[:space:]]", "", readChar(%(fileName), file.info(%(fileName))$size)))
+        path: R(gsub("[[:space:]]", "", readChar($(fileName), file.info($(fileName))$size)))
         tissue: Adipose-Subcutaneous, R(c("Adipose-Subcutaneous","Lung"))
         Nsamp: 2, 10, 50
         Ngene: 10000
@@ -19,7 +19,7 @@ scenario:
 method:
     exe: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
     params:
-        input: %scenario.data
+        input: $scenario.data
         transform: voom, RUVvoom, SVAvoom, quasibinom, RUV+quasibinom, SVA+quasibinom, Myrna+quasibinom, edgeRglm
         __map__: RList(args, -input)
         exe[1]:
@@ -42,8 +42,8 @@ method:
 score:
     exe: score.R
     params:
-        data: %scenario
-        output: %method
+        data: $scenario
+        output: $method
     return: result
 
 runtime:

@@ -13,8 +13,8 @@ method:
   exe: qnorm.R, ttest.R
   __logic__: exe[2], exe[1] + exe[2]
   params:
-    x: %scenario$x
-    y: %scenario$y
+    x: $scenario$x
+    y: $scenario$y
     exe[1]:
         __map__: x = x, x = y
   return: output
@@ -22,8 +22,8 @@ method:
 score:
   exe: score.R
   params:
-    data: %scenario
-    output: %method
+    data: $scenario
+    output: $method
   return: result
 
 runtime:

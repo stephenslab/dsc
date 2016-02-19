@@ -78,9 +78,9 @@ class Jobs:
     def execute(self):
         pass
 
-class Updater:
+class JobFilter:
     '''
-    Updater checks jobs against archive and determine what to execute
+    Checks jobs against archive and determine what to execute
     '''
     def __init__(self):
         pass
@@ -88,15 +88,16 @@ class Updater:
     def __str__(self):
         reture None
 
-class Controller:
+class DSC:
     '''
-    DSC controller
+    The DSC object
 
-    Read DSC (configuration) file and perform DSC
+    Input is DSC settings; DSC object contains all information necessary to
+    run DSC
     '''
     def __init__(self, fname, nodes, threads, verbosity):
         self.job_inits = DSCFile(fname)
-        self.job_updates = Updater(self.job_inits)
+        self.job_updates = JobFilter(self.job_inits)
         self.raw_jobs = [Job(item) for item in self.job_updates]
         self.jobs = Jobs(self.raw_jobs)
 

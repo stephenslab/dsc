@@ -1,5 +1,5 @@
 scenario:
-    exe: Product(datamaker.R, %(data_functions))
+    exe: Product(datamaker.R, $(data_functions))
     seed: R(1:2), R((1:3) * 100)
     return: data
     params:
@@ -29,7 +29,7 @@ scenario:
                        n.samples.per.dim, x.scale, y.scale, sel.scale, sel.pos, sel.var, spread, geno[1])
 
 method:
-    exe: Product(method.R, %(method_functions))
+    exe: Product(method.R, $(method_functions))
     return: data
     params:
         __map__: RList(args)
@@ -47,8 +47,8 @@ score:
     return: res
     params:
         N: 100
-        data: %scenario.data
-        output: %method.data
+        data: $scenario
+        output: $method
 
 runtime:
     R_libs: mvtnorm, ape, MASS, Matrix,

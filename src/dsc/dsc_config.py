@@ -4,7 +4,12 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-class DSCFile(dict):
+import sys, yaml
+from dsc_actions import DSCFileLoader, DSCEntryFormatter, DSCScenarioSetup, \
+     DSCMethodSetup, DSCScoreSetup
+from io import StringIO
+
+class DSCData(dict):
     '''
     Read DSC configuration file and translate it to a list of job initializers
 
@@ -18,4 +23,18 @@ class DSCFile(dict):
       * Output a list of parameter dictionaries each will initialize a job
     '''
     def __init__(self, fname):
-        pass
+        self.actions = [DSCFileLoader(),
+                        DSCEntryFormatter(),
+                        DSCScenarioSetup(),
+                        DSCMethodSetup(),
+                        DSCScoreSetup()]
+        self.file_name = fname
+        for a in self.actions:
+            a.apply(self)
+
+    def __str__(self):
+        out = StringIO()
+        yaml.dump(dict(self), out, default_flow_style=False)
+        res = out.getvalue()
+        out.close()
+        return res

@@ -14,14 +14,14 @@ scenario:
 method:
     exe: runash.R
     params:
-        args: %scenario.data
+        args: $scenario
     return: output
 
 score:
     exe: score.R
     params:
-        beta_true: %scenario$meta$beta
-        beta_est: %method
+        beta_true: $scenario$meta$beta
+        beta_est: $method
     return: result
 
 runtime:

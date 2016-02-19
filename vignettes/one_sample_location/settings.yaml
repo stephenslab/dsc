@@ -9,14 +9,14 @@ scenario:
 method:
   exe: mean.R, median.R
   params:
-    x: %scenario.x
+    x: $scenario.x
   return: mean
 
 score:
   exe: MSE.R
   params:
-    mean_est: %method.mean
-    true_mean: %scenario.mean
+    mean_est: $method.mean
+    true_mean: $scenario.mean
   return: mse
 
 runtime:
