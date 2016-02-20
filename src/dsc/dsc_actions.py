@@ -4,9 +4,9 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import sys, yaml, re
+import sys, yaml, re, subprocess, ast
 import rpy2.robjects as RO
-from utils import env, lower_keys, CheckRLibraries
+from utils import env, lower_keys, CheckRLibraries, is_null, str2num
 
 class DSCFileAction:
     '''
@@ -31,6 +31,69 @@ class DSCEntryAction:
 
     def apply(self, value):
         return value
+
+    def split(self, value):
+        if not isinstance(value, str):
+            return value
+        counts = {'(': 0,
+                  ')': 0,
+                  '[': 0,
+                  ']': 0,
+                  '{': 0,
+                  '}': 0}
+        res = []
+        token = ''
+        for item in list(value):
+            if item != ',':
+                token += item
+                if item in counts.keys():
+                    counts[item] += 1
+            else:
+                if counts['('] != counts[')'] or \
+                  counts['['] != counts[']'] or \
+                  counts['{'] != counts['}']:
+                    # comma is inside some parenthesis
+                    token += item
+                else:
+                    # comma is outside any parenthesis, time to split
+                    res.append(token.strip())
+                    token = ''
+        res.append(token.strip())
+        return res
+
+    def formatVar(self, var):
+        '''
+        Properly format variables
+
+          * For string var will add quotes to it: str -> "str"
+          * For tuple / list will make it into a string like "[item1, item2 ...]"
+        '''
+        var = self.split(var)
+        if isinstance(var, (list, tuple)):
+            if len(var) == 1:
+                return '''"{0}"'''.format(var[0])
+            else:
+                return '[{}]'.format(', '.join(list(map(str, var))))
+        else:
+            return var
+
+    def decodeStr(self, var):
+        '''
+        Try to properly decode str to other data type
+        '''
+        if not isinstance(var, str):
+            return var
+        # Try to convert to number
+        var = str2num(var)
+        # null type
+        if is_null(var):
+            return None
+        if isinstance(var, str):
+            # see if str can be converted to a list
+            if (var.startswith('(') and var.endswith(')')) or \
+               (var.startswith('[') and var.endswith(']')):
+               var = [str2num(x.strip()) for x in re.sub(r'^\(|^\[|\)$|\]$', "", var).split(',')]
+        return var
 
 class DSCSetupAction:
     '''
@@ -93,17 +156,16 @@ class DSCEntryFormatter(DSCFileAction):
     '''
     def __init__(self):
         DSCFileAction.__init__(self)
-        self.global_vars = None
         self.r_libs = None
 
     def apply(self, data):
-        if 'variables' in data['runtime']:
-            self.global_vars = data['runtime']['r_libs']
         if 'r_libs' in data['runtime']:
             self.r_libs = data['runtime']['r_libs']
             CheckRLibraries(self.r_libs)
         self.actions = [Str2List(),
-                        ExpandVars(),
+                        ExpandVars(data['runtime']['variables']
+                                   if 'variables' in data['runtime']
+                                   else None),
                         ExpandCodes(),
                         CastData()]
         data = self.__Transform(data)
@@ -112,9 +174,10 @@ class DSCEntryFormatter(DSCFileAction):
         for key, value in cfg.items():
             if isinstance(value, dict):
                 self.__Transform(value)
-            for a in self.actions:
-                value = a.apply(value)
-            cfg[key] = value
+            else:
+                for a in self.actions:
+                    value = a.apply(value)
+                cfg[key] = value
         return cfg
 
 class Str2List(DSCEntryAction):
@@ -130,51 +193,79 @@ class Str2List(DSCEntryAction):
             # This does not work for nested parenthesis
             # return [x.strip() for x in self.regex.findall(value)]
             # Have to do it the hard way ...
-            return self.__split(value)
+            return self.split(value)
         else:
             if not isinstance(value, (dict, list, tuple)):
                 return [value]
             else:
                 return value
 
-    def __split(self, value):
-        counts = {'(': 0,
-                  ')': 0,
-                  '[': 0,
-                  ']': 0,
-                  '{': 0,
-                  '}': 0}
-        res = []
-        token = ''
-        for item in list(value):
-            if item != ',':
-                token += item
-                if item in counts.keys():
-                    counts[item] += 1
-            else:
-                if counts['('] != counts[')'] or \
-                  counts['['] != counts[']'] or \
-                  counts['{'] != counts['}']:
-                    # comma is inside some parenthesis
-                    token += item
-                else:
-                    # comma is outside any parenthesis, time to split
-                    res.append(token.strip())
-                    token = ''
-        res.append(token.strip())
-        return res
 
 class ExpandVars(DSCEntryAction):
-    def __init__(self):
+    '''
+    Replace DSC variable place holder with actual value
+
+    e.g. $(filename) -> "text.txt"
+    '''
+    def __init__(self, global_var):
         DSCEntryAction.__init__(self)
+        self.global_var = global_var
+
+    def apply(self, value):
+        if self.global_var is None:
+            return value
+        pattern = re.compile(r'\$\((.*?)\)')
+        for idx, item in enumerate(value):
+            if isinstance(item, str):
+                for m in re.finditer(pattern, item):
+                    item = item.replace(m.group(0), self.formatVar(self.global_var[m.group(1)]))
+                value[idx] = item
+        return value
 
 class ExpandCodes(DSCEntryAction):
+    '''
+    Run code entries and get values.
+
+    Code entries are R(), Python() and Shell()
+    '''
     def __init__(self):
         DSCEntryAction.__init__(self)
+        self.method = {
+            'R': self.__R,
+            'Python': self.__Python,
+            'Shell': self.__Shell
+            }
+
+    def apply(self, value):
+        for idx, item in enumerate(value):
+            if isinstance(item, str):
+                for name in list(self.method.keys()):
+                    pattern = re.compile(r'^{}\((.*?)\)$'.format(name))
+                    for m in re.finditer(pattern, item):
+                        item = item.replace(m.group(0), self.formatVar(self.method[name](m.group(1))))
+                value[idx] = item
+        return value
+
+    def __R(self, code):
+        return tuple(RO.r(code))
+
+    def __Python(self, code):
+        return eval(code)
+
+    def __Shell(self, code):
+        return subprocess.check_output(code, shell = True).decode('utf8').strip()
 
 class CastData(DSCEntryAction):
     def __init__(self):
         DSCEntryAction.__init__(self)
+
+    def apply(self, value):
+        for idx, item in enumerate(value):
+            value[idx] = self.decodeStr(item)
+        if len(value) == 1:
+            return value[0]
+        else:
+            return value
 
 class DSCScenarioSetup(DSCSetupAction):
     def __init__(self):

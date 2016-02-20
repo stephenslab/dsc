@@ -12,7 +12,7 @@ scenario:
         x.scale: 1
         sel.strength: 0, 1, 5, 10
         sel.scale: 0, 1, 5, 10, 20
-        sel.angle: R(seq(0,pi/2, length.out=5))
+        sel.angle: R(seq(0,pi/2,length.out=5))
         spread: 0.1, 0.2, 1
         sel.pos: 0, 0,25
         sel.var: 0.01
@@ -54,6 +54,7 @@ runtime:
     R_libs: mvtnorm, ape, MASS, Matrix,
             lfa (https://github.com/StoreyLab/lfa)
     exe_path: bin
+    output: outlier
     variables:
         data_functions: mvngenotypes, discrete.cosine, discrete.cosine2, discrete.cosine.peaksel
         method_functions: duforet.rho1, duforet.rho2, duforet.h, duforet.hprime, lfa, fst, gwish, gwish.tree,

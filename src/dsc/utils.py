@@ -271,14 +271,45 @@ env = RuntimeEnvironments()
 # create a default logger without logging to file
 env.logger = None
 
-def lower_keys(x):
+def lower_keys(x, level_start = 0, level_end = 2):
+    level_start += 1
+    if level_start > level_end:
+        return x
     if isinstance(x, list):
-        return [lower_keys(v) for v in x]
+        return [lower_keys(v, level_start, level_end) for v in x]
     elif isinstance(x, dict):
-        return dict((k.lower(), lower_keys(v)) for k, v in x.items())
+        return dict((k.lower(), lower_keys(v, level_start, level_end)) for k, v in x.items())
     else:
         return x
 
 class CheckRLibraries:
     def __init__(self, target):
         pass
+
+def is_null(var):
+    if var is None:
+        return True
+    if type(var) is str:
+        if var.lower() in ['na','nan','null','none']:
+            return True
+    return False
+
+def str2num(var):
+    if type(var) is str:
+        # try to warn about boolean
+        if var in ['T', 'F'] or var.lower() in ['true', 'false']:
+            bmap = {'t': 1, 'true': 1, 'f': 0, 'false': 0}
+            msg = 'Possible Boolean variable detected: "{}". \n\
+            This variable will be treated as string, not Boolean data. \n\
+            It may cause problems to your jobs. \n\
+            Please set this variable to {} if it is indeed Boolean data.'.format(var, bmap[var.lower()])
+            env.logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
+        try:
+            return int(var)
+        except ValueError:
+            try:
+                return float(var)
+            except ValueError:
+                return re.sub(r'''^"|^'|"$|'$''', "", var)
+    else:
+        return var

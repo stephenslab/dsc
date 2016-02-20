@@ -20,7 +20,7 @@ class DSCData(dict):
       * Translate DSC file text
         * Replace R() / Python() / Shell() actions
         * Replace global variables
-      * Output a list of parameter dictionaries each will initialize a job
+      * Expand all settings to a list of parameter dictionaries each will initialize a job
     '''
     def __init__(self, fname):
         self.actions = [DSCFileLoader(),
