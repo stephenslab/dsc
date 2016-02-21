@@ -6,7 +6,6 @@ scenario:
     n2: 1000
     mean1: 0
     mean2: 0, 1
-    __logic__: Product(seed, n1, n2, mean1, mean2)
   return: data
 
 method:

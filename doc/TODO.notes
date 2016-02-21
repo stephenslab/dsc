@@ -26,3 +26,7 @@
 # Possible to execute only one of the 3 DSC sections
 # Possible to do something on the fly
 #}
+#! Sanity check reminders
+#{list
+# Check if command input variables has reserved keywords $scenario, $method
+#}

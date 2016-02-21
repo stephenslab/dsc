@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import sys, os, random, tempfile, logging, copy, re
+import sys, os, random, tempfile, logging, copy, re, itertools
 
 class RuntimeEnvironments(object):
     # the following make RuntimeEnvironments a singleton class
@@ -313,3 +313,41 @@ def str2num(var):
                 return re.sub(r'''^"|^'|"$|'$''', "", var)
     else:
         return var
+
+def cartesian_dict(value):
+    return [dict(zip(value, x)) for x in itertools.product(*value.values())]
+
+def cartesian_list(*args):
+    return list(itertools.product(*args))
+
+def pairwise_list(*args):
+    return list(itertools.product(*args))
+
+def flatten_list(lst):
+    return sum( ([x] if not isinstance(x, list) else flatten_list(x) for x in lst), [] )
+
+def get_slice(value):
+    '''
+    Input string is R index style: 1-based, end position inclusive slicing
+    Output index will convert it to Python convention
+    exe[1,2,4] ==> (exe, (0,1,3))
+    exe[1] ==> (exe, (0))
+    exe[1:4] ==> (exe, (0,1,2,3))
+    exe[1:9:2] ==> (exe, (0,2,4,6,8))
+    '''
+    try:
+        slicearg = re.search('\[(.*?)\]', value).group(1)
+    except:
+        raise ValueError('Cannot obtain slice from input string {}'.format(value))
+    name = value.split('[')[0]
+    if ',' in slicearg:
+        return name, tuple(int(n.strip()) - 1 for n in slicearg.split(',') if n.strip())
+    elif ':' in slicearg:
+        slice_ints = [ int(n) for n in slicearg.split(':') ]
+        if len(slice_ints) == 1:
+            raise ValueError('Wrong syntax for slice {}.'.format(value))
+        slice_ints[1] += 1
+        slice_obj = slice(*tuple(slice_ints))
+        return name, tuple(x - 1 for x in range(slice_obj.start or 0, slice_obj.stop or -1, slice_obj.step or 1))
+    else:
+        return name, int(slicearg.strip()) - 1

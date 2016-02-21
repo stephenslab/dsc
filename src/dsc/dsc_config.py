@@ -13,6 +13,8 @@ class DSCData(dict):
     '''
     Read DSC configuration file and translate it to a list of job initializers
 
+    This class reflects the design and implementation of DSC user interface
+
     Tasks here include:
       * Properly parse YAML
       * Setup runtime environment
