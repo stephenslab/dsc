@@ -321,7 +321,9 @@ def cartesian_list(*args):
     return list(itertools.product(*args))
 
 def pairwise_list(*args):
-    return list(itertools.product(*args))
+    if len(set(len(x) for x in args)) > 1:
+        raise ValueError("Cannot perform pairwise operation because input vectors are not of equal lengths.")
+    return list(map(tuple, zip(*args)))
 
 def flatten_list(lst):
     return sum( ([x] if not isinstance(x, list) else flatten_list(x) for x in lst), [] )

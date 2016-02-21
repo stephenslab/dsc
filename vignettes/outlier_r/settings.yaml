@@ -16,7 +16,7 @@ scenario:
         spread: 0.1, 0.2, 1
         sel.pos: 0, 0,25
         sel.var: 0.01
-        __map__: RList(args)
+        __alias__: RList(args)
         exe[1]:
             __logic__: Product(seed[1], n.samples, n.neutral.snps[1], n.selected.snps[1], geno[1])
         exe[2]:
@@ -32,7 +32,7 @@ method:
     exe: Product(method.R, $(method_functions))
     return: data
     params:
-        __map__: RList(args)
+        __alias__: RList(args)
         exe[3]:
             K: 2, 5
         exe[4]:

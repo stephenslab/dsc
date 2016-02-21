@@ -8,7 +8,7 @@ scenario:
         max_pi0: 1
         nsamp: 1000
         betahatsd: 1
-        __map__: RList(args)
+        __alias__: RList(args)
     return: data
 
 method:

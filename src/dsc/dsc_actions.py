@@ -106,7 +106,7 @@ class DSCSetupAction(DSCEntryAction):
 
     In addition to simply expand attributes, this will take care of all
     (remaining) DSC jargon, including:
-      * __map__ related operations
+      * __alias__ related operations
         * RList()
         * "=" operator
       * __logic__ related operations
@@ -124,7 +124,7 @@ class DSCSetupAction(DSCEntryAction):
         if not self.name in dsc:
             return
         self.expand_exe(dsc)
-        # self.expand_param()
+        self.expand_param(dsc)
         # clean up data
         for key in list(dsc[self.name].keys()):
             if not dsc[self.name][key]:
@@ -156,31 +156,20 @@ class DSCSetupAction(DSCEntryAction):
             new_exe = []
             for item in dsc[self.name]['rules']['meta']:
                 item = [get_slice(x.strip()) for x in item.split('+')]
-                tmp_exe = []
-                for x in item:
-                    tmp_exe.append(dsc[self.name]['meta'][x[0]][x[1]])
+                tmp_exe = tuple(dsc[self.name]['meta'][x[0]][x[1]] for x in item)
                 new_exe.append(tmp_exe if len(tmp_exe) > 1 else tmp_exe[0])
             dsc[self.name]['meta']['exe'] = new_exe
             del dsc[self.name]['rules']['meta']
 
 
-    # def expand_param(self):
-    #     '''
-    #     Rule to expand parameters.
+    def expand_param(self, dsc):
+        '''
+        Rule to expand parameters.
 
-    #     Situations to resolve:
-    #       * Common / unique params to executables
-    #       * Rules to expand
-    #     '''
-    #     tmp = {}
-    #     if 'params' in data:
-    #         tmp.update(data['params'])
-    #     tmp['exe'] = data['exe']
-    #     if 'seed' in data:
-    #         tmp['seed'] = data['seed']
-    #     return cartesian_dict(tmp)
-
-    def use_map(self, data, rule = None):
+        Situations to resolve:
+          * Common / unique params to executables
+          * Rules to expand
+        '''
         pass
 
 class DSCFileLoader(DSCFileAction):
@@ -192,7 +181,7 @@ class DSCFileLoader(DSCFileAction):
         # Keywords
         self.kw1 = ['scenario', 'method', 'score', 'runtime']
         self.kw2 = ['exe', 'return', 'params', 'seed']
-        self.kw3 = ['__logic__', '__map__']
+        self.kw3 = ['__logic__', '__alias__']
 
     def apply(self, data):
         env.logger.debug("Loading configurations from [{}].".format(data.file_name))
@@ -222,16 +211,16 @@ class DSCFileLoader(DSCFileAction):
                     raise RuntimeError('Missing required entry "exe" in section "{}"'.format(kw1))
                 if not has_return:
                     raise RuntimeError('Missing required entry "return" in section "{}"'.format(kw1))
-                data[kw1] = self.__extract_section(data[kw1])
+                data[kw1] = self.__format_section(data[kw1])
             else:
                 if 'output' not in data[kw1]:
                     raise RuntimeError('Missing required entry "output" in section "runtime".')
             # change key name
             data[self.kw1.index(kw1) + 1] = data.pop(kw1)
 
-    def __extract_section(self, section_data):
+    def __format_section(self, section_data):
         '''
-        Extract section data to meta / params etc for easier manipulation
+        Format section data to meta / params etc for easier manipulation
 
           * meta: will contain exe information
           * params:
@@ -273,9 +262,9 @@ class DSCFileLoader(DSCFileAction):
                 if '__logic__' in params[key]:
                     rules[key] = params[key]['__logic__']
                     del params[key]['__logic__']
-                if '__map__' in params[key]:
-                    params_alias[key] = params[key]['__map__']
-                    del params[key]['__map__']
+                if '__alias__' in params[key]:
+                    params_alias[key] = params[key]['__alias__']
+                    del params[key]['__alias__']
                 if not params[key]:
                     del params[key]
         res = {'meta': meta, 'return': section_data['return']}
@@ -299,10 +288,13 @@ class DSCEntryFormatter(DSCFileAction):
         if 'r_libs' in data[4]:
             self.r_libs = data[4]['r_libs']
             CheckRLibraries(self.r_libs)
+        if 'variables' in data[4]:
+            variables = data[4]['variables']
+            del data[4]['variables']
+        else:
+            variables = None
         self.actions = [Str2List(),
-                        ExpandVars(data[4]['variables']
-                                   if 'variables' in data[4]
-                                   else None),
+                        ExpandVars(variables),
                         ExpandCodes(),
                         CastData()]
         data = self.__Transform(data)
@@ -396,12 +388,14 @@ class CastData(DSCEntryAction):
         DSCEntryAction.__init__(self)
 
     def apply(self, value):
+        # Recode strings
         for idx, item in enumerate(value):
             value[idx] = self.decodeStr(item)
+        # Properly convert lists and tuples
         if len(value) == 1 and isinstance(value[0], (list, tuple)):
-            return value[0]
+            return list(value[0])
         else:
-            return value
+            return [tuple(x) if isinstance(x, list) else x for x in value]
 
 class DSCScenarioSetup(DSCSetupAction):
     def __init__(self):

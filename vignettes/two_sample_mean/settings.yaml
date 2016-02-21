@@ -15,7 +15,7 @@ method:
     x: $scenario$x
     y: $scenario$y
     exe[1]:
-        __map__: x = x, x = y
+        __alias__: x = x, x = y
   return: output
 
 score:

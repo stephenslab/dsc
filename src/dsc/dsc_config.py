@@ -39,4 +39,5 @@ class DSCData(dict):
         yaml.dump(dict(self), out, default_flow_style=False)
         res = out.getvalue()
         out.close()
+        res = res.replace('!!python/tuple', '(tuple)')
         return res
