@@ -7,7 +7,7 @@ __license__ = "MIT"
 import sys, yaml
 from dsc_actions import DSCFileLoader, DSCEntryFormatter, DSCScenarioSetup, \
      DSCMethodSetup, DSCScoreSetup
-from io import StringIO
+from utils import dict2str
 
 class DSCData(dict):
     '''
@@ -35,9 +35,4 @@ class DSCData(dict):
             a.apply(self)
 
     def __str__(self):
-        out = StringIO()
-        yaml.dump(dict(self), out, default_flow_style=False)
-        res = out.getvalue()
-        out.close()
-        res = res.replace('!!python/tuple', '(tuple)')
-        return res
+        return dict2str(dict(self), replace = [('!!python/tuple', '(tuple)')])

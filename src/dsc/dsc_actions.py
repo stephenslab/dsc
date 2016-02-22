@@ -7,7 +7,8 @@ __license__ = "MIT"
 import sys, yaml, re, subprocess, ast
 import rpy2.robjects as RO
 from utils import env, lower_keys, CheckRLibraries, is_null, str2num, \
-     cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list
+     cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list, \
+     try_get_value, dict2str
 
 class DSCFileAction:
     '''
@@ -119,12 +120,14 @@ class DSCSetupAction(DSCEntryAction):
     def __init__(self):
         DSCEntryAction.__init__(self)
         self.name = ''
+        self.data = []
 
     def apply(self, dsc):
         if not self.name in dsc:
             return
         self.expand_exe(dsc)
         self.expand_param(dsc)
+        self.apply_exe_rules(dsc)
         # clean up data
         for key in list(dsc[self.name].keys()):
             if not dsc[self.name][key]:
@@ -150,6 +153,31 @@ class DSCSetupAction(DSCEntryAction):
                     value = pairwise_list(*value)
                 dsc[self.name]['meta']['exe'][idx] = value
         dsc[self.name]['meta']['exe'] = flatten_list(dsc[self.name]['meta']['exe'])
+        max_exe = sorted(dsc[self.name]['params'].keys())[-1]
+        if max_exe > len(dsc[self.name]['meta']['exe']):
+            raise ValueError('Index for exe out of range: exe[{}].'.format(max_exe))
+
+    def expand_param(self, dsc):
+        '''
+        Rule to expand parameters.
+
+        Situations to resolve:
+          * Match common / unique params to executables
+          * Rules to expand
+        '''
+        if 'params' not in dsc[self.name]:
+            # just exe and possibly seed
+            self.__expand_param_entry(dsc[self.name]['meta']['exe'],
+                                      param = None,
+                                      seed = try_get_value(dsc[self.name], ('meta', 'seed')),
+                                      rule = try_get_value(dsc[self.name], ('rule', 0)))
+        for key in list(dsc[self.name]['params'].keys()):
+            self.__expand_param_entry(dsc[self.name]['meta']['exe'] if key == 0 else dsc[self.name]['meta']['exe'][key - 1],
+                                      param = dsc[self.name]['params'][key],
+                                      seed = try_get_value(dsc[self.name], ('meta', 'seed')),
+                                      rule = try_get_value(dsc[self.name], ('rule', key)))
+
+    def apply_exe_rules(self, dsc):
         # apply rules
         if 'rules' in dsc[self.name] and 'meta' in dsc[self.name]['rules']:
             # there are exe related rules
@@ -161,16 +189,15 @@ class DSCSetupAction(DSCEntryAction):
             dsc[self.name]['meta']['exe'] = new_exe
             del dsc[self.name]['rules']['meta']
 
-
-    def expand_param(self, dsc):
+    def __expand_param_entry(self, exe, param, seed, rule):
         '''
-        Rule to expand parameters.
-
-        Situations to resolve:
-          * Common / unique params to executables
-          * Rules to expand
+        Expand parameter entries
         '''
-        pass
+        res = None
+        self.data.append(res)
+
+    def __str__(self):
+        return dict2str(self.data)
 
 class DSCFileLoader(DSCFileAction):
     '''
@@ -252,8 +279,6 @@ class DSCFileLoader(DSCFileAction):
                         raise ValueError('Invalid entry: exe[0]. Index must start from 1.')
                     if idx in params:
                         raise ValueError('Duplicate entry: {}.'.format(key))
-                    if idx > len(meta['exe']):
-                        raise ValueError('Index for exe out of range: {}.'.format(key))
                     params[idx] = value
                 except AttributeError:
                     params[0][key] = value

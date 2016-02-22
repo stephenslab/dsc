@@ -4,7 +4,9 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import sys, os, random, tempfile, logging, copy, re, itertools
+import sys, os, random, tempfile, logging, copy, re, itertools,\
+  yaml
+from io import StringIO
 
 class RuntimeEnvironments(object):
     # the following make RuntimeEnvironments a singleton class
@@ -353,3 +355,27 @@ def get_slice(value):
         return name, tuple(x - 1 for x in range(slice_obj.start or 0, slice_obj.stop or -1, slice_obj.step or 1))
     else:
         return name, int(slicearg.strip()) - 1
+
+def try_get_value(value, keys):
+    '''
+    Input: dict_data, (key1, key2, key3 ...)
+    Output: dict_data[key1][key2][key3][...] or None
+    '''
+    if not isinstance(keys, (list, tuple)):
+        keys = [keys]
+    try:
+        if len(keys) == 0:
+            return value
+        else:
+            return try_get_value(value[keys[0]], keys[1:])
+    except KeyError:
+        return None
+
+def dict2str(value, replace = []):
+    out = StringIO()
+    yaml.dump(value, out, default_flow_style=False)
+    res = out.getvalue()
+    out.close()
+    for item in replace:
+        res = res.replace(item[0], item[1])
+    return res
