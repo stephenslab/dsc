@@ -52,7 +52,7 @@ score:
 
 runtime:
     R_libs: mvtnorm, ape, MASS, Matrix,
-            lfa (https://github.com/StoreyLab/lfa)
+            github/StoreyLab/lfa
     exe_path: bin
     output: outlier
     variables:
