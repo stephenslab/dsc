@@ -1,6 +1,7 @@
 configfile: "config.yaml"
 import glob
 from collections import OrderedDict
+from subprocess import check_output
 
 def get_docs():
     res = []
@@ -30,7 +31,6 @@ rule docs:
         shell('{cmd} {input} -o {output}/-'.format(cmd = config['md'],
                                                    input = item,
                                                    output = wiki_path))
-
 rule sidebar:
   input: get_docs()
   output: touch("sidebar.done")
@@ -44,9 +44,11 @@ rule sidebar:
         ])
     res = {}
     for item in input:
+        # Global navigator
         section = item.split('-')[0]
         if section not in res:
             res[section] = []
+            shell('rm -f {}/{}/_Sidebar.md'.format(config['dir'], section))
         shell('{cmd} {input} -o .tmp.md'.format(cmd = config['md'],
                                                  input = item))
         with open('.tmp.md') as f:
@@ -55,13 +57,34 @@ rule sidebar:
             except IndexError:
                 print(item)
                 raise
-        res[section].append('* [[{}|{}]]'.format(title, get_filename(title)))
+        filename = get_filename(title)
+        res[section].append('* [[{}|{}]]'.format(title, filename))
+        # local TOC
+        filepath = '{}/{}/{}.md'.format(config['dir'], section, filename)
+        local_res = []
+        cmd = 'python markdown_toclify.py {} --github'.format(filepath)
+        for line in check_output(cmd, shell = True).decode('utf8').strip().split('\n'):
+            line = line.rstrip()
+            if not line:
+                break
+            if line == '# Table of Contents':
+                line = '**{}**'.format(title)
+            line = line.replace('#', filename + '#')
+            local_res.append(line)
+        if len(local_res) > 1:
+            with open('{}/{}/_Sidebar.md'.format(config['dir'], section), 'a') as f:
+                for line in local_res:
+                    f.write(line + '\n')
+                f.write('\n')
     with open(config['dir'] + '/_Sidebar.md', 'w') as f:
         for key in TITLES.keys():
             if key in res:
                 f.write('\n**' + TITLES[key] + '**\n\n')
                 for item in res[key]:
                     f.write(item + '\n')
+    # Local TOC
+    for item in TITLES:
+        files = glob.glob('{}/{}/*.md')
 
 rule all:
   input: "home.done", "docs.done", "sidebar.done"

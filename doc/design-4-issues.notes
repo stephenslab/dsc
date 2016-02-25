@@ -1,6 +1,9 @@
 ###
 #! Pending Problems
 ###
+###
+# DSC interface design thoughts
+###
 #{list
 # Make fake dsc configs for Matthew (dsc_shrink), Mengyin, Wei and Ben's existing dsc routines
 ## e.g. introduce syntax such as method[1], method[2] / args[1], args[2]
@@ -11,25 +14,79 @@
 ## Use the idea of action classes applied to data
 ## Modulize these action classes
 ## Separate Scenario, Method and Replicate (seed) and keep md5 for each of them
+## Formalize the md5 lookup procedure
+#}
+#! Two design problems
+# Problems
+#{list
+# Methods sequence and methods dependency
+# ``On the fly'' mode
+#}
+# Solutions
+#{list
+# Introduce return parameters
+## Return parameters are also in global parameter space
+## If return param overlaps other param it means this param is to be altered not produced afterwards
+## Introduce syntax such as exe[1]$param in param section
+## In either of the above cases at least one of the exe involved cannot be executed by itself so some sanity checks on exe sequence are needed after the jobs are created. For example if some exe's params is exe[1]$xx then that exe cannot be used alone; other sections can only access global returns of previous sections
+# Introduce asis() for on the fly mode
+#}
+#! Other design thoughts
+#{list
+# MD5: check if is file for each input, and keep MD5 of those which are files / where they are produced. Numbers can be skipped.
+# What if a command generates the same file name? Need to introduce Prefix() syntax for such params so that they'll be expanded to proper FN in the format of SA?R?M?SO?
+# Job dependency now to store and how to search? Not sure yet. Maybe use that DAG class with ID being job ID in the format of SA?R?M?SO? (with 4 matching MD5) and whatever contents as contents in separate objects because that will not fit into the DAG class
+# When DSC files change SA?R?M?O? will not change for existing ones and just add additional such entries. Have to track each ? separately
+# Need a good mechanism to record and report possible bug for specific user case (that a user may have an issue with) so that bugs can be conveniently reported to me. Perhaps unit-test for this will follow the same line of thought?
+# Do not submit anything for cluster: jobs are splitted for users to run. Write lock is trick and will discuss with Bo on this.
+# When to use pre/post processor? Any ways to use processor in SA and M?
+## If output is simple or uniformly formatted for all methods
+## Is this possible? It has to be! Files are Ok if not data matrix etc but files have to be the same format for all exe in / out. Thus there is need to introduce pre/post processor exe
+## Output of scores, ideally stored in database, may not be necessarily the case: if they are in files as long as their file names are searchable SA?R?M?SO? we should be good
+## Searchable database? Want to use pytable + PrettyPrint
+# Results storage:
+## Parameters kept in a plan pytable, with MD5 for each set-up.
+## New entries are added as parameters change
+## files also have MD5 and are stored elsewhere (or just also within filename entry so that change in file MD5 will naturally result in change in param MD5?).
+## Return values be kept in 3 HDF5 files as previously designed
+# Incremental executation: if SA/R changes everything be rerun (a new scenario / entry anyways); if M changes rerun all related M & SO; if SO changes just rerun SO
+# How to force rerun?
+## Get various ? IDs inside database and use --force SA1 SA1R1 SA1R1M1 SA1R1MSO1 (so that all downstream will be re-analyzed) or blank for all
+# How to output results?
+## PrettyPrint for param DB, and a wrapper of ddls for results DB. wrapper because it has to dump data in both python and R formats ...
+# Documentation: a short course on dsc2, based on examples in vignettes
+# Example vignettes should be well written
+# Perhaps vash will be the first real field test?
+# Important detail to handle: interaction with R. Should be least painful (for users) and most efficient (for interfacing)
+#}
+###
+# DSC program release
+###
+#{list
 # Release binary program (with Nan)
 # Start writing formal documentations
 # Implement @@dsc view@@ for extracting data from results
-# Formalize the md5 lookup procedure
 ## for source codes, parameters, input and output
 # Go parallel
 # Polishing up
 ## YAML parser look for duplicate entries and keyword conflicts
 # Possibly a web server that will help greatly in boosting its popularity (Nan)?
 #}
-#! Feature requests
+###
+# Feature requests
+###
 #{list
-# Possible to execute only one of the 3 DSC sections
+# Possible to execute only subset DSC sections
 #}
-#! Sanity check reminders
+###
+# Sanity check reminders
+###
 #{list
 # Check if command input variables has reserved keywords $scenario, $method
 #}
-#! Examples
+###
+# Examples
+###
 #{list
 # Add an example of pre/post processor
 #}
