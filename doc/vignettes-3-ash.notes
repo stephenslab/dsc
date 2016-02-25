@@ -1,0 +1,7 @@
+###
+#! Adaptive Shrinkage
+###
+# DSC file @@settings.yaml@@:
+#{text settings.yaml
+output:///cat ../vignettes/ash/settings.yaml
+#}

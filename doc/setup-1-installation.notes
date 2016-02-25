@@ -1,11 +1,16 @@
 ###
-# Installation
+#! Download and installation
+###
+###
+# Package Installation
 ###
 #! Binary releases
 # TBA
 #! Source compile
 # TBA
-#! Interface preview
+###
+# Interface preview
+###
 # You can test your @@dsc2@@ installation by viewing its interface via `dsc -h`:
 #{out
 output:///dsc -h

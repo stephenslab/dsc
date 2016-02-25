@@ -1,5 +1,5 @@
 ###
-# Example: location parameter estimate
+#! Location Parameter Estimate
 ###
 #! DSC setup
 # This minimal example shows comparison of location parameter estimation methods. It is a re-implementation of a [DSCR example|@https://github.com/stephens999/dscr/blob/master/vignettes/one_sample_location.rmd@] in DSC2 framework. Below is a list of contents involved:

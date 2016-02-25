@@ -1,44 +1,70 @@
 configfile: "config.yaml"
+import glob
+from collections import OrderedDict
 
-rule index:
-  input:
-    "sidebar.notes", "TODO.notes"
-  output:
-    "README.md",
-    "wiki/sidebar.txt"
-  shell:
-    '''
-    cat <(sed 's/\*\*//g' {input[0]}) {input[1]} > /tmp/{input[0]};
-    {config[md]} /tmp/{input[0]} -o {output[0]};
-    sed 's/\.\./\./g' {input[0]} > /tmp/{input[0]};
-    {config[wk]} /tmp/{input[0]} -o {output[1]} --compact_toc
-    '''
+def get_docs():
+    res = []
+    for item in ['design', 'course', 'setup', 'interface', 'vignettes']:
+        files = list(glob.glob('{}-*'.format(item)))
+        files.sort(key = lambda x: x.split("-")[1])
+        res.extend(files)
+    return res
 
-rule installation:
-  input:
-    "installation.notes"
-  output:
-    "../src/README.md",
-    "wiki/src.txt"
-  shell:
-    '''
-    {config[md]} {input[0]} -o {output[0]};
-    {config[wk]} {input[0]} -o {output[1]} --compact_toc
-    '''
+def get_filename(string):
+    return string.replace(':', '').replace(' ', '-')
 
-rule vignettes_one_sample:
-  input:
-    "vignettes-one-sample.notes"
-  output:
-    "../vignettes/one_sample_location/README.md",
-    "wiki/vignettes/one-sample-location.txt"
-  shell:
-    '''
-    {config[md]} {input[0]} -o {output[0]};
-    {config[wk]} {input[0]} -o {output[1]} --compact_toc
-    '''
+rule home:
+  input: 'home.notes', 'footer.notes'
+  output: touch("home.done")
+  shell: '''
+  {config[md]} {input[0]} -o {config[dir]}/Home.md;
+  {config[md]} {input[1]} -o {config[dir]}/_Footer.md;
+  '''
+
+rule docs:
+  input: get_docs()
+  output: touch("docs.done")
+  run:
+    for item in input:
+        wiki_path = os.path.join(config['dir'], item.split('-')[0])
+        shell('{cmd} {input} -o {output}/-'.format(cmd = config['md'],
+                                                   input = item,
+                                                   output = wiki_path))
+
+rule sidebar:
+  input: get_docs()
+  output: touch("sidebar.done")
+  run:
+    TITLES = OrderedDict([
+        ('design', 'Design & Syntax'),
+        ('course', 'Short Course'),
+        ('interface', 'Command Interface'),
+        ('setup', 'Setup Guide'),
+        ('vignettes', 'Examples')
+        ])
+    res = {}
+    for item in input:
+        section = item.split('-')[0]
+        if section not in res:
+            res[section] = []
+        shell('{cmd} {input} -o .tmp.md'.format(cmd = config['md'],
+                                                 input = item))
+        with open('.tmp.md') as f:
+            try:
+                title = f.readlines()[0].replace('#', '').strip()
+            except IndexError:
+                print(item)
+                raise
+        res[section].append('* [[{}|{}]]'.format(title, get_filename(title)))
+    with open(config['dir'] + '/_Sidebar.md', 'w') as f:
+        for key in TITLES.keys():
+            if key in res:
+                f.write('\n**' + TITLES[key] + '**\n\n')
+                for item in res[key]:
+                    f.write(item + '\n')
 
 rule all:
-  input:
-    rules.index.output, rules.installation.output,
-    rules.vignettes_one_sample.output
+  input: "home.done", "docs.done", "sidebar.done"
+
+rule clean:
+  shell: "rm *.done"

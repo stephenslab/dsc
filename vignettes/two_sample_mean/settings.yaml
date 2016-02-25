@@ -16,9 +16,7 @@ method:
     y: $scenario$y
     exe[1]:
         __alias__: x = x, x = y
-  return:
-    output
-    exe[1]: x
+  return: output
 
 score:
   exe: score.R

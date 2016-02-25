@@ -1,0 +1,20 @@
+###
+#! Features of DSC2
+###
+###
+# Overview
+###
+# A basic DSC consists a sequence of 3 elements: a ""scenario"", a ""method"" and a ""score"", where
+#{list
+# ""scenario"": specifies input data source and / or computational routines that generate input data for DSC.
+# ""method"": specifies statistical procedures that analyzes input data.
+# ""score"": specifies methods that evaluates the result of data analysis against the ``truth'' (model from which the data is generated) and calculates scores as measures of evaluations.
+#}
+# In practice DSC allows for flexible combination of methods, as illustrated in the DSC pipeline below:
+#{out
+            | -> method 1 ->                      |
+scenario -> | -> method 2 -> method 1             | -> score
+            | -> method 3 -> method 2 -> method 1 |
+            | -> method 4 -> ...                  |
+#}
+# Major features of DSC (TBA)

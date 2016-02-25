@@ -1,2 +1,3 @@
 md: tigernotes markdown
-wk: tigernotes dokuwiki --showall
+pdf: tigernotes doc --showall
+dir: dsc2.wiki

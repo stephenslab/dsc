@@ -1,23 +1,6 @@
-*  [Documentation](./)
- *  [Installation](../src)
-*  [Examples](../vignettes/one_sample_location)
+# DSC2
 
-## TODO
-*  Make fake dsc configs for Matthew (dsc_shrink), Mengyin, Wei and Ben's existing dsc routines
- *  e.g. introduce syntax such as method[1], method[2] / args[1], args[2]
- *  Allow for pair-wise combination in addition to Cartesian product
- *  Allow for variable name mapping
-*  Move R interaction to rpy2 and properly source R scripts
-*  Implement these fake dsc configs and refactor codes
- *  Use the idea of action classes applied to data
- *  Modulize these action classes
- *  Separate Scenario, Method and Replicate (seed) and keep md5 for each of them
-*  Release binary program (with Nan)
-*  Start writing formal documentations
-*  Implement `dsc view` for extracting data from results
-*  Formalize the md5 lookup procedure
- *  for source codes, parameters, input and output
-*  Go parallel
-*  Polishing up
- *  YAML parser look for duplicate entries and keyword conflicts
-*  Possibly a web server that will help greatly in boosting its popularity (Nan)?
+Successor of the [Dynamic Statistical Comparisons in R]
+(https://github.com/stephens999/dscr/)
+
+Project wiki page: https://github.com/stephenslab/dsc2/wiki

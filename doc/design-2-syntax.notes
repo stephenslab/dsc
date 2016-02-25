@@ -1,0 +1,50 @@
+###
+#! DSC2 syntax
+###
+###
+# Overview
+###
+# DSC2 is configured by a text file in [YAML format|@http://yaml.org@] (referred to as "DSC file" hereafter). A DSC file consists of 4 sections: [3 DSC building blocks|@Features-of-DSC2#Overview@], plus a ""runtime"" section which specifies various other parameters in a DSC run (for example required R libraries, path to executable folders, DSC global variables and output database names).
+# Lines in a DSC file are "DSC entries", separated by comma (``,''), to allow for a range of parameters be assigned to the same computer program so that DSC can be performed under various scenarios for many methods.
+# You may glance over these DSC files to have an idea of DSC2 syntax. More details can be found in the rest of this document.
+#{list
+# [Location parameter estimate|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location/settings.yaml@]
+# [Location parameter copmarison|@https://github.com/stephenslab/dsc2/tree/master/vignettes/two_sample_mean/settings.yaml@]
+# [Adaptive Shrinkage|@https://github.com/stephenslab/dsc2/tree/master/vignettes/ash/settings.yaml@]
+# [Adaptive Shrinkage on variance|@https://github.com/stephenslab/dsc2/tree/master/vignettes/vash/settings.yaml@]
+# [Outlier detection from population data|@https://github.com/stephenslab/dsc2/tree/master/vignettes/outlier_r/settings.yaml@]
+#}
+###
+# DSC parameters
+###
+#! Primary parameters
+#!! exe
+# @@exe@@ specifies the name of executable computer programs as well as their parameters
+#!! seed
+#!! return
+#!! params
+#! Auxiliary parameters
+#!! __logic__
+#!! __alias__
+###
+# DSC operators
+###
+#! Executable functions
+#!! R(), Python(), Shell()
+#!! asis()
+#! Parser functions
+#!! RList()
+#!! Product()
+#!! Pairwise()
+###
+# DSC variables
+###
+#! Section variables
+#!! $scenario, $method
+#! Runtime variables
+#{list
+# @@exe_path@@
+# @@R_libs@@
+# @@output@@
+# @@variables@@
+#}

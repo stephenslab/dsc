@@ -1,0 +1,7 @@
+###
+#! Location Parameter Comparison
+###
+# DSC file @@settings.yaml@@:
+#{text settings.yaml
+output:///cat ../vignettes/two_sample_mean/settings.yaml
+#}
