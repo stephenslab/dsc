@@ -46,9 +46,10 @@ rule sidebar:
     for item in input:
         # Global navigator
         section = item.split('-')[0]
+        sidebar = '{}/{}/_Sidebar.md'.format(config['dir'], section)
         if section not in res:
             res[section] = []
-            shell('rm -f {}/{}/_Sidebar.md'.format(config['dir'], section))
+            shell('echo -e "**[Wiki Home](https://github.com/stephenslab/dsc2/wiki)**\n" > {}'.format(sidebar))
         shell('{cmd} {input} -o .tmp.md'.format(cmd = config['md'],
                                                  input = item))
         with open('.tmp.md') as f:
@@ -72,7 +73,7 @@ rule sidebar:
             line = line.replace('#', filename + '#')
             local_res.append(line)
         if len(local_res) > 1:
-            with open('{}/{}/_Sidebar.md'.format(config['dir'], section), 'a') as f:
+            with open(sidebar, 'a') as f:
                 for line in local_res:
                     f.write(line + '\n')
                 f.write('\n')
@@ -82,9 +83,6 @@ rule sidebar:
                 f.write('\n**' + TITLES[key] + '**\n\n')
                 for item in res[key]:
                     f.write(item + '\n')
-    # Local TOC
-    for item in TITLES:
-        files = glob.glob('{}/{}/*.md')
 
 rule all:
   input: "home.done", "docs.done", "sidebar.done"

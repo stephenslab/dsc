@@ -1,4 +1,5 @@
-scenario:
+simulate:
+    level: 1
     exe: datamaker.R
     seed: R(1:2)
     params:
@@ -11,20 +12,25 @@ scenario:
         __alias__: RList(args)
     return: data
 
-method:
+shrink:
+    level: 2
     exe: runash.R
     params:
-        args: $scenario
+        args: {.}
     return: output
 
-score:
+RMSE:
     exe: score.R
     params:
-        beta_true: $scenario$meta$beta
-        beta_est: $method
+        beta_true: {1}$meta$beta
+        beta_est: {2}
     return: result
 
-runtime:
-    R_libs: github/stephens999/ashr
-    exe_path: bin
-    output: ash
+DSC:
+    scenario: simulate
+    method: shrink
+    score: RMSE
+    runtime:
+        R_libs: github/stephens999/ashr
+        exe_path: bin
+        output: ash

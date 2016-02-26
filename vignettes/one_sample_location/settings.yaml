@@ -1,24 +1,30 @@
-scenario:
-  exe: rnorm.R, rt.R
-  seed: R(1:5)
-  params:
-    n: 1000
-    mean: 0, 1
-  return: x, mean
+simulate:
+    level: 1
+    exe: rnorm.R, rt.R
+    seed: R(1:5)
+    params:
+        n: 1000
+        mean: 0, 1
+    return: x, mean
 
-method:
-  exe: mean.R, median.R
-  params:
-    x: $scenario.x
-  return: mean
+estimate:
+    level: 2
+    exe: mean.R, median.R
+    params:
+        x: {.}$x
+    return: mean
 
-score:
-  exe: MSE.R
-  params:
-    mean_est: $method.mean
-    true_mean: $scenario.mean
-  return: mse
+mse:
+    exe: MSE.R
+    params:
+        mean_est: {2}$mean
+        true_mean: {1}$mean
+    return: mse
 
-runtime:
-  exe_path: R/scenarios, R/methods, R/scores
-  output: one_sample_location
+DSC:
+    scenario: simulate
+    method: estimate
+    score: mse
+    runtime:
+        exe_path: R/scenarios, R/methods, R/scores
+        output: one_sample_location

@@ -5,7 +5,7 @@
 # DSC interface design thoughts
 ###
 #{list
-# Make fake dsc configs for Matthew (dsc_shrink), Mengyin, Wei and Ben's existing dsc routines
+# Make fake dsc configs for Matthew (dsc_shrink), Mengyin, Wei and Ben's existing dsc routines (""solved"")
 ## e.g. introduce syntax such as method[1], method[2] / args[1], args[2]
 ## Allow for pair-wise combination in addition to Cartesian product
 ## Allow for variable name mapping
@@ -31,7 +31,11 @@
 ## In either of the above cases at least one of the exe involved cannot be executed by itself so some sanity checks on exe sequence are needed after the jobs are created. For example if some exe's params is exe[1]$xx then that exe cannot be used alone; other sections can only access global returns of previous sections
 # Introduce asis() for on the fly mode
 #}
-#! Other design thoughts
+#! A more general design theme (solved)
+# A sequence of steps we want to run consists of a pipeline. Each step will take some input and create some output. The user has two jobs: define the steps, and define sequences of steps. These are logically distinct jobs, so when defining a step, you should not really have to know what pipeline it is a part of. [In practice this is an idealization, because there has to be some consistency of naming of objects as they pass through the pipeline…]
+# Once you have defined the steps (and have ids assigned to each step) then defining the pipelines seems to be relatively straightforward in principle: you can simply list all pipelines you want run. In practice you will want shortcuts to allow efficient specification of lots of pipelines. Boolean operator type of syntax should work for example @@(normal | t | uniform) + (mean | median) + (RMSE | MAE)@@.
+# logically, we should be separating out the definitions of the different types of steps here, and not putting them all under one yaml block.
+#! Some implementation thoughts
 #{list
 # MD5: check if is file for each input, and keep MD5 of those which are files / where they are produced. Numbers can be skipped.
 # What if a command generates the same file name? Need to introduce Prefix() syntax for such params so that they'll be expanded to proper FN in the format of SA?R?M?SO?

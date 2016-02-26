@@ -3,7 +3,7 @@ scenario:
     seed: R(1:50), R(1:5)
     params:
         path: R(gsub("[[:space:]]", "", readChar($(fileName), file.info($(fileName))$size)))
-        tissue: Adipose-Subcutaneous, (Adipose-Subcutaneous, Lung)
+        tissue: Adipose-Subcutaneous, R(c("Adipose-Subcutaneous","Lung"))
         Nsamp: 2, 10, 50
         Ngene: 10000
         voom.normalize: TRUE

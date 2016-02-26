@@ -1,30 +1,40 @@
-scenario:
-  exe: rnorm.R, rt.R
-  seed: R(1:5)
-  params:
-    n1: 1000
-    n2: 1000
-    mean1: 0
-    mean2: 0, 1
-  return: data
+simulate:
+    level: 1
+    exe: rnorm.R, rt.R
+    seed: R(1:5)
+    params:
+        n1: 1000
+        n2: 1000
+        mean1: 0
+        mean2: 0, 1
+    return: data
 
-method:
-  exe: qnorm.R, ttest.R
-  __logic__: exe[2], exe[1] + exe[2]
-  params:
-    x: $scenario$x
-    y: $scenario$y
-    exe[1]:
-        __alias__: x = x, x = y
-  return: output
+transform:
+    level: 2
+    exe: qnorm.R
+    params:
+        data: {.}
+    return: data
 
-score:
-  exe: score.R
-  params:
-    data: $scenario
-    output: $method
-  return: result
+test:
+    level: 2
+    exe: ttest.R
+    params:
+        x: {.}$x
+        y: {.}$y
+    return: output
 
-runtime:
-  exe_path: .
-  output: two_sample_mean
+mse:
+    exe: score.R
+    params:
+        data: {1}
+        output: {2}
+    return: result
+
+DSC:
+    scenario: simulate
+    method: transform + test, test
+    score: mse
+    runtime:
+        exe_path: .
+        output: two_sample_mean
