@@ -1,0 +1,37 @@
+simulate:
+    level: 1
+    exe: rt.R, rcauchy.R
+    seed: R(1:5)
+    params:
+        n: 1000
+        loc: 0, 1
+    return: x, loc
+
+transform:
+    level: 2
+    exe: qnorm.R
+    params:
+        x: {1}$x
+    return: x
+
+estimate:
+    level: 2
+    exe: mean.R median.R
+    params:
+        x: {.}$x
+    return: loc
+
+mse:
+    exe: MSE.R
+    params:
+        mean_est: {2}$loc
+        true_mean: {1}$loc
+    return: mse
+
+DSC:
+    scenario: simulate
+    method: transform + estimate, estimate
+    score: mse
+    runtime:
+        exe_path: .
+        output: one_sample_location

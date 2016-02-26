@@ -2,6 +2,6 @@
 #! Adaptive Shrinkage on Variance
 ###
 # DSC file @@settings.yaml@@:
-#{text settings.yaml
+#{out yaml
 output:///cat ../vignettes/vash/settings.yaml
 #}

@@ -60,7 +60,7 @@ TF_positive:
         output: {2}
 
 DSC:
-    scenario: simulate_1 & simulation_2
+    scenario: simulate_1, simulation_2
     method: outlier_test
     score: TF_positive
     runtime:

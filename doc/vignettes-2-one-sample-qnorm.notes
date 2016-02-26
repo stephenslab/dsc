@@ -1,0 +1,7 @@
+###
+#! Location Estimate II
+###
+# DSC file @@settings.yaml@@:
+#{out yaml
+output:///cat ../vignettes/one_sample_location_qnorm/settings.yaml
+#}
