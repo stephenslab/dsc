@@ -29,7 +29,7 @@ correction:
     level: 2
     exe: voom.R, quasibinom.R
     params:
-        data: {1}$data
+        data: $1$data
         __alias__: RList(args)
     return: data
 
@@ -37,7 +37,7 @@ transform:
     level: 3
     exe: SVA.R, RUV.R, myrna.R, edgeRglm.R, DESeq2glm.R
     params:
-        data: {.}$data
+        data: $*$data
         __alias__: RList(args)
     return: data
 
@@ -45,7 +45,7 @@ test:
     level: 4
     exe: edgeR.R, DESeq2.R, ash.R, jointash.R, limma.R
     params:
-        data: {.}$data
+        data: $*$data
         __alias__: RList(args)
         exe[1,2]:
             glm: TRUE, FALSE
@@ -56,8 +56,8 @@ test:
 score:
     exe: score.R
     params:
-        data: {1}
-        output: {4}
+        data: $1
+        output: $4
     return: result
 
 DSC:

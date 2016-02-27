@@ -11,21 +11,21 @@ transform:
     level: 2
     exe: qnorm.R
     params:
-        x: {1}$x
+        x: $1$x
     return: x
 
 estimate:
     level: 2
     exe: mean.R median.R
     params:
-        x: {.}$x
+        x: $*$x
     return: loc
 
 mse:
     exe: MSE.R
     params:
-        mean_est: {2}$loc
-        true_mean: {1}$loc
+        mean_est: $2$loc
+        true_mean: $1$loc
     return: mse
 
 DSC:
