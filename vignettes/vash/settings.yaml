@@ -1,6 +1,7 @@
-scenario:
+simulate:
+    level: 1
     exe: datamaker.R
-    seed: R(1:50), R(1:5)
+    seed: R(1:50)
     params:
         path: R(gsub("[[:space:]]", "", readChar($(fileName), file.info($(fileName))$size)))
         tissue: Adipose-Subcutaneous, (Adipose-Subcutaneous, Lung)
@@ -8,51 +9,65 @@ scenario:
         Ngene: 10000
         voom.normalize: TRUE
         breaksample: FALSE, TRUE
-        nullpi: 0.9
-        poisthin: TRUE
-        __alias__: RList(args)
-        __logic__: Product(seed[1], path, tissue, Nsamp, Ngene, voom.normalize, breaksample),
-                   Product(seed[2], path, tissue[2], Nsamp, Ngene, voom.normalize, breaksample[2], nullpi),
-                   Product(seed[2], path, tissue[1], Nsamp, Ngene, voom.normalize, breaksample[1], poisthin)
     return: data
 
-method:
-    exe: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
+simulate_partial_null(simulate):
+    seed: R(1:5)
     params:
-        input: $scenario.data
-        transform: voom, RUVvoom, SVAvoom, quasibinom, RUV+quasibinom, SVA+quasibinom, Myrna+quasibinom, edgeRglm
-        __alias__: RList(args, transform)
-        exe[1]:
-            __logic__: NULL
-        exe[2]:
-            exacttest: TRUE, FALSE
-            RUV: FALSE, FALSE, TRUE
-            SVA: FALSE, TRUE, FALSE
-            __alias__: RList(args)
-            __logic__: exacttest[1],
-                       Product(exacttest[2], Pairwise(RUV, SVA))
-        exe[3]:
-            robust: FALSE, TRUE
-            __alias__: RList(args)
-            __logic__: Product(transform[1], robust), Product(transform[2,3], robust[1])
-        exe[4]:
-            __logic__: transform[1:6]
+        tissue: (Adipose-Subcutaneous, Lung)
+        breaksample: TRUE
+        nullpi: 0.9
+
+simulate_thinning(simulate):
+    seed: R(1:5)
+    params:
+        tissue: Adipose-Subcutaneous
+        breaksample: FALSE
+        poisthin: TRUE
+
+correction:
+    level: 2
+    exe: voom.R, quasibinom.R
+    params:
+        data: {1}$data
+        __alias__: RList(args)
+    return: data
+
+transform:
+    level: 3
+    exe: SVA.R, RUV.R, myrna.R, edgeRglm.R, DESeq2glm.R
+    params:
+        data: {.}$data
+        __alias__: RList(args)
+    return: data
+
+test:
+    level: 4
+    exe: edgeR.R, DESeq2.R, ash.R, jointash.R, limma.R
+    params:
+        data: {.}$data
+        __alias__: RList(args)
+        exe[1,2]:
+            glm: TRUE, FALSE
         exe[5]:
-            singlecomp: TRUE
-            __alias__: RList(args)
-    return: output
+            robust: TRUE, FALSE
+    return: data
 
 score:
     exe: score.R
     params:
-        data: $scenario
-        output: $method
+        data: {1}
+        output: {4}
     return: result
 
-runtime:
-    R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
-            edgeR, RUVSeq, sva, data.table, DESeq
-    exe_path: bin
-    output: vash
-    variables:
-        fileName: data_path.txt
+DSC:
+    run: (simulate, simulate_partial_null, simulate_thinning) +
+         (correction + transform[1:3] + test[1:4], correction[1] + transform[1:3] + test[5],
+         correction + transform[4:5] + test[3:4]) + score
+    runtime:
+        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
+                edgeR, RUVSeq, sva, data.table, DESeq
+        exe_path: bin
+        output: gtex_total
+        variables:
+            fileName: data_path.txt
