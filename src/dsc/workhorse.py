@@ -10,6 +10,8 @@ def execute(args):
     try:
         env.verbosity = args.verbosity
         dsc = DSC(args.dsc_file, nodes = args.nodes, threads = args.threads)
+        # Setup runtime environment here
+        ## Check availability of libraries / files / commands
         if args.nodes != 1:
             # Jobs are not executed. Rather a number of DSC job files in YAML format
             env.logger.info("Jobs saved for submission")

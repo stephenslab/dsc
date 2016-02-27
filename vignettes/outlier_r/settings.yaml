@@ -60,9 +60,9 @@ TF_positive:
         output: {2}
 
 DSC:
-    scenario: simulate_1, simulation_2
-    method: outlier_test
-    score: TF_positive
+    run: (simulate_1, simulation_2) +
+         outlier_test +
+         TF_positive
     runtime:
         R_libs: mvtnorm, ape, MASS, Matrix,
                 github/StoreyLab/lfa
@@ -70,5 +70,5 @@ DSC:
         output: outlier
         variables:
             data_functions: mvngenotypes, discrete.cosine, discrete.cosine2, discrete.cosine.peaksel
-            method_functions: duforet.rho1, duforet.rho2, duforet.h, duforet.hprime, lfa, fst, gwish, gwish.tree,
-                              bonhomme.tree, bonhomme, normal
+            method_functions: duforet.rho1, duforet.rho2, duforet.h, duforet.hprime, lfa, fst, gwish,
+                              gwish.tree, bonhomme.tree, bonhomme, normal

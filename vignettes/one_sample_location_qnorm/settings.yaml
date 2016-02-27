@@ -29,9 +29,9 @@ mse:
     return: mse
 
 DSC:
-    scenario: simulate
-    method: transform + estimate, estimate
-    score: mse
+    run: simulate +
+         (transform + estimate, estimate) +
+         mse
     runtime:
         exe_path: .
         output: one_sample_location

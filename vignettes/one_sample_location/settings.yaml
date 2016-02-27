@@ -22,9 +22,9 @@ mse:
     return: mse
 
 DSC:
-    scenario: simulate
-    method: estimate
-    score: mse
+    run: simulate +
+         estimate +
+         mse
     runtime:
         exe_path: R/scenarios, R/methods, R/scores
         output: one_sample_location

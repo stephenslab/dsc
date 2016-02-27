@@ -27,9 +27,9 @@ RMSE:
     return: result
 
 DSC:
-    scenario: simulate
-    method: shrink
-    score: RMSE
+    run: simulate +
+         shrink +
+         RMSE
     runtime:
         R_libs: github/stephens999/ashr
         exe_path: bin

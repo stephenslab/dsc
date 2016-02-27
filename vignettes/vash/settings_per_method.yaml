@@ -93,8 +93,8 @@ DSC:
            voom + (SVA, RUV, myrna, edgeRglm, DESeq2glm) + limma) +
          score
     runtime:
-        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
-                edgeR, RUVSeq, sva, data.table, DESeq
+        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue, mixash, github/mengyin/vash, limma,
+                bioc/edgeR, RUVSeq, sva, data.table, DESeq
         exe_path: bin
         output: gtex_total
         variables:

@@ -11,9 +11,9 @@ scenario:
         nullpi: 0.9
         poisthin: TRUE
         __alias__: RList(args)
-        __logic__: Product(seed[1], path, tissue, Nsamp, Ngene, voom.normalize, breaksample),
-                   Product(seed[2], path, tissue[2], Nsamp, Ngene, voom.normalize, breaksample[2], nullpi),
-                   Product(seed[2], path, tissue[1], Nsamp, Ngene, voom.normalize, breaksample[1], poisthin)
+        __logic__: (seed[1], path, tissue, Nsamp, Ngene, voom.normalize, breaksample),
+                   (seed[2], path, tissue[2], Nsamp, Ngene, voom.normalize, breaksample[2], nullpi),
+                   (seed[2], path, tissue[1], Nsamp, Ngene, voom.normalize, breaksample[1], poisthin)
     return: data
 
 method:
@@ -29,12 +29,11 @@ method:
             RUV: FALSE, FALSE, TRUE
             SVA: FALSE, TRUE, FALSE
             __alias__: RList(args)
-            __logic__: exacttest[1],
-                       Product(exacttest[2], Pairwise(RUV, SVA))
+            __logic__: exacttest[1], (exacttest[2], RUV + SVA)
         exe[3]:
             robust: FALSE, TRUE
             __alias__: RList(args)
-            __logic__: Product(transform[1], robust), Product(transform[2,3], robust[1])
+            __logic__: (transform[1], robust), (transform[2,3], robust[1])
         exe[4]:
             __logic__: transform[1:6]
         exe[5]:

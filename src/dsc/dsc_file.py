@@ -10,11 +10,11 @@ from utils import env, lower_keys, CheckRLibraries, is_null, str2num, \
      cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list, \
      try_get_value, dict2str
 
-class DSCFileAction:
+class DSCFileParser:
     '''
-    Base class for file actions
+    Base class for DSC file parsing operations
 
-    Apply to data = DSCFile()
+    Operators applied to DSC data object
     '''
     def __init__(self):
         pass
@@ -22,9 +22,9 @@ class DSCFileAction:
     def apply(self, data):
         pass
 
-class DSCEntryAction:
+class DSCEntryParser:
     '''
-    Base class for entry actions
+    Base class for entry parsing operations
 
     Apply to a DSC entry which is a string or a list
     '''
@@ -99,9 +99,9 @@ class DSCEntryAction:
                var = [str2num(x.strip()) for x in re.sub(r'^\(|^\[|\)$|\]$', "", var).split(',')]
         return var
 
-class DSCSetupAction(DSCEntryAction):
+class DSCBlockParser(DSCEntryParser):
     '''
-    Base class for DSC setup
+    Parser for DSC Block
 
     Apply to a DSC section to expand it to job initialization data
 
@@ -118,7 +118,7 @@ class DSCSetupAction(DSCEntryAction):
       * $ symbol
     '''
     def __init__(self):
-        DSCEntryAction.__init__(self)
+        DSCEntryParser.__init__(self)
         self.name = ''
         self.data = []
 
@@ -199,16 +199,16 @@ class DSCSetupAction(DSCEntryAction):
     def __str__(self):
         return dict2str(self.data)
 
-class DSCFileLoader(DSCFileAction):
+class DSCFileLoader(DSCFileParser):
     '''
-    Load DSC configuration file in YAML format and check for required entries
+    Load DSC configuration file in YAML format and perform initial sanity check
     '''
     def __init__(self):
-        DSCFileAction.__init__(self)
+        DSCFileParser.__init__(self)
         # Keywords
-        self.kw1 = ['scenario', 'method', 'score', 'runtime']
-        self.kw2 = ['exe', 'return', 'params', 'seed']
-        self.kw3 = ['__logic__', '__alias__']
+        self.reserved_kw = ['DSC']
+        self.prim_kw = ['level', 'exe', 'return', 'params', 'seed']
+        self.aux_kw = ['__logic__', '__alias__']
 
     def apply(self, data):
         env.logger.debug("Loading configurations from [{}].".format(data.file_name))
@@ -219,35 +219,39 @@ class DSCFileLoader(DSCFileAction):
                 cfg = None
         if not isinstance(cfg, dict):
             raise RuntimeError("DSC configuration [{}] not properly formatted!".format(data.file_name))
-        data.update(lower_keys(cfg))
+        # data.update(lower_keys(cfg))
+        data.update(cfg)
         # Check entries
-        for kw1 in list(self.kw1):
-            if kw1 not in data:
-                raise RuntimeError('Missing required section "{}" from [{}].'.format(kw1, data.file_name))
-            if kw1 != 'runtime':
+        has_dsc = False
+        for block in list(self.data):
+            if block == 'DSC':
+                has_dsc = True
+                # FIXME
+                # Check if run / runtime exist
+                # Check if output exist under runtime
+                # if 'output' not in data[kw1]:
+                    # raise RuntimeError('Missing required entry "output" in section "runtime".')
+                #raise RuntimeError('Missing required section "{}" from [{}].'.format(kw1, data.file_name))
+
+            else:
                 has_exe = has_return = False
-                for kw2 in list(data[kw1]):
-                    if kw2 not in self.kw2 + self.kw3:
-                        env.logger.warning('Ignore unknown entry "{}" in section "{}".'.format(kw2, kw1))
-                        del data[kw1][kw2]
-                    if kw2 == 'exe':
+                for key in list(data[block]):
+                    if key not in self.prim_kw:
+                        env.logger.warning('Ignore unknown entry "{}" in block "{}".'.format(key, block))
+                        del data[block][key]
+                    if key == 'exe':
                         has_exe = True
-                    if kw2 == 'return':
+                    if key == 'return':
                         has_return = True
                 if not has_exe:
                     raise RuntimeError('Missing required entry "exe" in section "{}"'.format(kw1))
                 if not has_return:
                     raise RuntimeError('Missing required entry "return" in section "{}"'.format(kw1))
-                data[kw1] = self.__format_section(data[kw1])
-            else:
-                if 'output' not in data[kw1]:
-                    raise RuntimeError('Missing required entry "output" in section "runtime".')
-            # change key name
-            data[self.kw1.index(kw1) + 1] = data.pop(kw1)
+                data[block] = self.__format_block(data[block])
 
-    def __format_section(self, section_data):
+    def __format_block(self, section_data):
         '''
-        Format section data to meta / params etc for easier manipulation
+        Format block data to meta / params etc for easier manipulation
 
           * meta: will contain exe information
           * params:
@@ -301,12 +305,12 @@ class DSCFileLoader(DSCFileAction):
             res['params_alias'] = params_alias
         return res
 
-class DSCEntryFormatter(DSCFileAction):
+class DSCEntryFormatter(DSCFileParser):
     '''
     Run format transformation to all DSC entries
     '''
     def __init__(self):
-        DSCFileAction.__init__(self)
+        DSCFileParser.__init__(self)
         self.r_libs = None
 
     def apply(self, data):
@@ -334,12 +338,12 @@ class DSCEntryFormatter(DSCFileAction):
                 cfg[key] = value
         return cfg
 
-class Str2List(DSCEntryAction):
+class Str2List(DSCEntryParser):
     '''
     Convert string to list via splitting by comma outside of parenthesis
     '''
     def __init__(self):
-        DSCEntryAction.__init__(self)
+        DSCEntryParser.__init__(self)
         self.regex = re.compile(r'(?:[^,(]|\([^)]*\))+')
 
     def apply(self, value):
@@ -354,14 +358,14 @@ class Str2List(DSCEntryAction):
             else:
                 return value
 
-class ExpandVars(DSCEntryAction):
+class ExpandVars(DSCEntryParser):
     '''
     Replace DSC variable place holder with actual value
 
     e.g. $(filename) -> "text.txt"
     '''
     def __init__(self, global_var):
-        DSCEntryAction.__init__(self)
+        DSCEntryParser.__init__(self)
         self.global_var = global_var
 
     def apply(self, value):
@@ -375,14 +379,14 @@ class ExpandVars(DSCEntryAction):
                 value[idx] = item
         return value
 
-class ExpandCodes(DSCEntryAction):
+class ExpandCodes(DSCEntryParser):
     '''
     Run code entries and get values.
 
     Code entries are R(), Python() and Shell()
     '''
     def __init__(self):
-        DSCEntryAction.__init__(self)
+        DSCEntryParser.__init__(self)
         self.method = {
             'R': self.__R,
             'Python': self.__Python,
@@ -408,9 +412,9 @@ class ExpandCodes(DSCEntryAction):
     def __Shell(self, code):
         return subprocess.check_output(code, shell = True).decode('utf8').strip()
 
-class CastData(DSCEntryAction):
+class CastData(DSCEntryParser):
     def __init__(self):
-        DSCEntryAction.__init__(self)
+        DSCEntryParser.__init__(self)
 
     def apply(self, value):
         # Recode strings
@@ -422,17 +426,28 @@ class CastData(DSCEntryAction):
         else:
             return [tuple(x) if isinstance(x, list) else x for x in value]
 
-class DSCScenarioSetup(DSCSetupAction):
-    def __init__(self):
-        DSCSetupAction.__init__(self)
-        self.name = 1
+class DSCData(dict):
+    '''
+    Read DSC configuration file and translate it to a collection of steps to run DSC
 
-class DSCMethodSetup(DSCSetupAction):
-    def __init__(self):
-        DSCSetupAction.__init__(self)
-        self.name = 2
+    This class reflects the design and implementation of DSC structure and syntax
 
-class DSCScoreSetup(DSCSetupAction):
-    def __init__(self):
-        DSCSetupAction.__init__(self)
-        self.name = 3
+    Tasks here include:
+      * Properly parse DSC file in YAML format
+      * Translate DSC file text
+        * Replace Operators R() / Python() / Shell() / Product() ...
+        * Replace global variables
+      * Parse __alias__ and __logic__ to expand all settings to units of "steps"
+        * i.e., list of parameter dictionaries each will initialize a job
+    '''
+    def __init__(self, fname):
+        self.actions = [DSCFileLoader(),
+                        DSCEntryFormatter(),
+                        DSCBlockParser(),
+                        DSCSetupParser()]
+        self.file_name = fname
+        for a in self.actions:
+            a.apply(self)
+
+    def __str__(self):
+        return dict2str(dict(self), replace = [('!!python/tuple', '(tuple)')])

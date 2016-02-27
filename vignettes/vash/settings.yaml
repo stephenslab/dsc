@@ -27,7 +27,7 @@ simulate_thinning(simulate):
 
 correction:
     level: 2
-    exe: voom.R, quasibinom.R
+    exe: SVA.R, RUV.R, myrna.R
     params:
         data: $1$data
         __alias__: RList(args)
@@ -35,7 +35,7 @@ correction:
 
 transform:
     level: 3
-    exe: SVA.R, RUV.R, myrna.R, edgeRglm.R, DESeq2glm.R
+    exe: voom.R, quasibinom.R, edgeRglm.R, DESeq2glm.R
     params:
         data: $*$data
         __alias__: RList(args)
@@ -62,8 +62,8 @@ score:
 
 DSC:
     run: (simulate, simulate_partial_null, simulate_thinning) +
-         (correction + transform[1:3] + test[1:4], correction[1] + transform[1:3] + test[5],
-         correction + transform[4:5] + test[3:4]) + score
+         (correction + transform + test[3:4], correction + transform[1,3,4] + test[5], test[1:2]) +
+         score
     runtime:
         R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
                 edgeR, RUVSeq, sva, data.table, DESeq

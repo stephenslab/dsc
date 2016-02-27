@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-from dsc_config import DSCFile
+from dsc_file import DSCData
 
 class Job:
     '''
@@ -96,7 +96,7 @@ class DSC:
     run DSC
     '''
     def __init__(self, fname, nodes, threads, verbosity):
-        self.job_inits = DSCFile(fname)
+        self.job_inits = DSCData(fname)
         self.job_updates = JobFilter(self.job_inits)
         self.raw_jobs = [Job(item) for item in self.job_updates]
         self.jobs = Jobs(self.raw_jobs)
