@@ -1,0 +1,101 @@
+simulate:
+    level: 1
+    exe: datamaker.R
+    seed: R(1:50)
+    params:
+        path: R(gsub("[[:space:]]", "", readChar($(fileName), file.info($(fileName))$size)))
+        tissue: Adipose-Subcutaneous, (Adipose-Subcutaneous, Lung)
+        Nsamp: 2, 10, 50
+        Ngene: 10000
+        voom.normalize: TRUE
+        breaksample: FALSE, TRUE
+    return: data
+
+simulate_partial_null(simulate):
+    seed: R(1:5)
+    params:
+        tissue: (Adipose-Subcutaneous, Lung)
+        breaksample: TRUE
+        nullpi: 0.9
+
+simulate_thinning(simulate):
+    seed: R(1:5)
+    params:
+        tissue: Adipose-Subcutaneous
+        breaksample: FALSE
+        poisthin: TRUE
+
+voom:
+    level: 2
+    exe: voom.R, quasibinom.R
+    params:
+        data: $1$data
+        __alias__: RList(args)
+    return: data
+
+quasibinom(voom):
+    exe: quasibinom.R
+
+SVA:
+    level: 3
+    exe: SVA.R
+    params:
+        data: $*$data
+        __alias__: RList(args)
+    return: data
+
+RUV(SVA):
+    exe: RUV.R
+
+myrna(SVA):
+    exe: myrna.R
+
+edgeRglm(SVA):
+    exe: edgeRglm.R
+
+DESeq2glm(SVA):
+    exe: DESeq2glm.R
+
+ash:
+    level: 4
+    exe: ash.R,
+    params:
+        data: $*$data
+        __alias__: RList(args)
+    return: data
+
+edgeR(ash):
+    exe: edgeR.R
+    params:
+        glm: TRUE, FALSE
+
+DESeq2(edgeR):
+    exe: DESeq2.R
+
+jointash(ash):
+    exe: jointash.R
+
+limma(ash):
+    exe: limma.R
+    params:
+        robust: TRUE, FALSE
+
+score:
+    exe: score.R
+    params:
+        data: $1
+        output: $4
+    return: result
+
+DSC:
+    run: (simulate, simulate_partial_null, simulate_thinning) +
+         ((voom, quasibinom) + (SVA, RUV, myrna, edgeRglm, DESeq2glm) + (ash, edgeR, DESeq2, jointash),
+           voom + (SVA, RUV, myrna, edgeRglm, DESeq2glm) + limma) +
+         score
+    runtime:
+        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
+                edgeR, RUVSeq, sva, data.table, DESeq
+        exe_path: bin
+        output: gtex_total
+        variables:
+            fileName: data_path.txt
