@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import sys, os, random, tempfile, logging, copy, re, itertools,\
-  yaml
+  yaml, collections
 from io import StringIO
 
 class RuntimeEnvironments(object):
@@ -292,8 +292,10 @@ def is_null(var):
     if var is None:
         return True
     if type(var) is str:
-        if var.lower() in ['na','nan','null','none']:
+        if var.lower() in ['na','nan','null','none','']:
             return True
+    if isinstance(var, (list, tuple)):
+        return True if len(var) == 0 else False
     return False
 
 def str2num(var):
@@ -330,7 +332,7 @@ def pairwise_list(*args):
 def flatten_list(lst):
     return sum( ([x] if not isinstance(x, list) else flatten_list(x) for x in lst), [] )
 
-def get_slice(value):
+def get_slice(value, all_tuple = True):
     '''
     Input string is R index style: 1-based, end position inclusive slicing
     Output index will convert it to Python convention
@@ -342,7 +344,7 @@ def get_slice(value):
     try:
         slicearg = re.search('\[(.*?)\]', value).group(1)
     except:
-        raise ValueError('Cannot obtain slice from input string {}'.format(value))
+        raise AttributeError('Cannot obtain slice from input string {}'.format(value))
     name = value.split('[')[0]
     if ',' in slicearg:
         return name, tuple(int(n.strip()) - 1 for n in slicearg.split(',') if n.strip())
@@ -354,7 +356,10 @@ def get_slice(value):
         slice_obj = slice(*tuple(slice_ints))
         return name, tuple(x - 1 for x in range(slice_obj.start or 0, slice_obj.stop or -1, slice_obj.step or 1))
     else:
-        return name, int(slicearg.strip()) - 1
+        if all_tuple:
+            return name, tuple([int(slicearg.strip()) - 1])
+        else:
+            return name, int(slicearg.strip()) - 1
 
 def try_get_value(value, keys):
     '''
@@ -379,3 +384,12 @@ def dict2str(value, replace = []):
     for item in replace:
         res = res.replace(item[0], item[1])
     return res
+
+def update_nested_dict(d, u):
+    for k, v in u.items():
+        if isinstance(v, collections.Mapping):
+            r = update_nested_dict(d.get(k, {}), v)
+            d[k] = r
+        else:
+            d[k] = u[k]
+    return d

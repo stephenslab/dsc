@@ -58,7 +58,7 @@ DESeq2glm(SVA):
 
 ash:
     level: 4
-    exe: ash.R,
+    exe: ash.R
     params:
         data: $*$data
         __alias__: RList(args)

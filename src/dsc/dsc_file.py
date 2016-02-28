@@ -4,11 +4,11 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import sys, yaml, re, subprocess, ast
+import sys, yaml, re, subprocess, ast, itertools, copy
 import rpy2.robjects as RO
-from utils import env, lower_keys, CheckRLibraries, is_null, str2num, \
+from utils import env, lower_keys, is_null, str2num, \
      cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list, \
-     try_get_value, dict2str
+     try_get_value, dict2str, update_nested_dict
 
 class DSCFileParser:
     '''
@@ -94,7 +94,10 @@ class DSCEntryParser:
             # see if str can be converted to a list
             if (var.startswith('(') and var.endswith(')')) or \
                (var.startswith('[') and var.endswith(']')):
-               var = [str2num(x.strip()) for x in re.sub(r'^\(|^\[|\)$|\]$', "", var).split(',')]
+                is_tuple = var.startswith('(')
+                var = [str2num(x.strip()) for x in re.sub(r'^\(|^\[|\)$|\]$', "", var).split(',')]
+                if is_tuple:
+                    var = tuple(var)
         return var
 
 class DSCBlockParser(DSCEntryParser):
@@ -225,9 +228,10 @@ class DSCFileLoader(DSCFileParser):
             raise RuntimeError("DSC configuration [{}] not properly formatted!".format(data.file_name))
         # data.update(lower_keys(cfg))
         data.update(cfg)
-        # Check entries
+        # Handle derived blocks
         has_dsc = False
-        for block in list(data):
+        blocks = self.__sort_blocks(data)
+        for block in blocks:
             if block == 'DSC':
                 has_dsc = True
                 if 'run' not in data[block]:
@@ -235,21 +239,70 @@ class DSCFileLoader(DSCFileParser):
                 if try_get_value(data, ('DSC', 'runtime', 'output')) is None:
                     raise RuntimeError('Missing required entry "DSC::runtime::output".')
             else:
-                # FIXME: need to handle derived blocks!!
-                has_exe = has_return = False
-                for key in list(data[block]):
-                    if key not in self.prim_kw:
-                        env.logger.warning('Ignore unknown entry "{}" in block "{}".'.format(key, block))
-                        del data[block][key]
-                    if key == 'exe':
-                        has_exe = True
-                    if key == 'return':
-                        has_return = True
-                if not has_exe:
-                    raise RuntimeError('Missing required entry "exe" in section "{}"'.format(block))
-                if not has_return:
-                    raise RuntimeError('Missing required entry "return" in section "{}"'.format(block))
-                data[block] = self.__format_block(data[block])
+                groups = re.search('(.*?)\((.*?)\)', block)
+                if groups:
+                    data[groups.group(1)] = update_nested_dict(copy.deepcopy(data[groups.group(2)]), data[block])
+                    del data[block]
+        # format / check entries
+        for block in list(data):
+            if block == "DSC":
+                continue
+            has_exe = has_return = False
+            for key in list(data[block]):
+                if key not in self.prim_kw:
+                    env.logger.warning('Ignore unknown entry "{}" in block "{}".'.format(key, block))
+                    del data[block][key]
+                if key == 'exe':
+                    has_exe = True
+                if key == 'return':
+                    has_return = True
+            if not has_exe:
+                raise RuntimeError('Missing required entry "exe" in section "{}"'.format(block))
+            if not has_return:
+                raise RuntimeError('Missing required entry "return" in section "{}"'.format(block))
+            data[block] = self.__format_block(data[block])
+
+    def __sort_blocks(self, section_data):
+        '''
+        Sort block names such that derived block always follows the base block
+
+        name of derived blocks looks like: "derived(base)"
+        '''
+        base = []
+        derived = []
+        blocks = []
+        for block in section_data:
+            groups = re.search('(.*?)\((.*?)\)', block)
+            if groups:
+                derived.append([groups.group(1), groups.group(2)])
+            else:
+                base.append(block)
+                blocks.append(block)
+        # Check looped derivations: x(y) and y(x)
+        tmp = [sorted(x) for x in derived]
+        for item in ((i, tmp.count(i)) for i in tmp):
+            if item[1] > 1:
+                raise ValueError("Looped block inheritance: {0}({1}) and {1}({0})!".format(item[0][0], item[0][1]))
+        # Check self-derivation and non-existing base
+        tmp = base + [x[0] for x in derived]
+        for item in derived:
+            if item[0] == item[1]:
+                raise ValueError("Looped block inheritance: {0}({0})!".format(item[0]))
+            if item[1] not in tmp:
+                raise ValueError("Base block does not exist: {0}({1})!".format(item[0], item[1]))
+        #
+        derived_cycle = itertools.cycle(derived)
+        while True:
+            item = next(derived_cycle)
+            if item[1] in base:
+                base.append(item[0])
+                name = '{}({})'.format(item[0], item[1])
+                if name not in blocks:
+                    blocks.append(name)
+            if len(blocks) == len(section_data.keys()):
+                break
+        return blocks
+
 
     def __format_block(self, section_data):
         '''
@@ -276,14 +329,16 @@ class DSCFileLoader(DSCFileParser):
             for key, value in section_data['params'].items():
                 groups = re.search('(.*?)\[(.*?)\]', key)
                 try:
-                    name, idx = (groups.group(1), int(groups.group(2)))
+                    name, idxes = get_slice(key)
                     if name != 'exe':
                         raise ValueError('Unknown paramseter entry with index: {}.'.format(key))
-                    if idx == 0:
-                        raise ValueError('Invalid entry: exe[0]. Index must start from 1.')
-                    if idx in params:
-                        raise ValueError('Duplicate parameter entry: {}.'.format(key))
-                    params[idx] = value
+                    for idx in idxes:
+                        idx += 1
+                        if idx == 0:
+                            raise ValueError('Invalid entry: exe[0]. Index must start from 1.')
+                        if idx in params:
+                            raise ValueError('Duplicate parameter entry: {}.'.format(key))
+                        params[idx] = copy.copy(value)
                 except AttributeError:
                     params[0][key] = value
             # Parse rules and params_alias
@@ -303,6 +358,8 @@ class DSCFileLoader(DSCFileParser):
             res['rules'] = rules
         if params_alias:
             res['params_alias'] = params_alias
+        if 'level' in section_data:
+            res['level'] = section_data['level']
         return res
 
 class DSCEntryFormatter(DSCFileParser):
@@ -326,15 +383,21 @@ class DSCEntryFormatter(DSCFileParser):
                         ExpandCodes(),
                         CastData()]
         data = self.__Transform(data)
+        for key in data:
+            if 'level' in data[key]:
+                data[key]['level'] = data[key]['level'][0]
 
     def __Transform(self, cfg):
-        for key, value in cfg.items():
+        for key, value in list(cfg.items()):
             if isinstance(value, dict):
                 self.__Transform(value)
             else:
                 for a in self.actions:
                     value = a.apply(value)
-                cfg[key] = value
+                if is_null(value):
+                    del cfg[key]
+                else:
+                    cfg[key] = value
         return cfg
 
 class Str2List(DSCEntryParser):
@@ -403,7 +466,7 @@ class ExpandCodes(DSCEntryParser):
         return value
 
     def __R(self, code):
-        return tuple(RO.r(code))
+        return list(RO.r(code))
 
     def __Python(self, code):
         return eval(code)
@@ -421,9 +484,21 @@ class CastData(DSCEntryParser):
             value[idx] = self.decodeStr(item)
         # Properly convert lists and tuples
         if len(value) == 1 and isinstance(value[0], list):
-            return list(value[0])
+            if not is_null(value[0]):
+                return list(value[0])
+            else:
+                return []
         else:
-            return [tuple(x) if isinstance(x, list) else x for x in value]
+            res = []
+            for x in value:
+                if is_null(x):
+                    continue
+                if isinstance(x, list):
+                    # [[],[]] -> [(),()]
+                    res.append(tuple(x))
+                else:
+                    res.append(x)
+            return res
 
 class DSCData(dict):
     '''
