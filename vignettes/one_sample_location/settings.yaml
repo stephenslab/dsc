@@ -22,8 +22,8 @@ mse:
     return: mse
 
 DSC:
-    run: simulate +
-         estimate +
+    run: simulate *
+         estimate *
          mse
     runtime:
         exe_path: R/scenarios, R/methods, R/scores

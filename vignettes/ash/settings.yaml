@@ -27,8 +27,8 @@ RMSE:
     return: result
 
 DSC:
-    run: simulate +
-         shrink +
+    run: simulate *
+         shrink *
          RMSE
     runtime:
         R_libs: github/stephens999/ashr

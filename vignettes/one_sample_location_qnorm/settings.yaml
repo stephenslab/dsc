@@ -29,8 +29,8 @@ mse:
     return: mse
 
 DSC:
-    run: simulate +
-         (transform + estimate, estimate) +
+    run: simulate *
+         (transform * estimate, estimate) *
          mse
     runtime:
         exe_path: .

@@ -25,19 +25,8 @@ simulate_thinning(simulate):
         breaksample: FALSE
         poisthin: TRUE
 
-voom:
-    level: 2
-    exe: voom.R, quasibinom.R
-    params:
-        data: $1$data
-        __alias__: RList(args)
-    return: data
-
-quasibinom(voom):
-    exe: quasibinom.R
-
 SVA:
-    level: 3
+    level: 2
     exe: SVA.R
     params:
         data: $*$data
@@ -49,6 +38,17 @@ RUV(SVA):
 
 myrna(SVA):
     exe: myrna.R
+
+voom:
+    level: 3
+    exe: voom.R
+    params:
+        data: $1$data
+        __alias__: RList(args)
+    return: data
+
+quasibinom(voom):
+    exe: quasibinom.R
 
 edgeRglm(SVA):
     exe: edgeRglm.R
@@ -88,9 +88,10 @@ score:
     return: result
 
 DSC:
-    run: (simulate, simulate_partial_null, simulate_thinning) +
-         ((voom, quasibinom) + (SVA, RUV, myrna, edgeRglm, DESeq2glm) + (ash, edgeR, DESeq2, jointash),
-           voom + (SVA, RUV, myrna, edgeRglm, DESeq2glm) + limma) +
+    run: (simulate, simulate_partial_null, simulate_thinning) *
+         ((SVA, RUV, myrna) * (voom, quasibinom, edgeRglm, DESeq2glm) * (ash,jointash),
+          (SVA, RUV, myrna) * voom * limma,
+          (edgeR, DESeq2)) *
          score
     runtime:
         R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue, mixash, github/mengyin/vash, limma,
