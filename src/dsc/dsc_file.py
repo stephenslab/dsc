@@ -241,7 +241,7 @@ class DSCFileLoader(DSCFileParser):
             else:
                 groups = re.search('(.*?)\((.*?)\)', block)
                 if groups:
-                    data[groups.group(1)] = update_nested_dict(copy.deepcopy(data[groups.group(2)]), data[block])
+                    data[groups.group(1).strip()] = update_nested_dict(copy.deepcopy(data[groups.group(2).strip()]), data[block])
                     del data[block]
         # format / check entries
         for block in list(data):
@@ -274,7 +274,7 @@ class DSCFileLoader(DSCFileParser):
         for block in section_data:
             groups = re.search('(.*?)\((.*?)\)', block)
             if groups:
-                derived.append([groups.group(1), groups.group(2)])
+                derived.append([groups.group(1).strip(), groups.group(2).strip()])
             else:
                 base.append(block)
                 blocks.append(block)
@@ -524,4 +524,7 @@ class DSCData(dict):
             a.apply(self)
 
     def __str__(self):
-        return dict2str(dict(self), replace = [('!!python/tuple', '(tuple)')])
+        res = ''
+        for item in sorted(list(dict(self).items()), key = lambda x: (x[1]['level'] if 'level' in x[1] else sys.maxsize, x[0])):
+            res += dict2str({item[0]: item[1]}, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+        return res.strip()

@@ -39,13 +39,9 @@ RUV(SVA):
 myrna(SVA):
     exe: myrna.R
 
-voom:
+voom(SVA):
     level: 3
     exe: voom.R
-    params:
-        data: $1$data
-        __alias__: RList(args)
-    return: data
 
 quasibinom(voom):
     exe: quasibinom.R
@@ -56,13 +52,9 @@ edgeRglm(SVA):
 DESeq2glm(SVA):
     exe: DESeq2glm.R
 
-ash:
+ash(SVA):
     level: 4
     exe: ash.R
-    params:
-        data: $*$data
-        __alias__: RList(args)
-    return: data
 
 edgeR(ash):
     exe: edgeR.R

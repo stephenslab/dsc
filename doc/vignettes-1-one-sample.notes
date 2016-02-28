@@ -1,7 +1,9 @@
 ###
 #! Location Estimate I
 ###
-#! DSC setup
+###
+# DSC setup
+###
 # This minimal example shows comparison of location parameter estimation methods. It is a re-implementation of a [DSCR example|@https://github.com/stephens999/dscr/blob/master/vignettes/one_sample_location.rmd@] in DSC2 framework. Below is a list of contents involved:
 #{out
 ├── R
@@ -24,7 +26,9 @@ output:///find ../vignettes/one_sample_location/R/ -type f -exec tail -n+1 {} +
 output:///cat ../vignettes/one_sample_location/settings.yaml
 #}
 # A basic configuration file should have 4 sections: `scenario`, `method`, `score`, and `runtime`. The first 3 sections ""require"" two ""reserved"" parameters: `exe` and `return`. In addition to these keywords one need to specify the parameters involved in running the benchmarking commands. All parameters in the `runtime` section are reserved.
-#! Run DSC
+###
+# Run DSC
+###
 dsc execute -c settings.yaml
 #{out
 MESSAGE: Setup scenarios ...
