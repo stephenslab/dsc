@@ -16,14 +16,14 @@ shrink:
     level: 2
     exe: runash.R
     params:
-        args: {.}
+        args: $*
     return: output
 
 RMSE:
     exe: score.R
     params:
-        beta_true: {1}$meta$beta
-        beta_est: {2}
+        beta_true: $1$meta$beta
+        beta_est: $2
     return: result
 
 DSC:

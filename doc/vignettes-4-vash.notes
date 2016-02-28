@@ -5,3 +5,7 @@
 #{out yaml
 output:///cat ../vignettes/vash/settings.yaml
 #}
+# And an alternative equivalent version where methods are kept separate:
+#{out yaml
+output:///cat ../vignettes/vash/settings_per_method.yaml
+#}

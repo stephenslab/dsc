@@ -85,8 +85,6 @@ class DSCEntryParser:
         '''
         if not isinstance(var, str):
             return var
-        if var.startswith('$'):
-            return var.replace('$scenario', '$1').replace('$method', '$2')
         # Try to convert to number
         var = str2num(var)
         # null type
@@ -119,26 +117,24 @@ class DSCBlockParser(DSCEntryParser):
     '''
     def __init__(self):
         DSCEntryParser.__init__(self)
-        self.name = ''
         self.data = []
 
     def apply(self, dsc):
-        if not self.name in dsc:
-            return
-        self.expand_exe(dsc)
-        self.expand_param(dsc)
-        self.apply_exe_rules(dsc)
-        # clean up data
-        for key in list(dsc[self.name].keys()):
-            if not dsc[self.name][key]:
-                del dsc[self.name][key]
+        for name in list(dsc.keys()):
+            if name != 'DSC':
+                self.expand_exe(dsc, name)
+                self.expand_param(dsc, name)
+            # clean up data
+            for key in list(dsc[name].keys()):
+                if not dsc[name][key]:
+                    del dsc[name][key]
 
-    def expand_exe(self, dsc):
+    def expand_exe(self, dsc, name):
         '''
         Expand exe variables and apply rule (sequence) to run executables
         '''
         # expand variable names
-        for idx, exe in enumerate(dsc[self.name]['meta']['exe']):
+        for idx, exe in enumerate(dsc[name]['meta']['exe']):
             pattern = re.search('^(.*?)\((.*?)\)$', exe)
             if pattern:
                 # there is a need to expand variable names
@@ -151,13 +147,13 @@ class DSCBlockParser(DSCEntryParser):
                     value = cartesian_list(*value)
                 else:
                     value = pairwise_list(*value)
-                dsc[self.name]['meta']['exe'][idx] = value
-        dsc[self.name]['meta']['exe'] = flatten_list(dsc[self.name]['meta']['exe'])
-        max_exe = sorted(dsc[self.name]['params'].keys())[-1]
-        if max_exe > len(dsc[self.name]['meta']['exe']):
+                dsc[name]['meta']['exe'][idx] = value
+        dsc[name]['meta']['exe'] = flatten_list(dsc[name]['meta']['exe'])
+        max_exe = sorted(dsc[name]['params'].keys())[-1]
+        if max_exe > len(dsc[name]['meta']['exe']):
             raise ValueError('Index for exe out of range: exe[{}].'.format(max_exe))
 
-    def expand_param(self, dsc):
+    def expand_param(self, dsc, name):
         '''
         Rule to expand parameters.
 
@@ -165,29 +161,29 @@ class DSCBlockParser(DSCEntryParser):
           * Match common / unique params to executables
           * Rules to expand
         '''
-        if 'params' not in dsc[self.name]:
+        if 'params' not in dsc[name]:
             # just exe and possibly seed
-            self.__expand_param_entry(dsc[self.name]['meta']['exe'],
+            self.__expand_param_entry(dsc[name]['meta']['exe'],
                                       param = None,
-                                      seed = try_get_value(dsc[self.name], ('meta', 'seed')),
-                                      rule = try_get_value(dsc[self.name], ('rule', 0)))
-        for key in list(dsc[self.name]['params'].keys()):
-            self.__expand_param_entry(dsc[self.name]['meta']['exe'] if key == 0 else dsc[self.name]['meta']['exe'][key - 1],
-                                      param = dsc[self.name]['params'][key],
-                                      seed = try_get_value(dsc[self.name], ('meta', 'seed')),
-                                      rule = try_get_value(dsc[self.name], ('rule', key)))
+                                      seed = try_get_value(dsc[name], ('meta', 'seed')),
+                                      rule = try_get_value(dsc[name], ('rule', 0)))
+        for key in list(dsc[name]['params'].keys()):
+            self.__expand_param_entry(dsc[name]['meta']['exe'] if key == 0 else dsc[name]['meta']['exe'][key - 1],
+                                      param = dsc[name]['params'][key],
+                                      seed = try_get_value(dsc[name], ('meta', 'seed')),
+                                      rule = try_get_value(dsc[name], ('rule', key)))
 
-    def apply_exe_rules(self, dsc):
-        # apply rules
-        if 'rules' in dsc[self.name] and 'meta' in dsc[self.name]['rules']:
-            # there are exe related rules
-            new_exe = []
-            for item in dsc[self.name]['rules']['meta']:
-                item = [get_slice(x.strip()) for x in item.split('+')]
-                tmp_exe = tuple(dsc[self.name]['meta'][x[0]][x[1]] for x in item)
-                new_exe.append(tmp_exe if len(tmp_exe) > 1 else tmp_exe[0])
-            dsc[self.name]['meta']['exe'] = new_exe
-            del dsc[self.name]['rules']['meta']
+    # def apply_exe_rules(self, dsc):
+    #     # apply rules
+    #     if 'rules' in dsc[self.name] and 'meta' in dsc[self.name]['rules']:
+    #         # there are exe related rules
+    #         new_exe = []
+    #         for item in dsc[self.name]['rules']['meta']:
+    #             item = [get_slice(x.strip()) for x in item.split('+')]
+    #             tmp_exe = tuple(dsc[self.name]['meta'][x[0]][x[1]] for x in item)
+    #             new_exe.append(tmp_exe if len(tmp_exe) > 1 else tmp_exe[0])
+    #         dsc[self.name]['meta']['exe'] = new_exe
+    #         del dsc[self.name]['rules']['meta']
 
     def __expand_param_entry(self, exe, param, seed, rule):
         '''
@@ -198,6 +194,14 @@ class DSCBlockParser(DSCEntryParser):
 
     def __str__(self):
         return dict2str(self.data)
+
+class DSCSetupParser(DSCEntryParser):
+    '''
+    Parser for DSC section, the DSC setup
+    '''
+    def __init__(self):
+        DSCEntryParser.__init__(self)
+
 
 class DSCFileLoader(DSCFileParser):
     '''
@@ -223,17 +227,15 @@ class DSCFileLoader(DSCFileParser):
         data.update(cfg)
         # Check entries
         has_dsc = False
-        for block in list(self.data):
+        for block in list(data):
             if block == 'DSC':
                 has_dsc = True
-                # FIXME
-                # Check if run / runtime exist
-                # Check if output exist under runtime
-                # if 'output' not in data[kw1]:
-                    # raise RuntimeError('Missing required entry "output" in section "runtime".')
-                #raise RuntimeError('Missing required section "{}" from [{}].'.format(kw1, data.file_name))
-
+                if 'run' not in data[block]:
+                    raise RuntimeError('Missing required entry "DSC::run".')
+                if try_get_value(data, ('DSC', 'runtime', 'output')) is None:
+                    raise RuntimeError('Missing required entry "DSC::runtime::output".')
             else:
+                # FIXME: need to handle derived blocks!!
                 has_exe = has_return = False
                 for key in list(data[block]):
                     if key not in self.prim_kw:
@@ -244,9 +246,9 @@ class DSCFileLoader(DSCFileParser):
                     if key == 'return':
                         has_return = True
                 if not has_exe:
-                    raise RuntimeError('Missing required entry "exe" in section "{}"'.format(kw1))
+                    raise RuntimeError('Missing required entry "exe" in section "{}"'.format(block))
                 if not has_return:
-                    raise RuntimeError('Missing required entry "return" in section "{}"'.format(kw1))
+                    raise RuntimeError('Missing required entry "return" in section "{}"'.format(block))
                 data[block] = self.__format_block(data[block])
 
     def __format_block(self, section_data):
@@ -255,11 +257,11 @@ class DSCFileLoader(DSCFileParser):
 
           * meta: will contain exe information
           * params:
-            * params[0] (for shared paramss), params[1], params[2], (corresponds to exe[1], exe[2]) ...
+            * params[0] (for shared params), params[1], params[2], (corresponds to exe[1], exe[2]) ...
           * rules:
-            * rules['meta'], rules[0], rules[1] ...
+            * rules[0] (for shared params), rules[1] ...
           * params_alias:
-            * params_alias[1], params_alias[2] ...
+            * params_alias[0], params_alias[1] ...
         '''
         meta = {}
         params = {0:{}}
@@ -269,8 +271,6 @@ class DSCFileLoader(DSCFileParser):
         meta['exe'] = section_data['exe']
         if 'seed' in section_data:
             meta['seed'] = section_data['seed']
-        if '__logic__' in section_data:
-            rules['meta'] = section_data['__logic__']
         # Parse params
         if 'params' in section_data:
             for key, value in section_data['params'].items():
@@ -282,7 +282,7 @@ class DSCFileLoader(DSCFileParser):
                     if idx == 0:
                         raise ValueError('Invalid entry: exe[0]. Index must start from 1.')
                     if idx in params:
-                        raise ValueError('Duplicate entry: {}.'.format(key))
+                        raise ValueError('Duplicate parameter entry: {}.'.format(key))
                     params[idx] = value
                 except AttributeError:
                     params[0][key] = value
@@ -311,17 +311,16 @@ class DSCEntryFormatter(DSCFileParser):
     '''
     def __init__(self):
         DSCFileParser.__init__(self)
-        self.r_libs = None
 
     def apply(self, data):
-        if 'r_libs' in data[4]:
-            self.r_libs = data[4]['r_libs']
-            CheckRLibraries(self.r_libs)
-        if 'variables' in data[4]:
-            variables = data[4]['variables']
-            del data[4]['variables']
+        data['DSC_R_LIBRARIES'] = try_get_value(data, ('DSC', 'runtime', 'r_libs'))
+        variables = try_get_value(data, ('DSC', 'runtime', 'variables'))
+        if data['DSC_R_LIBRARIES'] is not None:
+            del data['DSC']['runtime']['r_libs']
         else:
-            variables = None
+            del data['DSC_R_LIBRARIES']
+        if variables is not None:
+            del data['DSC']['runtime']['variables']
         self.actions = [Str2List(),
                         ExpandVars(variables),
                         ExpandCodes(),
@@ -421,7 +420,7 @@ class CastData(DSCEntryParser):
         for idx, item in enumerate(value):
             value[idx] = self.decodeStr(item)
         # Properly convert lists and tuples
-        if len(value) == 1 and isinstance(value[0], (list, tuple)):
+        if len(value) == 1 and isinstance(value[0], list):
             return list(value[0])
         else:
             return [tuple(x) if isinstance(x, list) else x for x in value]

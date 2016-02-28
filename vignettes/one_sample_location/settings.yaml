@@ -11,14 +11,14 @@ estimate:
     level: 2
     exe: mean.R, median.R
     params:
-        x: {.}$x
+        x: $*$x
     return: mean
 
 mse:
     exe: MSE.R
     params:
-        mean_est: {2}$mean
-        true_mean: {1}$mean
+        mean_est: $2$mean
+        true_mean: $1$mean
     return: mse
 
 DSC:
