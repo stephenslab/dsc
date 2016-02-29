@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import sys, yaml, re, subprocess, ast, itertools, copy
+import sys, yaml, re, subprocess, ast, itertools, copy, sympy
 import rpy2.robjects as RO
 from utils import env, lower_keys, is_null, str2num, \
      cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list, \
@@ -100,7 +100,7 @@ class DSCEntryParser:
                     var = tuple(var)
         return var
 
-class DSCBlockParser(DSCEntryParser):
+class DSCBlockParser(DSCFileParser):
     '''
     Parser for DSC Block
 
@@ -119,7 +119,7 @@ class DSCBlockParser(DSCEntryParser):
       * $ symbol
     '''
     def __init__(self):
-        DSCEntryParser.__init__(self)
+        DSCFileParser.__init__(self)
         self.data = []
 
     def apply(self, dsc):
@@ -198,12 +198,12 @@ class DSCBlockParser(DSCEntryParser):
     def __str__(self):
         return dict2str(self.data)
 
-class DSCSetupParser(DSCEntryParser):
+class DSCSetupParser(DSCFileParser):
     '''
     Parser for DSC section, the DSC setup
     '''
     def __init__(self):
-        DSCEntryParser.__init__(self)
+        DSCFileParser.__init__(self)
 
 
 class DSCFileLoader(DSCFileParser):
@@ -278,6 +278,8 @@ class DSCFileLoader(DSCFileParser):
             else:
                 base.append(block)
                 blocks.append(block)
+        if len(derived) == 0:
+            return blocks
         # Check looped derivations: x(y) and y(x)
         tmp = [sorted(x) for x in derived]
         for item in ((i, tmp.count(i)) for i in tmp):
@@ -327,7 +329,6 @@ class DSCFileLoader(DSCFileParser):
         # Parse params
         if 'params' in section_data:
             for key, value in section_data['params'].items():
-                groups = re.search('(.*?)\[(.*?)\]', key)
                 try:
                     name, idxes = get_slice(key)
                     if name != 'exe':
@@ -499,6 +500,116 @@ class CastData(DSCEntryParser):
                 else:
                     res.append(x)
             return res
+
+
+class OperationParser(DSCEntryParser):
+    '''
+    Parse DSC logic sequence variables by expanding them
+
+    Input: a string sequence of __logic__ or 'run'; and a tag for contents in error message
+    '''
+    def __init__(self, tag):
+        DSCEntryParser.__init__(self)
+        self.tag = tag
+        self.operators = ['(', ')', ',', '+', '*']
+        self.cache = {}
+        self.cache_count = 0
+
+    def reset(self):
+        self.cache = {}
+        self.cache_count = 0
+
+    def apply(self, value):
+        if not isinstance(value, str):
+            raise TypeError("Argument must be string but it is %s." % type(value))
+        res = []
+        for seq in self.split(value):
+            self.reset()
+            self.sequence = seq
+            seq = seq.replace(' ', '')
+            for a in [self.cache_symbols,
+                      self.check_syntax,
+                      self.reconstruct]:
+                seq = a(seq)
+            res.extend(seq)
+        return res[0] if len(res) == 1 else res
+
+    def cache_symbols(self, value):
+        '''cache slices and "." symbol'''
+        # split with delimiter kept
+        seq = re.split(r'(\(|\)|\+|\*|,)', value)
+        new_seq = []
+        # reconstruct slice wrongfully splitted e.g., sth[2,3,4]
+        start_idx = 0
+        for idx, item in enumerate(seq):
+            if '[' in item and not ']' in item:
+                # bad slice found
+                new_seq.extend(seq[start_idx:idx])
+                tmp = [seq[idx]]
+                i = 1
+                incomplete_sq = True
+                while i < len(seq):
+                    tmp.append(seq[idx + i])
+                    if ']' in seq[idx + i]:
+                        new_seq.append(''.join(tmp))
+                        incomplete_sq = False
+                        start_idx += idx + i + 1
+                        break
+                    i += 1
+                if incomplete_sq:
+                    raise ValueError('Incomplete "["/"]" pair near {}'.format(''.join(tmp)))
+        new_seq.extend(seq[start_idx:len(seq)])
+        # hide bad symbols
+        for idx, item in enumerate(new_seq):
+            if re.search('\[(.*?)\]', item) or '.' in item:
+                new_seq[idx] = self.__string_cache(item)
+        return ''.join(new_seq)
+
+    def check_syntax(self, value):
+        ''' * ensure there are not other symbols than these keyword operators
+            * ensure '+' is not connecting between parenthesis
+        '''
+
+        for x in value:
+            if not x in self.operators and not x.isalnum() and x != '_':
+                raise ValueError('Invalid symbol "{}" in sequence "{}"'.format(x, self.sequence))
+        if ')+' in value or '+(' in value:
+            raise ValueError('Pairwise operator "+" cannot be used to connect multiple variables ')
+        return value
+
+    def reconstruct(self, value):
+        sequence_ordering = re.sub(r'\(|\)|\+|\*|,', ' ', value).split()
+        value = value.replace('+', '__PAIRWISE__')
+        value = value.replace(',', '+')
+        # restore order and syntax
+        res = []
+        for x in str(sympy.expand(value)).split('+'):
+            x = x.strip().split('*')
+            if '2' in x:
+                # error for '**2'
+                raise ValueError("Possibly duplicated elements found in sequence {}".format(self.sequence))
+            # re-order elements in x
+            # complication: the __PAIRWISE__ operator
+            tmp_1 = dict((y if '__PAIRWISE__' not in y else y.split('__PAIRWISE__')[0], y) for y in x)
+            if len(tmp_1.keys()) < len(x):
+                raise ValueError("Possibly duplicated elements found in sequence {}".format(self.sequence))
+            tmp_2 = []
+            for y in sequence_ordering:
+                if y in tmp_1:
+                    if '__PAIRWISE__' in tmp_1[y]:
+                        t1, t2 = tmp_1[y].split('__PAIRWISE__')
+                        tmp_2.append('{}+{}'.format(self.cache[t1] if t1 in self.cache else t1,
+                                                    self.cache[t2] if t2 in self.cache else t2))
+                    else:
+                        tmp_2.append(self.cache[tmp_1[y]] if tmp_1[y] in self.cache else tmp_1[y])
+            res.append(tuple(tmp_2) if len(tmp_2) > 1 else tmp_2[0])
+        return res
+
+    def __string_cache(self, cache):
+        self.cache_count += 1
+        cache_id = 'OPERATOR_CACHE_ASDFGHJKL_{}'.format(self.cache_count)
+        self.cache[cache_id] = cache
+        return cache_id
 
 class DSCData(dict):
     '''
