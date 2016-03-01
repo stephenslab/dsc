@@ -379,22 +379,28 @@ class DSCEntryFormatter(DSCFileParser):
             del data['DSC_R_LIBRARIES']
         if variables is not None:
             del data['DSC']['runtime']['variables']
-        self.actions = [Str2List(),
+        self.actions = [OperationParser(),
+                        Str2List(),
                         ExpandVars(variables),
                         ExpandCodes(),
                         CastData()]
-        data = self.__Transform(data)
+        data = self.__Transform(data, [])
         for key in data:
             if 'level' in data[key]:
                 data[key]['level'] = data[key]['level'][0]
 
-    def __Transform(self, cfg):
+    def __Transform(self, cfg, keys):
         for key, value in list(cfg.items()):
             if isinstance(value, dict):
-                self.__Transform(value)
+                keys.append(key)
+                self.__Transform(value, keys)
             else:
-                for a in self.actions:
-                    value = a.apply(value)
+                is_dsc = keys[-1] == 'DSC' or (keys[-1] == 'runtime' and (keys[-2] == 'DSC' if len(keys) > 1 else False))
+                if keys[-1] == 'rules' or (key == 'run' and is_dsc):
+                    value = self.actions[0].apply(value)
+                else:
+                    for a in self.actions[1:]:
+                        value = a.apply(value)
                 if is_null(value):
                     del cfg[key]
                 else:
@@ -439,7 +445,8 @@ class ExpandVars(DSCEntryParser):
             if isinstance(item, str):
                 for m in re.finditer(pattern, item):
                     item = item.replace(m.group(0), self.formatVar(self.global_var[m.group(1)]))
-                value[idx] = item
+                if item != value[idx]:
+                    value[idx] = item
         return value
 
 class ExpandCodes(DSCEntryParser):
@@ -463,7 +470,8 @@ class ExpandCodes(DSCEntryParser):
                     pattern = re.compile(r'^{}\((.*?)\)$'.format(name))
                     for m in re.finditer(pattern, item):
                         item = item.replace(m.group(0), self.formatVar(self.method[name](m.group(1))))
-                value[idx] = item
+                if item != value[idx]:
+                    value[idx] = item
         return value
 
     def __R(self, code):
@@ -519,6 +527,8 @@ class OperationParser(DSCEntryParser):
         self.cache_count = 0
 
     def apply(self, value):
+        if is_null(value):
+            return value
         if not isinstance(value, str):
             raise TypeError("Argument must be string but it is %s." % type(value))
         res = []
@@ -531,7 +541,7 @@ class OperationParser(DSCEntryParser):
                       self.reconstruct]:
                 seq = a(seq)
             res.extend(seq)
-        return res[0] if len(res) == 1 else res
+        return res
 
     def cache_symbols(self, value):
         '''cache slices and "." symbol'''

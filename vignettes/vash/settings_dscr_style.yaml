@@ -1,4 +1,5 @@
 scenario:
+    level: 1
     exe: datamaker.R
     seed: R(1:50), R(1:5)
     params:
@@ -11,15 +12,16 @@ scenario:
         nullpi: 0.9
         poisthin: TRUE
         __alias__: RList(args)
-        __logic__: (seed[1], path, tissue, Nsamp, Ngene, voom.normalize, breaksample),
-                   (seed[2], path, tissue[2], Nsamp, Ngene, voom.normalize, breaksample[2], nullpi),
-                   (seed[2], path, tissue[1], Nsamp, Ngene, voom.normalize, breaksample[1], poisthin)
+        __logic__: (seed[1] * path * tissue * Nsamp * Ngene * voom.normalize * breaksample),
+                   (seed[2] * path * tissue[2] * Nsamp * Ngene * voom.normalize * breaksample[2] * nullpi),
+                   (seed[2] * path * tissue[1] * Nsamp * Ngene * voom.normalize * breaksample[1] * poisthin)
     return: data
 
 method:
+    level: 2
     exe: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
     params:
-        input: $scenario.data
+        input: $1
         transform: voom, RUVvoom, SVAvoom, quasibinom, RUV+quasibinom, SVA+quasibinom, Myrna+quasibinom, edgeRglm
         __alias__: RList(args, transform)
         exe[1]:
@@ -29,11 +31,11 @@ method:
             RUV: FALSE, FALSE, TRUE
             SVA: FALSE, TRUE, FALSE
             __alias__: RList(args)
-            __logic__: exacttest[1], (exacttest[2], RUV + SVA)
+            __logic__: exacttest[1], (exacttest[2] * (RUV + SVA))
         exe[3]:
             robust: FALSE, TRUE
             __alias__: RList(args)
-            __logic__: (transform[1], robust), (transform[2,3], robust[1])
+            __logic__: (transform[1] * robust), (transform[2,3] * robust[1])
         exe[4]:
             __logic__: transform[1:6]
         exe[5]:
@@ -44,14 +46,16 @@ method:
 score:
     exe: score.R
     params:
-        data: $scenario
-        output: $method
+        data: $1
+        output: $2
     return: result
 
-runtime:
-    R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
-            edgeR, RUVSeq, sva, data.table, DESeq
-    exe_path: bin
-    output: vash
-    variables:
-        fileName: data_path.txt
+DSC:
+    run: scenario * method * score
+    runtime:
+        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
+                edgeR, RUVSeq, sva, data.table, DESeq
+        exe_path: bin
+        output: vash
+        variables:
+            fileName: data_path.txt
