@@ -91,11 +91,12 @@ class DSCEntryParser:
         if is_null(var):
             return None
         if isinstance(var, str):
-            # see if str can be converted to a list
+            # see if str can be converted to a list or tuple
+            # and apply the same procedure to their elements
             if (var.startswith('(') and var.endswith(')')) or \
                (var.startswith('[') and var.endswith(']')):
                 is_tuple = var.startswith('(')
-                var = [str2num(x.strip()) for x in re.sub(r'^\(|^\[|\)$|\]$', "", var).split(',')]
+                var = [self.decodeStr(x.strip()) for x in self.split(re.sub(r'^\(|^\[|\)$|\]$', "", var))]
                 if is_tuple:
                     var = tuple(var)
         return var
@@ -104,99 +105,36 @@ class DSCBlockParser(DSCFileParser):
     '''
     Parser for DSC Block
 
-    Apply to a DSC section to expand it to job initialization data
+    Apply to a DSC block to convert it to job initialization data
 
     In addition to simply expand attributes, this will take care of all
     (remaining) DSC jargon, including:
       * __alias__ related operations
         * RList()
         * "=" operator
-      * __logic__ related operations
-        * Product(), Pairwise()
-        * logic on exe
-      * Parameter conventions
-        * by sections of exe, e.g. exe[1], exe[2]
-      * $ symbol
+      * __logic__ related operations (__logic__ entry itself has previously been parsed)
+        * expand parameters based on these rules
     '''
     def __init__(self):
         DSCFileParser.__init__(self)
-        self.data = []
 
     def apply(self, dsc):
         for name in list(dsc.keys()):
             if name != 'DSC':
-                self.expand_exe(dsc, name)
-                self.expand_param(dsc, name)
+                self.format_exe(dsc, name)
             # clean up data
             for key in list(dsc[name].keys()):
                 if not dsc[name][key]:
                     del dsc[name][key]
 
-    def expand_exe(self, dsc, name):
+    def format_exe(self, dsc, name):
         '''
-        Expand exe variables and apply rule (sequence) to run executables
+        Split exe string to tuples and check if exe matches parameters
         '''
-        # expand variable names
-        for idx, exe in enumerate(dsc[name]['meta']['exe']):
-            pattern = re.search('^(.*?)\((.*?)\)$', exe)
-            if pattern:
-                # there is a need to expand variable names
-                option = pattern.group(1)
-                if not option in ['Product', 'Pairwise']:
-                    raise ValueError("Invalid exe rule: {}".format(option))
-                value = [self.decodeStr(x) for x in self.split(pattern.group(2))]
-                value = [x if isinstance(x, list) else [x] for x in value]
-                if option == 'Product':
-                    value = cartesian_list(*value)
-                else:
-                    value = pairwise_list(*value)
-                dsc[name]['meta']['exe'][idx] = value
-        dsc[name]['meta']['exe'] = flatten_list(dsc[name]['meta']['exe'])
+        dsc[name]['meta']['exe'] = [tuple(x.split()) if isinstance(x, str) else x for x in dsc[name]['meta']['exe']]
         max_exe = sorted(dsc[name]['params'].keys())[-1]
         if max_exe > len(dsc[name]['meta']['exe']):
             raise ValueError('Index for exe out of range: exe[{}].'.format(max_exe))
-
-    def expand_param(self, dsc, name):
-        '''
-        Rule to expand parameters.
-
-        Situations to resolve:
-          * Match common / unique params to executables
-          * Rules to expand
-        '''
-        if 'params' not in dsc[name]:
-            # just exe and possibly seed
-            self.__expand_param_entry(dsc[name]['meta']['exe'],
-                                      param = None,
-                                      seed = try_get_value(dsc[name], ('meta', 'seed')),
-                                      rule = try_get_value(dsc[name], ('rule', 0)))
-        for key in list(dsc[name]['params'].keys()):
-            self.__expand_param_entry(dsc[name]['meta']['exe'] if key == 0 else dsc[name]['meta']['exe'][key - 1],
-                                      param = dsc[name]['params'][key],
-                                      seed = try_get_value(dsc[name], ('meta', 'seed')),
-                                      rule = try_get_value(dsc[name], ('rule', key)))
-
-    # def apply_exe_rules(self, dsc):
-    #     # apply rules
-    #     if 'rules' in dsc[self.name] and 'meta' in dsc[self.name]['rules']:
-    #         # there are exe related rules
-    #         new_exe = []
-    #         for item in dsc[self.name]['rules']['meta']:
-    #             item = [get_slice(x.strip()) for x in item.split('+')]
-    #             tmp_exe = tuple(dsc[self.name]['meta'][x[0]][x[1]] for x in item)
-    #             new_exe.append(tmp_exe if len(tmp_exe) > 1 else tmp_exe[0])
-    #         dsc[self.name]['meta']['exe'] = new_exe
-    #         del dsc[self.name]['rules']['meta']
-
-    def __expand_param_entry(self, exe, param, seed, rule):
-        '''
-        Expand parameter entries
-        '''
-        res = None
-        self.data.append(res)
-
-    def __str__(self):
-        return dict2str(self.data)
 
 class DSCSetupParser(DSCFileParser):
     '''
@@ -382,7 +320,7 @@ class DSCEntryFormatter(DSCFileParser):
         self.actions = [OperationParser(),
                         Str2List(),
                         ExpandVars(variables),
-                        ExpandCodes(),
+                        ExpandActions(),
                         CastData()]
         data = self.__Transform(data, [])
         for key in data:
@@ -440,27 +378,36 @@ class ExpandVars(DSCEntryParser):
     def apply(self, value):
         if self.global_var is None:
             return value
-        pattern = re.compile(r'\$\((.*?)\)')
         for idx, item in enumerate(value):
             if isinstance(item, str):
+                # find pattern with slicing first
+                pattern = re.compile(r'\$\((.*?)\)\[(.*?)\]')
+                for m in re.finditer(pattern, item):
+                    tmp = [x.strip() for x in self.global_var[m.group(1)].split(',')]
+                    tmp = ', '.join([tmp[i] for i in get_slice('slice[' + m.group(2) + ']')[1]])
+                    item = item.replace(m.group(0), '[' + tmp + ']')
+                # then pattern without slicing
+                pattern = re.compile(r'\$\((.*?)\)')
                 for m in re.finditer(pattern, item):
                     item = item.replace(m.group(0), self.formatVar(self.global_var[m.group(1)]))
                 if item != value[idx]:
                     value[idx] = item
         return value
 
-class ExpandCodes(DSCEntryParser):
+class ExpandActions(DSCEntryParser):
     '''
-    Run code entries and get values.
+    Run action entries and get values.
 
-    Code entries are R(), Python() and Shell()
+    Action entries are R(), Python(), Shell(), Product() and Pairwise()
     '''
     def __init__(self):
         DSCEntryParser.__init__(self)
         self.method = {
             'R': self.__R,
             'Python': self.__Python,
-            'Shell': self.__Shell
+            'Shell': self.__Shell,
+            'Product': self.__Product,
+            'Pairwise': self.__Pairwise
             }
 
     def apply(self, value):
@@ -473,6 +420,16 @@ class ExpandCodes(DSCEntryParser):
                 if item != value[idx]:
                     value[idx] = item
         return value
+
+    def __Product(self, value):
+        value = [self.decodeStr(x) for x in self.split(value)]
+        value = [x if isinstance(x, list) else [x] for x in value]
+        return cartesian_list(*value)
+
+    def __Pairwise(self, value):
+        value = [self.decodeStr(x) for x in self.split(value)]
+        value = [x if isinstance(x, list) else [x] for x in value]
+        return pairwise_list(*value)
 
     def __R(self, code):
         return list(RO.r(code))

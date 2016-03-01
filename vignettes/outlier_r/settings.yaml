@@ -56,8 +56,8 @@ TF_positive:
     return: res
     params:
         N: 100
-        data: {1}
-        output: {2}
+        data: $1
+        output: $2
 
 DSC:
     run: (simulate_1, simulation_2) *
