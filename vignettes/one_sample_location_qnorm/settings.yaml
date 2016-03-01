@@ -15,7 +15,7 @@ transform:
     return: x
 
 estimate:
-    level: 2
+    level: 3
     exe: mean.R median.R
     params:
         x: $*$x
@@ -24,7 +24,7 @@ estimate:
 mse:
     exe: MSE.R
     params:
-        mean_est: $2$loc
+        mean_est: $3$loc
         true_mean: $1$loc
     return: mse
 

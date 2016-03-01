@@ -4,21 +4,21 @@
 ###
 # Design overview
 ###
-# DSC is designed to execute sequences of computational steps that generate (or gather) data, perform statistical analyses and evaluate the performance of statistical procedures involved. Each step will take some input and create some output. A DSC user thus has two jobs: define the steps, and define sequences of steps.
-# A typical DSC consists of 3 sequences of steps: ""scenario"", ""method"" and ""score"", where
+# DSC is designed to execute a sequence of computational steps that generate (or gather) data, perform statistical analyses and evaluate the performance of statistical procedures involved. Each step will take some input and create some output. A DSC user thus has two jobs: define the steps, and define the sequence of steps.
+# A typical DSC sequences consists of 3 logical types of steps: ""scenario"", ""method"" and ""score"", where
 #{list
 # ""scenario"": provides input data and / or computational routines that generate input data.
 # ""method"": defines statistical procedures that analyzes data.
 # ""score"": defines methods that evaluates the result of data analyses against the ``truth'' (model from which the data is generated) and calculates scores as measures of evaluations.
 #}
-# In practice DSC allows for flexible combination of these sequences, as illustrated in the pipeline below,
+# DSC allows for flexible combination of computational steps, as illustrated in the pipeline below,
 #{out
 | scenario 1               |    | method 1 ->                      |    | score 1 |
 | scenario 2               | -> | method 2 -> method 1             | -> | score 2 |
 | scenario 1 -> scenario 3 |    | method 3 -> method 2 -> method 1 |    | ...     |
 | scenario 4 -> ...        |    | method 4 -> ...                  |    | ...     |
 #}
-# where each ""scenario"", ""method"" and ""score"" is a computational step which can be different approaches to generate data, perform statistical analysis, or measure performance of methods, or can be the same approaches with different parameter settings.
+# where each ""scenario"", ""method"" and ""score"" is a computational step which can be different approaches to generate data, perform statistical analysis, or measure performance of methods, or can be the same approaches with different parameter settings. It is good to have the 3 logical types in mind when developing a DSC, though these are not necessarily keywords in DSC syntax, as will be demonstrated in the case study below.
 ###
 # A case study
 ###
@@ -27,8 +27,14 @@
 #{out yaml
 output:///cat ../vignettes/one_sample_location_qnorm/settings.yaml
 #}
-# Each section in the DSC file, except for the last ``DSC'' section, is called a "DSC block". Each DSC block defines a family of computational routines (the @@exe@@), input to these routines (@@params@@) and output (@@return@@). The family of routines in the same block share similar (not necessarily the same) input, and strictly the same output; computational steps thus generated are logically concurrent to each other. The ``DSC'' section defines the 3 sequences, ""scenario"", ""method"" and ""score"" via logical combinations of available DSC blocks.
-# In this example, the ""scenario"" sequence in ``DSC'' section calls the ``simulate'' block, which has two computational routines @@rcauchy.R@@ and @@rt.R@@. These routines generate @@n@@ random samples under Cauchy distribution with location parameter @@l@@, and "t" distribution with non-centrality parameter @@l@@, respectively. There are 2 choices of computational routines, each routine has one choice of @@n@@ (1000) and two choices of @@loc@@ (0 and 1). 5 replicates are involved as defined by @@seed@@. As a result, the ``simulate'' block has 20 parallel computational steps.
-# The ""method"" sequence consists of ``transform'' and ``estimate'' blocks. ``transform'' block takes input data and performs quantile normalization. ``estimate'' block defines two computational routines to estimate location parameter, via sample mean (@@mean.R@@) and median (@@median.R@@) respectively. In ""method"", there are two types of procedures: the first is @@transform + estimate@@ which runs the ``transform'' family of steps first, then run the ``estimate'' family after data has been transformed; the second is @@estimate@@ which directly performs parameter estimation with the original data produced by ""scenario"".
-# The ""score"" section calls the ``mse'' block, which has a single computational routine @@MSE.R@@ to calculate the mean square error as a summary of comparison between the "true" (@@true_mean@@) and "estimated" (@@mean_est@@) location parameters, taking values from @@{1}$loc@@ and @@{2}$loc@@ respectively which correspond to the @@return@@ values from ""scenario"" and ""method"" sequences.
-# The syntax @@$1@@, @@$2@@, @@$*@@ reflects the logic that connects the 3 DSC sequences. Computational steps are categorized into """level 1, level 2 ...""". Here @@$1@@ and @@$2@@ means that input of a computational step depends on the output value from another level 1 and level 2 step, respectively. @@$*@@ means that the input comes from another step whose level ID is smaller than the level of the current block. This design avoids ambiguity of variables and allows flexibility in building DSC sequences, as with the case in ``estimate'' block whose input can either be from original data or from another ""method"" block ``transform'', due to the use of @@$*@@.
+# Each section in the DSC file, except for the last ``DSC'' section, is called a "DSC block". Each DSC block defines a family of computational routines (the @@exe@@), input to these routines (@@params@@) and output (@@return@@). The family of routines in the same block share similar (not necessarily the same) input, and strictly the same output; computational steps thus generated are logically concurrent to each other. The ``DSC'' section defines the sequence of steps to execute, via logical combinations of available DSC blocks.
+# In this example, the first part of the DSC sequence calls the ``simulate'' block, which has two computational routines @@rcauchy.R@@ and @@rt.R@@. These routines generate @@n@@ random samples under Cauchy distribution with location parameter @@l@@, and "t" distribution with non-centrality parameter @@l@@, respectively. There are 2 choices of computational routines, each routine has one choice of @@n@@ (1000) and two choices of @@loc@@ (0 and 1). 5 replicates are involved as defined by @@seed@@. As a result, the ``simulate'' block has 20 parallel computational steps.
+# The second part of the sequence consists of ``transform'' and ``estimate'' blocks. ``transform'' block takes input data and performs quantile normalization. ``estimate'' block defines two computational routines to estimate location parameter, via sample mean (@@mean.R@@) and median (@@median.R@@) respectively. In this part, there are two types of procedures: the first is @@transform + estimate@@ which runs the ``transform'' family of steps first, then run the ``estimate'' family after data has been transformed; the second is @@estimate@@ which directly performs parameter estimation with the original data produced by its upstream computational steps.
+# The last part of the sequence calls the ``mse'' block, which has a single computational routine @@MSE.R@@ to calculate the mean square error as a summary of comparison between the "true" (@@true_mean@@) and "estimated" (@@mean_est@@) location parameters, taking values from @@$1$loc@@ and @@$2$loc@@ respectively which correspond to the @@return@@ values from previous computational steps.
+# The syntax @@$1@@, @@$2@@, ..., @@$*@@ reflects the logic that connects families of steps in a DSC sequence. DSC blocks are categorized into different levels, and in the DSC sequence, blocks of higher level can only occur at the downstream of blocks of lower levels. The ``level'' syntax is introduced in order to::
+#{list
+# Prevent bad logic in DSC sequence, e.g., if the correct order of a sequence is @@scenario * method * score@@ then ``level'' will help the parser to identify invalid specifications such as @@score * scenario * method@@, etc.
+# Distinguish input of variables of same name but should logically come from different other blocks.
+# Allow for flexibility in building DSC sequence, due to @@$*@@ syntax which allows input for any lower level blocks.
+#}
+In this case study, input of the ``estimate'' block can either be from original data or from another block ``transform'', via @@$*@@. Input of the `mse` block takes two input values of the same name @@loc@@, but it is necessary to distinguished their source which is possible with ``level'' information, e.g., @@$3$loc@@, @@$1$loc@@.

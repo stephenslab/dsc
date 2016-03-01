@@ -8,7 +8,7 @@ import sys, yaml, re, subprocess, ast, itertools, copy, sympy
 import rpy2.robjects as RO
 from utils import env, lower_keys, is_null, str2num, \
      cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list, \
-     try_get_value, dict2str, update_nested_dict
+     try_get_value, dict2str, update_nested_dict, uniq_list
 
 class DSCFileParser:
     '''
@@ -506,11 +506,10 @@ class OperationParser(DSCEntryParser):
     '''
     Parse DSC logic sequence variables by expanding them
 
-    Input: a string sequence of __logic__ or 'run'; and a tag for contents in error message
+    Input: a string sequence of __logic__ or 'run'
     '''
-    def __init__(self, tag):
+    def __init__(self):
         DSCEntryParser.__init__(self)
-        self.tag = tag
         self.operators = ['(', ')', ',', '+', '*']
         self.cache = {}
         self.cache_count = 0
@@ -578,7 +577,7 @@ class OperationParser(DSCEntryParser):
         return value
 
     def reconstruct(self, value):
-        sequence_ordering = re.sub(r'\(|\)|\+|\*|,', ' ', value).split()
+        sequence_ordering = uniq_list(re.sub(r'\(|\)|\+|\*|,', ' ', value).split())
         value = value.replace('+', '__PAIRWISE__')
         value = value.replace(',', '+')
         # restore order and syntax
@@ -597,9 +596,8 @@ class OperationParser(DSCEntryParser):
             for y in sequence_ordering:
                 if y in tmp_1:
                     if '__PAIRWISE__' in tmp_1[y]:
-                        t1, t2 = tmp_1[y].split('__PAIRWISE__')
-                        tmp_2.append('{}+{}'.format(self.cache[t1] if t1 in self.cache else t1,
-                                                    self.cache[t2] if t2 in self.cache else t2))
+                        tmp_3 = [self.cache[x] if x in self.cache else x for x in tmp_1[y].split('__PAIRWISE__')]
+                        tmp_2.append('+'.join(tmp_3))
                     else:
                         tmp_2.append(self.cache[tmp_1[y]] if tmp_1[y] in self.cache else tmp_1[y])
             res.append(tuple(tmp_2) if len(tmp_2) > 1 else tmp_2[0])

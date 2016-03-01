@@ -332,6 +332,11 @@ def pairwise_list(*args):
 def flatten_list(lst):
     return sum( ([x] if not isinstance(x, list) else flatten_list(x) for x in lst), [] )
 
+def uniq_list(seq):
+    seen = set()
+    seen_add = seen.add
+    return [x for x in seq if not (x in seen or seen_add(x))]
+
 def get_slice(value, all_tuple = True):
     '''
     Input string is R index style: 1-based, end position inclusive slicing
