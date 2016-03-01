@@ -101,49 +101,6 @@ class DSCEntryParser:
                     var = tuple(var)
         return var
 
-class DSCBlockParser(DSCFileParser):
-    '''
-    Parser for DSC Block
-
-    Apply to a DSC block to convert it to job initialization data
-
-    In addition to simply expand attributes, this will take care of all
-    (remaining) DSC jargon, including:
-      * __alias__ related operations
-        * RList()
-        * "=" operator
-      * __logic__ related operations (__logic__ entry itself has previously been parsed)
-        * expand parameters based on these rules
-    '''
-    def __init__(self):
-        DSCFileParser.__init__(self)
-
-    def apply(self, dsc):
-        for name in list(dsc.keys()):
-            if name != 'DSC':
-                self.format_exe(dsc, name)
-            # clean up data
-            for key in list(dsc[name].keys()):
-                if not dsc[name][key]:
-                    del dsc[name][key]
-
-    def format_exe(self, dsc, name):
-        '''
-        Split exe string to tuples and check if exe matches parameters
-        '''
-        dsc[name]['meta']['exe'] = [tuple(x.split()) if isinstance(x, str) else x for x in dsc[name]['meta']['exe']]
-        max_exe = sorted(dsc[name]['params'].keys())[-1]
-        if max_exe > len(dsc[name]['meta']['exe']):
-            raise ValueError('Index for exe out of range: exe[{}].'.format(max_exe))
-
-class DSCSetupParser(DSCFileParser):
-    '''
-    Parser for DSC section, the DSC setup
-    '''
-    def __init__(self):
-        DSCFileParser.__init__(self)
-
-
 class DSCFileLoader(DSCFileParser):
     '''
     Load DSC configuration file in YAML format and perform initial sanity check
@@ -300,50 +257,6 @@ class DSCFileLoader(DSCFileParser):
         if 'level' in section_data:
             res['level'] = section_data['level']
         return res
-
-class DSCEntryFormatter(DSCFileParser):
-    '''
-    Run format transformation to all DSC entries
-    '''
-    def __init__(self):
-        DSCFileParser.__init__(self)
-
-    def apply(self, data):
-        data['DSC_R_LIBRARIES'] = try_get_value(data, ('DSC', 'runtime', 'r_libs'))
-        variables = try_get_value(data, ('DSC', 'runtime', 'variables'))
-        if data['DSC_R_LIBRARIES'] is not None:
-            del data['DSC']['runtime']['r_libs']
-        else:
-            del data['DSC_R_LIBRARIES']
-        if variables is not None:
-            del data['DSC']['runtime']['variables']
-        self.actions = [OperationParser(),
-                        Str2List(),
-                        ExpandVars(variables),
-                        ExpandActions(),
-                        CastData()]
-        data = self.__Transform(data, [])
-        for key in data:
-            if 'level' in data[key]:
-                data[key]['level'] = data[key]['level'][0]
-
-    def __Transform(self, cfg, keys):
-        for key, value in list(cfg.items()):
-            if isinstance(value, dict):
-                keys.append(key)
-                self.__Transform(value, keys)
-            else:
-                is_dsc = keys[-1] == 'DSC' or (keys[-1] == 'runtime' and (keys[-2] == 'DSC' if len(keys) > 1 else False))
-                if keys[-1] == 'rules' or (key == 'run' and is_dsc):
-                    value = self.actions[0].apply(value)
-                else:
-                    for a in self.actions[1:]:
-                        value = a.apply(value)
-                if is_null(value):
-                    del cfg[key]
-                else:
-                    cfg[key] = value
-        return cfg
 
 class Str2List(DSCEntryParser):
     '''
@@ -575,6 +488,119 @@ class OperationParser(DSCEntryParser):
         cache_id = 'OPERATOR_CACHE_ASDFGHJKL_{}'.format(self.cache_count)
         self.cache[cache_id] = cache
         return cache_id
+
+class DSCEntryFormatter(DSCFileParser):
+    '''
+    Run format transformation to all DSC entries
+    '''
+    def __init__(self):
+        DSCFileParser.__init__(self)
+
+    def apply(self, data):
+        data['DSC_R_LIBRARIES'] = try_get_value(data, ('DSC', 'runtime', 'r_libs'))
+        variables = try_get_value(data, ('DSC', 'runtime', 'variables'))
+        if data['DSC_R_LIBRARIES'] is not None:
+            del data['DSC']['runtime']['r_libs']
+        else:
+            del data['DSC_R_LIBRARIES']
+        if variables is not None:
+            del data['DSC']['runtime']['variables']
+        self.actions = [OperationParser(),
+                        Str2List(),
+                        ExpandVars(variables),
+                        ExpandActions(),
+                        CastData()]
+        data = self.__Transform(data, [])
+        for key in data:
+            if 'level' in data[key]:
+                data[key]['level'] = data[key]['level'][0]
+
+    def __Transform(self, cfg, keys):
+        for key, value in list(cfg.items()):
+            if isinstance(value, dict):
+                keys.append(key)
+                self.__Transform(value, keys)
+            else:
+                is_dsc = keys[-1] == 'DSC' or (keys[-1] == 'runtime' and (keys[-2] == 'DSC' if len(keys) > 1 else False))
+                if keys[-1] == 'rules' or (key == 'run' and is_dsc):
+                    value = self.actions[0].apply(value)
+                else:
+                    for a in self.actions[1:]:
+                        value = a.apply(value)
+                if is_null(value):
+                    del cfg[key]
+                else:
+                    cfg[key] = value
+        return cfg
+
+class DSCBlockParser(DSCFileParser):
+    '''
+    Parser for DSC Block
+
+    Apply to a DSC block to convert it to job initialization data
+
+    In addition to simply expand attributes, this will take care of all
+    (remaining) DSC jargon, including:
+      * __alias__ related operations
+        * RList()
+        * "=" operator
+      * __logic__ related operations (__logic__ entry itself has previously been parsed)
+        * expand parameters based on these rules
+    '''
+    def __init__(self):
+        DSCFileParser.__init__(self)
+
+    def apply(self, dsc):
+        for name in list(dsc.keys()):
+            if name == 'DSC':
+                # FIXME
+                continue
+            else:
+                self.name = name
+                self.format_exe(dsc[name])
+                self.expand_params(dsc[name])
+            # clean up data
+            for key in list(dsc[name].keys()):
+                if not dsc[name][key]:
+                    del dsc[name][key]
+
+    def format_exe(self, block):
+        '''
+        Split exe string to tuples and check if exe matches parameters
+        '''
+        block['meta']['exe'] = [tuple(x.split()) if isinstance(x, str) else x for x in block['meta']['exe']]
+        max_exe = sorted(block['params'].keys())[-1]
+        if max_exe > len(block['meta']['exe']):
+            raise ValueError('Index for exe out of range: exe[{}].'.format(max_exe))
+
+    def expand_params(self, block):
+        if 'params' not in block:
+            return
+        global_alias = try_get_value(block, ('params_alias', 0))
+        global_params = self.__apply_alias(try_get_value(block, ('params', 0)), global_alias)
+        for key in list(block['params'].keys()):
+            if key == 0:
+                continue
+            alias = try_get_value(block, ('params_alias', key))
+            block['params'][key] = self.__apply_alias(block['params'][key], alias if alias else global_alias)
+            tmp = copy.deepcopy(global_params)
+            tmp.update(block['params'][key])
+            block['params'][key] = tmp
+
+    def __apply_alias(self, params, alias):
+        # FIXME: to be implemented
+        if not params:
+            return {}
+        if not alias:
+            return params
+        return params if params else {}
+
+class DSCSetupParser(DSCFileParser):
+    '''
+    Parser for DSC section, the DSC setup
+    '''
+    def __init__(self):
+        DSCFileParser.__init__(self)
 
 class DSCData(dict):
     '''
