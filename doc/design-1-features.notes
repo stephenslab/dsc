@@ -37,4 +37,4 @@ output:///cat ../vignettes/one_sample_location_qnorm/settings.yaml
 # Distinguish input of variables of same name but should logically come from different other blocks.
 # Allow for flexibility in building DSC sequence, due to @@$*@@ syntax which allows input for any lower level blocks.
 #}
-In this case study, input of the ``estimate'' block can either be from original data or from another block ``transform'', via @@$*@@. Input of the `mse` block takes two input values of the same name @@loc@@, but it is necessary to distinguished their source which is possible with ``level'' information, e.g., @@$3$loc@@, @@$1$loc@@.
+# In this case study, input of the ``estimate'' block can either be from original data or from another block ``transform'', via @@$*@@. Input of the `mse` block takes two input values of the same name @@loc@@, but it is necessary to distinguished their source which is possible with ``level'' information, e.g., @@$3$loc@@, @@$1$loc@@.
