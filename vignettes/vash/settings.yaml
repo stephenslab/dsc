@@ -1,5 +1,4 @@
 simulate:
-    level: 1
     exe: datamaker.R
     seed: R(1:50)
     params:
@@ -9,7 +8,8 @@ simulate:
         Ngene: 10000
         voom.normalize: TRUE
         breaksample: FALSE, TRUE
-    return: data
+        __alias__: RList(args), meta = FromRList(data, meta)
+    return: data, meta
 
 simulate_partial_null(simulate):
     seed: R(1:5)
@@ -26,38 +26,35 @@ simulate_thinning(simulate):
         poisthin: TRUE
 
 correction:
-    level: 2
     exe: SVA.R, RUV.R, myrna.R
     params:
-        data: $1$data
+        data: $data
         __alias__: RList(args)
     return: data
 
 transform:
-    level: 3
     exe: voom.R, quasibinom.R, edgeRglm.R, DESeq2glm.R
     params:
-        data: $*$data
+        data: $data
         __alias__: RList(args)
     return: data
 
 test:
-    level: 4
     exe: edgeR.R, DESeq2.R, ash.R, jointash.R, limma.R
     params:
-        data: $*$data
+        data: $data
         __alias__: RList(args)
         exe[1,2]:
             glm: TRUE, FALSE
         exe[5]:
             robust: TRUE, FALSE
-    return: data
+    return: output
 
 score:
     exe: score.R
     params:
-        data: $1
-        output: $4
+        data: $meta
+        output: $output
     return: result
 
 DSC:

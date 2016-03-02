@@ -1,5 +1,4 @@
 simulate:
-    level: 1
     exe: datamaker.R
     seed: R(1:2)
     params:
@@ -9,21 +8,21 @@ simulate:
         max_pi0: 1
         nsamp: 1000
         betahatsd: 1
-        __alias__: RList(args)
-    return: data
+        __alias__: RList(args), true_beta = FromRList(data, meta, beta)
+    return: data, true_beta
 
 shrink:
-    level: 2
     exe: runash.R
     params:
-        args: $*
-    return: output
+        args: $data
+        __alias__: beta_est = FromRList(data, beta_est)
+    return: data, beta_est
 
 RMSE:
     exe: score.R
     params:
-        beta_true: $1$meta$beta
-        beta_est: $2
+        beta_true: $true_beta
+        beta_est: $beta_est
     return: result
 
 DSC:

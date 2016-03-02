@@ -1,31 +1,28 @@
 simulate:
-    level: 1
     exe: rt.R, rcauchy.R
     seed: R(1:5)
     params:
         n: 1000
-        loc: 0, 1
-    return: x, loc
+        true_loc: 0, 1
+    return: x, true_loc
 
 transform:
-    level: 2
     exe: qnorm.R
     params:
-        x: $1$x
+        x: $x
     return: x
 
 estimate:
-    level: 3
     exe: mean.R median.R
     params:
-        x: $*$x
+        x: $x
     return: loc
 
 mse:
     exe: MSE.R
     params:
-        mean_est: $3$loc
-        true_mean: $1$loc
+        mean_est: $loc
+        true_mean: $true_loc
     return: mse
 
 DSC:

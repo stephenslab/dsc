@@ -1,5 +1,4 @@
 scenario:
-    level: 1
     exe: datamaker.R
     seed: R(1:50), R(1:5)
     params:
@@ -11,17 +10,16 @@ scenario:
         breaksample: FALSE, TRUE
         nullpi: 0.9
         poisthin: TRUE
-        __alias__: RList(args)
+        __alias__: RList(args), meta = FromRList(data, meta)
         __logic__: (seed[1] * path * tissue * Nsamp * Ngene * voom.normalize * breaksample),
                    (seed[2] * path * tissue[2] * Nsamp * Ngene * voom.normalize * breaksample[2] * nullpi),
                    (seed[2] * path * tissue[1] * Nsamp * Ngene * voom.normalize * breaksample[1] * poisthin)
-    return: data
+    return: data, meta
 
 method:
-    level: 2
     exe: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
     params:
-        input: $1
+        input: $data
         transform: voom, RUVvoom, SVAvoom, quasibinom, RUV+quasibinom, SVA+quasibinom, Myrna+quasibinom, edgeRglm
         __alias__: RList(args, transform)
         exe[1]:
@@ -46,8 +44,8 @@ method:
 score:
     exe: score.R
     params:
-        data: $1
-        output: $2
+        data: $data
+        output: $output
     return: result
 
 DSC:
