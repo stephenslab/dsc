@@ -1,0 +1,155 @@
+sim_star_mvn:
+    # dummy simulator, that simulates inds from a multivariate
+    # normal that are uncorrelated
+    level: 1
+    exe: star_mvn.R $n_inds $n_snps $output
+    params:
+        n_inds: ?, ?, ?
+        n_snps: ?, ?, ?, ?
+        nsim: File(prefix = starmvn, suffix = nsim)
+    return: nsim
+
+sim_star_mvn_pop:
+    # dummy simulator that creates population level data from a star
+    # population phylogeny
+    level: 1
+    exe: star_mvn_pop.r $n_inds_per_pop $n_pop $n_snps $nsim $aux
+    params:
+        n_inds_per_pop: ?, ?, ?
+        n_pop: ?, ?, ?
+        n_snps: ?, ?, ?
+        nsim: File(prefix = starmvnpop, suffix = nsim)
+        aux: File(prefix = starmvnpop, suffix = aux)
+    return: nsim, aux
+
+sim_fixed:
+    # dummy outlier simulator. Simulate a set of all fixed SNP.
+    level: 2
+    exe: outlier_fixed.R $nsim $n_sel $sim $truth
+    params:
+        nsim: $nsim
+        n_sel: ?, ?, ?
+        sim: File(prefix = fixed, suffix = sim)
+        truth: File(prefix = fixed, suffix = truth)
+    return: sim, truth
+
+sim_structure:
+    # structure model simulator for neutral and selected data
+    level: 2
+    exe: NeutralStructureSim.R $nparam $nsim $imixmat,
+         SelectedStructureSim.R $nparam $sparam $imixmat $nsim $truth,
+         paste $imixmat $truth > $sim
+    __logic__: exe[1] + exe[2] + exe[3]
+    params:
+        nparam: ?.nparam, ?.nparam
+        sparam: ?.sparam, ?.sparam
+        nsim: File(prefix = neutral_structure, suffix = nsim)
+        imixmat: File(prefix = neutral_structure, suffix = imixmat)
+        sim: File(prefix = sel_structure, suffix = sim)
+        truth: File(prefix = sel_structure, suffix = truth)
+        __alias__: File(nparam, sparam)
+        __logic__: (nparam + sparam) * (nsim + imixmat) * (sim + truth)
+    return: sim, truth
+
+factor_pca:
+    # matrix decompose via PCA
+    level: 3
+    exe: pca.R $sim_data $n_pc $output
+    params:
+        sim_data: $sim
+        n_pc: ?, ?, ?
+        loadings: File(prefix = PCA, suffix = loadings)
+        factors: File(prefix = PCA, suffix = factors)
+    return: loadings, factors
+
+factor_treemix:
+    # matrix decompose via treemix
+    level: 3
+    exe: mat2treemix.py $nsim $aux $treemix_data,
+         treemix -i $treemix_data -m $m -o Prefix($treemix_res),
+         treemix2factor.py $treemix_res $loadings $factors
+    __logic__: exe[1] + exe[2] + exe[3]
+    params:
+        nsim: $nsim
+        aux: $aux
+        treemix_data: Prefix($nsim).treemix.gz
+        m: ?, ?, ?
+        treemix_res: File(prefix = treemix_res, suffix = (edges.gz, vertices.gz))
+        loadings: File(prefix = treemix_res, suffix = loadings)
+        factors: File(prefix = treemix_res, suffix = factors)
+    return: loadings, factors
+
+ssq_loading:
+    # dummy outlier detector. Takes the sum of
+    # the squared loadings for each SNP as measure for
+    # being an outlier.
+    level: 4
+    exe: max_loading_ssq.R $loadings $factors $score
+    params:
+        loadings: $loadings
+        factors: $factors
+        score: File(prefix = max_loading_ssq, suffix = score)
+    return: score
+
+duforet_outliers:
+    # reads the methods from the duforet paper and makes outlier detection
+    level: 4
+    exe: duforet.R $loadings $factors $score
+    params:
+        loadings: $loadings
+        factors: $factors
+        score: File(prefix = duforet_outliers, suffix = score)
+    return: score
+
+wishart_ll:
+    level: 4
+    exe: wishart_ll.R $sim $loadings $factors $score
+    params:
+        sim: $sim
+        loadings: $loadings
+        factors: $factors
+        score: File(prefix = duforet_outliers, suffix = score)
+    return: score
+
+admixture_outliers:
+    # Detect ourlier via "admixture"
+    level: 4
+    exe: makePED.py $sim_data $ped $map,
+         admixture $ped $K > $admix_res[3],
+         mv $ped.$K.p $admix_res[1],
+         mv $ped.$K.Q $admix_res[2],
+         write_chi_sqs.R $admix_res[2] $score
+    __logic__: exe[1] + exe[2] + exe[3] + exe[4] + exe[5]
+    params:
+        # By context in DSC::run output below refer
+        # to output from sim_structure
+        K: ?, ?, ?
+        sim_data: $sim
+        ped: Prefix($sim).ped
+        map: Prefix($sim).map
+        admix_res: File(prefix = admix_res, suffix = (P, Q, log))
+        score: File(prefix = admix_outlier, suffix = score)
+        __alias__: File(sim_data, ped, map)
+    return: score
+
+score_topn:
+    # simple scorer. Find the number of true positives in the best n SNP
+    level: 5
+    exe: score_topn.R $score $truth $n $res
+    params:
+        truth: $truth
+        score: $score
+        res: File(prefix = top_n_TP, suffix = out)
+        n: ?, ?, ?
+    return: res
+
+DSC:
+    run: (sim_star_mvn * (sim_fixed, sim_structure)) *
+         (admixture_outliers, (factor_pca * (ssq_loading, duforet_outliers, wishart_ll))) *
+         score_topn,
+         sim_star_mvn_pop * (factor_treemix * (ssq_loading, duforet_outliers, wishart_ll)) *
+         score_topn
+    runtime:
+        bin: src/simulators, src/sim_outliers, src/factor, src/other, bin, src/detect_outliers,
+             src/factor/treemix,
+        workdir: dsc
