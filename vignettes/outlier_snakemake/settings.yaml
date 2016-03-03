@@ -43,7 +43,7 @@ sim_structure:
         imixmat: File(prefix = neutral_structure, suffix = imixmat)
         sim: File(prefix = sel_structure, suffix = sim)
         truth: File(prefix = sel_structure, suffix = truth)
-        __alias__: File(nparam, sparam)
+        __alias__: FromFile(nparam, sparam)
         __logic__: (nparam + sparam) * (nsim + imixmat) * (sim + truth)
     return: sim, truth
 
@@ -114,12 +114,11 @@ admixture_outliers:
         # By context in DSC::run output below refer
         # to output from sim_structure
         K: ?, ?, ?
-        sim_data: $sim
-        ped: Prefix($sim).ped
-        map: Prefix($sim).map
+        sim_data: File($sim)
+        ped: File(Prefix($sim).ped)
+        map: File(Prefix($sim).map)
         admix_res: File(prefix = admix_res, suffix = (P, Q, log))
         score: File(prefix = admix_outlier, suffix = score)
-        __alias__: File(sim_data, ped, map)
     return: score
 
 score_topn:
@@ -133,12 +132,12 @@ score_topn:
     return: res
 
 DSC:
-    run: (sim_star_mvn * (sim_fixed, sim_structure)) *
+    run: (sim_star_mvn * sim_fixed, sim_structure) *
          (admixture_outliers, (factor_pca * (ssq_loading, duforet_outliers, wishart_ll))) *
          score_topn,
          sim_star_mvn_pop * (factor_treemix * (ssq_loading, duforet_outliers, wishart_ll)) *
          score_topn
     runtime:
         bin: src/simulators, src/sim_outliers, src/factor, src/other, bin, src/detect_outliers,
-             src/factor/treemix,
+             src/factor/treemix
         workdir: dsc

@@ -13,7 +13,7 @@ transform:
     return: x
 
 estimate:
-    exe: mean.R median.R
+    exe: mean.R, median.R
     params:
         x: $x
     return: loc

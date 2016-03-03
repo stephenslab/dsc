@@ -389,6 +389,8 @@ class OperationParser(DSCEntryParser):
     def __init__(self):
         DSCEntryParser.__init__(self)
         self.operators = ['(', ')', ',', '+', '*']
+        # FIXME: need all keywords
+        self.sympy_kws = ['sqrt', 'cos', 'sin']
         self.cache = {}
         self.cache_count = 0
 
@@ -440,7 +442,7 @@ class OperationParser(DSCEntryParser):
         new_seq.extend(seq[start_idx:len(seq)])
         # hide bad symbols
         for idx, item in enumerate(new_seq):
-            if re.search('\[(.*?)\]', item) or '.' in item:
+            if re.search('\[(.*?)\]', item) or '.' in item or item in self.sympy_kws:
                 new_seq[idx] = self.__string_cache(item)
         return ''.join(new_seq)
 

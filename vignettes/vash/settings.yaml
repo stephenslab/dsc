@@ -8,8 +8,8 @@ simulate:
         Ngene: 10000
         voom.normalize: TRUE
         breaksample: FALSE, TRUE
-        __alias__: RList(args), meta = FromRList(data, meta)
-    return: data, meta
+        __alias__: RList(args)
+    return: data, meta = FromRList(data, meta)
 
 simulate_partial_null(simulate):
     seed: R(1:5)

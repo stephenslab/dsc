@@ -9,7 +9,7 @@ simulate:
 estimate:
     exe: mean.R, median.R
     params:
-        x: x
+        x: $x
     return: mean
 
 mse:
