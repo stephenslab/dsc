@@ -6,10 +6,13 @@ simulate:
         tissue: Adipose-Subcutaneous, (Adipose-Subcutaneous, Lung)
         Nsamp: 2, 10, 50
         Ngene: 10000
-        voom.normalize: TRUE
         breaksample: FALSE, TRUE
         __alias__: RList(args)
     return: data, meta = FromRList(data, meta)
+
+simulate_normalized(simulate):
+    params:
+        voom.normalize: TRUE
 
 simulate_partial_null(simulate):
     seed: R(1:5)
@@ -78,7 +81,7 @@ score:
     return: result
 
 DSC:
-    run: (simulate, simulate_partial_null, simulate_thinning) *
+    run: (simulate, simulate_normalized, simulate_partial_null, simulate_thinning) *
          ((SVA, RUV, myrna) * (voom, quasibinom, edgeRglm, DESeq2glm) * (ash,jointash),
           (SVA, RUV, myrna) * voom * limma,
           (edgeR, DESeq2)) *
