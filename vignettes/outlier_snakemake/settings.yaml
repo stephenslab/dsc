@@ -115,9 +115,9 @@ admixture_outliers:
         # to output from sim_structure
         K: ?, ?, ?
         sim_data: File($sim)
-        ped: File(Prefix($sim).ped)
-        map: File(Prefix($sim).map)
-        admix_res: File(prefix = admix_res, suffix = (P, Q, log))
+        ped: TempFile(Prefix($sim).ped)
+        map: TempFile(Prefix($sim).map)
+        admix_res: TempFile(prefix = admix_res, suffix = (P, Q, log))
         score: File(prefix = admix_outlier, suffix = score)
     return: score
 

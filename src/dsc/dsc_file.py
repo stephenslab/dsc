@@ -6,9 +6,16 @@ __license__ = "MIT"
 
 import sys, yaml, re, subprocess, ast, itertools, copy, sympy
 import rpy2.robjects as RO
-from utils import env, lower_keys, is_null, str2num, \
+from io import StringIO
+from .utils import env, Error, lower_keys, is_null, str2num, \
      cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list, \
      try_get_value, dict2str, update_nested_dict, uniq_list
+
+class FormatError(Error):
+    """Raised when format is illegal."""
+    def __init__(self, msg):
+        Error.__init__(self, msg)
+        self.args = (msg, )
 
 class DSCFileParser:
     '''
@@ -113,16 +120,23 @@ class DSCFileLoader(DSCFileParser):
         self.aux_kw = ['__logic__', '__alias__']
 
     def apply(self, data):
-        env.logger.debug("Loading configurations from [{}].".format(data.file_name))
-        with open(data.file_name) as f:
+        def load_from_yaml(f, content):
             try:
                 cfg = yaml.load(f)
             except:
                 cfg = None
-        if not isinstance(cfg, dict):
-            raise RuntimeError("DSC configuration [{}] not properly formatted!".format(data.file_name))
-        # data.update(lower_keys(cfg))
-        data.update(cfg)
+            if not isinstance(cfg, dict):
+                raise FormatError("DSC configuration [{}] not properly formatted!".format(content))
+            # data.update(lower_keys(cfg))
+            data.update(cfg)
+
+        if os.path.isfile(data.content):
+            env.logger.debug("Loading configurations from [{}].".format(data.content))
+            with open(data.content) as f:
+                load_from_yaml(f, data.content)
+        else:
+            with StringIO(data.content) as f:
+                load_from_yaml(f, '<Input String>')
         # Handle derived blocks
         has_dsc = False
         blocks = self.__sort_blocks(data)
@@ -130,9 +144,9 @@ class DSCFileLoader(DSCFileParser):
             if block == 'DSC':
                 has_dsc = True
                 if 'run' not in data[block]:
-                    raise RuntimeError('Missing required entry "DSC::run".')
+                    raise FormatError('Missing required entry "DSC::run".')
                 if try_get_value(data, ('DSC', 'runtime', 'output')) is None:
-                    raise RuntimeError('Missing required entry "DSC::runtime::output".')
+                    raise FormatError('Missing required entry "DSC::runtime::output".')
             else:
                 groups = re.search('(.*?)\((.*?)\)', block)
                 if groups:
@@ -152,9 +166,9 @@ class DSCFileLoader(DSCFileParser):
                 if key == 'return':
                     has_return = True
             if not has_exe:
-                raise RuntimeError('Missing required entry "exe" in section "{}"'.format(block))
+                raise FormatError('Missing required entry "exe" in section "{}"'.format(block))
             if not has_return:
-                raise RuntimeError('Missing required entry "return" in section "{}"'.format(block))
+                raise FormatError('Missing required entry "return" in section "{}"'.format(block))
             data[block] = self.__format_block(data[block])
 
     def __sort_blocks(self, section_data):
@@ -179,14 +193,14 @@ class DSCFileLoader(DSCFileParser):
         tmp = [sorted(x) for x in derived]
         for item in ((i, tmp.count(i)) for i in tmp):
             if item[1] > 1:
-                raise ValueError("Looped block inheritance: {0}({1}) and {1}({0})!".format(item[0][0], item[0][1]))
+                raise FormatError("Looped block inheritance: {0}({1}) and {1}({0})!".format(item[0][0], item[0][1]))
         # Check self-derivation and non-existing base
         tmp = base + [x[0] for x in derived]
         for item in derived:
             if item[0] == item[1]:
-                raise ValueError("Looped block inheritance: {0}({0})!".format(item[0]))
+                raise FormatError("Looped block inheritance: {0}({0})!".format(item[0]))
             if item[1] not in tmp:
-                raise ValueError("Base block does not exist: {0}({1})!".format(item[0], item[1]))
+                raise FormatError("Base block does not exist: {0}({1})!".format(item[0], item[1]))
         #
         derived_cycle = itertools.cycle(derived)
         while True:
@@ -227,13 +241,13 @@ class DSCFileLoader(DSCFileParser):
                 try:
                     name, idxes = get_slice(key)
                     if name != 'exe':
-                        raise ValueError('Unknown paramseter entry with index: {}.'.format(key))
+                        raise FormatError('Unknown paramseter entry with index: {}.'.format(key))
                     for idx in idxes:
                         idx += 1
                         if idx == 0:
-                            raise ValueError('Invalid entry: exe[0]. Index must start from 1.')
+                            raise FormatError('Invalid entry: exe[0]. Index must start from 1.')
                         if idx in params:
-                            raise ValueError('Duplicate parameter entry: {}.'.format(key))
+                            raise FormatError('Duplicate parameter entry: {}.'.format(key))
                         params[idx] = copy.copy(value)
                 except AttributeError:
                     params[0][key] = value
@@ -438,7 +452,7 @@ class OperationParser(DSCEntryParser):
                         break
                     i += 1
                 if incomplete_sq:
-                    raise ValueError('Incomplete "["/"]" pair near {}'.format(''.join(tmp)))
+                    raise FormatError('Incomplete "["/"]" pair near {}'.format(''.join(tmp)))
         new_seq.extend(seq[start_idx:len(seq)])
         # hide bad symbols
         for idx, item in enumerate(new_seq):
@@ -453,9 +467,9 @@ class OperationParser(DSCEntryParser):
 
         for x in value:
             if not x in self.operators and not x.isalnum() and x != '_':
-                raise ValueError('Invalid symbol "{}" in sequence "{}"'.format(x, self.sequence))
+                raise FormatError('Invalid symbol "{}" in sequence "{}"'.format(x, self.sequence))
         if ')+' in value or '+(' in value:
-            raise ValueError('Pairwise operator "+" cannot be used to connect multiple variables ')
+            raise FormatError('Pairwise operator "+" cannot be used to connect multiple variables ')
         return value
 
     def reconstruct(self, value):
@@ -468,12 +482,12 @@ class OperationParser(DSCEntryParser):
             x = x.strip().split('*')
             if '2' in x:
                 # error for '**2'
-                raise ValueError("Possibly duplicated elements found in sequence {}".format(self.sequence))
+                raise FormatError("Possibly duplicated elements found in sequence {}".format(self.sequence))
             # re-order elements in x
             # complication: the __PAIRWISE__ operator
             tmp_1 = dict((y if '__PAIRWISE__' not in y else y.split('__PAIRWISE__')[0], y) for y in x)
             if len(tmp_1.keys()) < len(x):
-                raise ValueError("Possibly duplicated elements found in sequence {}".format(self.sequence))
+                raise FormatError("Possibly duplicated elements found in sequence {}".format(self.sequence))
             tmp_2 = []
             for y in sequence_ordering:
                 if y in tmp_1:
@@ -573,7 +587,7 @@ class DSCBlockParser(DSCFileParser):
         block['meta']['exe'] = [tuple(x.split()) if isinstance(x, str) else x for x in block['meta']['exe']]
         max_exe = sorted(block['params'].keys())[-1]
         if max_exe > len(block['meta']['exe']):
-            raise ValueError('Index for exe out of range: exe[{}].'.format(max_exe))
+            raise FormatError('Index for exe out of range: exe[{}].'.format(max_exe))
 
     def expand_params(self, block):
         if 'params' not in block:
@@ -618,12 +632,12 @@ class DSCData(dict):
       * Parse __alias__ and __logic__ to expand all settings to units of "steps"
         * i.e., list of parameter dictionaries each will initialize a job
     '''
-    def __init__(self, fname):
+    def __init__(self, content):
         self.actions = [DSCFileLoader(),
                         DSCEntryFormatter(),
                         DSCBlockParser(),
                         DSCSetupParser()]
-        self.file_name = fname
+        self.content = content
         for a in self.actions:
             a.apply(self)
 

@@ -2,7 +2,7 @@ estimate_winsor:
     exe: winsor.R
     params:
         x: $x
-	trim: 0.1, 0.2
+	      trim: 0.1, 0.2
     return: mean
 
 DSC:

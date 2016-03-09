@@ -18,5 +18,5 @@ setup(name        = PACKAGE,
       packages    = [PACKAGE],
       scripts     = ["dsc/dsc"],
       cmdclass    = {'build_py': build_py},
-      package_dir = {'dsc': 'dsc'}
+      package_dir = {PACKAGE: 'dsc'}
       )

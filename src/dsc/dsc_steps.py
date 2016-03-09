@@ -27,7 +27,7 @@ class Job:
         pass
 
     def __str__(self):
-        reture None
+        return None
 
     def execute(self):
         pass
@@ -64,7 +64,7 @@ class Jobs:
         pass
 
     def __str__(self):
-        reture None
+        return None
 
     def save(self, fname, split = None):
         '''
@@ -86,7 +86,7 @@ class JobFilter:
         pass
 
     def __str__(self):
-        reture None
+        return None
 
 class DSC:
     '''

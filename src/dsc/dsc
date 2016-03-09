@@ -5,33 +5,6 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
-import os, argparse
-from dsc.workhorse import DSCController
-
-def pathstr(value):
-    return os.path.abspath(os.path.expanduser(value))
-
-def execute(args):
-    DSCController(args.config_file).Run(args.verbosity)
-
-def show(args):
-    pass
-
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description = __doc__)
-    subparsers = parser.add_subparsers()
-    p = subparsers.add_parser('execute', help = 'Execute DSC benchmark',
-                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument('-c', dest = 'config_file', type = pathstr, required = True,
-                   help = 'DSC benchmark settings')
-    p.add_argument('-v', '--verbosity', type = int, choices = [0,1], default = 1, help = 'Verbosity level')
-    p.set_defaults(func = execute)
-    p = subparsers.add_parser('show', help = 'Explore DSC benchmark data',
-                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-    p.set_defaults(func = show)
-    args = parser.parse_args()
-    try:
-        args.func(args)
-    except Exception as e:
-        raise
+    from DSC2.workhorse import main
+    main()
