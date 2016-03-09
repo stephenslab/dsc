@@ -431,7 +431,7 @@ class OperationParser(DSCEntryParser):
                       self.reconstruct]:
                 seq = a(seq)
             res.extend(seq)
-        self.value = '; '.join([' * '.join(item) for item in res])
+        self.value = '; '.join([' * '.join(item) if not isinstance(item, str) else item for item in res])
         return res
 
     def cache_symbols(self, value):

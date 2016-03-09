@@ -5,14 +5,14 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 from unittest import main
-from .utils import DSCTestCase, load_strings
+from utils import DSCTestCase, load_strings
 from DSC2.dsc_file import DSCData, OperationParser
 
 class ParserTest(DSCTestCase):
-    def TestSequenceParser(self):
+    def testSequenceParser(self):
         '''Test DSC Operation Parser '''
         op = OperationParser()
-        for x, y in load_strings('file/OperationParserTest.txt', group_by = 2):
+        for x, y in load_strings('files/OperationParserTest.txt', group_by = 2):
             op.apply(x)
             self.assertEqual(op.value, y)
 
