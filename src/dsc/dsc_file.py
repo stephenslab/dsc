@@ -407,6 +407,10 @@ class OperationParser(DSCEntryParser):
         self.sympy_kws = ['sqrt', 'cos', 'sin']
         self.cache = {}
         self.cache_count = 0
+        self.value = ''
+
+    def __str__(self):
+        return self.value
 
     def reset(self):
         self.cache = {}
@@ -427,6 +431,7 @@ class OperationParser(DSCEntryParser):
                       self.reconstruct]:
                 seq = a(seq)
             res.extend(seq)
+        self.value = '; '.join([' * '.join(item) for item in res])
         return res
 
     def cache_symbols(self, value):
