@@ -4,14 +4,14 @@ simulate_1:
     params:
         n.neutral.snps: 9500
         n.selected.snps: 500
-        __alias__: RList(args)
+        __alias__: args = RList()
         exe[1]:
             n.samples: 100
             geno: TRUE
         exe[2]:
             n.samples.per.dim: 30
             geno: TRUE, FALSE
-    return: data, truth = FromRList(data, meta, issel)
+    return: data, truth = R(data$meta$issel)
 
 simulate_2:
     exe: Product(datamaker.R, $(data_functions)[3:4])
@@ -24,7 +24,7 @@ simulate_2:
         x.scale: 1
         spread: 0.1, 0.2, 1
         geno: TRUE
-        __alias__: RList(args)
+        __alias__: args = RList()
         exe[1]:
             sel.strength: 0, 1, 5, 10
             sel.angle: R(seq(0,pi/2,length.out=5))
@@ -32,12 +32,12 @@ simulate_2:
             sel.scale: 0, 1, 5, 10, 20
             sel.pos: 0, 0,25
             sel.var: 0.01
-    return: data, truth = FromRList(data, meta, issel)
+    return: data, truth = R(data$meta$issel)
 
 outlier_test:
     exe: Product(method.R, $(method_functions))
     params:
-        __alias__: RList(args)
+        __alias__: args = RList()
         exe[3]:
             K: 2, 5
         exe[4]:
@@ -46,7 +46,7 @@ outlier_test:
             K: 2, 3
         exe[6]:
             K: 3
-    return: data, score = FromRList(data, score)
+    return: data, score = R(data$score)
 
 TF_positive:
     exe: score.R

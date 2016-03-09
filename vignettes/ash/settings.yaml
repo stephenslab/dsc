@@ -8,14 +8,14 @@ simulate:
         max_pi0: 1
         nsamp: 1000
         betahatsd: 1
-        __alias__: RList(args)
-    return: data, true_beta = FromRList(data, meta, beta)
+        __alias__: args = RList()
+    return: data, true_beta = R(data$meta$beta)
 
 shrink:
     exe: runash.R
     params:
         args: $data
-    return: data, beta_est = FromRList(data, beta_est)
+    return: data, beta_est = R(data$beta_est)
 
 RMSE:
     exe: score.R

@@ -7,8 +7,8 @@ simulate:
         Nsamp: 2, 10, 50
         Ngene: 10000
         breaksample: FALSE, TRUE
-        __alias__: RList(args)
-    return: data, meta = FromRList(data, meta)
+        __alias__: args = RList()
+    return: data, meta = R(data$meta)
 
 simulate_normalized(simulate):
     params:
@@ -32,7 +32,7 @@ SVA:
     exe: SVA.R
     params:
         data: $data
-        __alias__: RList(args)
+        __alias__: args = RList()
     return: data
 
 RUV(SVA):

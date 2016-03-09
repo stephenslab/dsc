@@ -88,4 +88,4 @@ rule all:
   input: "home.done", "docs.done", "sidebar.done"
 
 rule clean:
-  shell: "rm *.done"
+  shell: "rm -f *.done"
