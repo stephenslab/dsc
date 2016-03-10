@@ -9,6 +9,21 @@ import sys, os, random, copy, re, itertools,\
 from io import StringIO
 from pysos.utils import env
 
+class Timer(object):
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+
+    def __enter__(self):
+        self.start = time.time()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.time()
+        self.secs = self.end - self.start
+        self.msecs = self.secs * 1000  # millisecs
+        if self.verbose:
+            print('elapsed time: %.03f ms' % self.msecs)
+
 def lower_keys(x, level_start = 0, level_end = 2):
     level_start += 1
     if level_start > level_end:
@@ -63,6 +78,15 @@ def pairwise_list(*args):
 
 def flatten_list(lst):
     return sum( ([x] if not isinstance(x, list) else flatten_list(x) for x in lst), [] )
+
+def flatten_dict(d):
+    items = []
+    for k, v in d.items():
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten_dict(v).items())
+        else:
+            items.append((k, v))
+    return dict(items)
 
 def uniq_list(seq):
     seen = set()
