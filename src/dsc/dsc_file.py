@@ -7,10 +7,10 @@ __license__ = "MIT"
 import os, sys, yaml, re, subprocess, ast, itertools, copy, sympy
 import rpy2.robjects as RO
 from io import StringIO
+from pysos.utils import env, Error
 from .utils import lower_keys, is_null, str2num, \
      cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list, \
      try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value
-from pysos.utils import env, Error
 
 class FormatError(Error):
     """Raised when format is illegal."""
@@ -640,7 +640,12 @@ class DSCData(dict):
       * Parse __alias__ and __logic__ to expand all settings to units of "steps"
         * i.e., list of parameter dictionaries each will initialize a job
     '''
-    def __init__(self, content):
+    def __init__(self, content, **kwargs):
+        for k, v in kwargs.items():
+            try:
+                setattr(env, k, v)
+            except:
+                pass
         self.actions = [DSCFileLoader(),
                         DSCEntryFormatter(),
                         DSCBlockParser(),

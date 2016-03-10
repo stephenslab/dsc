@@ -7,6 +7,7 @@ __license__ = "MIT"
 import sys, os, random, copy, re, itertools,\
   yaml, collections
 from io import StringIO
+from pysos.utils import env
 
 def lower_keys(x, level_start = 0, level_end = 2):
     level_start += 1

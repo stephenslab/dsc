@@ -20,3 +20,8 @@ def load_strings(filename, group_by = 2):
             if not idx % group_by:
                 yield tuple(tmp)
                 tmp = []
+
+def load_as_string(filename):
+    with open(filename) as f:
+        data = f.readlines()
+    return ''.join(data)

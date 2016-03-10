@@ -2,6 +2,7 @@ simulate:
     exe: datamaker.R
     params:
         tissue: (Adipose-Subcutaneous, Lung), Lung
+    return: data
 
 DSC:
     run: simulate
