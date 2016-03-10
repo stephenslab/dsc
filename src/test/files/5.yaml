@@ -1,0 +1,9 @@
+simulate:
+    exe: datamaker.R
+    seed: R(1:5)
+    params:
+        angle: R(seq(0,pi/2,length.out=5))
+    return: data
+
+DSC:
+    run: simulate

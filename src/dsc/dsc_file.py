@@ -4,12 +4,13 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import sys, yaml, re, subprocess, ast, itertools, copy, sympy
+import os, sys, yaml, re, subprocess, ast, itertools, copy, sympy
 import rpy2.robjects as RO
 from io import StringIO
-from .utils import env, Error, lower_keys, is_null, str2num, \
+from .utils import lower_keys, is_null, str2num, \
      cartesian_dict, cartesian_list, pairwise_list, get_slice, flatten_list, \
-     try_get_value, dict2str, update_nested_dict, uniq_list
+     try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value
+from pysos.utils import env, Error
 
 class FormatError(Error):
     """Raised when format is illegal."""
@@ -137,6 +138,7 @@ class DSCFileLoader(DSCFileParser):
         else:
             with StringIO(data.content) as f:
                 load_from_yaml(f, '<Input String>')
+                data.content = 'DSCStringIO.yaml'
         # Handle derived blocks
         has_dsc = False
         blocks = self.__sort_blocks(data)
@@ -146,7 +148,8 @@ class DSCFileLoader(DSCFileParser):
                 if 'run' not in data[block]:
                     raise FormatError('Missing required entry "DSC::run".')
                 if try_get_value(data, ('DSC', 'runtime', 'output')) is None:
-                    raise FormatError('Missing required entry "DSC::runtime::output".')
+                    env.logger.warning('Missing output database name (entry "DSC::runtime::output"). Use default name [{}].'.format(data.content[:-5]))
+                    set_nested_value(data, ('DSC', 'runtime', 'output'), data.content[:-5])
             else:
                 groups = re.search('(.*?)\((.*?)\)', block)
                 if groups:

@@ -16,5 +16,52 @@ class ParserTest(DSCTestCase):
             op.apply(x)
             self.assertEqual(op.value, y)
 
+    def __testBlockParser(self):
+        pass
+
+    def testBasicBlock(self):
+        '''Basic block parser test'''
+        pass
+
+    def testAlias(self):
+        '''Test __alias__ and return alias'''
+        pass
+
+    def testProductPairwiseOperator(self):
+        '''Test "Product" and "Pairwise" operators'''
+        pass
+
+    def testExeParams(self):
+        '''Test executable specific parameters'''
+        pass
+
+    def testInlineOperators(self):
+        '''Test R()/Python()/Shell()'''
+        pass
+
+    def testAsisOperator(self):
+        '''Test Asis() operator'''
+        pass
+
+    def testGlobalVars(self):
+        '''Test DSC global variables'''
+        pass
+
+    def testRLibraries(self):
+        '''Test R library parser'''
+        pass
+
+    def testTupleOperator(self):
+        '''Test () parser'''
+        pass
+
+    def testLogicOperator(self):
+        '''Test __logic__ operator'''
+        pass
+
+    def testInheritance(self):
+        '''Test block inheritance'''
+        pass
+
 if __name__ == '__main__':
     main()

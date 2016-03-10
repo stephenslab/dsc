@@ -7,6 +7,9 @@ __license__ = "MIT"
 rule help:
   shell: "snakemake -l"
 
+rule pysos:
+  shell: "svn checkout https://github.com/gaow/SOS/trunk/pysos"
+
 rule install:
   output:
     touch("build.done")

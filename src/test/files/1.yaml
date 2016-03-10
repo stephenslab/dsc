@@ -1,0 +1,10 @@
+simulate:
+    exe: rnorm.R, rt.R
+    seed: 1,2,3,4,5
+    params:
+        n: 1000
+        true_mean: 0, 1
+    return: x, true_mean
+
+DSC:
+    run: simulate

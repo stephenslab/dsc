@@ -1,9 +1,9 @@
-scenario:
+simulate:
     exe: datamaker.R
     seed: R(1:50), R(1:5)
     params:
-        path: R(gsub("[[:space:]]", "", readChar($(fileName), file.info($(fileName))$size)))
-        tissue: Adipose-Subcutaneous, (Adipose-Subcutaneous, Lung)
+        path: file.txt
+        tissue: Adipose-Subcutaneous, Lung
         Nsamp: 2, 10, 50
         Ngene: 10000
         voom.normalize: TRUE
@@ -14,7 +14,7 @@ scenario:
         __logic__: (seed[1] * path * tissue * Nsamp * Ngene * voom.normalize * breaksample),
                    (seed[2] * path * tissue[2] * Nsamp * Ngene * voom.normalize * breaksample[2] * nullpi),
                    (seed[2] * path * tissue[1] * Nsamp * Ngene * voom.normalize * breaksample[1] * poisthin)
-    return: data, meta = R(data$meta)
+    return: data
 
 method:
     exe: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
@@ -41,19 +41,5 @@ method:
             __alias__: args = RList()
     return: output
 
-score:
-    exe: score.R
-    params:
-        data: $data
-        output: $output
-    return: result
-
 DSC:
-    run: scenario * method * score
-    runtime:
-        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
-                edgeR, RUVSeq, sva, data.table, DESeq
-        exe_path: bin
-        output: vash
-        variables:
-            fileName: data_path.txt
+    run: simulate * method

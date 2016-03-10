@@ -10,12 +10,12 @@ def load_strings(filename, group_by = 2):
         idx = 0
         tmp = []
         while True:
-            line = f.readline()
+            line = f.readline().strip()
             if not line:
                 break
             if line.startswith('#'):
                 continue
-            tmp.append(line.strip())
+            tmp.append(line)
             idx += 1
             if not idx % group_by:
                 yield tuple(tmp)
