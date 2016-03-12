@@ -1,0 +1,84 @@
+#!/usr/bin/env sos-runner
+#vim: set filetype=python: set expandtab : ts=4:
+#fileformat=SOS1.0
+#
+# Author: Gao Wang
+
+[parameters]
+md = 'tigernotes markdown'
+pdf = 'tigernotes doc --showall'
+wiki_dir = 'dsc2.wiki'
+doc_dir = ['design', 'course', 'setup', 'interface', 'vignettes']
+doc_files = sum([sorted(list(glob.glob('{}-*'.format(item))), key = lambda x: x.split("-")[1]) for item in doc_dir], [])
+md_dirs = [os.path.join(wiki_dir, item.split('-')[0]) for item in doc_files]
+
+[1]
+# HomePage
+md_source = ['home.notes', 'footer.notes', 'issues.notes']
+md_out = [os.path.join(wiki_dir, x) for x in ['Home.md', '_Footer.md', '-']]
+input: md_source, group_by = 'single', for_each = 'md_out'
+output: md_out
+run("echo ${md} ${input} -o ${_md_out}")
+
+[2]
+# Documentations
+input: doc_files, group_by = 'single', for_each = 'md_dirs'
+run("echo ${md} ${input} -o ${_md_dirs}/-")
+
+[3]
+# Sidebar
+input: doc_files
+python('''
+import os
+from collections import OrderedDict
+from subprocess import check_output
+TITLES = OrderedDict([
+    ('design', 'Design & Syntax'),
+    ('course', 'Short Course'),
+    ('interface', 'Command Interface'),
+    ('setup', 'Setup Guide'),
+    ('vignettes', 'Examples')
+    ])
+res = {}
+for item in "${input}".split():
+    # Global navigator
+    section = item.split('-')[0]
+    sidebar = '{}/{}/_Sidebar.md'.format(${wiki_dir!r}, section)
+    if section not in res:
+        res[section] = []
+        with open(sidebar, 'w') as f:
+             f.write("**[Wiki Home](https://github.com/stephenslab/dsc2/wiki)**\n\n")
+    check_output('${md} %s -o .tmp.md' % item, shell = True)
+    with open('.tmp.md') as f:
+        try:
+            title = f.readlines()[0].replace('#', '').strip()
+        except IndexError:
+            print(item)
+            raise
+    os.remove('.tmp.md')
+    filename = title.replace(':', '').replace(' ', '-')
+    res[section].append('* [[{}|{}]]'.format(title, filename))
+    # local TOC
+    filepath = '{}/{}/{}.md'.format(${wiki_dir!r}, section, filename)
+    local_res = []
+    cmd = 'python markdown_toclify.py {} --github'.format(filepath)
+    for line in check_output(cmd, shell = True).decode('utf8').strip().split('\n'):
+        line = line.rstrip()
+        if not line:
+            break
+        if line == '# Table of Contents':
+            line = '**{}**'.format(title)
+        line = line.replace('#', filename + '#')
+        local_res.append(line)
+    if len(local_res) > 1:
+        with open(sidebar, 'a') as f:
+            for line in local_res:
+                f.write(line + '\n')
+            f.write('\n')
+with open(${wiki_dir!r} + '/_Sidebar.md', 'w') as f:
+    for key in TITLES.keys():
+        if key in res:
+            f.write('\n**' + TITLES[key] + '**\n\n')
+            for item in res[key]:
+                f.write(item + '\n')
+''')

@@ -25,7 +25,7 @@ import argparse
 import re
 
 
-__version__ = '1.7.1'
+__version__ = '1.7.1' # with some bug fixes by Gao Wang 2016
 
 VALIDS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_-&'
 
@@ -38,7 +38,7 @@ def read_lines(in_file):
     return in_contents
 
 
-def remove_lines(lines, remove=('[[back to top]', '<a class="mk-toclify"')):
+def remove_lines(lines, remove=('__[back to top]', '<a class="mk-toclify"')):
     """Removes existing [back to top] links and <a id> tags."""
 
     if not remove:
@@ -114,13 +114,15 @@ def tag_and_collect(lines, id_tag=True, back_links=False, exclude_h=None):
     """
     out_contents = []
     headlines = []
+    inside_block = False
     for l in lines:
         saw_headline = False
 
         orig_len = len(l)
         # l = l.lstrip()
-
-        if l.startswith(('# ', '## ', '### ', '#### ', '##### ', '###### ')):
+        if l.startswith('```'):
+            inside_block = not inside_block
+        if not inside_block and l.startswith(('# ', '## ', '### ', '#### ', '##### ', '###### ')):
 
             # comply with new markdown standards
 
@@ -150,7 +152,7 @@ def tag_and_collect(lines, id_tag=True, back_links=False, exclude_h=None):
 
         out_contents.append(l)
         if back_links and saw_headline:
-            out_contents.append('[[back to top](#table-of-contents)]')
+            out_contents.append('__[back to top](#table-of-contents)__\n')
     return out_contents, headlines
 
 
@@ -292,7 +294,7 @@ def markdown_toclify(input_file, output_file=None, github=False,
 
     """
     raw_contents = read_lines(input_file)
-    cleaned_contents = remove_lines(raw_contents, remove=('[[back to top]', '<a class="mk-toclify"'))
+    cleaned_contents = remove_lines(raw_contents, remove=('__[back to top]', '<a class="mk-toclify"'))
     processed_contents, raw_headlines = tag_and_collect(
                                             cleaned_contents,
                                             id_tag=not github,
