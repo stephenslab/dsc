@@ -44,7 +44,7 @@ sim_structure:
         sim: File(prefix = sel_structure, suffix = sim)
         truth: File(prefix = sel_structure, suffix = truth)
         __alias__: FromFile(nparam, sparam)
-        __logic__: (nparam + sparam) * (nsim + imixmat) * (sim + truth)
+        __logic__: (nparam + sparam) * nsim * imixmat * sim * truth
     return: sim, truth
 
 factor_pca:

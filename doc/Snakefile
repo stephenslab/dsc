@@ -15,11 +15,12 @@ def get_filename(string):
     return string.replace(':', '').replace(' ', '-')
 
 rule home:
-  input: 'home.notes', 'footer.notes'
+  input: 'home.notes', 'footer.notes', 'issues.notes'
   output: touch("home.done")
   shell: '''
   {config[md]} {input[0]} -o {config[dir]}/Home.md;
   {config[md]} {input[1]} -o {config[dir]}/_Footer.md;
+  {config[md]} {input[2]} -o {config[dir]}/-;
   '''
 
 rule docs:

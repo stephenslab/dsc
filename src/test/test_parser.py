@@ -19,7 +19,7 @@ class ParserTest(DSCTestCase):
     def __testBlockParser(self, file_prefix):
         f_input = 'files/{}.yaml'.format(file_prefix)
         f_expected = 'files/{}.res'.format(file_prefix)
-        self.assertEqual(str(DSCData(f_input, verbosity = '-1')).strip(),
+        self.assertEqual(str(DSCData(f_input, verbosity = '0')).strip(),
                          load_as_string(f_expected).strip())
 
     def testBasicBlock(self):

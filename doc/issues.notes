@@ -2,10 +2,42 @@
 #! Pending Problems
 ###
 ###
-# DSC interface design thoughts
+# Pending
 ###
+#! Some implementation thoughts
 #{list
-# Make fake dsc configs for Matthew (dsc_shrink), Mengyin, Wei and Ben's existing dsc routines (""solved"")
+# MD5: check if is file for each input, and feed that info to SoS accordingly.
+# Output of scores, ideally stored in database, may not be necessarily the case: if they are in files as long as their file names are searchable we should be good
+# Searchable database? Want to use pytable + PrettyPrint
+# Results storage:
+## Parameters kept in a plan pytable, with MD5 for each set-up.
+## New entries are added as parameters change
+## files also have MD5 and are stored elsewhere (or just also within filename entry so that change in file MD5 will naturally result in change in param MD5?).
+# Documentation: a short course on dsc2, based on examples in vignettes
+## Example vignettes should be well written
+## Perhaps vash will be the first real field test?
+#}
+#! TODO
+#{list
+# Release binary program (with Nan)
+# Implement @@dsc view@@ for extracting data from results
+## for source codes, parameters, input and output
+# Go parallel
+# Possibly a web server that will help greatly in boosting its popularity (Nan)?
+#}
+#! Feature requests
+#{list
+# Possible to execute only subset DSC sections
+# Parameter by natural groups
+# On the fly mode, via DSC::runtime
+# YAML parser look for duplicate entries and keyword conflicts
+#}
+###
+# Resolved
+###
+#! DSC interface design thoughts
+#{list
+# Make fake dsc configs for Matthew (dsc_shrink), Mengyin, Wei and Ben's existing dsc routines
 ## e.g. introduce syntax such as method[1], method[2] / args[1], args[2]
 ## Allow for pair-wise combination in addition to Cartesian product
 ## Allow for variable name mapping
@@ -16,7 +48,7 @@
 ## Separate Scenario, Method and Replicate (seed) and keep md5 for each of them
 ## Formalize the md5 lookup procedure
 #}
-#! Two design problems (solved)
+#! Two design problems
 # Problems
 #{list
 # Methods sequence and methods dependency
@@ -31,66 +63,28 @@
 ## In either of the above cases at least one of the exe involved cannot be executed by itself so some sanity checks on exe sequence are needed after the jobs are created. For example if some exe's params is exe[1]$xx then that exe cannot be used alone; other sections can only access global returns of previous sections
 # Introduce asis() for on the fly mode
 #}
-#! A more general design theme (solved)
+#! A more general design theme
 # A sequence of steps we want to run consists of a pipeline. Each step will take some input and create some output. The user has two jobs: define the steps, and define sequences of steps. These are logically distinct jobs, so when defining a step, you should not really have to know what pipeline it is a part of. [In practice this is an idealization, because there has to be some consistency of naming of objects as they pass through the pipeline…]
 # Once you have defined the steps (and have ids assigned to each step) then defining the pipelines seems to be relatively straightforward in principle: you can simply list all pipelines you want run. In practice you will want shortcuts to allow efficient specification of lots of pipelines. Boolean operator type of syntax should work for example @@(normal | t | uniform) + (mean | median) + (RMSE | MAE)@@.
 # logically, we should be separating out the definitions of the different types of steps here, and not putting them all under one yaml block.
 #! Some implementation thoughts
 #{list
-# MD5: check if is file for each input, and keep MD5 of those which are files / where they are produced. Numbers can be skipped.
 # What if a command generates the same file name? Need to introduce Prefix() syntax for such params so that they'll be expanded to proper FN in the format of SA?R?M?SO?
 # Job dependency now to store and how to search? Not sure yet. Maybe use that DAG class with ID being job ID in the format of SA?R?M?SO? (with 4 matching MD5) and whatever contents as contents in separate objects because that will not fit into the DAG class
 # When DSC files change SA?R?M?O? will not change for existing ones and just add additional such entries. Have to track each ? separately
-# Need a good mechanism to record and report possible bug for specific user case (that a user may have an issue with) so that bugs can be conveniently reported to me. Perhaps unit-test for this will follow the same line of thought?
+# Need a good mechanism to record and report possible bug for specific user case (that a user may have an issue with) so that bugs can be conveniently reported to me. Perhaps unit-test for this will follow the same line of thought? Guessing export helps ...
 # Do not submit anything for cluster: jobs are splitted for users to run. Write lock is trick and will discuss with Bo on this.
 # When to use pre/post processor? Any ways to use processor in SA and M?
 ## If output is simple or uniformly formatted for all methods
 ## Is this possible? It has to be! Files are Ok if not data matrix etc but files have to be the same format for all exe in / out. Thus there is need to introduce pre/post processor exe
-## Output of scores, ideally stored in database, may not be necessarily the case: if they are in files as long as their file names are searchable SA?R?M?SO? we should be good
-## Searchable database? Want to use pytable + PrettyPrint
-# Results storage:
-## Parameters kept in a plan pytable, with MD5 for each set-up.
-## New entries are added as parameters change
-## files also have MD5 and are stored elsewhere (or just also within filename entry so that change in file MD5 will naturally result in change in param MD5?).
-## Return values be kept in 3 HDF5 files as previously designed
 # Incremental executation: if SA/R changes everything be rerun (a new scenario / entry anyways); if M changes rerun all related M & SO; if SO changes just rerun SO
 # How to force rerun?
 ## Get various ? IDs inside database and use --force SA1 SA1R1 SA1R1M1 SA1R1MSO1 (so that all downstream will be re-analyzed) or blank for all
 # How to output results?
 ## PrettyPrint for param DB, and a wrapper of ddls for results DB. wrapper because it has to dump data in both python and R formats ...
-# Documentation: a short course on dsc2, based on examples in vignettes
-# Example vignettes should be well written
-# Perhaps vash will be the first real field test?
 # Important detail to handle: interaction with R. Should be least painful (for users) and most efficient (for interfacing)
 #}
-###
-# DSC program release
-###
+#! TODO
 #{list
-# Release binary program (with Nan)
 # Start writing formal documentations
-# Implement @@dsc view@@ for extracting data from results
-## for source codes, parameters, input and output
-# Go parallel
-# Polishing up
-## YAML parser look for duplicate entries and keyword conflicts
-# Possibly a web server that will help greatly in boosting its popularity (Nan)?
-#}
-###
-# Feature requests
-###
-#{list
-# Possible to execute only subset DSC sections
-#}
-###
-# Sanity check reminders
-###
-#{list
-# Check if command input variables has reserved keywords $scenario, $method
-#}
-###
-# Examples
-###
-#{list
-# Add an example of pre/post processor
 #}

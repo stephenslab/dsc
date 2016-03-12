@@ -20,5 +20,5 @@ def importTests():
     return tests
 
 if __name__ == '__main__':
-    test_runner = unittest.TextTestRunner(verbosity=2)
+    test_runner = unittest.TextTestRunner(descriptions = False, verbosity=2)
     test_runner.run(importTests())
