@@ -1,5 +1,5 @@
 scenario:
-    exe: datamaker.R
+    exec: datamaker.R
     seed: R(1:50), R(1:5)
     params:
         path: R(gsub("[[:space:]]", "", readChar($(fileName), file.info($(fileName))$size)))
@@ -10,50 +10,49 @@ scenario:
         breaksample: FALSE, TRUE
         nullpi: 0.9
         poisthin: TRUE
-        __alias__: args = RList()
-        __logic__: (seed[1] * path * tissue * Nsamp * Ngene * voom.normalize * breaksample),
+        .alias: args = RList()
+        .logic: (seed[1] * path * tissue * Nsamp * Ngene * voom.normalize * breaksample),
                    (seed[2] * path * tissue[2] * Nsamp * Ngene * voom.normalize * breaksample[2] * nullpi),
                    (seed[2] * path * tissue[1] * Nsamp * Ngene * voom.normalize * breaksample[1] * poisthin)
     return: data, meta = R(data$meta)
 
 method:
-    exe: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
+    exec: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
     params:
         input: $data
         transform: voom, RUVvoom, SVAvoom, quasibinom, RUV+quasibinom, SVA+quasibinom, Myrna+quasibinom, edgeRglm
-        __alias__: RList(args, transform)
-        exe[1]:
-            __logic__: NULL
-        exe[2]:
+        .alias: RList(args, transform)
+        exec[1]:
+            .logic: NULL
+        exec[2]:
             exacttest: TRUE, FALSE
             RUV: FALSE, FALSE, TRUE
             SVA: FALSE, TRUE, FALSE
-            __alias__: args = RList()
-            __logic__: exacttest[1], (exacttest[2] * (RUV + SVA))
-        exe[3]:
+            .alias: args = RList()
+            .logic: exacttest[1], (exacttest[2] * (RUV + SVA))
+        exec[3]:
             robust: FALSE, TRUE
-            __alias__: args = RList()
-            __logic__: (transform[1] * robust), (transform[2,3] * robust[1])
-        exe[4]:
-            __logic__: transform[1:6]
-        exe[5]:
+            .alias: args = RList()
+            .logic: (transform[1] * robust), (transform[2,3] * robust[1])
+        exec[4]:
+            .logic: transform[1:6]
+        exec[5]:
             singlecomp: TRUE
-            __alias__: args = RList()
+            .alias: args = RList()
     return: output
 
 score:
-    exe: score.R
+    exec: score.R
     params:
         data: $data
-        output: $output
+        work_dir: $output
     return: result
 
 DSC:
     run: scenario * method * score
-    runtime:
-        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
-                edgeR, RUVSeq, sva, data.table, DESeq
-        exe_path: bin
-        output: vash
-        variables:
-            fileName: data_path.txt
+    R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
+            edgeR, RUVSeq, sva, data.table, DESeq
+    exec_path: bin
+    work_dir: vash
+    variables:
+        fileName: data_path.txt

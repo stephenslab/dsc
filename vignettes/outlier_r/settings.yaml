@@ -1,20 +1,20 @@
 simulate_1:
-    exe: Product(datamaker.R, $(data_functions)[1:2])
+    exec: Product(datamaker.R, $(data_functions)[1:2])
     seed: R(1:2)
     params:
         n.neutral.snps: 9500
         n.selected.snps: 500
-        __alias__: args = RList()
-        exe[1]:
+        .alias: args = RList()
+        exec[1]:
             n.samples: 100
             geno: TRUE
-        exe[2]:
+        exec[2]:
             n.samples.per.dim: 30
             geno: TRUE, FALSE
     return: data, truth = R(data$meta$issel)
 
 simulate_2:
-    exe: Product(datamaker.R, $(data_functions)[3:4])
+    exec: Product(datamaker.R, $(data_functions)[3:4])
     seed: R((1:3) * 100)
     params:
         n.neutral.snps: 1900
@@ -24,32 +24,32 @@ simulate_2:
         x.scale: 1
         spread: 0.1, 0.2, 1
         geno: TRUE
-        __alias__: args = RList()
-        exe[1]:
+        .alias: args = RList()
+        exec[1]:
             sel.strength: 0, 1, 5, 10
             sel.angle: R(seq(0,pi/2,length.out=5))
-        exe[2]:
+        exec[2]:
             sel.scale: 0, 1, 5, 10, 20
             sel.pos: 0, 0,25
             sel.var: 0.01
     return: data, truth = R(data$meta$issel)
 
 outlier_test:
-    exe: Product(method.R, $(method_functions))
+    exec: Product(method.R, $(method_functions))
     params:
-        __alias__: args = RList()
-        exe[3]:
+        .alias: args = RList()
+        exec[3]:
             K: 2, 5
-        exe[4]:
+        exec[4]:
             K: 2, 5
-        exe[5]:
+        exec[5]:
             K: 2, 3
-        exe[6]:
+        exec[6]:
             K: 3
     return: data, score = R(data$score)
 
 TF_positive:
-    exe: score.R
+    exec: score.R
     params:
         N: 100
         true_data: $truth
@@ -60,12 +60,11 @@ DSC:
     run: (simulate_1, simulation_2) *
          outlier_test *
          TF_positive
-    runtime:
-        R_libs: mvtnorm, ape, MASS, Matrix,
-                github/StoreyLab/lfa
-        exe_path: bin
-        output: outlier
-        variables:
-            data_functions: mvngenotypes, discrete.cosine, discrete.cosine2, discrete.cosine.peaksel
-            method_functions: duforet.rho1, duforet.rho2, duforet.h, duforet.hprime, lfa, fst, gwish,
+    R_libs: mvtnorm, ape, MASS, Matrix,
+            github/StoreyLab/lfa
+    exec_path: bin
+    work_dir: outlier
+    variables:
+        data_functions: mvngenotypes, discrete.cosine, discrete.cosine2, discrete.cosine.peaksel
+        method_functions: duforet.rho1, duforet.rho2, duforet.h, duforet.hprime, lfa, fst, gwish,
                               gwish.tree, bonhomme.tree, bonhomme, normal

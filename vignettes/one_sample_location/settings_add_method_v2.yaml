@@ -1,5 +1,5 @@
 estimate_winsor:
-    exe: winsor.R
+    exec: winsor.R
     params:
         x: $x
 	      trim: 0.1, 0.2

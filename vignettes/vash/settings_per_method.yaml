@@ -1,5 +1,5 @@
 simulate:
-    exe: datamaker.R
+    exec: datamaker.R
     seed: R(1:50)
     params:
         path: R(gsub("[[:space:]]", "", readChar($(fileName), file.info($(fileName))$size)))
@@ -7,7 +7,7 @@ simulate:
         Nsamp: 2, 10, 50
         Ngene: 10000
         breaksample: FALSE, TRUE
-        __alias__: args = RList()
+        .alias: args = RList()
     return: data, meta = R(data$meta)
 
 simulate_normalized(simulate):
@@ -29,55 +29,55 @@ simulate_thinning(simulate):
         poisthin: TRUE
 
 SVA:
-    exe: SVA.R
+    exec: SVA.R
     params:
         data: $data
-        __alias__: args = RList()
+        .alias: args = RList()
     return: data
 
 RUV(SVA):
-    exe: RUV.R
+    exec: RUV.R
 
 myrna(SVA):
-    exe: myrna.R
+    exec: myrna.R
 
 voom(SVA):
-    exe: voom.R
+    exec: voom.R
 
 quasibinom(voom):
-    exe: quasibinom.R
+    exec: quasibinom.R
 
 edgeRglm(SVA):
-    exe: edgeRglm.R
+    exec: edgeRglm.R
 
 DESeq2glm(SVA):
-    exe: DESeq2glm.R
+    exec: DESeq2glm.R
 
 ash(SVA):
-    exe: ash.R
+    exec: ash.R
     return: output
 
 edgeR(ash):
-    exe: edgeR.R
+    exec: edgeR.R
     params:
         glm: TRUE, FALSE
 
 DESeq2(edgeR):
-    exe: DESeq2.R
+    exec: DESeq2.R
 
 jointash(ash):
-    exe: jointash.R
+    exec: jointash.R
 
 limma(ash):
-    exe: limma.R
+    exec: limma.R
     params:
         robust: TRUE, FALSE
 
 score:
-    exe: score.R
+    exec: score.R
     params:
         data: $meta
-        output: $output
+        work_dir: $output
     return: result
 
 DSC:
@@ -86,10 +86,9 @@ DSC:
           (SVA, RUV, myrna) * voom * limma,
           (edgeR, DESeq2)) *
          score
-    runtime:
-        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue, mixash, github/mengyin/vash, limma,
-                bioc/edgeR, RUVSeq, sva, data.table, DESeq
-        exe_path: bin
-        output: gtex_total
-        variables:
-            fileName: data_path.txt
+    R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue, mixash, github/mengyin/vash, limma,
+            bioc/edgeR, RUVSeq, sva, data.table, DESeq
+    exec_path: bin
+    work_dir: gtex_total
+    variables:
+        fileName: data_path.txt

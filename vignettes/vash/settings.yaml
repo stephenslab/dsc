@@ -1,5 +1,5 @@
 simulate:
-    exe: datamaker.R
+    exec: datamaker.R
     seed: R(1:50)
     params:
         path: R(gsub("[[:space:]]", "", readChar($(fileName), file.info($(fileName))$size)))
@@ -7,7 +7,7 @@ simulate:
         Nsamp: 2, 10, 50
         Ngene: 10000
         breaksample: FALSE, TRUE
-        __alias__: args = RList()
+        .alias: args = RList()
     return: data, meta = R(data$meta)
 
 simulate_normalized(simulate):
@@ -29,45 +29,44 @@ simulate_thinning(simulate):
         poisthin: TRUE
 
 correction:
-    exe: SVA.R, RUV.R, myrna.R
+    exec: SVA.R, RUV.R, myrna.R
     params:
         data: $data
-        __alias__: args = RList()
+        .alias: args = RList()
     return: data
 
 transform:
-    exe: voom.R, quasibinom.R, edgeRglm.R, DESeq2glm.R
+    exec: voom.R, quasibinom.R, edgeRglm.R, DESeq2glm.R
     params:
         data: $data
-        __alias__: args = RList()
+        .alias: args = RList()
     return: data
 
 test:
-    exe: edgeR.R, DESeq2.R, ash.R, jointash.R, limma.R
+    exec: edgeR.R, DESeq2.R, ash.R, jointash.R, limma.R
     params:
         data: $data
-        __alias__: args = RList()
-        exe[1,2]:
+        .alias: args = RList()
+        exec[1,2]:
             glm: TRUE, FALSE
-        exe[5]:
+        exec[5]:
             robust: TRUE, FALSE
     return: output
 
 score:
-    exe: score.R
+    exec: score.R
     params:
         data: $meta
-        output: $output
+        work_dir: $output
     return: result
 
 DSC:
     run: (simulate, simulate_normalized, simulate_partial_null, simulate_thinning) *
          (correction * transform * test[3:4], correction * transform[1] * test[5], test[1:2]) *
          score
-    runtime:
-        R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
-                edgeR, RUVSeq, sva, data.table, DESeq
-        exe_path: bin
-        output: gtex_total
-        variables:
-            fileName: data_path.txt
+    R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
+            edgeR, RUVSeq, sva, data.table, DESeq
+    exec_path: bin
+    work_dir: gtex_total
+    variables:
+        fileName: data_path.txt

@@ -1,7 +1,7 @@
 estimate:
-    exe: mean.R, median.R, winsor.R
+    exec: mean.R, median.R, winsor.R
     params:
         x: $x
-        exe[3]:
+        exec[3]:
             trim: 0.1, 0.2
     return: mean

@@ -1,5 +1,5 @@
 simulate:
-    exe: rnorm.R, rt.R
+    exec: rnorm.R, rt.R
     seed: R(1:5)
     params:
         n: 1000
@@ -7,13 +7,13 @@ simulate:
     return: x, true_mean
 
 estimate:
-    exe: mean.R, median.R
+    exec: mean.R, median.R
     params:
         x: $x
     return: mean
 
 mse:
-    exe: MSE.R
+    exec: MSE.R
     params:
         mean_est: $mean
         true_mean: $true_mean
@@ -23,6 +23,5 @@ DSC:
     run: simulate *
          estimate *
          mse
-    runtime:
-        exe_path: R/scenarios, R/methods, R/scores
-        output: one_sample_location
+    exec_path: R/scenarios, R/methods, R/scores
+    work_dir: one_sample_location

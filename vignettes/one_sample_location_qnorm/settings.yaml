@@ -1,5 +1,5 @@
 simulate:
-    exe: rt.R, rcauchy.R
+    exec: rt.R, rcauchy.R
     seed: R(1:5)
     params:
         n: 1000
@@ -7,19 +7,19 @@ simulate:
     return: x, true_loc
 
 transform:
-    exe: qnorm.R
+    exec: qnorm.R
     params:
         x: $x
     return: x
 
 estimate:
-    exe: mean.R, median.R
+    exec: mean.R, median.R
     params:
         x: $x
     return: loc
 
 mse:
-    exe: MSE.R
+    exec: MSE.R
     params:
         mean_est: $loc
         true_mean: $true_loc
@@ -29,6 +29,5 @@ DSC:
     run: simulate *
          (transform * estimate, estimate) *
          mse
-    runtime:
-        exe_path: .
-        output: one_sample_location
+    exec_path: .
+    work_dir: one_sample_location
