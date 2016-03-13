@@ -1,5 +1,5 @@
 simulate_1:
-    exec: Product(datamaker.R, $(data_functions)[1:2])
+    exec: Combo(datamaker.R, $(data_functions)[1:2])
     seed: R(1:2)
     params:
         n.neutral.snps: 9500
@@ -14,7 +14,7 @@ simulate_1:
     return: data, truth = R(data$meta$issel)
 
 simulate_2:
-    exec: Product(datamaker.R, $(data_functions)[3:4])
+    exec: Combo(datamaker.R, $(data_functions)[3:4])
     seed: R((1:3) * 100)
     params:
         n.neutral.snps: 1900
@@ -35,7 +35,7 @@ simulate_2:
     return: data, truth = R(data$meta$issel)
 
 outlier_test:
-    exec: Product(method.R, $(method_functions))
+    exec: Combo(method.R, $(method_functions))
     params:
         .alias: args = RList()
         exec[3]:
