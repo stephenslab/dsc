@@ -54,5 +54,5 @@ DSC:
             edgeR, RUVSeq, sva, data.table, DESeq
     exec_path: bin
     work_dir: vash
-    variables:
+    parameters:
         fileName: data_path.txt

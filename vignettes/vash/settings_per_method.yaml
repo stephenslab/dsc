@@ -90,5 +90,5 @@ DSC:
             bioc/edgeR, RUVSeq, sva, data.table, DESeq
     exec_path: bin
     work_dir: gtex_total
-    variables:
+    parameters:
         fileName: data_path.txt

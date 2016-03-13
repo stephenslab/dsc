@@ -64,7 +64,7 @@ DSC:
             github/StoreyLab/lfa
     exec_path: bin
     work_dir: outlier
-    variables:
+    parameters:
         data_functions: mvngenotypes, discrete.cosine, discrete.cosine2, discrete.cosine.peaksel
         method_functions: duforet.rho1, duforet.rho2, duforet.h, duforet.hprime, lfa, fst, gwish,
-                              gwish.tree, bonhomme.tree, bonhomme, normal
+                          gwish.tree, bonhomme.tree, bonhomme, normal

@@ -312,5 +312,5 @@ run: simulate * sqrt * RUV * DESeq * score,
 ## @@bioc/name@@: DSC will install the package from bioconductor.
 ## @@github/repo/name@@: DSC will install given package from given repository on github.
 # @@work_dir@@: work directory where DSC runs take place.
-# @@variables@@: Defines DSC variables which can be used anywhere in the DSC file through @@$()@@ syntax.
+# @@parameters@@: Defines DSC variables which can be used anywhere in the DSC file through @@$()@@ syntax.
 #}
