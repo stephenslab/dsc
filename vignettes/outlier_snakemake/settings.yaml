@@ -13,11 +13,13 @@ sim_star_mvn_pop:
     # population phylogeny
     exec: star_mvn_pop.r $n_inds_per_pop $n_pop $n_snps $nsim $aux
     params:
-        n_inds_per_pop: ?, ?, ?
-        n_pop: ?, ?, ?
-        n_snps: ?, ?, ?
-        nsim: File(prefix = starmvnpop, suffix = nsim)
-        aux: File(prefix = starmvnpop, suffix = aux)
+        input:
+            n_inds_per_pop: ?, ?, ?
+            n_pop: ?, ?, ?
+            n_snps: ?, ?, ?
+        output:
+            nsim: File(prefix = starmvnpop, suffix = nsim)
+            aux: File(prefix = starmvnpop, suffix = aux)
     return: nsim, aux
 
 sim_fixed:
@@ -33,17 +35,19 @@ sim_fixed:
 sim_structure:
     # structure model simulator for neutral and selected data
     exec: NeutralStructureSim.R $nparam $nsim $imixmat,
-         SelectedStructureSim.R $nparam $sparam $imixmat $nsim $truth,
-         paste $imixmat $truth > $sim
+          SelectedStructureSim.R $nparam $sparam $imixmat $nsim $truth,
+          paste $imixmat $truth > $sim
     .logic: exec[1] + exec[2] + exec[3]
     params:
-        nparam: ?.nparam, ?.nparam
-        sparam: ?.sparam, ?.sparam
-        nsim: File(prefix = neutral_structure, suffix = nsim)
-        imixmat: File(prefix = neutral_structure, suffix = imixmat)
-        sim: File(prefix = sel_structure, suffix = sim)
-        truth: File(prefix = sel_structure, suffix = truth)
-        .alias: FromFile(nparam, sparam)
+        input:
+            nparam: ?.nparam, ?.nparam
+            sparam: ?.sparam, ?.sparam
+        tempfile:
+            nsim: File(prefix = neutral_structure, suffix = nsim)
+            imixmat: File(prefix = neutral_structure, suffix = imixmat)
+        output:
+            sim: File(prefix = sel_structure, suffix = sim)
+            truth: File(prefix = sel_structure, suffix = truth)
         .logic: (nparam + sparam) * nsim * imixmat * sim * truth
     return: sim, truth
 
@@ -64,13 +68,16 @@ factor_treemix:
          treemix2factor.py $treemix_res $loadings $factors
     .logic: exec[1] + exec[2] + exec[3]
     params:
-        nsim: $nsim
-        aux: $aux
-        treemix_data: Prefix($nsim).treemix.gz
         m: ?, ?, ?
-        treemix_res: File(prefix = treemix_res, suffix = (edges.gz, vertices.gz))
-        loadings: File(prefix = treemix_res, suffix = loadings)
-        factors: File(prefix = treemix_res, suffix = factors)
+        input:
+            nsim: $nsim
+            aux: $aux
+        tempfile:
+            treemix_data: Prefix($nsim).treemix.gz
+            treemix_res: File(prefix = treemix_res, suffix = (edges.gz, vertices.gz))
+        output:
+            loadings: File(prefix = treemix_res, suffix = loadings)
+            factors: File(prefix = treemix_res, suffix = factors)
     return: loadings, factors
 
 ssq_loading:
@@ -105,20 +112,23 @@ wishart_ll:
 admixture_outliers:
     # Detect ourlier via "admixture"
     exec: makePED.py $sim_data $ped $map,
-         admixture $ped $K > $admix_res[3],
-         mv $ped.$K.p $admix_res[1],
-         mv $ped.$K.Q $admix_res[2],
-         write_chi_sqs.R $admix_res[2] $score
+          admixture $ped $K > $admix_res[3],
+          mv $ped.$K.p $admix_res[1],
+          mv $ped.$K.Q $admix_res[2],
+          write_chi_sqs.R $admix_res[2] $score
     .logic: exec[1] + exec[2] + exec[3] + exec[4] + exec[5]
     params:
         # By context in DSC::run output below refer
         # to output from sim_structure
         K: ?, ?, ?
-        sim_data: File($sim)
-        ped: TempFile(Prefix($sim).ped)
-        map: TempFile(Prefix($sim).map)
-        admix_res: TempFile(prefix = admix_res, suffix = (P, Q, log))
-        score: File(prefix = admix_outlier, suffix = score)
+        input:
+            sim_data: $sim
+        tempfile:
+            ped: File(Prefix($sim).ped)
+            map: File(Prefix($sim).map)
+            admix_res: File(prefix = admix_res, suffix = (P, Q, log))
+        output:
+            score: File(prefix = admix_outlier, suffix = score)
     return: score
 
 score_topn:
