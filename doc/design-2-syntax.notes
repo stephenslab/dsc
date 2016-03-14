@@ -2,11 +2,19 @@
 #! DSC2 syntax
 ###
 ###
-# DSC file structure
+# DSC Terminology
 ###
-# DSC2 is configured by a text file in [YAML format|@http://yaml.org@] (referred to as "DSC file" hereafter) with multiple sections. Each section in the DSC file, except for the last one (section name ""DSC""), is called a "DSC block" (referred to as "block" hereafter). All blocks share the same syntax.
-# The ""DSC"" section consists of a [""DSC sequence""|@Design-and-Features#Design-Overview@], plus various other parameters in a DSC run (for example required R libraries, path to executable folders, DSC global variables and output database names).
-# Lines in a DSC file are called "DSC entries", separated by comma (``,''), to allow for a range of parameters be assigned to multiple computational routine so that DSC can be performed under various scenarios for many methods.
+#{list
+# ""DSC file"": a text file in [YAML format|@http://yaml.org@] that configures the entire DSC procedure.
+# ""DSC block"": Sections in DSC file that defines a family of computational routines.
+# ""Block parameters"": Labels of DSC entries within DSC blocks.
+## A list of available block parameters: @@exec@@, @@params@@, @@seed@@, @@return@@, @@.alias@@, @@.logic@@, @@.options@@
+# ""DSC entry"": Lines in DSC blocks, labeled by block parameters and separated by comma (``,''), to allow for a range of parameters be assigned to multiple computational routine so that DSC can be performed under various scenarios for many methods.
+# ""DSC block operators"": Operators that can be called in DSC entries to generate desired result from its input.
+# ""The DSC Section"": A special section consisting of a [""DSC sequence""|@Design-and-Features#Design-Overview@], plus various other parameters involved in a DSC procedure (including required R libraries, path to executable folders, DSC global variables and work directory).
+# ""DSC sequence"" & ""DSC sequence operators"": A sequence of logical expression that defines how the DSC blocks should be connected with each other.
+# ""DSC variables"": The @@parameters@@ entry in the DSC section that defines variables to be accessed by DSC blocks (via @@$()@@ sigil).
+#}
 # You may glance over these DSC files to have an idea of DSC2 syntax. It is also recommended that you read the [DSC design|@Design-and-Features@] before diving into the details throughout the rest of the document.
 #{list
 # [Location parameter estimate I|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location/settings.yaml@] and [II|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location_qnorm/settings.yaml@]
@@ -122,30 +130,32 @@ params:
   exec[2]:
     .alias: theta = mu
 #}
-# then all @@exec@@ takes a parameter @@mu@@, except for @@exec[2]@@ which requires parameter with name @@theta@@, but @@theta@@ in @@exec[2]@@ is equivalent to @@mu@@ in other @@exec@@. To reflect the logic, DSC loads values from @@mu@@ and assign them to @@theta@@ for @@exec[2]@@.
+# then all @@exec@@ takes a parameter @@mu@@, except for @@exec[2]@@ which requires parameter with name @@theta@@, but @@theta@@ in @@exec[2]@@ is equivalent to @@mu@@ in other @@exec@@. Under the hood DSC will load values from @@mu@@ and assign them to @@theta@@ for use with @@exec[2]@@.
 #! .options [optional]
-# @@.options@@ include parameters that controls behavior of the corresponding @@exec@@ as it executes. Supported options include:
+# @@.options@@ include parameters that controls behavior of the corresponding @@exec@@ as it executes, for example:
+#{out yaml
+# .options: ncpu = 2, mem = 4G
+#}
+# Supported options are:
 #{list
 # @@ncpu@@: Number of required CPUs.
 # @@mem@@: Required memory.
-# @@inline@@: True or False, of whether or not an R script is executed inline with the next procedure instead of producing return files. This feature is useful when the cost of computation for a procedure is more trivial than the cost of storing its output. For example if a simulation procedure is simply @@runif(500000)@@ it makes more sense to save this line of code and execute it inline with the next step, rather than to save a vector of 500,000 random numbers to disk.
+# @@inline@@: True or False, of whether or not an R script is executed inline with the next procedure instead of producing return files. This feature is useful when the cost of computation for a procedure is trivial compared to the cost of storing its output. For example if a simulation procedure is simply @@runif(500000)@@ it makes more sense to save this line of code and execute it inline with the next step, rather than to save a vector of 500,000 random numbers to disk.
 #}
 # FIXME: example of inline R script
 #!! Scope of .logic, .alias and .options
-# When these keywords appear under @@params@@ but outside any @@exec[i]@@, then it will also effect all parameters under @@exec[i]@@ when applicable. However this behavior can be overloaded under @@exec[i]@@.
+# When these parameters appear in @@params@@ but outside any @@exec[i]@@, then it will also effect all parameters under @@exec[i]@@ when applicable. However this behavior can be overloaded inside @@exec[i]@@ if the same parameter is re-defined.
 # FIXME: example of scope
 ###
 # DSC block operators
 ###
-#! R(), Python(), Shell()
-# These operators run codes inside parenthesis using R, Python or Shell interpreters and evaluate the output. For example @@seed: R(1:5)@@ results in @@seed: 1, 2, 3, 4, 5@@.
-#! $ and $()
+#! Sigils $ and $()
 #!! $ in @@exec@@ entry
-# In @@exec@@, @@$@@ refers to parameters under @@params@@ within the same block.
-#!! $ in @@params@@ entry
-# In @@params@@ entry, @@$@@ refers to return values from another block.
+# In @@exec@@, @@$@@ refers to parameters defined inside @@params@@ of the same block.
+#!! $ in @@params@@ entries
+# In @@params@@, @@$@@ refers to return values from another block.
 #!! $()
-# @@$()@@ refers to variables defined in @@DSC::parameters@@ section. For example:
+# @@$()@@ refers to variables defined in @@DSC::parameters@@. For example:
 #{out yaml
 simulate:
     exec: Combo(datamaker.R, $(data_functions))
@@ -169,8 +179,10 @@ params:
    K: (1,2,3), (4,5,6)
 #}
 # With @@()@@, @@(1,2,3)@@ will be translated to vector assignment ``c(1, 2, 3)'' in the R script, or space separated argument sequence @@program.exe 1 2 3@@ for the other command line program. Values will be assigned in units of 3 instead of separately.
+#! R(), Python(), Shell()
+# These operators run codes inside parenthesis using R, Python or Shell interpreters and evaluate the output. For example @@seed: R(1:5)@@ results in @@seed: 1, 2, 3, 4, 5@@.
 #! Combo(), Pairs()
-# Cartesian combinations and paired grouping of parameters. This can be considered short-cut for assigning values in DSC entries. For example:
+# Cartesian product and paired grouping of parameters. This can be considered short-cut for assigning values in DSC entries. For example:
 #{out yaml
 exec: Combo(classifier.R (kernal_1, kernal_2, kernal_3))
 #}
@@ -191,8 +203,20 @@ g = normalmix(c(2/3,1/3),c(0,0),c(1,2))
 #{r
 g = "normalmix(c(2/3,1/3),c(0,0),c(1,2))"
 #}
+# @@Asis()@@ can also be used to indicate a "raw string", for example:
+#{out yaml
+g: (1, 2, 3)
+k: ('1', '2', '3')
+l: (Asis('1', '2', '3'))
+#}
+# will result in
+#{r
+g = c(1, 2, 3)
+k = c('1', '2', '3')
+l = c("'1'", "'2'", "'3'")
+#}
 #! File()
-# When a DSC string parameter is a file name but the file is yet to be created (by the current computational step), it is required that @@File()@@ operator be applied to the parameter to indicate that it represents a file. @@File()@@ operator allows for a flexible file name specification theme. For example:
+# When a DSC string parameter is a file name but the file is yet to be created (by the current computational step), it is required that @@File()@@ operator be applied to the parameter to indicate that it represents a file / files although they do not yet exist . @@File()@@ operator allows for a flexible file name specification theme. For example:
 #{out yaml
     params:
         data: $sim
@@ -201,7 +225,8 @@ g = "normalmix(c(2/3,1/3),c(0,0),c(1,2))"
         score: File(prefix = admixture_test, suffix = score)
     return: score
 #}
-# Here the input parameter @@data@@ is a file with name @@$sim@@ (which, due to @@$@@ symbol, is apparently return value from another block). The return value @@score@@ is also a file, likely generated by the computational routine taking input @@data@@ file and 5 values of parameter @@K@@. As a result, the returned @@score@@ should be 5 files. With @@prefix/suffix@@ syntax inside @@File()@@ operator, the names of these 5 output @@score@@ files will be automatically assigned, for example @@admixture_test_1.score@@, @@admixture_test_2.score@@, @@admixture_test_3.score@@, @@admixture_test_4.score@@, @@admixture_test_5.score@@. Users therefore do not have to worry about file name specifications due to different combinations of parameters. When there are multiple suffix for example a pair of @@suffix = (ped, map)@@ here, then the resulting files are also in pairs: @@admixture_data_1.ped, admixture_data_1.map@@, ... @@admixture_data_5.ped, admixture_data_5.map@@.
+# Here the return value @@score@@ is a file, likely generated by the computational routine taking input @@data@@ file and 5 values of parameter @@K@@. As a result, the returned @@score@@ should be 5 files. With @@prefix/suffix@@ syntax inside @@File()@@ operator, the names of these 5 output @@score@@ files will be automatically assigned, for example @@admixture_test_1.score@@, @@admixture_test_2.score@@, @@admixture_test_3.score@@, @@admixture_test_4.score@@, @@admixture_test_5.score@@. Users therefore do not have to worry about file name specifications due to different combinations of parameters.
+# When there are multiple suffix for example a pair of @@suffix = (ped, map)@@ for the @@ped@@ entry, then the resulting files are also in pairs: @@admixture_data_1.ped, admixture_data_1.map@@, ... @@admixture_data_5.ped, admixture_data_5.map@@.
 # Only files in @@return@@ will be cached and saved. Other files are considered temporary files and will be removed upon completion of a computational step. In the example above, only @@score@@ file will be saved. The @@ped@@ files will be removed.
 #! Prefix(), Suffix()
 # These are used to extract patterns from file names, for example:
@@ -211,21 +236,22 @@ g = "normalmix(c(2/3,1/3),c(0,0),c(1,2))"
         ped: File(Prefix($sim).ped)
         ...
 #}
-# where @@ped@@ shares the same file prefix as @@data@@ but differ in extension. @@Suffix@@, on the other hand, is used to extract file extensions.
+# where @@ped@@ shares the same file prefix as @@data@@ (a file, which, due to @@$@@ symbol, is apparently return value from another block) but differ in extension. Likewise, @@Suffix@@ is used to extract file extensions.
 #! RList()
 # This is used in @@.alias@@ entries to help construct variables for R. For example @@.alias: args = RList()@@ will convert all variables in corresponding parameter space, say @@x,y,z@@ to @@args = list(x = ..., y = ..., z = ...)@@. @@args = RList(x, y)@@ will only convert selected variables to R list, @@args = list(x = x, y = y)@@.
 #! Index and slicing
 # Index can be used in the following context:
 #{list
-# Index parameters for @@exec@@ entry, for example @@exec: makeped.py $data $output[1]@@ where @@output@@ parameter takes the form of @@output: (1.ped, 1.map), (2.ped, 2.map)@@.
-# Index for variables in @@.logic@@ entries.
-# Index for variables in @@DSC::run@@ sequence.
+# Index for parameters in @@exec@@ entry, for example @@exec: makeped.py $data $output[1]@@ where @@output@@ parameter takes the form of @@output: (1.ped, 1.map), (2.ped, 2.map)@@.
+# Index for @@exec@@ in @@.logic@@ inside and outside @@params@@; each element corresponds to a computational routine in @@exec@@
+# Index for parameters defined by @@params@@ in @@.logic@@ inside @@params@@; each element corresponds to a value for the parameter.
+# Index for block names in @@DSC::run@@ sequence; each element corresponds to a computational routine in @@exec@@.
 #}
 # Slicing syntax is allowed. For example, @@n[1,2,4]@@ extracts the first, second and forth elements of @@n@@. @@n[1:4]@@ extracts elements 1 though 4, and @@n[1:9:2]@@ extracts elements 1, 3, 5, 7, 9.
 ###
 # Block inheritance
 ###
-# When multiple blocks share similar specifications, block inheritance is introduced to make this specifications more succinct. For example:
+# When a new block shares similar specifications with existing blocks, block inheritance is introduced to make new block definition more succinct. For example:
 #{out yaml
 SVA:
     exec: SVA.R
@@ -240,17 +266,18 @@ RUV(SVA):
 voom(SVA):
     exec: voom.R
 #}
-# Here, the 3 blocks differ only in the executable name. Block inheritance allows defining @@SVA@@ completely, then inherit it to define ``RUV'' and ``voom'' where only @@exec@@ have to be re-defined.
+# Here, the 3 blocks differ only in the executable name. With block inheritance, we can completely configure @@SVA@@, then inherit it to configure ``RUV'' and ``voom'' where only @@exec@@ have to be re-defined.
 ###
 # DSC Sequences
 ###
-# Blocks are executed from the ""DSC"" section as "sequences". Ways these blocks are combined can be specified via ``*'', ``,'' and ``()'' operators:
+# Blocks are executed from the ""DSC"" section as "sequences", defined by the @@DSC::run@@ entry. Ways these blocks are connected can be specified via ``*'', ``,'' and ``()'' operators:
 #{list
-# ``*'': right side is executed after the left side
-# ``,'': right side and left side are concurrent
-# ``()'': allows for combinations of ``*'' and ``,''
+# ``*'': right hand side (RHS) is executed after the left hand side (LHS).
+# ``+'': LHS and RHS are pair-wise combined first. ""In DSC, + operator has higher precedence than * operator"".
+# ``,'': RHS and LHS are concurrent.
+# ``()'': allows for combinations of ``*'' and ``,''.
 #}
-# These operators also applies to @@.logic@@ entries which defines the ways executables or parameters are combined.
+# These operators also apply to @@.logic@@ entries which define the ways parameters are combined.
 #! Example 1
 #{out yaml
 run: simulate * (transform * estimate) * score
@@ -294,12 +321,12 @@ run: simulate * sqrt * RUV * DESeq * score,
 # DSC section parameters
 ###
 #{list
-# @@exec_path@@: search path for executable files
-# @@R_libs@@: required R libraries, from cran, bioconductor or github. The following specifications are allowed
+# @@parameters@@: Defines DSC variables which can be used anywhere in the DSC file through @@$()@@ sigil.
+# @@exec_path@@: search path for executable files.
+# @@R_libs@@: required R libraries, from cran, bioconductor or github. The following specifications are allowed.
 ## @@name@@: DSC will first attempt to find it from cran, then bioconductor.
 ## @@cran/name/version@@: DSC will install given package with given version from cran.
 ## @@bioc/name@@: DSC will install the package from bioconductor.
 ## @@github/repo/name@@: DSC will install given package from given repository on github.
 # @@work_dir@@: work directory where DSC runs take place.
-# @@parameters@@: Defines DSC variables which can be used anywhere in the DSC file through @@$()@@ syntax.
 #}
