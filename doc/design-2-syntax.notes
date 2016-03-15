@@ -8,7 +8,7 @@
 # ""DSC file"": a text file in [YAML format|@http://yaml.org@] that configures the entire DSC procedure.
 # ""DSC block"": Sections in DSC file that defines a family of computational routines.
 # ""Block parameters"": Labels of DSC entries within DSC blocks.
-## A list of available block parameters: @@exec@@, @@params@@, @@seed@@, @@return@@, @@.alias@@, @@.logic@@, @@.options@@
+## Available block parameters: @@exec@@, @@params@@, @@seed@@, @@return@@, @@.alias@@, @@.logic@@, @@.options@@
 # ""DSC entry"": Lines in DSC blocks, labeled by block parameters and separated by comma (``,''), to allow for a range of parameters be assigned to multiple computational routine so that DSC can be performed under various scenarios for many methods.
 # ""DSC block operators"": Operators that can be called in DSC entries to generate desired result from its input.
 # ""The DSC Section"": A special section consisting of a [""DSC sequence""|@Design-and-Features#Design-Overview@], plus various other parameters involved in a DSC procedure (including required R libraries, path to executable folders, DSC global variables and work directory).

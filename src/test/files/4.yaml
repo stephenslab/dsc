@@ -1,15 +1,15 @@
 outlier_test:
-    exe: method1.R, method2.R, method3.R,
+    exec: method1.R, method2.R, method3.R,
          method4.R, method5.R, method6.R
     params:
-        __alias__: args = RList()
-        exe[3]:
+        .alias: args = RList()
+        exec[3]:
             K: 2, 5
-        exe[4]:
+        exec[4]:
             K: 2, 5
-        exe[5]:
+        exec[5]:
             K: 2, 3
-        exe[6]:
+        exec[6]:
             K: 3
     return: data, score = R(data$score)
 

@@ -14,15 +14,15 @@ doc_dir = ['design', 'course', 'setup', 'interface', 'vignettes']
 # HomePage
 md_source = ['home.notes', 'footer.notes', 'issues.notes']
 md_out = [os.path.join(wiki_dir, x) for x in ['Home.md', '_Footer.md', '-']]
-input: md_source, group_by = 'single', labels = 'md_out'
-run("${md} ${input} -o ${_md_out}")
+input: md_source, group_by = 'single', paired_with = 'md_out'
+run("${md} ${_input} -o ${_md_out}")
 
 [2]
 # Documentations
 doc_files = sum([sorted(list(glob.glob('{}-*'.format(item))), key = lambda x: x.split("-")[1]) for item in doc_dir], [])
 md_dirs = [os.path.join(wiki_dir, item.split('-')[0]) for item in doc_files]
-input: doc_files, group_by = 'single', labels = 'md_dirs'
-run("${md} ${input} -o ${_md_dirs}/-")
+input: doc_files, group_by = 'single', paired_with = 'md_dirs'
+run("${md} ${_input} -o ${_md_dirs}/-")
 
 [3]
 # Sidebar
@@ -40,7 +40,7 @@ TITLES = OrderedDict([
     ('vignettes', 'Examples')
     ])
 res = {}
-for item in "${input}".split():
+for item in "${_input}".split():
     # Global navigator
     section = item.split('-')[0]
     sidebar = '{}/{}/_Sidebar.md'.format(${wiki_dir!r}, section)

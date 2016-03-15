@@ -1,11 +1,11 @@
 simulate:
-    exe: datamaker.R
+    exec: datamaker.R
     params:
         min_pi0: 0
         max_pi0: 1
         nsamp: 1000
         betahatsd: 1
-        __alias__: args = RList()
+        .alias: args = RList()
     return: data, true_beta = R(data$meta$beta)
 
 DSC:

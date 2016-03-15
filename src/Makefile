@@ -2,13 +2,13 @@ help:
 	@grep '^[^#[:space:]].*:' Makefile | tr -d '\n' | sed 's/:/ /g'
 	@echo
 
-pysos:
+sos:
 	svn checkout https://github.com/gaow/SOS/trunk/pysos
 
 install:
 	python setup.py install
 
-test:
+utest:
 	cd test; python run_tests.py; cd -
 
 clean:

@@ -1,5 +1,5 @@
 simulate:
-    exe: datamaker.R
+    exec: datamaker.R
     seed: R(1:50), R(1:5)
     params:
         path: file.txt
@@ -10,35 +10,35 @@ simulate:
         breaksample: FALSE, TRUE
         nullpi: 0.9
         poisthin: TRUE
-        __alias__: args = RList()
-        __logic__: (seed[1] * path * tissue * Nsamp * Ngene * voom.normalize * breaksample),
+        .alias: args = RList()
+        .logic: (seed[1] * path * tissue * Nsamp * Ngene * voom.normalize * breaksample),
                    (seed[2] * path * tissue[2] * Nsamp * Ngene * voom.normalize * breaksample[2] * nullpi),
                    (seed[2] * path * tissue[1] * Nsamp * Ngene * voom.normalize * breaksample[1] * poisthin)
     return: data
 
 method:
-    exe: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
+    exec: deseq2.wrapper.R, edger.wrapper.R, limma.wrapper.R, ash.wrapper.R, jointash.wrapper.R
     params:
         input: $data
         transform: voom, RUVvoom, SVAvoom, quasibinom, RUV+quasibinom, SVA+quasibinom, Myrna+quasibinom, edgeRglm
-        __alias__: RList(args, transform)
-        exe[1]:
-            __logic__: NULL
-        exe[2]:
+        .alias: RList(args, transform)
+        exec[1]:
+            .logic: NULL
+        exec[2]:
             exacttest: TRUE, FALSE
             RUV: FALSE, FALSE, TRUE
             SVA: FALSE, TRUE, FALSE
-            __alias__: args = RList()
-            __logic__: exacttest[1], (exacttest[2] * (RUV + SVA))
-        exe[3]:
+            .alias: args = RList()
+            .logic: exacttest[1], (exacttest[2] * (RUV + SVA))
+        exec[3]:
             robust: FALSE, TRUE
-            __alias__: args = RList()
-            __logic__: (transform[1] * robust), (transform[2,3] * robust[1])
-        exe[4]:
-            __logic__: transform[1:6]
-        exe[5]:
+            .alias: args = RList()
+            .logic: (transform[1] * robust), (transform[2,3] * robust[1])
+        exec[4]:
+            .logic: transform[1:6]
+        exec[5]:
             singlecomp: TRUE
-            __alias__: args = RList()
+            .alias: args = RList()
     return: output
 
 DSC:

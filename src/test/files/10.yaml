@@ -1,15 +1,15 @@
 SVA:
-    exe: SVA.R
+    exec: SVA.R
     params:
         data: $data
-        __alias__: args = RList()
+        .alias: args = RList()
     return: data
 
 RUV(SVA):
-    exe: RUV.R
+    exec: RUV.R
 
 myrna(SVA):
-    exe: myrna.R
+    exec: myrna.R
 
 DSC:
     run: SVA, RUV, myrna
