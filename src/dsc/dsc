@@ -3,8 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-__doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 if __name__ == '__main__':
-    from DSC2.workhorse import main
+    from DSC2.interface import main
     main()

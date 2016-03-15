@@ -4,102 +4,52 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-from dsc_file import DSCData
+from pysos import SoS_Script
 
-class Job:
+class DSCJobs:
     '''
-    Convert dsc input information in a dictionary and properly prepare a job.
+    Convert DSC data to steps compatible with SoS format.
+      * Input is DSCData object
 
     This includes:
-      * Figuring out and loading required data
-      * Prepare environments to run R, Python or command line
-      * Putting together arguments / parameters for the job
-      * Run a job, if asked, and properly store results
+      * Ensure step ordering for DSC::run are legitimate
+      * Prepare environments to run R: libraries, alias, return alias
+      * Prepare environments to run non-R exec: checking / putting together arguments
+      * ...
 
-    There are some identification variables:
-      * SA: ID for scenario
-      * R: ID for replicate
-      * M: ID for method
-      * SO: ID for scoring measure
-    These identification variables should be determined by Updater
+    The output of this will be a DSCJobs object ready to convert to SoS steps
     '''
-    def __init__(self):
+    def __init__(self, data):
         pass
 
     def __str__(self):
         return None
 
-    def execute(self):
+    def __call__(self):
         pass
 
-class Jobs:
+class DSC2SoS:
     '''
-    Takes a list of jobs (from input list or a job file) and figure out the proper
-    sequence to run these jobs.
+    Initialize SoS workflows with DSC jobs
+      * Input is DSC job objects
+      * Output is SoS workflow codes
 
-    Suppose given these jobs
-      [SA1R1, SA1R2, SA1R1M1, SA1R2M1, SA1R1M2, SA1R2M2,
-       SA1R1M1SO, SA1R2M1SO, SA1R1M2SO, SA1R2M2SO]
-    they should be organized as
-      {1: [SA1R1, SA1R2],
-       2: [SA1R1M1, SA1R2M1, SA1R1M2, SA1R2M2],
-       3: [SA1R1M1SO, SA1R2M1SO, SA1R1M2SO, SA1R2M2SO]
-      }
-
-    Or, multiple independent units:
-      {1: [SA1R1],
-       2: [SA1R1M1, SA1R1M2],
-       3: [SA1R1M1SO, SA1R1M2SO]
-      },
-      {1: [SA1R2],
-       2: [SA1R2M1, SA1R2M2],
-       3: [SA1R2M1SO, SA1R2M2SO]
-      }
-
-    where step 1 ~ 3 each depends on output from previous step(s),
-    and within each step commands should run in parallel. Warnings
-    or error messages should be given if there are dependency problems
+    Here are the ideas from DSC to SoS:
+      * Each DSC computational routine `exec` is a step; step name is `block name + routine index`
+      * When there are combined routines in a block via `.logic` for `exec` then sub-steps are generated
+        with name `block name + combined routine index + routine index` index then create nested workflow
+        and eventually the nested workflow name will be `block name + combined routine index`
+      * Parameters utilize `for_each` and `paired_with`. Of course will have to distinguish input / output
+        from parameters (input will be the ones with $ sigil; output will be the ones in return)
+      * Parameters might have to be pre-expanded to some degree given limited SoS `for_each` and `paired_with`
+        support vs. potentially complicated DSC `.logic`.
+      * Final workflow also use nested workflow structure. The number of final workflow is the same as number of
+        DSC sequences. These sequences will be executed one after the other
+      * Replicates of the first step (assuming simulation) will be sorted out up-front and they will lead to different
+        SoS codes.
     '''
-    def __init__(self):
+    def __init__(self, data):
         pass
-
-    def __str__(self):
-        return None
-
-    def save(self, fname, split = None):
-        '''
-        Save job objects to file.
-
-        If split > 1, it will create multiple independent job units and
-        save each of them to a file.
-        '''
-        pass
-
-    def execute(self):
-        pass
-
-class JobFilter:
-    '''
-    Checks jobs against archive and determine what to execute
-    '''
-    def __init__(self):
-        pass
-
-    def __str__(self):
-        return None
-
-class DSC:
-    '''
-    The DSC object
-
-    Input is DSC settings; DSC object contains all information necessary to
-    run DSC
-    '''
-    def __init__(self, fname, nodes, threads, verbosity):
-        self.job_inits = DSCData(fname)
-        self.job_updates = JobFilter(self.job_inits)
-        self.raw_jobs = [Job(item) for item in self.job_updates]
-        self.jobs = Jobs(self.raw_jobs)
 
     def __call__(self):
         pass

@@ -25,3 +25,4 @@ DSC:
          mse
     exec_path: R/scenarios, R/methods, R/scores
     work_dir: one_sample_location
+    output: dsc_test

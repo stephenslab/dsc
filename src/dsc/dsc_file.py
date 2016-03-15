@@ -1,10 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
+'''
+This file defines the `DSCData` class for loading DSC file
+'''
 
-import os, sys, yaml, re, subprocess, ast, itertools, copy, sympy, \
+import os, sys, yaml, re, subprocess, itertools, copy, sympy, \
   collections
 import rpy2.robjects as RO
 from io import StringIO
@@ -542,71 +545,6 @@ class DSCEntryFormatter(DSCFileParser):
                     cfg[key] = value
         return cfg
 
-class DSCBlockParser(DSCFileParser):
-    '''
-    Parser for DSC Block
-
-    Apply to a DSC block to convert it to job initialization data
-
-    In addition to simply expand attributes, this will take care of all
-    (remaining) DSC jargon, including:
-      * .alias related operations
-        * RList()
-        * "=" operator
-      * .logic related operations (.logic entry itself has previously been parsed)
-        * expand parameters based on these rules
-    '''
-    def __init__(self):
-        DSCFileParser.__init__(self)
-
-    def __call__(self, dsc):
-        for name in list(dsc.keys()):
-            if name == 'DSC':
-                # FIXME
-                continue
-            else:
-                self.name = name
-                if 'params' in dsc[name]:
-                    self.format_exec(dsc[name])
-                    self.expand_params(dsc[name])
-            dsc[name] = dotdict(strip_dict(dsc[name]))
-
-    def format_exec(self, block):
-        '''
-        Split exec string to tuples and check if exec matches parameters
-        '''
-        block.meta['exec'] = [tuple(x.split()) if isinstance(x, str) else x for x in block.meta['exec']]
-        max_exec = sorted(block.params.keys())[-1]
-        if max_exec > len(block.meta['exec']):
-            raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
-
-    def expand_params(self, block):
-        global_alias = try_get_value(block, ('params_alias', 0))
-        global_params = self.__apply_alias(try_get_value(block, ('params', 0)), global_alias)
-        for key in list(block.params.keys()):
-            if key == 0:
-                continue
-            alias = try_get_value(block, ('params_alias', key))
-            block.params[key] = self.__apply_alias(block.params[key], alias if alias else global_alias)
-            tmp = copy.deepcopy(global_params)
-            tmp.update(block.params[key])
-            block.params[key] = tmp
-
-    def __apply_alias(self, params, alias):
-        # FIXME: to be implemented
-        if not params:
-            return {}
-        if not alias:
-            return params
-        return params if params else {}
-
-class DSCSetupParser(DSCFileParser):
-    '''
-    Parser for DSC section, the DSC setup
-    '''
-    def __init__(self):
-        DSCFileParser.__init__(self)
-
 class DSCData(dotdict):
     '''
     Read DSC configuration file and translate it to a collection of steps to run DSC
@@ -618,19 +556,26 @@ class DSCData(dotdict):
       * Translate DSC file text
         * Replace Operators R() / Python() / Shell() / Combo() ...
         * Replace global variables
-      * Parse .alias and .logic to expand all settings to units of "steps"
-        * i.e., list of parameter dictionaries each will initialize a job
 
     Structure of self:
       self.block_name.block_param_name = dict()
     '''
     def __init__(self, content):
-        actions = [DSCFileLoader(content),
-                   DSCEntryFormatter(),
-                   DSCBlockParser(),
-                   DSCSetupParser()]
+        actions = [DSCFileLoader(content), DSCEntryFormatter()]
         for a in actions:
             a(self)
+        for name in list(self.keys()):
+            if name == 'DSC':
+                continue
+            else:
+                # double check if any computational routines are
+                # out of index
+                self[name]['meta']['exec'] = [tuple(x.split()) if isinstance(x, str) else x for x in self[name]['meta']['exec']]
+                if 'params' in self[name]:
+                    max_exec = max(self[name]['params'].keys())
+                if max_exec > len(self[name]['meta']['exec']):
+                    raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
+
 
     def __str__(self):
         res = ''

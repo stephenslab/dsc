@@ -1,4 +1,4 @@
-#! /usr/bin/env python3
+#! /usr/bin/env python
 __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
@@ -18,7 +18,7 @@ setup(name        = PACKAGE,
       url         = 'https://github.com/stephenslab/dsc2',
       version     = VERSION,
       packages    = [PACKAGE],
-      scripts     = ["dsc/dsc"],
+      scripts     = ["dsc/dsc", "dsc/dsc-run"],
       cmdclass    = {'build_py': build_py},
       package_dir = {PACKAGE: 'dsc'}
       )

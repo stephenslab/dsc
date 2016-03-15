@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
@@ -35,10 +35,10 @@ def str2num(var):
         # try to warn about boolean
         if var in ['T', 'F'] or var.lower() in ['true', 'false']:
             bmap = {'t': 1, 'true': 1, 'f': 0, 'false': 0}
-            msg = 'Possible Boolean variable detected: "{}". \n\
+            msg = 'Possible Boolean variable detected: ``{}``. \n\
             This variable will be treated as string, not Boolean data. \n\
             It may cause problems to your jobs. \n\
-            Please set this variable to {} if it is indeed Boolean data.'.format(var, bmap[var.lower()])
+            Please set this variable to ``{}`` if it is indeed Boolean data.'.format(var, bmap[var.lower()])
             env.logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
         try:
             return int(var)
