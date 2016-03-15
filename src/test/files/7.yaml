@@ -1,5 +1,5 @@
 simulate:
-    exec: Product(datamaker.R, $(data_functions)[1:2])
+    exec: Combo(datamaker.R, $(data_functions)[1:2])
     params:
         n.neutral.snps: 9500
     return: data

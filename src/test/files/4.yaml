@@ -1,6 +1,6 @@
 outlier_test:
     exec: method1.R, method2.R, method3.R,
-         method4.R, method5.R, method6.R
+          method4.R, method5.R, method6.R
     params:
         .alias: args = RList()
         exec[3]:

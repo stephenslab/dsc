@@ -24,14 +24,14 @@ class Timer(object):
         if self.verbose:
             print('elapsed time: %.03f ms' % self.msecs)
 
-def lower_keys(x, level_start = 0, level_end = 2):
+def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
     level_start += 1
     if level_start > level_end:
         return x
     if isinstance(x, list):
         return [lower_keys(v, level_start, level_end) for v in x]
-    elif isinstance(x, dict):
-        return dict((k.lower(), lower_keys(v, level_start, level_end)) for k, v in x.items())
+    elif isinstance(x, colletions.Mapping):
+        return mapping((k.lower(), lower_keys(v, level_start, level_end)) for k, v in x.items())
     else:
         return x
 
@@ -65,8 +65,8 @@ def str2num(var):
     else:
         return var
 
-def cartesian_dict(value):
-    return [dict(zip(value, x)) for x in itertools.product(*value.values())]
+def cartesian_dict(value, mapping = dict):
+    return [mapping(zip(value, x)) for x in itertools.product(*value.values())]
 
 def cartesian_list(*args):
     return list(itertools.product(*args))
@@ -79,14 +79,16 @@ def pairwise_list(*args):
 def flatten_list(lst):
     return sum( ([x] if not isinstance(x, list) else flatten_list(x) for x in lst), [] )
 
-def flatten_dict(d):
+def flatten_dict(d, mapping = dict):
+    if not isinstance(d, collections.Mapping):
+        return d
     items = []
     for k, v in d.items():
-        if isinstance(v, collections.MutableMapping):
+        if isinstance(v, collections.Mapping):
             items.extend(flatten_dict(v).items())
         else:
             items.append((k, v))
-    return dict(items)
+    return mapping(items)
 
 def uniq_list(seq):
     seen = set()
@@ -162,11 +164,30 @@ def dict2str(value, replace = []):
         res = res.replace(item[0], item[1])
     return res
 
-def update_nested_dict(d, u):
+def update_nested_dict(d, u, mapping = dict):
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
-            r = update_nested_dict(d.get(k, {}), v)
+            r = update_nested_dict(d.get(k, mapping()), v)
             d[k] = r
         else:
             d[k] = u[k]
     return d
+
+def strip_dict(data, mapping = dict):
+    mapping_null = mapping()
+    new_data = mapping()
+    for k, v in data.items():
+        if isinstance(v, collections.Mapping):
+            v = strip_dict(v)
+        if not v in ('', None, {}, [], mapping_null):
+            new_data[k] = v
+    return new_data
+
+class dotdict(dict):
+    """dot.notation access to dictionary attributes"""
+    __setattr__ = dict.__setitem__
+    __getattr__ = dict.__getitem__
+    __delattr__ = dict.__delitem__
+
+    def __deepcopy__(self, memo):
+        return dotdict(copy.deepcopy(dict(self)))

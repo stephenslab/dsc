@@ -4,12 +4,13 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, yaml, re, subprocess, ast, itertools, copy, sympy
+import os, sys, yaml, re, subprocess, ast, itertools, copy, sympy, \
+  collections
 import rpy2.robjects as RO
 from io import StringIO
 from pysos.utils import env, Error
-from .utils import lower_keys, is_null, str2num, \
-     cartesian_list, pairwise_list, get_slice, flatten_list, \
+from .utils import dotdict, lower_keys, is_null, str2num, strip_dict, \
+     cartesian_list, pairwise_list, get_slice, flatten_list, flatten_dict, \
      try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value
 
 class FormatError(Error):
@@ -27,7 +28,7 @@ class DSCFileParser:
     def __init__(self):
         pass
 
-    def apply(self, data):
+    def __call__(self, data):
         pass
 
 class DSCEntryParser:
@@ -39,7 +40,7 @@ class DSCEntryParser:
     def __init__(self):
         pass
 
-    def apply(self, value):
+    def __call__(self, value):
         return value
 
     def split(self, value):
@@ -117,14 +118,14 @@ class Str2List(DSCEntryParser):
         DSCEntryParser.__init__(self)
         self.regex = re.compile(r'(?:[^,(]|\([^)]*\))+')
 
-    def apply(self, value):
+    def __call__(self, value):
         if isinstance(value, str):
             # This does not work for nested parenthesis
             # return [x.strip() for x in self.regex.findall(value)]
             # Have to do it the hard way ...
             return self.split(value)
         else:
-            if not isinstance(value, (dict, list, tuple)):
+            if not isinstance(value, (collections.Mapping, list, tuple)):
                 return [value]
             else:
                 return value
@@ -139,7 +140,7 @@ class ExpandVars(DSCEntryParser):
         DSCEntryParser.__init__(self)
         self.global_var = global_var
 
-    def apply(self, value):
+    def __call__(self, value):
         if self.global_var is None:
             return value
         for idx, item in enumerate(value):
@@ -147,7 +148,7 @@ class ExpandVars(DSCEntryParser):
                 # find pattern with slicing first
                 pattern = re.compile(r'\$\((.*?)\)\[(.*?)\]')
                 for m in re.finditer(pattern, item):
-                    tmp = [x.strip() for x in self.global_var[m.group(1)].split(',')]
+                    tmp = [x.strip() for x in self.split(self.global_var[m.group(1)])]
                     tmp = ', '.join([tmp[i] for i in get_slice('slice[' + m.group(2) + ']')[1]])
                     item = item.replace(m.group(0), '[' + tmp + ']')
                 # then pattern without slicing
@@ -179,7 +180,7 @@ class ExpandActions(DSCEntryParser):
             'Pairs': self.__Pairs
             }
 
-    def apply(self, value):
+    def __call__(self, value):
         for idx, item in enumerate(value):
             if isinstance(item, str):
                 for name in list(self.method.keys()):
@@ -192,12 +193,12 @@ class ExpandActions(DSCEntryParser):
 
     def __Combo(self, value):
         value = [self.decodeVar(x) for x in self.split(value)]
-        value = [x if isinstance(x, list) else [x] for x in value]
+        value = [x if isinstance(x, (list, tuple)) else [x] for x in value]
         return cartesian_list(*value)
 
     def __Pairs(self, value):
         value = [self.decodeVar(x) for x in self.split(value)]
-        value = [x if isinstance(x, list) else [x] for x in value]
+        value = [x if isinstance(x, (list, tuple)) else [x] for x in value]
         return pairwise_list(*value)
 
     def __R(self, code):
@@ -213,7 +214,7 @@ class CastData(DSCEntryParser):
     def __init__(self):
         DSCEntryParser.__init__(self)
 
-    def apply(self, value):
+    def __call__(self, value):
         # Recode strings
         for idx, item in enumerate(value):
             value[idx] = self.decodeVar(item)
@@ -254,7 +255,7 @@ class OperationParser(DSCEntryParser):
         self.cache_count = 0
         self.value = ''
 
-    def apply(self, value):
+    def __call__(self, value):
         if is_null(value):
             return value
         if not isinstance(value, str):
@@ -299,7 +300,8 @@ class OperationParser(DSCEntryParser):
         new_seq.extend(seq[start_idx:len(seq)])
         # cache all symbols
         for idx, item in enumerate(new_seq):
-            new_seq[idx] = self.__string_cache(item)
+            if item and not item in self.operators:
+                new_seq[idx] = self.__string_cache(item)
         return ''.join(new_seq)
 
     def check_syntax(self, value):
@@ -355,77 +357,78 @@ class DSCFileLoader(DSCFileParser):
     '''
     Load DSC configuration file in YAML format and perform initial sanity check
     '''
-    def __init__(self):
+    def __init__(self, content):
         DSCFileParser.__init__(self)
+        self.content = content
         # Keywords
-        self.reserved_kw = ['DSC']
-        self.prim_kw = ['exe', 'return', 'params', 'seed']
-        self.aux_kw = ['.logic', '.alias', '.options']
+        self.block_kw = ['exec', 'return', 'params', 'seed', '.logic']
+        self.params_kw = ['.logic', '.alias', '.options']
+        self.op = OperationParser()
 
-    def apply(self, data):
+    def __call__(self, data):
         def load_from_yaml(f, content):
             try:
                 cfg = yaml.load(f)
-            except:
-                cfg = None
-            if not isinstance(cfg, dict):
-                raise FormatError("DSC configuration ``{}`` not properly formatted!".format(content))
+            except Exception as e:
+                raise FormatError("DSC configuration ``{}`` not properly formatted!\n``Error message: {}``".format(content, e))
             # data.update(lower_keys(cfg))
             data.update(cfg)
-
-        if os.path.isfile(data.content):
-            env.logger.debug("Loading configurations from ``{}``.".format(data.content))
-            with open(data.content) as f:
-                load_from_yaml(f, data.content)
+        #
+        if os.path.isfile(self.content):
+            env.logger.debug("Loading configurations from ``{}``.".format(self.content))
+            with open(self.content) as f:
+                load_from_yaml(f, self.content)
         else:
-            with StringIO(data.content) as f:
+            with StringIO(self.content) as f:
                 load_from_yaml(f, '<Input String>')
-                data.content = 'DSCStringIO.yaml'
-        # Handle derived blocks
+                self.content = 'DSCStringIO.yaml'
         has_dsc = False
-        blocks = self.__sort_blocks(data)
+        blocks = self.__get_blocks(data)
+        # Handle derived class
         for block in blocks:
+            groups = re.search('(.*?)\((.*?)\)', block)
+            if groups:
+                data[groups.group(1).strip()] = update_nested_dict(copy.deepcopy(data[groups.group(2).strip()]), data[block])
+                del data[block]
+        # Load data
+        for block in list(data.keys()):
             if block == 'DSC':
+                # handle DSC section
                 has_dsc = True
-                if 'run' not in data[block]:
-                    raise FormatError('Missing required entry ``DSC::run``.')
-                if try_get_value(data, ('DSC', 'runtime', 'output')) is None:
-                    env.logger.warning('Missing output database name (entry ``DSC::runtime::output``). Use default name ``{}``.'.format(data.content[:-5]))
-                    set_nested_value(data, ('DSC', 'runtime', 'output'), data.content[:-5])
+                if 'run' not in data.DSC:
+                    raise FormatError('Missing required ``DSC::run``.')
+                data.DSC['run'] = self.op(data.DSC['run'])
+                if try_get_value(data, ('DSC', 'output')) is None:
+                    env.logger.warning('Missing output database name (``DSC::output``). Use default name ``{}``.'.\
+                                       format(self.content[:-5]))
+                    set_nested_value(data, ('DSC', 'output'), self.content[:-5])
             else:
-                groups = re.search('(.*?)\((.*?)\)', block)
-                if groups:
-                    data[groups.group(1).strip()] = update_nested_dict(copy.deepcopy(data[groups.group(2).strip()]), data[block])
-                    del data[block]
-        # format / check entries
-        for block in list(data):
-            if block == "DSC":
-                continue
-            has_exe = has_return = False
-            for key in list(data[block]):
-                if key not in self.prim_kw:
-                    env.logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.format(key, block))
-                    del data[block][key]
-                if key == 'exe':
-                    has_exe = True
-                if key == 'return':
-                    has_return = True
-            if not has_exe:
-                raise FormatError('Missing required entry ``exe`` in block ``{}``'.format(block))
-            if not has_return:
-                raise FormatError('Missing required entry ``return`` in block ``{}``'.format(block))
-            data[block] = self.__format_block(data[block])
+                # handle blocks: format / check entries
+                has_exec = has_return = False
+                for key in list(data[block].keys()):
+                    if key not in self.block_kw:
+                        env.logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.format(key, block))
+                        del data[block][key]
+                    if key == 'exec':
+                        has_exec = True
+                    if key == 'return':
+                        has_return = True
+                if not has_exec:
+                    raise FormatError('Missing required entry ``exec`` in block ``{}``'.format(block))
+                if not has_return:
+                    raise FormatError('Missing required entry ``return`` in block ``{}``'.format(block))
+                data[block] = self.__format_block(data[block])
 
-    def __sort_blocks(self, section_data):
+    def __get_blocks(self, data):
         '''
-        Sort block names such that derived block always follows the base block
+        Return to sorted block names such that derived block always follows the base block
 
         name of derived blocks looks like: "derived(base)"
         '''
         base = []
         derived = []
         blocks = []
-        for block in section_data:
+        for block in data:
             groups = re.search('(.*?)\((.*?)\)', block)
             if groups:
                 derived.append([groups.group(1).strip(), groups.group(2).strip()])
@@ -455,106 +458,84 @@ class DSCFileLoader(DSCFileParser):
                 name = '{}({})'.format(item[0], item[1])
                 if name not in blocks:
                     blocks.append(name)
-            if len(blocks) == len(section_data.keys()):
+            if len(blocks) == len(data.keys()):
                 break
         return blocks
-
 
     def __format_block(self, section_data):
         '''
         Format block data to meta / params etc for easier manipulation
 
-          * meta: will contain exe information
+          * meta: will contain exec information
           * params:
-            * params[0] (for shared params), params[1], params[2], (corresponds to exe[1], exe[2]) ...
+            * params[0] (for shared params), params[1], params[2], (corresponds to exec[1], exec[2]) ...
           * rules:
             * rules[0] (for shared params), rules[1] ...
           * params_alias:
             * params_alias[0], params_alias[1] ...
         '''
-        meta = {}
-        params = {0:{}}
-        rules = {}
-        params_alias = {}
+        res = dotdict()
+        res.meta = {}
+        res.params = {0:{}}
+        res.rules = {}
+        res.params_alias = {}
+        res.out = section_data['return']
         # Parse meta
-        meta['exe'] = section_data['exe']
+        res.meta['exec'] = section_data['exec']
         if 'seed' in section_data:
-            meta['seed'] = section_data['seed']
+            res.meta['seed'] = section_data['seed']
+        if '.logic' in section_data:
+            # no need to expand exec logic
+            res.meta['rule'] = section_data['.logic']
         # Parse params
         if 'params' in section_data:
             for key, value in section_data['params'].items():
                 try:
+                    # get indexed slice
                     name, idxes = get_slice(key)
-                    if name != 'exe':
-                        raise FormatError('Unknown paramseter entry with index: {}.'.format(key))
+                    if name != 'exec':
+                        raise FormatError('Unknown indexed parameter entry: {}.'.format(key))
                     for idx in idxes:
                         idx += 1
                         if idx == 0:
-                            raise FormatError('Invalid entry: exe[0]. Index must start from 1.')
-                        if idx in params:
+                            raise FormatError('Invalid entry: exec[0]. Index must start from 1.')
+                        if idx in res.params:
                             raise FormatError('Duplicate parameter entry: {}.'.format(key))
-                        params[idx] = copy.copy(value)
+                        res.params[idx] = flatten_dict(value)
                 except AttributeError:
-                    params[0][key] = value
+                    res.params[0][key] = flatten_dict(value)
             # Parse rules and params_alias
-            for key in list(params.keys()):
-                if '.logic' in params[key]:
-                    rules[key] = params[key]['.logic']
-                    del params[key]['.logic']
-                if '.alias' in params[key]:
-                    params_alias[key] = params[key]['.alias']
-                    del params[key]['.alias']
-                if not params[key]:
-                    del params[key]
-        res = {'meta': meta, 'return': section_data['return']}
-        if params:
-            res['params'] = params
-        if rules:
-            res['rules'] = rules
-        if params_alias:
-            res['params_alias'] = params_alias
-        if 'level' in section_data:
-            res['level'] = section_data['level']
-        return res
+            for key in list(res.params.keys()):
+                if '.logic' in res.params[key]:
+                    res.rules[key] = self.op(res.params[key]['.logic'])
+                    del res.params[key]['.logic']
+                if '.alias' in res.params[key]:
+                    res.params_alias[key] = res.params[key]['.alias']
+                    del res.params[key]['.alias']
+        return dotdict(strip_dict(res))
 
 class DSCEntryFormatter(DSCFileParser):
     '''
-    Run format transformation to all DSC entries
+    Run format transformation to DSC entries
     '''
     def __init__(self):
         DSCFileParser.__init__(self)
 
-    def apply(self, data):
-        data['DSC_R_LIBRARIES'] = try_get_value(data, ('DSC', 'runtime', 'r_libs'))
-        variables = try_get_value(data, ('DSC', 'runtime', 'variables'))
-        if data['DSC_R_LIBRARIES'] is not None:
-            del data['DSC']['runtime']['r_libs']
-        else:
-            del data['DSC_R_LIBRARIES']
-        if variables is not None:
-            del data['DSC']['runtime']['variables']
-        self.actions = [OperationParser(),
-                        Str2List(),
-                        ExpandVars(variables),
-                        ExpandActions(),
-                        CastData()]
-        data = self.__Transform(data, [])
-        for key in data:
-            if 'level' in data[key]:
-                data[key]['level'] = data[key]['level'][0]
+    def __call__(self, data):
+        actions = [Str2List(),
+                   ExpandVars(try_get_value(data.DSC, 'parameters')),
+                   ExpandActions(),
+                   CastData()]
+        data = self.__Transform(data, actions)
 
-    def __Transform(self, cfg, keys):
+    def __Transform(self, cfg, actions):
+        '''Apply actions to items'''
         for key, value in list(cfg.items()):
-            if isinstance(value, dict):
-                keys.append(key)
-                self.__Transform(value, keys)
+            if isinstance(value, collections.Mapping):
+                self.__Transform(value, actions)
             else:
-                is_dsc = keys[-1] == 'DSC' or (keys[-1] == 'runtime' and (keys[-2] == 'DSC' if len(keys) > 1 else False))
-                if keys[-1] == 'rules' or (key == 'run' and is_dsc):
-                    value = self.actions[0].apply(value)
-                else:
-                    for a in self.actions[1:]:
-                        value = a.apply(value)
+                for a in actions:
+                    value = a(value)
                 if is_null(value):
                     del cfg[key]
                 else:
@@ -578,42 +559,38 @@ class DSCBlockParser(DSCFileParser):
     def __init__(self):
         DSCFileParser.__init__(self)
 
-    def apply(self, dsc):
+    def __call__(self, dsc):
         for name in list(dsc.keys()):
             if name == 'DSC':
                 # FIXME
                 continue
             else:
                 self.name = name
-                self.format_exe(dsc[name])
-                self.expand_params(dsc[name])
-            # clean up data
-            for key in list(dsc[name].keys()):
-                if not dsc[name][key]:
-                    del dsc[name][key]
+                if 'params' in dsc[name]:
+                    self.format_exec(dsc[name])
+                    self.expand_params(dsc[name])
+            dsc[name] = dotdict(strip_dict(dsc[name]))
 
-    def format_exe(self, block):
+    def format_exec(self, block):
         '''
-        Split exe string to tuples and check if exe matches parameters
+        Split exec string to tuples and check if exec matches parameters
         '''
-        block['meta']['exe'] = [tuple(x.split()) if isinstance(x, str) else x for x in block['meta']['exe']]
-        max_exe = sorted(block['params'].keys())[-1]
-        if max_exe > len(block['meta']['exe']):
-            raise FormatError('Index for exe out of range: ``exe[{}]``.'.format(max_exe))
+        block.meta['exec'] = [tuple(x.split()) if isinstance(x, str) else x for x in block.meta['exec']]
+        max_exec = sorted(block.params.keys())[-1]
+        if max_exec > len(block.meta['exec']):
+            raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
 
     def expand_params(self, block):
-        if 'params' not in block:
-            return
         global_alias = try_get_value(block, ('params_alias', 0))
         global_params = self.__apply_alias(try_get_value(block, ('params', 0)), global_alias)
-        for key in list(block['params'].keys()):
+        for key in list(block.params.keys()):
             if key == 0:
                 continue
             alias = try_get_value(block, ('params_alias', key))
-            block['params'][key] = self.__apply_alias(block['params'][key], alias if alias else global_alias)
+            block.params[key] = self.__apply_alias(block.params[key], alias if alias else global_alias)
             tmp = copy.deepcopy(global_params)
-            tmp.update(block['params'][key])
-            block['params'][key] = tmp
+            tmp.update(block.params[key])
+            block.params[key] = tmp
 
     def __apply_alias(self, params, alias):
         # FIXME: to be implemented
@@ -630,7 +607,7 @@ class DSCSetupParser(DSCFileParser):
     def __init__(self):
         DSCFileParser.__init__(self)
 
-class DSCData(dict):
+class DSCData(dotdict):
     '''
     Read DSC configuration file and translate it to a collection of steps to run DSC
 
@@ -643,24 +620,20 @@ class DSCData(dict):
         * Replace global variables
       * Parse .alias and .logic to expand all settings to units of "steps"
         * i.e., list of parameter dictionaries each will initialize a job
+
+    Structure of self:
+      self.block_name.block_param_name = dict()
     '''
-    def __init__(self, content, **kwargs):
-        for k, v in kwargs.items():
-            try:
-                setattr(env, k, v)
-            except:
-                pass
-        self.actions = [DSCFileLoader(),
-                        DSCEntryFormatter(),
-                        DSCBlockParser(),
-                        DSCSetupParser()]
-        self.content = content
-        for a in self.actions:
-            a.apply(self)
+    def __init__(self, content):
+        actions = [DSCFileLoader(content),
+                   DSCEntryFormatter(),
+                   DSCBlockParser(),
+                   DSCSetupParser()]
+        for a in actions:
+            a(self)
 
     def __str__(self):
         res = ''
-        # FIXME: properly sort output, combining information from all DSC sequences
-        for item in sorted(list(dict(self).items()), key = lambda x: (x[1]['level'] if 'level' in x[1] else sys.maxsize, x[0])):
-            res += dict2str({item[0]: item[1]}, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+        for item in sorted(list(dict(self).items())):
+            res += dict2str({item[0]: dict(item[1])}, replace = [('!!python/tuple', '(tuple)')]) + '\n'
         return res.strip()
