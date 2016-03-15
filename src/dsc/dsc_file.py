@@ -402,9 +402,11 @@ class DSCFileLoader(DSCFileParser):
                     raise FormatError('Missing required ``DSC::run``.')
                 data.DSC['run'] = self.op(data.DSC['run'])
                 if try_get_value(data, ('DSC', 'output')) is None:
-                    env.logger.warning('Missing output database name (``DSC::output``). Use default name ``{}``.'.\
-                                       format(self.content[:-5]))
-                    set_nested_value(data, ('DSC', 'output'), self.content[:-5])
+                    env.logger.warning('Missing output database name in ``DSC::output``. Use default name ``{}``.'.\
+                                       format(os.path.split(self.content[:-5])[-1]))
+                    set_nested_value(data, ('DSC', 'output'), os.path.split(self.content[:-5])[-1])
+                if try_get_value(data, ('DSC', 'work_dir')) is None:
+                    set_nested_value(data, ('DSC', 'work_dir'), './')
             else:
                 # handle blocks: format / check entries
                 has_exec = has_return = False
@@ -575,7 +577,6 @@ class DSCData(dotdict):
                     max_exec = max(self[name]['params'].keys())
                 if max_exec > len(self[name]['meta']['exec']):
                     raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
-
 
     def __str__(self):
         res = ''

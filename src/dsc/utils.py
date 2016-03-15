@@ -176,3 +176,50 @@ class dotdict(dict):
 
     def __deepcopy__(self, memo):
         return dotdict(copy.deepcopy(dict(self)))
+
+class REncoder:
+    """Encoding Pyton data structures into R."""
+    @classmethod
+    def encode_value(cls, value):
+        if isinstance(value, list):
+            return cls.encode_list(value)
+        elif isinstance(value, dict):
+            return cls.encode_dict(value)
+        elif isinstance(value, str):
+            return repr(value)
+        elif isinstance(value, bool):
+            return "TRUE" if value else "FALSE"
+        elif isinstance(value, int) or isinstance(value, float):
+            return str(value)
+        else:
+            raise ValueError(
+                "Unsupported value for conversion into R: {}".format(value))
+
+    @classmethod
+    def encode_list(cls, l):
+        return "c({})".format(", ".join(map(cls.encode_value, l)))
+
+    @classmethod
+    def encode_items(cls, items):
+        def encode_item(item):
+            name, value = item
+            return '"{}" = {}'.format(name, cls.encode_value(value))
+
+        return ", ".join(map(encode_item, items))
+
+    @classmethod
+    def encode_dict(cls, d):
+        d = "list({})".format(cls.encode_items(d.items()))
+        return d
+
+    @classmethod
+    def encode_namedlist(cls, namedlist):
+        positional = cls.encode_list(namedlist)
+        named = cls.encode_items(namedlist.items())
+        source = "list("
+        if positional != "c()":
+            source += positional
+        if named:
+            source += ", " + named
+        source += ")"
+        return source

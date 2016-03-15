@@ -18,7 +18,7 @@ def main():
     p = subparsers.add_parser('execute', help = 'Execute DSC',
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('dsc_file', metavar = "dsc_file", help = 'DSC file')
-    p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)),
+    p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = '2',
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
     p.set_defaults(func = execute)

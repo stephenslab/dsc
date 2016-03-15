@@ -3,7 +3,7 @@ help:
 	@echo
 
 sos:
-	svn checkout https://github.com/gaow/SOS/trunk/pysos
+	svn checkout https://github.com/bpeng2000/SOS/trunk/pysos
 
 install:
 	python setup.py install

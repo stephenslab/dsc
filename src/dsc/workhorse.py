@@ -10,8 +10,9 @@ from pysos import env
 
 def execute(args):
     dsc_data = DSCData(args.dsc_file)
-    print(dsc_data)
+    # print(dsc_data)
     dsc_jobs = DSCJobs(dsc_data)
+    print(dsc_jobs)
     sos_jobs = DSC2SoS(dsc_jobs)
 
 def submit(args):
