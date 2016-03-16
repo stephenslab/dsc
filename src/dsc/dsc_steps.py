@@ -7,9 +7,9 @@ __license__ = "MIT"
 This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
-import copy, re
+import copy, re, os
 from pysos import SoS_Script, Error
-from utils import dotdict, dict2str
+from utils import dotdict, dict2str, try_get_value
 
 class StepError(Error):
     """Raised when Step parameters are illegal."""
@@ -35,14 +35,17 @@ class DSCJobs(dotdict):
         self.data = {}
         # Store meta info
         self.meta = {'output_name': data.DSC['output'][0],
-                     'work_dir': data.DSC['work_dir'][0]}
+                     'work_dir': data.DSC['work_dir'][0],
+                     'sequences': data.DSC['run'],
+                     'ordering': self.__merge_sequences(data.DSC['run'])
+                     }
         for block in data:
             if block == 'DSC':
                 # FIXME
                 continue
-            self.__update(data[block], name = block)
+            self.__update(data[block], data.DSC, name = block)
 
-    def __update(self, block, name = 'block'):
+    def __update(self, block, dsc_block, name = 'block'):
         '''Process block data and update self.data / self.meta
            Each DSC step is a dictionary with keys:
            * command: str
@@ -52,14 +55,16 @@ class DSCJobs(dotdict):
            * parameters: list of repr() of python style assignment
            * output: list of str
         '''
+        # FIXME: replicates not yet handled
         # Load command parameters
         for idx, exe in enumerate(block.meta['exec']):
             step_name = '{}.{}'.format(name, idx + 1)
             res = dict([('command', ''), ('is_r', False), ('r_begin', []), ('r_end', []),
                         ('parameters', []), ('output_base', []), ('output_vars', []),
                         ('options', {})])
-            res['options'].update(self.meta)
-            res['command'] = ' '.join([x if not x.startswith('$') else '${_%}' % x[1:] for x in exe])
+            res['options']['work_dir'] = self.meta['work_dir']
+            res['command'] = ' '.join([self.__search_exec(exe[0], try_get_value(dsc_block, ('exec_path')))] + \
+                                      [x if not x.startswith('$') else '${_%}' % x[1:] for x in exe[1:]])
             res['is_r'] = exe[0].lower().endswith('.r')
             # temporary variables
             params = {}
@@ -118,7 +123,7 @@ class DSCJobs(dotdict):
                     res['output_base'].append(lhs)
             if res['is_r']:
                 res['r_end'].append('saveRDS(${_output_names}, %s)' % ', '.join(res['output_vars']))
-                res['output_base'].append('{}.{}.rds'.format(res['options']['output_name'], step_name))
+                res['output_base'].append('{}.{}.rds'.format(self.meta['output_name'], step_name))
             # assign parameters
             res['parameters'] = params
             res['r_begin'] = '\n'.join(res['r_begin'])
@@ -138,6 +143,28 @@ class DSCJobs(dotdict):
             if k not in keys:
                 res.append('%s <- ${_%s}' % (k, k))
         return '\n'.join(res)
+
+    def __search_exec(self, exe, exec_path):
+        '''Use exec_path information to try to complete the path of cmd'''
+        if exec_path is None:
+            return exe
+        res = None
+        for item in exec_path:
+            if os.path.isfile(os.path.join(item, exe)):
+                if res is not None:
+                    raise StepError("File ``{}`` found in multiple directories ``{}`` and ``{}``!".\
+                                    format(exe, item, os.path.join(*os.path.split(res)[:-1])))
+                res = os.path.join(item, exe)
+        return res if res else exe
+
+    def __merge_sequences(self, input_sequences):
+        '''Extract the proper ordering of elements from multiple sequences'''
+        # remove slicing
+        sequences = [[y.split('[')[0] for y in x] for x in input_sequences]
+        values = list(set(sum(sequences, [])))
+        for seq in sequences:
+            values.sort(key = lambda x: seq.index(x))
+        return values
 
     def __str__(self):
         res = ''
@@ -166,10 +193,41 @@ class DSC2SoS:
         SoS codes.
     '''
     def __init__(self, data):
-        pass
+        keys = sorted(data.data.keys(),
+                      key = lambda x: (data.meta["ordering"].index(x.split('.', -1)[0]), int(x.split('.', -1)[1])))
+        steps = []
+        last_idx = 0
+        last_key = 0
+        for idx, key in enumerate(keys):
+            if data.meta['ordering'].index(key.split('.', -1)[0]) != last_key:
+                last_key = data.meta['ordering'].index(key.split('.', -1)[0])
+                last_idx = idx
+            steps.append(self.__get_step(key, idx + 1 - last_idx, data.data[key]))
+        self.data = '\n'.join(steps)
 
     def __call__(self):
         pass
 
     def __str__(self):
-        return ''
+        return self.data
+
+    def __get_step(self, step_name, step_id, step_data):
+        res = ['[{}_{}]'.format(step_name, step_id)]
+        for key, item in step_data['parameters'].items():
+            # FIXME: format parameter assignment
+            res.append('{} = {}'.format(key, repr(item)))
+        if len(step_data['output_base']):
+            res.append('output_base = {}'.format(repr(step_data['output_base'][0])))
+        # FIXME: input and output
+        res.append('input: for_each = {}'.format(repr(list(step_data['parameters'].keys()))))
+        if step_data['is_r']:
+            rscript = """R('''\n{3}\n{0}\n{4}\n{1}\n{3}\n{2}\n{4}\n''')""".\
+              format(step_data['r_begin'].strip(),
+                     '\n'.join([x.strip() for x in open(step_data['command'].split()[0], 'r').readlines() if x.strip()]),
+                     step_data['r_end'].strip(),
+                     '## BEGIN code auto-generated by DSC',
+                     '## END code auto-generated by DSC')
+            res.append(rscript)
+        else:
+            res.append("""run('''\n{}\n''')""".format(step_data['command']))
+        return '\n'.join(res)

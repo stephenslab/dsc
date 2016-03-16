@@ -14,6 +14,7 @@ def execute(args):
     dsc_jobs = DSCJobs(dsc_data)
     print(dsc_jobs)
     sos_jobs = DSC2SoS(dsc_jobs)
+    print(sos_jobs)
 
 def submit(args):
     pass

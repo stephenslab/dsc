@@ -382,6 +382,8 @@ class DSCFileLoader(DSCFileParser):
             with open(self.content) as f:
                 load_from_yaml(f, self.content)
         else:
+            if len(self.content.split('\n')) == 1:
+                raise ValueError("Cannot find file ``{}``".format(self.content))
             with StringIO(self.content) as f:
                 load_from_yaml(f, '<Input String>')
                 self.content = 'DSCStringIO.yaml'
