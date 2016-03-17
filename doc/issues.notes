@@ -27,9 +27,9 @@
 #}
 #! Feature requests
 #{list
-# Possible to execute only subset DSC sections
-# Parameter by natural groups
-# On the fly mode, via DSC::runtime
+# Possible to execute only subset DSC sections, from command line [perhaps bad design?]
+# reset parameters via command options
+# On the fly mode, via .option (??)
 # YAML parser look for duplicate entries and keyword conflicts
 #}
 ###
@@ -84,7 +84,8 @@
 ## PrettyPrint for param DB, and a wrapper of ddls for results DB. wrapper because it has to dump data in both python and R formats ...
 # Important detail to handle: interaction with R. Should be least painful (for users) and most efficient (for interfacing)
 #}
-#! TODO
+#! Feature Requests
 #{list
-# Start writing formal documentations
+# Formal documentations
+# Parameter by natural groups
 #}
