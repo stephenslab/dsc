@@ -80,7 +80,7 @@ def uniq_list(seq):
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
 
-def get_slice(value, all_tuple = True):
+def get_slice(value, all_tuple = True, mismatch_quit = True):
     '''
     Input string is R index style: 1-based, end position inclusive slicing
     Output index will convert it to Python convention
@@ -92,7 +92,10 @@ def get_slice(value, all_tuple = True):
     try:
         slicearg = re.search('\[(.*?)\]', value).group(1)
     except:
-        raise AttributeError('Cannot obtain slice from input string {}'.format(value))
+        if mismatch_quit:
+            raise AttributeError('Cannot obtain slice from input string {}'.format(value))
+        else:
+            return value, None
     name = value.split('[')[0]
     if ',' in slicearg:
         return name, tuple(int(n.strip()) - 1 for n in slicearg.split(',') if n.strip())
