@@ -6,8 +6,18 @@
 ###
 #! Some implementation thoughts
 #{list
-# MD5: check if is file for each input, and feed that info to SoS accordingly.
-# Output of scores, ideally stored in database, may not be necessarily the case: if they are in files as long as their file names are searchable we should be good
+# Utility of SoS: currently (I think) almost all I need from SoS are in place, syntax-wise, to translate from DSC2.
+## Make each DSC sequence separate SoS code, then each step will be unindexed and have an alias
+## Figure out in the sequence if previous step is R, and then handle return value as parameter properly
+## Figure out parameter dependency (of which step) and tag that; raise an error if the dependency is not clear
+## Output file name convert to MD5 in SoS
+## Properly handle input if it depends on multiple previous output: expand names first then do @@input:...,for_each = ...@@. Right now focus on RDS type of files first.
+# Run via SoS:
+## Dry run first, let @@get_md5@@ do the job to create md5 matching with parameters
+## Build lookup database via pandas (fill missing)
+## Run SoS and output all in @@output@@ dir
+## Write a wsqlite query to allow for queries @@--items (table) --condition (where)@@
+## Output of scores, ideally stored in database, may not be necessarily the case: if they are in files as long as their file names are searchable we should be good. But maybe develop a procedure to use for R, and a utility to merge all RDS into one??
 # Searchable database? Want to use pytable + PrettyPrint
 # Results storage:
 ## Parameters kept in a plan pytable, with MD5 for each set-up.
@@ -24,6 +34,7 @@
 ## for source codes, parameters, input and output
 # Go parallel
 # Possibly a web server that will help greatly in boosting its popularity (Nan)?
+# File() operator allow for suffix only. Prefix by MD5 anyways. File(*.xxx, *.yyy)
 #}
 #! Feature requests
 #{list
@@ -69,6 +80,7 @@
 # logically, we should be separating out the definitions of the different types of steps here, and not putting them all under one yaml block.
 #! Some implementation thoughts
 #{list
+# MD5: check if is file for each input, and feed that info to SoS accordingly.
 # What if a command generates the same file name? Need to introduce Prefix() syntax for such params so that they'll be expanded to proper FN in the format of SA?R?M?SO?
 # Job dependency now to store and how to search? Not sure yet. Maybe use that DAG class with ID being job ID in the format of SA?R?M?SO? (with 4 matching MD5) and whatever contents as contents in separate objects because that will not fit into the DAG class
 # When DSC files change SA?R?M?O? will not change for existing ones and just add additional such entries. Have to track each ? separately

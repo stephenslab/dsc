@@ -12,9 +12,9 @@ def execute(args):
     dsc_data = DSCData(args.dsc_file)
     # print(dsc_data)
     dsc_jobs = DSCJobs(dsc_data)
-    # print(dsc_jobs)
-    sos_jobs = DSC2SoS(dsc_jobs, echo = True if args.debug else False)
-    print(sos_jobs)
+    print(dsc_jobs)
+    # sos_jobs = DSC2SoS(dsc_jobs, echo = True if args.debug else False)
+    # print(sos_jobs)
 
 def submit(args):
     pass

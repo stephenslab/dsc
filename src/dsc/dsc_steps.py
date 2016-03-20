@@ -8,7 +8,7 @@ This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
 import copy, re, os
-from pysos import SoS_Script, Error, check_command
+from pysos import SoS_Script, Error, check_command, env
 from dsc import VERSION
 from utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list
@@ -34,60 +34,48 @@ class DSCJobs(dotdict):
     The output of this will be a DSCJobs object ready to convert to SoS steps
     '''
     def __init__(self, data):
-        # Stores all DSC jobs
-        self.data = {}
-        # Store meta info
-        self.meta = {'work_dir': data.DSC['work_dir'][0],
-                     'ordering': self.__merge_sequences(data.DSC['run']),
-                     'sequences': self.__index_sequences(data.DSC['run'])
-                     }
-        for block in data:
-            if block == 'DSC':
-                # FIXME
-                continue
-            self.__update(data[block], data.DSC, name = block)
+        self.output_prefix = data.DSC['output'][0]
+        self.default_workdir = data.DSC['work_dir'][0]
+        # sequences in action, logically ordered
+        self.ordering = self.__merge_sequences(data.DSC['run'])
+        self.raw_data = {}
+        for block in self.ordering:
+            self.__load(data[block], data.DSC, name = block)
+        # sequences in action, unordered but expanded by index
+        self.sequences = self.__expand_sequences(self.__index_sequences(data.DSC['run']),
+                                                {x : range(len(self.raw_data[x])) for x in self.raw_data})
+        self.data = []
+        for seq, idx in self.sequences:
+            self.data.append(self.__get_workflow(seq))
 
-    def __update(self, block, dsc_block, name = 'block'):
-        '''Process block data and update self.data / self.meta
-           Each DSC step is a dictionary with keys:
-           * command: str
-           * is_r: bool
-           * r_begin: list of str
-           * r_end: list of str
-           * parameters: list of repr() of python style assignment
-           * output: list of str
+    def __load(self, block, dsc_block, name = 'block'):
+        '''Load block data to self.raw_data with some preliminary processing
         '''
-        # FIXME: replicates not yet handled
-        # Load command parameters
-        self.data[name] = []
-        for idx, exe in enumerate(block.meta['exec']):
-            res = dict([('command', ''), ('is_r', False), ('r_begin', []), ('r_end', []),
-                        ('parameters', []), ('output_ext', []), ('output_vars', []),
-                        ('options', {}), ('exec', ' '.join(exe))])
-            res['options']['work_dir'] = self.meta['work_dir']
-            res['command'] = ' '.join([self.__search_exec(exe[0], try_get_value(dsc_block, ('exec_path')))] + \
-                                      [x if not x.startswith('$') else '${_%}' % x[1:] for x in exe[1:]])
-            res['is_r'] = exe[0].lower().endswith('.r')
-            # temporary variables
+        def load_params():
             params = {}
-            alias = {}
-            rules = None
-            # load parameters, rules and alias
             if 'params' in block:
                 params = copy.deepcopy(block.params[0])
                 if (idx + 1) in list(block.params.keys()):
-                    params.update(block.params[idx + 1])
+                   params.update(block.params[idx + 1])
+            return params
+
+        def load_rules():
+            rules = None
             if 'rules' in block:
                 rules = block.rules[0]
                 if (idx + 1) in list(block.rules.keys()):
                     rules = block.rules[idx + 1]
+            return rules
+
+        def load_alias():
+            alias = {}
             if 'params_alias' in block:
                 alias = dict([(x.strip() for x in item.split('=')) for item in block.params_alias[0]])
                 if (idx + 1) in list(block.params_alias.keys()):
                     alias = dict([(x.strip() for x in item.split('=')) for item in block.params_alias[0]])
-            # apply rules and alias to parameters
-            # handle alias
-            vars_RList = []
+            return alias
+
+        def process_alias():
             for k, item in list(alias.items()):
                 groups = re.search(r'(.*?)\((.*?)\)', item)
                 if not groups:
@@ -95,59 +83,157 @@ class DSCJobs(dotdict):
                     params[k] = params.pop(item)
                 else:
                     if groups.group(1) == 'RList':
-                        text, variables = self.__format_RList(k, groups.group(2), params)
-                        res['r_begin'].append(text)
-                        vars_RList.extend(variables)
+                        if not data.is_r:
+                            raise StepError("Alias ``RList`` is not applicable to executable ``{}``.".format(data.exe))
+                        text, variables = self.__format_r_list(k, groups.group(2), params)
+                        data.r_list.extend(text)
+                        # data.r_begin.append(text)
+                        data.r_list_vars.extend(variables)
                     else:
                         raise StepError('Invalid .alias ``{}`` in block ``{}``.'.format(groups.group(1), name))
-            if res['is_r']:
-                res['r_begin'].append(self.__format_RParams(params, vars_RList))
-            # FIXME: handle rules: slicing
-            # FIXME: File(), handle it directly into SoS syntax
-            # handle output
-            for item in block.out:
+            # if data.is_r:
+                # data.r_begin.append(self.__format_r_args([x for x in list(params.keys()) if not x in self.r_list_vars]))
+                # problem: what if the list has $? so I cannot do it here.
+
+
+        def process_rules():
+            # parameter value slicing
+            pass
+
+        def process_output(out):
+            for item in out:
                 lhs = ''
                 if '=' in item:
                     # return alias exists
                     lhs, rhs = (x.strip() for x in item.split('='))
                     groups = re.search(r'^R\((.*?)\)', rhs)
-                    if groups:
-                        # alias is within R
-                        res['r_end'].append('{} <- {}'.format(lhs, groups.group(1)))
-                    else:
+                    if not groups:
                         # alias is not within R
                         # have to make it available from parameter list
                         # FIXME: not sure if this is the best thing to do
-                        params[lhs] = params[rhs]
+                        try:
+                            params[lhs] = params[rhs]
+                        except KeyError:
+                            raise StepError("Parameter ``{}`` not found for block ``{}``.".format(rhs, name))
+                    else:
+                        # alias is within R
+                        data.r_return_alias.append('{} <- {}'.format(lhs, groups.group(1)))
                 else:
                     lhs = item.strip()
-                res['output_vars'].append(lhs)
-                if not res['is_r']:
+                data.output_vars.append(lhs)
+                if not data.is_r:
                     # output file pattern
                     # FIXME: have to extract from File()
-                    res['output_ext'].append(lhs)
-            if res['is_r']:
-                res['r_begin'].append('if (grepl(".rds$", "${_input}")) attach(readRDS("${_input}"), warn.conflicts = F)')
-                res['r_end'].append('saveRDS(list({}), ${{_output!r}})'.format(', '.join(['{0}={0}'.format(x) for x in res['output_vars']])))
-                res['output_ext'] = 'rds'
+                    data.output_ext.append(lhs)
+            if data.is_r:
+                # data.r_begin.append('if (grepl(".rds$", "${_input}")) attach(readRDS("${_input}"), warn.conflicts = F)')
+                # data.r_end.append('saveRDS(list({}), ${{_output!r}})'.format(', '.join(['{0}={0}'.format(x) for x in data.output_vars])))
+                data.output_ext = 'rds'
+        # FIXME: replicates not yet handled
+        # Load command parameters
+        self.raw_data[name] = []
+        data = self.__initialize_block(name)
+        for idx, exe in enumerate(block.meta['exec']):
+            self.__reset_block(data, exe, try_get_value(dsc_block, ('exec_path')))
+            # temporary variables
+            params, rules, alias = load_params(), load_rules(), load_alias()
+            # handle alias
+            process_alias()
+            # FIXME: handle rules
+            process_rules()
+            # FIXME: File(), handle it directly into SoS syntax
+            # handle output
+            process_output(block.out)
             # assign parameters
-            res['parameters'] = params
-            res['r_begin'] = '\n'.join(res['r_begin'])
-            res['r_end'] = '\n'.join(res['r_end'])
-            self.data[name].append(res)
+            data.parameters = params
+            # data.r_begin = '\n'.join(data.r_begin)
+            # data.r_end = '\n'.join(data.r_end)
+            self.raw_data[name].append(dict(data))
 
-    def __format_RList(self, name, value, params):
+    def __get_workflow(self, sequence):
+        '''Convert self.raw_data to self.data
+           * Fully expand sequences so that each sequence is standalone to initialize an SoS (though possibly partially duplicate)
+           * Resolving step dependencies and some syntax conversion, most importantly the $ symbol
+        '''
+        def process_params():
+            # handle parameters with $ and asis
+            for k, value in list(params.items()):
+                res = []
+                for item in value:
+                    if isinstance(item, str):
+                        if item.startswith('$'):
+                            # It must be return var from previous block
+                            # and that block must have already been processed
+                            # because of the input order
+                            if is_r:
+                                continue
+                            else:
+                                item = eval("step_returned_{}".format(item[1:]))
+                        elif re.search(r'^Asis\((.*?)\)', item):
+                            item = re.search(r'^Asis\((.*?)\)', item).group(1)
+                        else:
+                            item = repr(item)
+                    res.append(item)
+                if is_r and len(res) < len(value) and len(res) > 0:
+                    # This means that $XX and other variables coexist
+                    # For an R program
+                    raise ValueError("Cannot use return value from an R program as input parameter in parallel to others!\\nLine: {}".format(', '.join(map(str, value))))
+                if len(res) == 0:
+                    res = ['NULL']
+        #
+        res = []
+        # is previous step R?
+        is_r = None
+        for idx, item in enumerate(sequence):
+            print(item)
+            for step in self.raw_data[item]:
+                pass
+            res.append(self.raw_data[item])
+        return res
+
+    def __initialize_block(self, name):
+        data = dotdict()
+        data.work_dir = self.default_workdir
+        # return_r: If the output is an RDS file: is so, if both `is_r` and return parameter is not found in params list
+        # load_r: If the input loads a previously generated RDS file
+        # This need to check the sequence and see if all its potential steps are `return_r`
+        data.is_r = data.return_r = data.load_r = None
+        data.name = name
+        return data
+
+    def __reset_block(self, data, exe, exec_path):
+        data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + \
+                               [x if not x.startswith('$') else '${_%}' % x[1:] for x in exe[1:]])
+        # Is the executable an R program
+        # If the R program can be executed on its own
+        # one need to use "Rscript file_name.R" not "file_name.R"
+        is_r = exe[0].lower().endswith('.r')
+        if data.is_r is not None and is_r != data.is_r:
+            raise StepError("A mixture of R codes and other executables are not allowed in the same block ``{}``.".format(data.name))
+        else:
+            data.is_r = is_r
+        data.r_list = []
+        data.r_return_alias = []
+        data.r_list_vars = []
+        data.parameters = []
+        data.output_ext = []
+        data.output_vars = []
+        # Input depends: [(step_name, out_var, idx), (step_name, out_var, idx) ...]
+        # Then out_var will be assigned in the current step as: out_var = step_name.output[idx]
+        data.input_depends = []
+        data.exe = ' '.join(exe)
+
+    def __format_r_list(self, name, value, params):
         keys = [x.strip() for x in value.split(',')] if value else list(params.keys())
         res = ['{} <- list()'.format(name)]
         for k in keys:
             res.append('%s$%s <- ${_%s}' % (name, k, k))
-        return '\n'.join(res), keys
+        return res, keys
 
-    def __format_RParams(self, params, keys):
+    def __format_r_args(self, params, keys):
         res = []
-        for k in list(params.keys()):
-            if k not in keys:
-                res.append('%s <- ${_%s}' % (k, k))
+        for k in keys:
+            res.append('%s <- ${_%s}' % (k, k))
         return '\n'.join(res)
 
     def __search_exec(self, exe, exec_path):
@@ -179,10 +265,27 @@ class DSCJobs(dotdict):
             res.append(tuple([get_slice(x, mismatch_quit = False) for x in seq]))
         return res
 
+    def __expand_sequences(self, sequences, default = {}):
+        '''expand DSC sequences by index'''
+        res = []
+        for value in sequences:
+            seq = [x[0] for x in value]
+            idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
+            res.append((seq, cartesian_list(*idxes)))
+        return res
+
     def __str__(self):
         res = ''
-        for item in sorted(list(dict(self).items())):
-            res += dict2str({item[0]: item[1]}, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+        for item in self.ordering:
+            res += dict2str({item: self.raw_data[item]}, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+        text = ''
+        for sequence in self.data:
+            for block in sequence:
+                for item in block:
+                    text += dict2str(item, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+        env.logger.info('Printing fully extended data to file ``DSCJobsVars.log``')
+        with open('DSCJobsVars.log', 'w') as f:
+            f.write(text)
         return res.strip()
 
 class DSC2SoS:
@@ -211,8 +314,7 @@ class DSC2SoS:
         step_added = []
         workflows = []
         workflow_id = 0
-        for seq in data.meta['sequences']:
-            seq, idxes = self.__expand_sequence(seq, {x : range(len(data.data[x])) for x in data.data})
+        for seq, idxes in data.sequences:
             for idx in idxes:
                 # A workflow
                 workflow_id += 1
@@ -226,17 +328,11 @@ class DSC2SoS:
                     steps.append(self.__get_steps(step_name, data.data[x][y]))
                 workflows.append('[{}]'.format(wf_name.rstrip('+')))
         steps = sorted(steps,
-                       key = lambda x: data.meta["ordering"].index(x.split('\n')[0][1:-1].rsplit('_', 1)[0]))
+                       key = lambda x: data.ordering.index(x.split('\n')[0][1:-1].rsplit('_', 1)[0]))
         self.data = '{}\n{}\n{}\n{}'.\
           format('#!/usr/bin/env sos-runner\n#fileformat=SOS1.0\n# Auto-generated by DSC version {}\n'.format(VERSION),
                  HEADER.strip() + '\n', '\n'.join(steps), '\n'.join(workflows)
                  )
-
-    def __expand_sequence(self, value, default = {}):
-        '''expand DSC sequence by index'''
-        seq = [x[0] for x in value]
-        idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
-        return seq, cartesian_list(*idxes)
 
     def __call__(self):
         pass
