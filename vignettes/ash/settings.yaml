@@ -30,4 +30,4 @@ DSC:
          RMSE
     R_libs: github/stephens999/ashr
     exec_path: bin
-    work_dir: ash
+    output: ash

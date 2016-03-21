@@ -87,12 +87,10 @@ class DSCJobs(dotdict):
                             raise StepError("Alias ``RList`` is not applicable to executable ``{}``.".format(data.exe))
                         text, variables = self.__format_r_list(k, groups.group(2), params)
                         data.r_list.extend(text)
-                        # data.r_begin.append(text)
                         data.r_list_vars.extend(variables)
                     else:
                         raise StepError('Invalid .alias ``{}`` in block ``{}``.'.format(groups.group(1), name))
             # if data.is_r:
-                # data.r_begin.append(self.__format_r_args([x for x in list(params.keys()) if not x in self.r_list_vars]))
                 # problem: what if the list has $? so I cannot do it here.
 
 
@@ -126,8 +124,6 @@ class DSCJobs(dotdict):
                     # FIXME: have to extract from File()
                     data.output_ext.append(lhs)
             if data.is_r:
-                # data.r_begin.append('if (grepl(".rds$", "${_input}")) attach(readRDS("${_input}"), warn.conflicts = F)')
-                # data.r_end.append('saveRDS(list({}), ${{_output!r}})'.format(', '.join(['{0}={0}'.format(x) for x in data.output_vars])))
                 data.output_ext = 'rds'
         # FIXME: replicates not yet handled
         # Load command parameters
@@ -142,12 +138,13 @@ class DSCJobs(dotdict):
             # FIXME: handle rules
             process_rules()
             # FIXME: File(), handle it directly into SoS syntax
+            # return_r: if all return objects are not File
+            # FIXME: let it be is_r for now
+            data.return_r = data.is_r
             # handle output
             process_output(block.out)
             # assign parameters
             data.parameters = params
-            # data.r_begin = '\n'.join(data.r_begin)
-            # data.r_end = '\n'.join(data.r_end)
             self.raw_data[name].append(dict(data))
 
     def __get_workflow(self, sequence):
@@ -155,49 +152,70 @@ class DSCJobs(dotdict):
            * Fully expand sequences so that each sequence is standalone to initialize an SoS (though possibly partially duplicate)
            * Resolving step dependencies and some syntax conversion, most importantly the $ symbol
         '''
-        def process_params():
-            # handle parameters with $ and asis
-            for k, value in list(params.items()):
-                res = []
-                for item in value:
-                    if isinstance(item, str):
-                        if item.startswith('$'):
-                            # It must be return var from previous block
-                            # and that block must have already been processed
-                            # because of the input order
-                            if is_r:
-                                continue
-                            else:
-                                item = eval("step_returned_{}".format(item[1:]))
-                        elif re.search(r'^Asis\((.*?)\)', item):
-                            item = re.search(r'^Asis\((.*?)\)', item).group(1)
-                        else:
-                            item = repr(item)
-                    res.append(item)
-                if is_r and len(res) < len(value) and len(res) > 0:
-                    # This means that $XX and other variables coexist
-                    # For an R program
-                    raise ValueError("Cannot use return value from an R program as input parameter in parallel to others!\\nLine: {}".format(', '.join(map(str, value))))
-                if len(res) == 0:
-                    res = ['NULL']
+        def find_depends(value):
+            curr_idx = idx
+            if curr_idx == 0:
+                raise StepError('Symbol ``$`` is not allowed in the first step of DSC sequence.')
+            curr_idx = curr_idx - 1
+            dependence = None
+            return_r = None
+            while curr_idx >= 0:
+                try:
+                    dependence = (res[curr_idx][0]['name'], value, res[curr_idx][0]['output_vars'].index(value))
+                    return_r = res[curr_idx][0]['return_r']
+                except ValueError:
+                    pass
+                curr_idx = curr_idx - 1
+            if dependence is None:
+                raise StepError('Cannot find return value for ``${}`` in any of its previous steps.'.format(value))
+            if dependence not in raw_data[item][step_idx]['input_depends']:
+                raw_data[item][step_idx]['input_depends'].append(dependence)
+                raw_data[item][step_idx]['input_is_r'].append(return_r)
         #
         res = []
+        raw_data = copy.deepcopy(self.raw_data)
         # is previous step R?
-        is_r = None
         for idx, item in enumerate(sequence):
-            print(item)
-            for step in self.raw_data[item]:
-                pass
-            res.append(self.raw_data[item])
+            # for each step
+            for step_idx, step in enumerate(raw_data[item]):
+                # for each exec
+                for k, p in list(step['parameters'].items()):
+                    values = []
+                    for p1 in p:
+                        if isinstance(p1, str):
+                            if p1.startswith('$'):
+                                find_depends(p1[1:])
+                                continue
+                            elif re.search(r'^Asis\((.*?)\)$', p1):
+                                p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
+                            else:
+                                p1 = repr(p1)
+                        values.append(p1)
+                    if len(values) == 0:
+                        del raw_data[item][step_idx]['parameters'][k]
+                    elif len(values) < len(p):
+                        # This means that $XX and other variables coexist
+                        # For an R program
+                        raise ValueError("Cannot use return value from an R program as input parameter in parallel to others!\nLine: ``{}``".\
+                                         format(', '.join(map(str, p))))
+                    else:
+                        raw_data[item][step_idx]['parameters'][k] = values
+                if len(raw_data[item][step_idx]['parameters']) == 0:
+                    del raw_data[item][step_idx]['parameters']
+            res.append(raw_data[item])
         return res
 
     def __initialize_block(self, name):
         data = dotdict()
         data.work_dir = self.default_workdir
+        data.output_db = self.output_prefix
         # return_r: If the output is an RDS file: is so, if both `is_r` and return parameter is not found in params list
-        # load_r: If the input loads a previously generated RDS file
-        # This need to check the sequence and see if all its potential steps are `return_r`
-        data.is_r = data.return_r = data.load_r = None
+        data.is_r = data.return_r = None
+        # Input depends: [(step_name, out_var, idx), (step_name, out_var, idx) ...]
+        # Then out_var will be assigned in the current step as: out_var = step_name.output[idx]
+        data.input_depends = []
+        # For every input_depends if it is from R, via checking the corresponding return_r property.
+        data.input_is_r = []
         data.name = name
         return data
 
@@ -218,9 +236,6 @@ class DSCJobs(dotdict):
         data.parameters = []
         data.output_ext = []
         data.output_vars = []
-        # Input depends: [(step_name, out_var, idx), (step_name, out_var, idx) ...]
-        # Then out_var will be assigned in the current step as: out_var = step_name.output[idx]
-        data.input_depends = []
         data.exe = ' '.join(exe)
 
     def __format_r_list(self, name, value, params):
@@ -229,12 +244,6 @@ class DSCJobs(dotdict):
         for k in keys:
             res.append('%s$%s <- ${_%s}' % (name, k, k))
         return res, keys
-
-    def __format_r_args(self, params, keys):
-        res = []
-        for k in keys:
-            res.append('%s <- ${_%s}' % (k, k))
-        return '\n'.join(res)
 
     def __search_exec(self, exe, exec_path):
         '''Use exec_path information to try to complete the path of cmd'''
@@ -283,8 +292,8 @@ class DSCJobs(dotdict):
             for block in sequence:
                 for item in block:
                     text += dict2str(item, replace = [('!!python/tuple', '(tuple)')]) + '\n'
-        env.logger.info('Printing fully extended data to file ``DSCJobsVars.log``')
-        with open('DSCJobsVars.log', 'w') as f:
+        env.logger.info('Printing fully extended data to file ``{}``'.format(self.output_prefix + '.log'))
+        with open(self.output_prefix + '.log', 'w') as f:
             f.write(text)
         return res.strip()
 
@@ -295,78 +304,92 @@ class DSC2SoS:
       * Output is SoS workflow codes
 
     Here are the ideas from DSC to SoS:
-      * Each DSC computational routine `exec` is a step; step name is `block name + routine index`
+      * Each DSC computational routine `exec` is a step; step name is `block name + routine index`; step alias is block name
       * When there are combined routines in a block via `.logic` for `exec` then sub-steps are generated
-        with name `block name + combined routine index + routine index` index then create nested workflow
-        and eventually the nested workflow name will be `block name + combined routine index`
-      * Parameters utilize `for_each` and `paired_with`. Of course will have to distinguish input / output
-        from parameters (input will be the ones with $ sigil; output will be the ones in return)
-      * Parameters might have to be pre-expanded to some degree given limited SoS `for_each` and `paired_with`
-        support vs. potentially complicated DSC `.logic`.
-      * Final workflow also use nested workflow structure. The number of final workflow is the same as number of
-        DSC sequences. These sequences will be executed one after the other
+        with name `block name + combined routine index + routine index` without alias name then create nested workflow
+        and eventually the nested workflow name will be `block name + combined routine index` with alias being block name
+      * Parameters utilize `for_each` (and `paired_with`??).
+      * Parameters are pre-expanded such that SoS `for_each` and `paired_with` are
+        support for otherwise complicated DSC `.logic`.
+      * Final workflow also use nested workflow structure, with workflow name "DSC" for each sequence, indexed by
+        the possible ways to combine exec routines. The possible ways are pre-determined and passed here.
+      * Each DSC sequence is a separate SoS code piece. These pieces have to be executed sequentially
+        to reuse some runtime signature although -j N is allowed in each script
       * Replicates of the first step (assuming simulation) will be sorted out up-front and they will lead to different
-        SoS codes.
+        SoS code pieces. (Currently not implemented!)
     '''
     def __init__(self, data, echo = False):
         self.echo = echo
-        steps = []
-        step_added = []
-        workflows = []
-        workflow_id = 0
-        for seq, idxes in data.sequences:
-            for idx in idxes:
-                # A workflow
-                workflow_id += 1
-                wf_name = 'DSC_{}='.format(workflow_id)
-                for x, y in zip(seq, idx):
-                    step_name = '{}_{}'.format(x, y + 1)
-                    wf_name += '{}+'.format(step_name)
-                    if step_name in step_added:
-                        continue
-                    step_added.append(step_name)
-                    steps.append(self.__get_steps(step_name, data.data[x][y]))
-                workflows.append('[{}]'.format(wf_name.rstrip('+')))
-        steps = sorted(steps,
-                       key = lambda x: data.ordering.index(x.split('\n')[0][1:-1].rsplit('_', 1)[0]))
-        self.data = '{}\n{}\n{}\n{}'.\
-          format('#!/usr/bin/env sos-runner\n#fileformat=SOS1.0\n# Auto-generated by DSC version {}\n'.format(VERSION),
-                 HEADER.strip() + '\n', '\n'.join(steps), '\n'.join(workflows)
-                 )
+        self.data = []
+        for seq_idx, sequence in enumerate(data.data):
+            script = []
+            # Get steps
+            for blk_idx, block in enumerate(sequence):
+                for step_idx, step in enumerate(block):
+                    script.append(self.__get_step(step_idx, step))
+            # Get workflows
+            seq, indices = data.sequences[seq_idx]
+            for idx, index in enumerate(indices):
+                script.append('[DSC_{0}={1}]'.\
+                              format(idx + 1, '+'.join(['{}_{}'.format(x, y + 1) for x, y in zip(seq, index)])))
+        self.data.append('{}\n{}\n{}'.\
+                         format('#!/usr/bin/env sos-runner\n#fileformat=SOS1.0\n# Auto-generated by DSC version {}\n'.format(VERSION),
+                                HEADER.strip() + '\n', '\n'.join(script)
+                                )
+                        )
 
     def __call__(self):
         pass
 
     def __str__(self):
-        return self.data
+        return '\n#######\n'.join(self.data)
 
-    def __get_steps(self, step_name, step_data):
-        res = ['[{}]'.format(step_name)]
-        # Set params
-        for key, item in step_data['parameters'].items():
-            # FIXME: format parameter assignment
-            res.append('{} = get_params({}, step_is_r)'.format(key, repr(item)))
+    def __get_step(self, step_idx, step_data):
+        res = ["[{0}_{1}: alias = '{0}']".format(step_data['name'], step_idx + 1)]
+        # Set params, make sure each time the ordering is the same
+        params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
+        for key in params:
+            res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
         res.append('output_suffix = {}'.format(repr(step_data['output_ext'])))
-        # FIXME: input from external file (via "depend")
-        params = sorted(step_data['parameters'].keys())
-        res.append("input: pattern = '{base}.{ext}', for_each = %s" % repr(params))
-        res.append("output: pattern = get_md5('{0}.${{output_suffix}}' if _base is None else '{0}.{{base}}.${{output_suffix}}')".format('::'.join(['exec={}'.format(step_data['exec'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
+        input_vars = ''
+        if step_data['input_depends']:
+            if len(step_data['input_depends']) > 1:
+                # Generate combinations of input files
+                res.append('input_files = get_input(({}))'.format(', '.join(['{}.output'.format(x[0]) for x in step_data['input_depends']])))
+                input_vars = "input_files, group_by = 'pairs', "
+            else:
+                input_vars = "{}.output, ".format(step_data['input_depends'][0][0])
+            res.append("input: %spattern = '{base}.{ext}'%s" % (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
+            res.append("output: pattern = '{0}.{{_base}}.${{output_suffix}}'".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
+        else:
+            if params:
+                res.append("input: %s" % 'for_each = %s'% repr(params))
+            res.append("output: pattern = '{0}.${{output_suffix}}'".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
+        res.append("_output = [get_md5(x) for x in _output]")
+        res.append("runtime: workdir = {}".format(repr(step_data['work_dir'])))
         # Add action
         if self.echo:
             # Debug and test
             res.append("""run('''\necho {}\necho Input:\n{}\necho Parameters:\n{}\necho Output:\n{}\n''')""".\
                        format(step_data['command'],
                               'echo ${_input}', # FIXME input
-                              '\n'.join(['echo "\t%s: ${_%s}"' % (key, key) for key in step_data['parameters']]),
+                              '\n'.join(['echo "\t%s: ${_%s}"' % (key, key) for key in params]),
                               '\n'.join(['echo "\toutput: ${_output!r}"', 'touch ${_output}'])
                               ))
         else:
             if step_data['is_r']:
+                r_begin = step_data['r_list']
+                r_begin.extend(self.__format_r_args([x for x in params if not x in step_data['r_list_vars']]))
+                if step_data['input_depends']:
+                    r_begin.append('input.files <- strsplit("${_input}")[[1]]\nfor (i in i:length(input.files)) attach(readRDS(input.files[i], warn.conflicts = F))')
+                r_end = step_data['r_return_alias']
+                if step_data['return_r']:
+                    r_end.append('saveRDS(list({}), ${{_output!r}})'.format(', '.join(['{0}={0}'.format(x) for x in step_data['output_vars']])))
                 try:
                     rscript = """R('''\n{3}\n{0}\n{4}\n{1}\n{3}\n{2}\n{4}\n''')""".\
-                      format(step_data['r_begin'].strip(),
+                      format('\n'.join(r_begin).strip(),
                              '\n'.join([x.strip() for x in open(step_data['command'].split()[0], 'r').readlines() if x.strip()]),
-                             step_data['r_end'].strip(),
+                             '\n'.join(r_end).strip(),
                              '## BEGIN code auto-generated by DSC',
                              '## END code auto-generated by DSC')
                 except IOError:
@@ -375,11 +398,10 @@ class DSC2SoS:
             else:
                 check_command(step_data['command'].split()[0])
                 res.append("""run('''\n{}\n''')""".format(step_data['command']))
-        # Make output available for later steps
-        # For an R script the variable will be in the serialized output from previous and will be loaded
-        # For command line these names will have to be exposed to global namespace
-        if not step_data['is_r']:
-            for lhs, rhs in enumerate(step_data['output_vars']):
-                res.append("step_returned_{} = _output[{}]".format(lhs, rhs))
-        res.append('step_is_r = {}'.format(step_data['is_r']))
         return '\n'.join(res) + '\n'
+
+    def __format_r_args(self, keys):
+        res = []
+        for k in keys:
+            res.append('%s <- ${_%s}' % (k, k))
+        return res
