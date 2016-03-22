@@ -28,8 +28,11 @@ class DSCJobs(dotdict):
     This includes:
       * Ensure step ordering for DSC::run are legitimate
       * Prepare environments to run R: libraries, alias, return alias
+      * Prepare additional codes for R exec
       * Prepare environments to run non-R exec: checking / putting together arguments
-      * ...
+      * Figure out step dependencies; figure out whether a step is from R
+      * Slicing by rules
+      * Handle replicates if any
 
     The output of this will be a DSCJobs object ready to convert to SoS steps
     '''
