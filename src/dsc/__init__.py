@@ -5,5 +5,5 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 __version__ = "0.0" 
 
-PACKAGE = "DSC2"
+PACKAGE = "dsc"
 VERSION = __version__

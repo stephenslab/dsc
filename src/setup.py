@@ -3,7 +3,6 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import sys
 from setuptools import setup
 try:
    from distutils.command.build_py import build_py_2to3 as build_py

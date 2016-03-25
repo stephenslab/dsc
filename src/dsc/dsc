@@ -5,5 +5,5 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 if __name__ == '__main__':
-    from DSC2.interface import main
+    from dsc.interface import main
     main()

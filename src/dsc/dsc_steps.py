@@ -369,7 +369,7 @@ class DSC2SoS:
                 res.append("input: %s" % 'for_each = %s'% repr(params))
             res.append("output: pattern = '{0}.${{output_suffix}}'".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
         res.append("_output = [get_md5(x) for x in _output]")
-        res.append("runtime: workdir = {}".format(repr(step_data['work_dir'])))
+        res.append("process: workdir = {}".format(repr(step_data['work_dir'])))
         # Add action
         if self.echo:
             # Debug and test
