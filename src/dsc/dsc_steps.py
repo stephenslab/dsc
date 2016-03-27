@@ -8,7 +8,8 @@ This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
 import copy, re, os
-from pysos import SoS_Script, Error, check_command, env
+from pysos import SoS_Script, check_command
+from pysos.utils import Error, env
 from dsc import VERSION
 from utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list
@@ -95,7 +96,6 @@ class DSCJobs(dotdict):
                         raise StepError('Invalid .alias ``{}`` in block ``{}``.'.format(groups.group(1), name))
             # if data.is_r:
                 # problem: what if the list has $? so I cannot do it here.
-
 
         def process_rules():
             # parameter value slicing
@@ -368,7 +368,7 @@ class DSC2SoS:
             if params:
                 res.append("input: %s" % 'for_each = %s'% repr(params))
             res.append("output: pattern = '{0}.${{output_suffix}}'".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
-        res.append("_output = [get_md5(x) for x in _output]")
+        res.append("_output = get_md5(_output)")
         res.append("process: workdir = {}".format(repr(step_data['work_dir'])))
         # Add action
         if self.echo:

@@ -7,13 +7,14 @@ __license__ = "MIT"
 This file defines functions to be embedded to SoS codes
 '''
 HEADER = '''
-def get_md5(value):
-    import sys, hashlib
-    base, ext = value.rsplit('.', 1)
-    res = hashlib.md5(base.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(base).hexdigest()
-    return '{}.{}'.format(res, ext)
+import sys, hashlib, itertools
+def get_md5(values):
+    res = []
+    for value in values:
+        base, ext = value.rsplit('.', 1)
+    res.append('{}.{}'.format(hashlib.md5(base.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(base).hexdigest(), ext))
+    return res
 
-def get_input(value):
-    import itertools
-    return sum(list(zip(*itertools.product(*value))), ())
+def get_input(values):
+    return sum(list(zip(*itertools.product(*values))), ())
 '''

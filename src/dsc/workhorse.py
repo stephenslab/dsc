@@ -6,7 +6,7 @@ __license__ = "MIT"
 
 from dsc_file import DSCData
 from dsc_steps import DSCJobs, DSC2SoS
-from pysos import env
+from pysos.utils import env
 
 def execute(args):
     dsc_data = DSCData(args.dsc_file)
