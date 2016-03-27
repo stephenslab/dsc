@@ -361,14 +361,13 @@ class DSC2SoS:
                 res.append('input_files = get_input(({}))'.format(', '.join(['{}.output'.format(x[0]) for x in step_data['input_depends']])))
                 input_vars = "input_files, group_by = 'pairs', "
             else:
-                input_vars = "{}.output, ".format(step_data['input_depends'][0][0])
+                input_vars = "{}.output, group_by = 'single', ".format(step_data['input_depends'][0][0])
             res.append("input: %spattern = '{base}.{ext}'%s" % (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
-            res.append("output: pattern = '{0}.{{_base}}.${{output_suffix}}'".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
+            res.append("output: get_md5(expand_pattern('{0}.{{_base}}.${{output_suffix}}'))".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
         else:
             if params:
                 res.append("input: %s" % 'for_each = %s'% repr(params))
-            res.append("output: pattern = '{0}.${{output_suffix}}'".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
-        res.append("_output = get_md5(_output)")
+            res.append("output: get_md5(expand_pattern('{0}.${{output_suffix}}'))".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
         res.append("process: workdir = {}".format(repr(step_data['work_dir'])))
         # Add action
         if self.echo:
@@ -376,8 +375,8 @@ class DSC2SoS:
             res.append("""run('''\necho {}\necho Input:\n{}\necho Parameters:\n{}\necho Output:\n{}\n''')""".\
                        format(step_data['command'],
                               'echo ${_input}', # FIXME input
-                              '\n'.join(['echo "\t%s: ${_%s}"' % (key, key) for key in params]),
-                              '\n'.join(['echo "\toutput: ${_output!r}"', 'touch ${_output}'])
+                              '\n'.join(['echo "\\t%s: ${_%s}"' % (key, key) for key in params]),
+                              '\n'.join(['echo "\\toutput: ${_output!r}"', 'touch ${_output}'])
                               ))
         else:
             if step_data['is_r']:

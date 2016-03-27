@@ -8,6 +8,7 @@ This file defines functions to be embedded to SoS codes
 '''
 HEADER = '''
 import sys, hashlib, itertools
+from pysos import expand_pattern
 def get_md5(values):
     res = []
     for value in values:
