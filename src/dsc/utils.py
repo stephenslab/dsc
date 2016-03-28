@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import sys, os, random, copy, re, itertools,\
-  yaml, collections
+  yaml, collections, hashlib
 from io import StringIO
 from pysos.utils import env
 
@@ -226,3 +226,19 @@ class REncoder:
             source += ", " + named
         source += ")"
         return source
+
+def get_md5_sos(values):
+    def calc(x, y):
+        return '{}.{}'.format(hashlib.md5(x.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(x).hexdigest(), y)
+    if isinstance(values, str):
+        base, ext = values.rsplit('.', 1)
+        res = calc(base, ext)
+    else:
+        res = []
+        for value in values:
+            base, ext = value.rsplit('.', 1)
+            res.append(calc(base, ext))
+    return res
+
+def get_input_sos(values):
+    return list(sum(list(zip(*itertools.product(*values))), ()))
