@@ -11,7 +11,7 @@ import os, sys, yaml, re, subprocess, itertools, copy, sympy, \
   collections
 import rpy2.robjects as RO
 from io import StringIO
-from dsc.pysos.utils import env, Error
+from pysos.utils import env, Error
 from .utils import dotdict, lower_keys, is_null, str2num, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_list, flatten_dict, \
      try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value

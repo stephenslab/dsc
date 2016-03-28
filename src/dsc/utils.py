@@ -7,7 +7,6 @@ __license__ = "MIT"
 import sys, os, random, copy, re, itertools,\
   yaml, collections, hashlib
 from io import StringIO
-from dsc.pysos.utils import env
 
 def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
     level_start += 1
@@ -39,7 +38,7 @@ def str2num(var):
             This variable will be treated as string, not Boolean data. \n\
             It may cause problems to your jobs. \n\
             Please set this variable to ``{}`` if it is indeed Boolean data.'.format(var, bmap[var.lower()])
-            env.logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
+            sys.stderr.write('\n\t'.join([x.strip() for x in msg.split('\n')]))
         try:
             return int(var)
         except ValueError:

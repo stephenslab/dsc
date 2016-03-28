@@ -6,13 +6,12 @@ __license__ = "MIT"
 __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 import sys, os, argparse
-from dsc.pysos.utils import env
 from dsc import PACKAGE, VERSION
-from workhorse import execute, show, submit
+from .workhorse import execute, show, submit
 
 def main():
     def add_common_args(obj):
-        obj.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = '2',
+        obj.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                          help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                          information.''')
         obj.add_argument('--debug', action='store_true', help = argparse.SUPPRESS)
@@ -24,6 +23,9 @@ def main():
     p = subparsers.add_parser('execute', help = 'Execute DSC',
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('dsc_file', metavar = "dsc_file", help = 'DSC file')
+    p.add_argument('-j', type=int, metavar='jobs', default=1, dest='__max_jobs__',
+                   help='''Number of concurrent processes allowed.''')
+    p.add_argument('-d', action='store_true', dest='__dryrun__', help = '"dryrun" mode.')
     add_common_args(p)
     p.set_defaults(func = execute)
     p = subparsers.add_parser('show', help = 'Explore DSC benchmark data',
@@ -31,9 +33,7 @@ def main():
     add_common_args(p)
     p.set_defaults(func = show)
     args, argv = parser.parse_known_args()
-    env.verbosity = args.verbosity
     try:
-        args.func(args)
+        args.func(args, argv)
     except Exception as e:
-        env.logger.error(e)
         raise

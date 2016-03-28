@@ -16,8 +16,18 @@ setup(name        = "dsc",
       author      = "Gao Wang",
       url         = 'https://github.com/stephenslab/dsc2',
       version     = VERSION,
-      packages    = ["dsc", "dsc.pysos"],
+      packages    = ["dsc"],
       scripts     = ["dsc/dsc", "dsc/dsc-run"],
       cmdclass    = {'build_py': build_py},
       package_dir = {"dsc": "dsc"}
       )
+
+setup(name        = "libsos",
+      description = "Python library for Script of Scripts (SoS): a workflow system for the execution of scripts in different languages",
+      author      = 'Bo Peng',
+      url         = 'https://github.com/bpeng2000/SOS',
+      version     = 'github.master',
+      packages    = ['libsos'],
+      cmdclass    = {'build_py': build_py },
+      package_dir = {'libsos': 'libsos'}
+    )

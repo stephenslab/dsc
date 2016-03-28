@@ -8,8 +8,8 @@ This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
 import copy, re, os
-from dsc.pysos import SoS_Script, check_command
-from dsc.pysos.utils import Error, env
+from pysos import check_command
+from pysos.utils import Error, env
 from dsc import VERSION
 from utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list
@@ -186,6 +186,9 @@ class DSCJobs(dotdict):
                         if isinstance(p1, str):
                             if p1.startswith('$'):
                                 find_dependencies(p1[1:])
+                                if raw_data[item][step_idx]['is_r'] and p1[1:] != k:
+                                    raw_data[item][step_idx]['r_input_alias'].append('{} <- {}'.\
+                                                                                     format(k, p1[1:]))
                                 continue
                             elif re.search(r'^Asis\((.*?)\)$', p1):
                                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
@@ -233,6 +236,7 @@ class DSCJobs(dotdict):
             data.is_r = is_r
         data.r_list = []
         data.r_return_alias = []
+        data.r_input_alias = []
         data.r_list_vars = []
         data.parameters = []
         data.output_ext = []
@@ -293,9 +297,10 @@ class DSCJobs(dotdict):
             for block in sequence:
                 for item in block:
                     text += dict2str(item, replace = [('!!python/tuple', '(tuple)')]) + '\n'
-        env.logger.info('Printing fully extended data to file ``{}``'.format(self.output_prefix + '.log'))
-        with open(self.output_prefix + '.log', 'w') as f:
-            f.write(text)
+        if int(env.verbosity) > 2:
+            env.logger.info('Printing fully extended data to file ``{}``'.format(self.output_prefix + '.log'))
+            with open(self.output_prefix + '.log', 'w') as f:
+                f.write(text)
         return res.strip()
 
 class DSC2SoS:
@@ -322,7 +327,7 @@ class DSC2SoS:
     def __init__(self, data, echo = False):
         self.echo = echo
         self.data = []
-        header = 'from dsc.pysos import expand_pattern\nfrom dsc.utils import get_md5_sos, get_input_sos'
+        header = 'from libsos import expand_pattern\nfrom dsc.utils import get_md5_sos, get_input_sos'
         for seq_idx, sequence in enumerate(data.data):
             script = []
             # Get steps
@@ -382,10 +387,12 @@ class DSC2SoS:
                 r_begin = step_data['r_list']
                 r_begin.extend(self.__format_r_args([x for x in params if not x in step_data['r_list_vars']]))
                 if step_data['input_depends']:
+                    # FIXME: using attach might be dangerous. better create some namespace.
                     if len(step_data['input_depends']) > 1:
                         r_begin.append('input.files <- c(${_input!r,})\nfor (i in 1:length(input.files)) attach(readRDS(input.files[i]), warn.conflicts = F)')
                     else:
                         r_begin.append('attach(readRDS("${_input}"), warn.conflicts = F)')
+                r_begin.extend(step_data['r_input_alias'])
                 r_end = step_data['r_return_alias']
                 if step_data['return_r']:
                     r_end.append('saveRDS(list({}), ${{_output!r}})'.format(', '.join(['{0}={0}'.format(x) for x in step_data['output_vars']])))

@@ -3,7 +3,7 @@ help:
 	@echo
 
 sos:
-	cd dsc; svn checkout https://github.com/bpeng2000/SOS/trunk/pysos; cd -
+	svn checkout https://github.com/bpeng2000/SOS/trunk/pysos libsos
 
 install:
 	python setup.py install
