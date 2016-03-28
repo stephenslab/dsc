@@ -8,8 +8,8 @@ This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
 import copy, re, os
-from pysos import SoS_Script, check_command
-from pysos.utils import Error, env
+from dsc.pysos import SoS_Script, check_command
+from dsc.pysos.utils import Error, env
 from dsc import VERSION
 from utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list
@@ -154,7 +154,7 @@ class DSCJobs(dotdict):
            * Fully expand sequences so that each sequence is standalone to initialize an SoS (though possibly partially duplicate)
            * Resolving step dependencies and some syntax conversion, most importantly the $ symbol
         '''
-        def find_depends(value):
+        def find_dependencies(value):
             curr_idx = idx
             if curr_idx == 0:
                 raise StepError('Symbol ``$`` is not allowed in the first step of DSC sequence.')
@@ -176,7 +176,6 @@ class DSCJobs(dotdict):
         #
         res = []
         raw_data = copy.deepcopy(self.raw_data)
-        # is previous step R?
         for idx, item in enumerate(sequence):
             # for each step
             for step_idx, step in enumerate(raw_data[item]):
@@ -186,7 +185,7 @@ class DSCJobs(dotdict):
                     for p1 in p:
                         if isinstance(p1, str):
                             if p1.startswith('$'):
-                                find_depends(p1[1:])
+                                find_dependencies(p1[1:])
                                 continue
                             elif re.search(r'^Asis\((.*?)\)$', p1):
                                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
@@ -323,7 +322,7 @@ class DSC2SoS:
     def __init__(self, data, echo = False):
         self.echo = echo
         self.data = []
-        header = 'from pysos import expand_pattern\nfrom dsc.utils import get_md5_sos, get_input_sos'
+        header = 'from dsc.pysos import expand_pattern\nfrom dsc.utils import get_md5_sos, get_input_sos'
         for seq_idx, sequence in enumerate(data.data):
             script = []
             # Get steps
@@ -383,7 +382,10 @@ class DSC2SoS:
                 r_begin = step_data['r_list']
                 r_begin.extend(self.__format_r_args([x for x in params if not x in step_data['r_list_vars']]))
                 if step_data['input_depends']:
-                    r_begin.append('input.files <- strsplit("${_input}")[[1]]\nfor (i in i:length(input.files)) attach(readRDS(input.files[i], warn.conflicts = F))')
+                    if len(step_data['input_depends']) > 1:
+                        r_begin.append('input.files <- c(${_input!r,})\nfor (i in 1:length(input.files)) attach(readRDS(input.files[i]), warn.conflicts = F)')
+                    else:
+                        r_begin.append('attach(readRDS("${_input}"), warn.conflicts = F)')
                 r_end = step_data['r_return_alias']
                 if step_data['return_r']:
                     r_end.append('saveRDS(list({}), ${{_output!r}})'.format(', '.join(['{0}={0}'.format(x) for x in step_data['output_vars']])))

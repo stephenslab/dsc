@@ -6,7 +6,7 @@ __license__ = "MIT"
 __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 import sys, os, argparse
-from pysos.utils import env
+from dsc.pysos.utils import env
 from dsc import PACKAGE, VERSION
 from workhorse import execute, show, submit
 
