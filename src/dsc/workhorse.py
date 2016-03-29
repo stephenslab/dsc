@@ -8,7 +8,7 @@ from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from pysos.utils import env, print_traceback
 from pysos.sos_script import SoS_Script
-import os, sys, atexit
+import os, sys, atexit, shutil
 
 def sos_run(args, workflow_args):
     env.verbosity = args.verbosity
@@ -40,20 +40,23 @@ def execute(args, argv):
     verbosity = args.verbosity
     env.verbosity = args.verbosity
     #
-    env.logger.info("Parsing DSC setting ``{}`` ...".format(args.dsc_file))
-    if not os.path.exists('.sos'):
-        os.makedirs('.sos')
+    env.logger.info("Parsing DSC configuration ``{}`` ...".format(args.dsc_file))
+    if not os.path.exists('.sos/.dsc/db'):
+        os.makedirs('.sos/.dsc/db')
     dsc_data = DSCData(args.dsc_file)
-    with open('.sos/dsc_data.txt', 'w') as f:
+    db_name = dsc_data['DSC']['output'][0]
+    if os.path.exists('.sos/.dsc/db/{}.yaml'.format(db_name)):
+        os.remove('.sos/.dsc/db/{}.yaml'.format(db_name))
+    with open('.sos/.dsc/{}_data.txt'.format(db_name), 'w') as f:
         f.write(str(dsc_data))
     dsc_jobs = DSCJobs(dsc_data)
-    with open('.sos/dsc_jobs.txt', 'w') as f:
+    with open('.sos/.dsc/{}_jobs.txt'.format(db_name), 'w') as f:
         f.write(str(dsc_jobs))
     sos_jobs = DSC2SoS(dsc_jobs, echo = True if args.debug else False)
-    with open('.sos/sos_jobs.sos', 'w') as f:
+    with open('.sos/.dsc/{}_jobs.sos'.format(db_name), 'w') as f:
         f.write(str(sos_jobs))
     #
-    env.logger.info("Building meta-info database ...")
+    env.logger.info("Building meta-info database ``{}.db`` ...".format(db_name))
     args.workflow = 'DSC'
     for script in sos_jobs.data:
         args.script = script

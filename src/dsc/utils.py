@@ -226,17 +226,31 @@ class REncoder:
         source += ")"
         return source
 
-def get_md5_sos(values):
-    def calc(x, y):
-        return '{}.{}'.format(hashlib.md5(x.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(x).hexdigest(), y)
+def get_md5_sos(values, db_name):
+    def register(base, md5):
+        if ':%%:' in base:
+            params, depends = base.split(':%%:')
+        else:
+            params = base
+            depends = None
+        md5 = md5.rsplit('.', 1)[0]
+        text = '{}:\n'.format(md5 if depends is None else '{}_{}'.format(md5, depends))
+        for item in params.split(':%:'):
+            i, j = item.split('=')
+            text += '\t{}: {}\n'.format(i, j)
+        return text
+    #
     if isinstance(values, str):
-        base, ext = values.rsplit('.', 1)
-        res = calc(base, ext)
-    else:
-        res = []
-        for value in values:
-            base, ext = value.rsplit('.', 1)
-            res.append(calc(base, ext))
+        values = [values]
+    res = []
+    registry = ''
+    for value in values:
+        base, ext = value.rsplit('.', 1)
+        md5 = '{}.{}'.format(hashlib.md5(base.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(base).hexdigest(), ext)
+        res.append(md5)
+        registry += register(base, md5)
+    with open('.sos/.dsc/db/{}.yaml'.format(db_name), 'a') as f:
+        f.write(registry)
     return res
 
 def get_input_sos(values):

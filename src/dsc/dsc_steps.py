@@ -327,6 +327,7 @@ class DSC2SoS:
     def __init__(self, data, echo = False):
         self.echo = echo
         self.data = []
+        self.output_prefix = data.output_prefix
         header = 'from pysos import expand_pattern\nfrom dsc.utils import get_md5_sos, get_input_sos'
         for seq_idx, sequence in enumerate(data.data):
             script = []
@@ -367,11 +368,11 @@ class DSC2SoS:
             else:
                 input_vars = "{}.output, group_by = 'single', ".format(step_data['input_depends'][0][0])
             res.append("input: %spattern = '{base}.{ext}'%s" % (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
-            res.append("output: get_md5_sos('{0}.${{\"_\".join(_base)}}.${{output_suffix}}')".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
+            res.append("output: get_md5_sos('{0}:%%:${{\"_\".join(_base)}}.${{output_suffix}}', '{1}')".format(':%:'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
         else:
             if params:
                 res.append("input: %s" % 'for_each = %s'% repr(params))
-            res.append("output: get_md5_sos(expand_pattern('{0}.${{output_suffix}}'))".format('::'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params])))
+            res.append("output: get_md5_sos(expand_pattern('{0}.${{output_suffix}}'), '{1}')".format(':%:'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
         res.append("process: workdir = {}".format(repr(step_data['work_dir'])))
         # Add action
         if self.echo:
