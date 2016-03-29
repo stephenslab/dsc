@@ -20,7 +20,6 @@ def sos_run(args, workflow_args):
         workflow = script.workflow(args.workflow)
         if args.__dryrun__:
             env.run_mode = 'dryrun'
-        print(env.verbosity, env.run_mode)
         workflow.run(workflow_args, cmd_name=args.dsc_file)
     except Exception as e:
         if args.verbosity and args.verbosity > 2:

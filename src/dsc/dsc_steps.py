@@ -11,7 +11,7 @@ import copy, re, os
 from pysos import check_command
 from pysos.utils import Error, env
 from dsc import VERSION
-from utils import dotdict, dict2str, try_get_value, get_slice, \
+from .utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list
 
 class StepError(Error):
@@ -327,7 +327,7 @@ class DSC2SoS:
     def __init__(self, data, echo = False):
         self.echo = echo
         self.data = []
-        header = 'from libsos import expand_pattern\nfrom dsc.utils import get_md5_sos, get_input_sos'
+        header = 'from pysos import expand_pattern\nfrom dsc.utils import get_md5_sos, get_input_sos'
         for seq_idx, sequence in enumerate(data.data):
             script = []
             # Get steps

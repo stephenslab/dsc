@@ -4,11 +4,6 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 from setuptools import setup
-try:
-   from distutils.command.build_py import build_py_2to3 as build_py
-except ImportError:
-   from distutils.command.build_py import build_py
-
 from dsc import VERSION
 
 setup(name        = "dsc",
@@ -18,16 +13,6 @@ setup(name        = "dsc",
       version     = VERSION,
       packages    = ["dsc"],
       scripts     = ["dsc/dsc", "dsc/dsc-run"],
-      cmdclass    = {'build_py': build_py},
-      package_dir = {"dsc": "dsc"}
+      package_dir = {"dsc": "dsc"},
+      install_requires = ['sos', 'pyyaml', 'rpy2', 'sympy']
       )
-
-setup(name        = "libsos",
-      description = "Python library for Script of Scripts (SoS): a workflow system for the execution of scripts in different languages",
-      author      = 'Bo Peng',
-      url         = 'https://github.com/bpeng2000/SOS',
-      version     = 'github.master',
-      packages    = ['libsos'],
-      cmdclass    = {'build_py': build_py },
-      package_dir = {'libsos': 'libsos'}
-    )
