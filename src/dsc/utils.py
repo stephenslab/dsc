@@ -249,9 +249,12 @@ def get_md5_sos(values, db_name):
         md5 = '{}.{}'.format(hashlib.md5(base.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(base).hexdigest(), ext)
         res.append(md5)
         registry += register(base, md5)
-    with open('.sos/.dsc/db/{}.yaml'.format(db_name), 'a') as f:
-        f.write(registry)
+    try:
+        with open('.sos/.dsc/{}.yaml'.format(db_name), 'a') as f:
+            f.write(registry)
+    except IOError:
+        pass
     return res
 
 def get_input_sos(values):
-    return list(sum(list(zip(*itertools.product(*values))), ()))
+    return list(sum(zip(*pairwise_list(*values)), ()))

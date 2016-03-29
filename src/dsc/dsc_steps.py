@@ -297,11 +297,7 @@ class DSCJobs(dotdict):
             for block in sequence:
                 for item in block:
                     text += dict2str(item, replace = [('!!python/tuple', '(tuple)')]) + '\n'
-        if int(env.verbosity) > 2:
-            env.logger.info('Printing fully extended data to file ``{}``'.format(self.output_prefix + '.log'))
-            with open(self.output_prefix + '.log', 'w') as f:
-                f.write(text)
-        return res.strip()
+        return res.strip() + '\n#######\n' + text.strip()
 
 class DSC2SoS:
     '''
@@ -373,7 +369,7 @@ class DSC2SoS:
             if params:
                 res.append("input: %s" % 'for_each = %s'% repr(params))
             res.append("output: get_md5_sos(expand_pattern('{0}.${{output_suffix}}'), '{1}')".format(':%:'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
-        res.append("process: workdir = {}".format(repr(step_data['work_dir'])))
+        res.append("process: workdir = {}, concurrent = True".format(repr(step_data['work_dir'])))
         # Add action
         if self.echo:
             # Debug and test
@@ -417,3 +413,12 @@ class DSC2SoS:
         for k in keys:
             res.append('%s <- ${_%s}' % (k, k))
         return res
+
+
+class MetaDB:
+    def __init__(self, data, filename):
+        self.data = data
+        self.db = filename
+
+    def build(self):
+        pass
