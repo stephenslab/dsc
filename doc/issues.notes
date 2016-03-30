@@ -13,7 +13,7 @@
 ## Build lookup database via pandas (fill missing)
 ## Run SoS and output all in @@output@@ dir
 ## Write a wsqlite query to allow for queries @@--items (table) --condition (where)@@
-## Output of scores, ideally stored in database, may not be necessarily the case: if they are in files as long as their file names are searchable we should be good. But maybe develop a procedure to use for R, and a utility to merge all RDS into one??
+## Output of scores, ideally stored in database, may not be necessarily the case: if they are in files as long as their file names are searchable we should be good. But maybe develop a procedure to use for R, and a utility to merge all RDS into one?? -- yes that'd be the idea: for all data we use database, but for the last step the output we line it up as a flat file and output that file as a plain text file!
 # Searchable database? Want to use pytable + PrettyPrint
 # Results storage:
 ## Parameters kept in a plan pytable, with MD5 for each set-up.

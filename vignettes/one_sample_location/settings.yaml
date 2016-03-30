@@ -24,4 +24,4 @@ DSC:
          estimate *
          mse
     exec_path: R/scenarios, R/methods, R/scores
-    output: one_sample_location
+    output: dsc_result

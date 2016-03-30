@@ -226,7 +226,7 @@ class REncoder:
         source += ")"
         return source
 
-def get_md5_sos(values, db_name):
+def registered_output(values, db_name):
     def register(base, md5):
         if ':%%:' in base:
             params, depends = base.split(':%%:')
@@ -247,7 +247,7 @@ def get_md5_sos(values, db_name):
     for value in values:
         base, ext = value.rsplit('.', 1)
         md5 = '{}.{}'.format(hashlib.md5(base.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(base).hexdigest(), ext)
-        res.append(md5)
+        res.append('{}/{}'.format(db_name, md5))
         registry += register(base, md5)
     try:
         with open('.sos/.dsc/{}.yaml'.format(db_name), 'a') as f:
@@ -256,5 +256,5 @@ def get_md5_sos(values, db_name):
         pass
     return res
 
-def get_input_sos(values):
+def sos_paired_input(values):
     return list(sum(zip(*pairwise_list(*values)), ()))
