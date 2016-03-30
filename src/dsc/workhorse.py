@@ -60,7 +60,7 @@ def execute(args, argv):
     # Dryrun for sanity checks
     env.logger.info("Building meta-info database ``{}.db`` ...".format(db_name))
     args.workflow = 'DSC'
-    args.verbosity = 1
+    args.verbosity = 0
     for script in sos_jobs.data:
         args.script = script
         sos_dryrun(args, argv)
