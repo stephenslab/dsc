@@ -414,12 +414,3 @@ class DSC2SoS:
         for k in keys:
             res.append('%s <- ${_%s}' % (k, k))
         return res
-
-
-class MetaDB:
-    def __init__(self, data, filename):
-        self.data = data
-        self.db = filename
-
-    def build(self):
-        pass

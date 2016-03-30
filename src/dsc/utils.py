@@ -5,8 +5,27 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import sys, os, random, copy, re, itertools,\
-  yaml, collections, hashlib
+  yaml, collections, hashlib, time
 from io import StringIO
+import rpy2.robjects as RO
+from rpy2.robjects import pandas2ri
+pandas2ri.activate()
+from pysos.utils import env
+
+class Timer(object):
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+
+    def __enter__(self):
+        self.start = time.time()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.time()
+        self.secs = self.end - self.start
+        self.msecs = self.secs * 1000  # millisecs
+        if self.verbose:
+            env.logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
 
 def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
     level_start += 1
@@ -38,7 +57,7 @@ def str2num(var):
             This variable will be treated as string, not Boolean data. \n\
             It may cause problems to your jobs. \n\
             Please set this variable to ``{}`` if it is indeed Boolean data.'.format(var, bmap[var.lower()])
-            sys.stderr.write('\n\t'.join([x.strip() for x in msg.split('\n')]))
+            env.logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
         try:
             return int(var)
         except ValueError:
@@ -237,7 +256,7 @@ def registered_output(values, db_name):
         text = '{}:\n'.format(md5 if depends is None else '{}_{}'.format(md5, depends))
         for item in params.split(':%:'):
             i, j = item.split('=')
-            text += '\t{}: {}\n'.format(i, j)
+            text += '    {}: {}\n'.format(i, j)
         return text
     #
     if isinstance(values, str):
@@ -250,7 +269,7 @@ def registered_output(values, db_name):
         res.append('{}/{}'.format(db_name, md5))
         registry += register(base, md5)
     try:
-        with open('.sos/.dsc/{}.yaml'.format(db_name), 'a') as f:
+        with open('.sos/.dsc/.{}.tmp'.format(db_name), 'a') as f:
             f.write(registry)
     except IOError:
         pass
@@ -258,3 +277,9 @@ def registered_output(values, db_name):
 
 def sos_paired_input(values):
     return list(sum(zip(*pairwise_list(*values)), ()))
+
+readRDS = RO.r['readRDS']
+
+def load_rds(filename):
+    rds = readRDS(filename)
+    return dict(zip(rds.names, map(list, list(rds))))

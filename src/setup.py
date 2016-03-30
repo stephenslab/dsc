@@ -14,5 +14,5 @@ setup(name        = "dsc",
       packages    = ["dsc"],
       scripts     = ["dsc/dsc", "dsc/dsc-run"],
       package_dir = {"dsc": "dsc"},
-      install_requires = ['sos', 'pyyaml', 'rpy2', 'sympy']
+      install_requires = ['pyyaml', 'pandas', 'rpy2', 'sympy', 'celery', 'sos']
       )

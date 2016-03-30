@@ -8,6 +8,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 import sys, os, argparse
 from dsc import PACKAGE, VERSION
 from .workhorse import execute, show, submit
+from .utils import Timer
 
 def main():
     def add_common_args(obj):
@@ -26,6 +27,8 @@ def main():
     p.add_argument('-j', type=int, metavar='jobs', default=1, dest='__max_jobs__',
                    help='''Number of concurrent processes allowed.''')
     p.add_argument('-d', action='store_true', dest='__dryrun__', help = '"dryrun" mode.')
+    p.add_argument('-f', action='store_true', dest='__rerun__',
+                   help='''Force executing DSC afresh regardless of already created results.''')
     add_common_args(p)
     p.set_defaults(func = execute)
     p = subparsers.add_parser('show', help = 'Explore DSC benchmark data',
@@ -34,6 +37,7 @@ def main():
     p.set_defaults(func = show)
     args, argv = parser.parse_known_args()
     try:
-        args.func(args, argv)
+        with Timer(verbose = True if args.verbosity > 0 else False) as t:
+            args.func(args, argv)
     except Exception as e:
         raise

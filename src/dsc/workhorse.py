@@ -5,7 +5,8 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 from .dsc_file import DSCData
-from .dsc_steps import DSCJobs, DSC2SoS, MetaDB
+from .dsc_steps import DSCJobs, DSC2SoS
+from .dsc_database import MetaDB
 from pysos.utils import env, print_traceback
 from pysos.sos_script import SoS_Script
 import os, sys, atexit, shutil
@@ -20,6 +21,8 @@ def sos_run(args, workflow_args):
         workflow = script.workflow(args.workflow)
         if args.__dryrun__:
             env.run_mode = 'dryrun'
+        if args.__rerun__:
+            env.sig_mode = 'ignore'
         workflow.run(workflow_args, cmd_name=args.dsc_file)
     except Exception as e:
         if args.verbosity and args.verbosity > 2:
@@ -42,13 +45,13 @@ def execute(args, argv):
     verbosity = args.verbosity
     env.verbosity = args.verbosity
     # Archive scripts
-    env.logger.info("Parsing DSC configuration ``{}`` ...".format(args.dsc_file))
+    env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     if not os.path.exists('.sos/.dsc'):
         os.makedirs('.sos/.dsc')
     dsc_data = DSCData(args.dsc_file)
     db_name = dsc_data['DSC']['output'][0]
-    if os.path.exists('.sos/.dsc/{}.yaml'.format(db_name)):
-        os.remove('.sos/.dsc/{}.yaml'.format(db_name))
+    if os.path.exists('.sos/.dsc/.{}.tmp'.format(db_name)):
+        os.remove('.sos/.dsc/.{}.tmp'.format(db_name))
     with open('.sos/.dsc/{}.data'.format(db_name), 'w') as f:
         f.write(str(dsc_data))
     dsc_jobs = DSCJobs(dsc_data)
@@ -58,17 +61,16 @@ def execute(args, argv):
     with open('.sos/.dsc/{}.sos'.format(db_name), 'w') as f:
         f.write(str(sos_jobs))
     # Dryrun for sanity checks
-    env.logger.info("Building meta-info database ``{}.db`` ...".format(db_name))
     args.workflow = 'DSC'
     args.verbosity = 0
     for script in sos_jobs.data:
         args.script = script
         sos_dryrun(args, argv)
+    os.rename('.sos/.dsc/.{}.tmp'.format(db_name), '.sos/.dsc/{}.yaml'.format(db_name))
     env.verbosity = args.verbosity = verbosity
     if args.__dryrun__:
+        # FIXME export scripts
         return
-    # Build meta-db
-    MetaDB('.sos/.dsc/{}.yaml'.format(db_name), db_name).build()
     # Wetrun
     env.logger.info("Running DSC jobs ...")
     args.verbosity = verbosity - 1 if verbosity > 0 else verbosity
@@ -76,7 +78,11 @@ def execute(args, argv):
         args.script = script
         sos_run(args, argv)
     env.verbosity = args.verbosity = verbosity
-    env.logger.info("DSC jobs complete!")
+    # Extracting information as much as possible
+    # For RDS files if the values are trivial (single numbers) I'll just write them here
+    env.logger.info("Building summary database ``{}.csv.gz`` ...".format(db_name))
+    MetaDB(db_name).build()
+    env.logger.info("DSC complete!")
 
 def submit(args):
     pass
