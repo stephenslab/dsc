@@ -80,7 +80,7 @@ def execute(args, argv):
     env.verbosity = args.verbosity = verbosity
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
-    env.logger.info("Building summary database ``{}.csv.gz`` ...".format(db_name))
+    env.logger.info("Building summary database ``{0}.csv.gz & {0}.db`` ...".format(db_name))
     MetaDB(db_name).build()
     env.logger.info("DSC complete!")
 

@@ -3,10 +3,10 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, yaml
+import os, yaml, gzip
 import pandas as pd
 from pysos.utils import Error, env
-from .utils import dict2str, load_rds
+from .utils import dict2str, load_rds, SQLiteMan
 
 class MetaDBError(Error):
     """Raised when there is a problem building the database."""
@@ -108,6 +108,7 @@ class MetaDB:
         cols = sorted(self.data.columns.values, reverse = True)
         self.data.reindex(columns = cols).to_csv('{}.csv.gz'.format(self.name), index = False,
                                                  compression = 'gzip')
+        SQLiteMan('{}.db'.format(self.name)).convert(gzip.open('{}.csv.gz'.format(self.name), mode = 'rt'), 'DSC', ',', None, True)
 
     def __search_output_idx(self, output):
         '''Input is output string, output is data ID'''
