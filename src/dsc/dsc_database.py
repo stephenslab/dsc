@@ -36,16 +36,16 @@ class MetaDB:
             k = k.split('_')
             # FIXME: need to prepare for multiple output
             # make it a list for now
-            res[idx + 1]['..output..'] = [k[0]]
+            res[idx + 1]['__output__'] = [k[0]]
             if len(k) > 1:
-                res[idx + 1]['..input..'] = k[1:]
+                res[idx + 1]['__input__'] = k[1:]
             else:
-                res[idx + 1]['..input..'] = []
+                res[idx + 1]['__input__'] = []
             for k1, v1 in v.items():
                 if k1 == 'exec':
                     res[idx + 1][k1] = v1
                 else:
-                    res[idx + 1]['{}.{}'.format(k1, v['exec'])] = v1
+                    res[idx + 1]['{}__{}'.format(k1, v['exec'])] = v1
         self.data = res
 
     def __load_output(self):
@@ -54,15 +54,15 @@ class MetaDB:
         dump its values to parameter space if it is "simple" enough (i.e., is int, float or str)
         '''
         for k, v in self.data.items():
-            for item in v['..output..']:
+            for item in v['__output__']:
                 rds = '{}/{}.rds'.format(self.name, item)
                 if not os.path.isfile(rds):
                     continue
                 rdata = load_rds(rds)
                 for k1, v1 in rdata.items():
                     # a "simple" object
-                    if len(v1) == 1 and '{}.{}'.format(k1, v['exec']) not in v:
-                        self.data[k]['{}.{}'.format(k1, v['exec'])] = v1[0]
+                    if len(v1) == 1 and '{}__{}'.format(k1, v['exec']) not in v:
+                        self.data[k]['{}__{}'.format(k1, v['exec'])] = v1[0]
 
     def __expand(self):
         '''
@@ -70,12 +70,12 @@ class MetaDB:
         copy the parameters (except exec, __input__ and __output__) over.
         '''
         for k in self.data.keys():
-            for item in self.data[k]['..input..']:
+            for item in self.data[k]['__input__']:
                 idx = self.__search_output_idx(item)
                 if idx is None:
                     continue
                 for k1, v1 in self.data[idx].items():
-                    if k1 in ['exec', '..input..', '..output..']:
+                    if k1 in ['exec', '__input__', '__output__']:
                         continue
                     if k1 in self.data[k] and self.data[k][k1] != v1:
                         raise MetaDBError('Conflicting key ``{}`` between section ``{}`` and ``{}``.'.\
@@ -83,8 +83,8 @@ class MetaDB:
                     else:
                         self.data[k][k1] = v1
         for k in self.data.keys():
-            self.data[k]['..input..'] = '; '.join(self.data[k]['..input..'])
-            self.data[k]['..output..'] = '; '.join(self.data[k]['..output..'])
+            self.data[k]['__input__'] = '; '.join(self.data[k]['__input__'])
+            self.data[k]['__output__'] = '; '.join(self.data[k]['__output__'])
             # Convert string to list so that pandas merge can handle
             for k1 in self.data[k]:
                 self.data[k][k1] = [self.data[k][k1]]
@@ -113,7 +113,7 @@ class MetaDB:
     def __search_output_idx(self, output):
         '''Input is output string, output is data ID'''
         for kk in self.data.keys():
-            if output in self.data[kk]['..output..']:
+            if output in self.data[kk]['__output__']:
                 return kk
         return None
 

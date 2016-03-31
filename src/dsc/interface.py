@@ -7,7 +7,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 import sys, os, argparse
 from dsc import PACKAGE, VERSION
-from .workhorse import execute, show, submit
+from .workhorse import execute, query
 from .utils import Timer
 
 def main():
@@ -31,13 +31,15 @@ def main():
                    help='''Force executing DSC afresh regardless of already created results.''')
     add_common_args(p)
     p.set_defaults(func = execute)
-    p = subparsers.add_parser('show', help = 'Explore DSC benchmark data',
+    p = subparsers.add_parser('query', help = 'Explore DSC benchmark data',
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    add_common_args(p)
-    p.set_defaults(func = show)
+    p.add_argument('dsc_db', metavar = "db", help = 'DSC database')
+    p.add_argument('-i', '--items', nargs = '*', help = 'Items to explore (SQLite functions supported).')
+    p.add_argument('-f', '--filter', nargs = '*', help = 'Filter criteria (in SQLite syntax).')
+    p.set_defaults(func = query)
     args, argv = parser.parse_known_args()
     try:
-        with Timer(verbose = True if args.verbosity > 0 else False) as t:
+        with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False) as t:
             args.func(args, argv)
     except Exception as e:
         raise

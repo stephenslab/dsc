@@ -200,7 +200,8 @@ class SQLiteMan:
 
     def execute(self, query):
         for item in self.c.execute(query).fetchall():
-            print (','.join(map(str, item)))
+            if len([x for x in item if x]) > 0:
+                print (','.join(map(str, item)))
         self.conn.commit()
         self.c.close()
 

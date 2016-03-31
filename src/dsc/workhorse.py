@@ -4,12 +4,13 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
+import os, sys, atexit, shutil
+from .utils import SQLiteMan
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import MetaDB
 from pysos.utils import env, print_traceback
 from pysos.sos_script import SoS_Script
-import os, sys, atexit, shutil
 
 def sos_run(args, workflow_args):
     env.verbosity = args.verbosity
@@ -84,8 +85,13 @@ def execute(args, argv):
     MetaDB(db_name).build()
     env.logger.info("DSC complete!")
 
-def submit(args):
-    pass
-
-def show(args):
-    pass
+def query(args, argv):
+    s = SQLiteMan(args.dsc_db)
+    if args.items is None:
+        # show fields
+        print("\033[1mColumns in table 'DSC':\033[0m")
+        print ('\n'.join(['[{}] {}'.format(x[1], x[0]) for x in s.getFields('DSC')]))
+    else:
+        select_query = 'SELECT {} FROM DSC '.format(', '.join(args.items))
+        where_query = '' if args.filter is None else "WHERE {}".format(' '.join(args.filter))
+        s.execute(select_query + where_query)
