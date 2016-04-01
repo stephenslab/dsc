@@ -94,7 +94,7 @@ def query(args, argv):
     s = SQLiteMan(args.dsc_db)
     fields = s.getFields('DSC')
     field_names = [item[0] for item in fields]
-    if args.items is None:
+    if len(args.items) == 0:
         # show fields
         env.logger.info("Columns in ``DSC``:")
         print ('\n'.join(['[{}] \033[1m{}\033[0m'.format(x[1], x[0]) for x in fields]))

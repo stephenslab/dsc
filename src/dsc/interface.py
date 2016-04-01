@@ -50,7 +50,7 @@ def main():
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False) as t:
             args.func(args, argv)
     except Exception as e:
-        if args.debug:
+        if args.verbosity > 2:
             print_traceback()
         else:
             env.logger.error(e)
