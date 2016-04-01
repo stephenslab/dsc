@@ -415,5 +415,8 @@ class DSC2SoS:
     def __format_r_args(self, keys):
         res = []
         for k in keys:
-            res.append('%s <- ${_%s}' % (k, k))
+            if k != 'seed':
+                res.append('%s <- ${_%s}' % (k, k))
+            else:
+                res.append('set.seed(${_%s})' % k)
         return res

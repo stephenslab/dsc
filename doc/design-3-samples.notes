@@ -1,7 +1,7 @@
 ###
-# Sample DSC files
+#! Sample DSC files
 ###
-# Here is a list of sample DSC files. Some of them are used in the [short course series|@Quick-Start@].
+# Here is a list of sample DSC files. Some of them are used in the [mini course series|@Quick-Start@].
 #{list
 # [Location parameter estimate I|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location/settings.yaml@] and [II|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location_winsor/settings.yaml@]
 # [Adaptive Shrinkage|@https://github.com/stephenslab/dsc2/tree/master/vignettes/ash/settings.yaml@]

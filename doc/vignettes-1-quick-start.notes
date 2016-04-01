@@ -1,58 +1,62 @@
 ###
 #! Quick Start
 ###
+# In this tutorial we will use DSC to compare methods implemented in [R|@https://cran.r-project.org/@] for location parameter estimations. It is a re-implementation of a [DSCR example|@https://github.com/stephens999/dscr/blob/master/vignettes/one_sample_location.rmd@]. Material used in this document can be found in [DSC2 vignettes repo|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location@].
+
 ###
-# DSC setup
+# DSC specification
 ###
-# This minimal example shows comparison of location parameter estimation methods. It is a re-implementation of a [DSCR example|@https://github.com/stephens999/dscr/blob/master/vignettes/one_sample_location.rmd@] in DSC2 framework. Below is a list of contents involved:
-#{out
-├── R
-│   ├── methods
-│   │   ├── mean.R
-│   │   └── median.R
-│   ├── scenarios
-│   │   ├── rnorm.R
-│   │   └── rt.R
-│   └── scores
-│       └── MSE.R
-└── settings.yaml
-#}
-# Contents of R scripts are:
-#{out r
-output:///find ../vignettes/one_sample_location/R/ -type f -exec tail -n+1 {} +
-#}
-# And the dsc configuration file  @@settings.yaml@@:
+
+# The DSC problem is fully specified as:
 #{out yaml
 output:///cat ../vignettes/one_sample_location/settings.yaml
 #}
-# The ""run"" sequence in the DSC section reflects a typical DSC setup where `simulate` creates "scenarios" under various settings, `estimate` applies various "methods" to analyze data and `mse` is a "score" that measures the performance of different methods. They are connected by `*` to allow for all possible combinations of computational steps from these 3 blocks.
-###
-# Add new method
-###
-# The example above contains 3 DSC blocks, `simulate`, `estimate` and `mse`. It is straightforward to incorporate new computational routines into existing blocks, or add additional blocks if the new routine does not resemble existing routines in interface (i.e., input parameters and return values).
-# For example we want to add a new routine for location estimate via the "Winsorized" mean. The routine is implemented as @@winsor.R@@:
-#{r
-mean = winsor.mean(x, trim = trim, na.rm = TRUE)
+# All computational routines in this DSC are R scripts (each with one line of code!), located in directories as specified in the @@DSC::exec_path@@ entry of the configuration file. Contents of these R scripts are:
+#{out r
+output:///find ../vignettes/one_sample_location/R/ -type f -exec tail -n+1 {} +
 #}
-# Note that this routine requires an additional parameter @@trim@@ that does not exist in any old routines. Adding it to current DSC requires minimal changes to the DSC file and we do it in two flavors which will result in the same outcome. In practice a DSC task may often be implemented in multiple flavors; one should always try to adopt a flavor that is most logically clear and succinct.
-#! Add to existing block
-# We change the `estimate` block to the following:
-#{out yaml
-output:///cat ../vignettes/one_sample_location/settings_add_method_v1.yaml
-#}
-# Note that we appended the new executable @@winsor.R@@ to the `exe` entry, along with an executable specific parameter specification in the @@params@@ section to assign two possible values to @@trim@@ which essentially provides two versions of Winsorization for comparison.
-#! Add a new block
-# We keep the `estimate` block the same but we add a new block `estimate_winsor`, and modify the ""run"" sequence in the DSC section to use this new block:
-#{out yaml
-output:///cat ../vignettes/one_sample_location/settings_add_method_v2.yaml
-#}
-# In the ""run"" sequence, the previous `estimate` and the new `estimate_winsor` blocks will be executed in parallel to each other, both taking input from `simulate` block and generating output for `mse` block.
+# It is important to ensure the parameter names and return variable names match between R script and DSC files. For example the @@simulate@@ block involves computational routines @@rnorm.R@@ and @@rt.R@@, both take parameters @@n@@ and @@true_mean@@ and generate a new variable @@x@@ as return value (the other return variable @@true_mean@@ already exists as an input parameter). The corresponding R scripts @@rnorm.R@@ is @@ x = rnorm(n, mean = true_mean)@@, which uses the input parameters @@n@@ and @@true_mean@@ on the right hand side to produce @@x@@ on the left hand side, as the return value of the @@simulate@@ block. The same holds for @@rt.R@@ which is @@x = true_mean + rt(n, df = 2)@@.
+# The @@DSC::run@@ entry reflects a typical DSC setup where `simulate` creates "scenarios" under various settings, `estimate` applies various "methods" to analyze data and `mse` is a "score" that measures the performance of different methods. They are connected by `*` to allow for all possible combinations of computational steps from these 3 blocks.
+
 ###
 # Run DSC
 ###
-# ""(TBA)""
-dsc execute -c settings.yaml
+# To execute the DSC on a computer using 8 CPU threads,
+dsc execute settings.yaml -j8
 #{out
-MESSAGE: ...
+INFO: Constructing DSC from settings.yaml ...
+INFO: Running DSC jobs ...
+simulate_1+estimate_1+mse_1: 100% [=============] 3 0.7/s in 00:00:04
+simulate_1+estimate_2+mse_1: 100% [=============] 3 1.0/s in 00:00:03
+simulate_2+estimate_1+mse_1: 100% [=============] 3 0.7/s in 00:00:04
+simulate_2+estimate_2+mse_1: 100% [=============] 3 1.0/s in 00:00:03
+DSC: 100% [=====================================] 4 0.3/s in 00:00:15
+INFO: Building summary database dsc_result.csv.gz & dsc_result.db ...
+INFO: DSC complete!
+INFO: Elapsed time 16.612 seconds.
 #}
-# Contents of DSC output can be examined via @@dsc show@@ or visualized via @@dsc viz@@ ...
+# In this example the results will be stored in @@dsc_result.csv.gz@@ and @@dsc_result.db@@. These files contain the same information only differing in format. We will discuss the output in detail in the next tutorial. Here we show the command to extract the average location parameter estimate from method @@mean.R@@ and its performance score calculated by @@MSE.R@@, under scenarios generated by @@rnorm.R@@:
+dsc query dsc_result.db -i true_mean__rnorm_r 'avg(mean__mean_r)' 'avg(mse__mse_r)' -g true_mean__rnorm_r
+#{out
+0	-0.0006508698157896695	0.0008023048368730248
+1	0.9993491301842103	0.0008023048368730251
+#}
+###
+# Re-run DSC
+###
+# DSC keeps track of commands that has been executed before so that if you re-run the same DSC command it will skip computational steps if there is no change in DSC configuration file. For example:
+dsc execute settings.yaml -j8
+#{out
+INFO: Constructing DSC from settings.yaml ...
+INFO: Running DSC jobs ...
+simulate_1+estimate_1+mse_1: 100% [=============] 3 0.7/s in 00:00:04
+simulate_1+estimate_2+mse_1: 100% [=============] 3 1.0/s in 00:00:03
+simulate_2+estimate_1+mse_1: 100% [=============] 3 0.7/s in 00:00:04
+simulate_2+estimate_2+mse_1: 100% [=============] 3 1.0/s in 00:00:03
+DSC: 100% [=====================================] 4 0.3/s in 00:00:15
+INFO: Building summary database dsc_result.csv.gz & dsc_result.db ...
+INFO: DSC complete!
+INFO: Elapsed time 1.540 seconds.
+#}
+# Notice the last line of output records elapsed time of 1.540 seconds, compared to 16.612 seconds in the first run. If you want to ignore existing cache you can use the @@-f@@ switch to force DSC start afresh:
+dsc execute settings.yaml -j8 -f

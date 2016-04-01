@@ -9,7 +9,7 @@ import glob
 md = 'tigernotes markdown'
 pdf = 'tigernotes doc --showall'
 wiki_dir = 'dsc2.wiki'
-doc_dir = ['design', 'course', 'setup', 'interface', 'vignettes']
+doc_dir = ['design', 'setup', 'interface', 'vignettes']
 
 [1]
 # HomePage
@@ -35,8 +35,8 @@ from collections import OrderedDict
 from subprocess import check_output
 TITLES = OrderedDict([
     ('design', 'Design & Syntax'),
-    ('vignettes', 'Short Course'),
     ('interface', 'Command Interface'),
+    ('vignettes', 'Mini Course'),
     ('setup', 'Setup Guide')
     ])
 res = {}
@@ -53,8 +53,7 @@ for item in "${_input}".split():
         try:
             title = f.readlines()[0].replace('#', '').strip()
         except IndexError:
-            print(item)
-            raise
+            print('Cannot find title for {}'.format(item))
     os.remove('.tmp.md')
     filename = title.replace(':', '').replace(' ', '-')
     res[section].append('* [[{}|{}]]'.format(title, filename))

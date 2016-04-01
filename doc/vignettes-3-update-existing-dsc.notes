@@ -1,0 +1,24 @@
+###
+#! Update existing DSC
+###
+###
+# Add new method
+###
+# The example above contains 3 DSC blocks, `simulate`, `estimate` and `mse`. It is straightforward to incorporate new computational routines into existing blocks, or add additional blocks if the new routine does not resemble existing routines in interface (i.e., input parameters and return values).
+# For example we want to add a new routine for location estimate via the "Winsorized" mean. The routine is implemented as @@winsor.R@@:
+#{r
+mean = winsor.mean(x, trim = trim, na.rm = TRUE)
+#}
+# Note that this routine requires an additional parameter @@trim@@ that does not exist in any old routines. Adding it to current DSC requires minimal changes to the DSC file and we do it in two flavors which will result in the same outcome. In practice a DSC task may often be implemented in multiple flavors; one should always try to adopt a flavor that is most logically clear and succinct.
+#! Add to existing block
+# We change the `estimate` block to the following:
+#{out yaml
+output:///cat ../vignettes/one_sample_location/settings_add_method_v1.yaml
+#}
+# Note that we appended the new executable @@winsor.R@@ to the `exe` entry, along with an executable specific parameter specification in the @@params@@ section to assign two possible values to @@trim@@ which essentially provides two versions of Winsorization for comparison.
+#! Add a new block
+# We keep the `estimate` block the same but we add a new block `estimate_winsor`, and modify the ""run"" sequence in the DSC section to use this new block:
+#{out yaml
+output:///cat ../vignettes/one_sample_location/settings_add_method_v2.yaml
+#}
+# In the ""run"" sequence, the previous `estimate` and the new `estimate_winsor` blocks will be executed in parallel to each other, both taking input from `simulate` block and generating output for `mse` block.
