@@ -45,6 +45,11 @@ def sos_dryrun(args, workflow_args):
 def execute(args, argv):
     verbosity = args.verbosity
     env.verbosity = args.verbosity
+    # FIXME: cannot use pysos ignore mode due to imperfect implementation there
+    # Manually create vanilla runs here
+    if args.__rerun__:
+        shutil.rmtree('.sos')
+        args.__rerun__ = False
     # Archive scripts
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     if not os.path.exists('.sos/.dsc'):
