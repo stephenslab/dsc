@@ -35,10 +35,9 @@ from collections import OrderedDict
 from subprocess import check_output
 TITLES = OrderedDict([
     ('design', 'Design & Syntax'),
-    ('course', 'Short Course'),
+    ('vignettes', 'Short Course'),
     ('interface', 'Command Interface'),
-    ('setup', 'Setup Guide'),
-    ('vignettes', 'Examples')
+    ('setup', 'Setup Guide')
     ])
 res = {}
 for item in "${_input}".split():

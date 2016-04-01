@@ -6,17 +6,14 @@
 ###
 # Pending
 ###
-#! Some implementation thoughts
-#{list
-# Documentation: a short course on dsc2, based on examples in vignettes
-## Example vignettes should be well written
-## Perhaps vash will be the first real field test?
-#}
 #! TODO
 #{list
 # Handle multiple sequences
+# Auto install R library
 # Get 3 examples to work: ashr, one sample location I and II
 ## complete their vignettes
+# Documentation: a short course on dsc2, based on examples in vignettes
+## Example vignettes should be well written
 # Export in dryrun mode
 # Reset parameters via command options
 # Release version 0.1.0 via pip
@@ -24,13 +21,17 @@
 ## Parameter @@seed@@ name conflict
 ## Parameter cannot start with '_' or '.'
 # Get vash work
-# Get command based system work 
+# Get command based system work
 ## File() operator allow for suffix only. Prefix by MD5 anyways. File(*.xxx, *.yyy)
 # On the fly mode, via .option (??)
 # YAML parser look for duplicate entries and keyword conflicts
 # Real parallel
 # Cluster
 # Possibly a web server that will help greatly in boosting its popularity (Nan)?
+#}
+#! Hard TODO
+#{list
+# Smarter way to avoid loading large rpy2 objects
 #}
 ###
 # Resolved

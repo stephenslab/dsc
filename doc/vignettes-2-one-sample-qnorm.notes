@@ -1,8 +1,0 @@
-###
-#! Location Estimate II
-###
-# FIXME: need to replace with an example where transform makes sense, e.g., perhaps in linear model.
-# DSC file @@settings.yaml@@:
-#{out yaml
-output:///cat ../vignettes/one_sample_location_qnorm/settings.yaml
-#}

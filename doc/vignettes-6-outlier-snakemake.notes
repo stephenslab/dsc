@@ -1,7 +1,0 @@
-###
-#! Outlier detection from population data II
-###
-# DSC file @@settings.yaml@@:
-#{out yaml
-output:///cat ../vignettes/outlier_snakemake/settings.yaml
-#}

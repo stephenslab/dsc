@@ -15,13 +15,7 @@
 # ""DSC sequence"" & ""DSC sequence operators"": A sequence of logical expression that defines how the DSC blocks should be connected with each other.
 # ""DSC variables"": The @@parameters@@ entry in the DSC section that defines variables to be accessed by DSC blocks (via @@$()@@ sigil).
 #}
-# You may glance over these DSC files to have an idea of DSC2 syntax. It is also recommended that you read the [DSC design|@Design-and-Features@] before diving into the details throughout the rest of the document.
-#{list
-# [Location parameter estimate I|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location/settings.yaml@] and [II|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location_qnorm/settings.yaml@]
-# [Adaptive Shrinkage|@https://github.com/stephenslab/dsc2/tree/master/vignettes/ash/settings.yaml@]
-# [Adaptive Shrinkage on variance|@https://github.com/stephenslab/dsc2/tree/master/vignettes/vash/settings.yaml@]
-# [Outlier detection from population data I|@https://github.com/stephenslab/dsc2/tree/master/vignettes/outlier_r/settings.yaml@] and [II|@https://github.com/stephenslab/dsc2/tree/master/vignettes/outlier_snakemake/settings.yaml@]
-#}
+# You may glance over some [sample DSC files|@Sample-DSC-Files@] to have an idea of DSC2 syntax. It is also recommended that you read the [DSC design|@Design-and-Features@] before diving into the details throughout the rest of the document.
 ###
 # DSC Block Parameters
 ###

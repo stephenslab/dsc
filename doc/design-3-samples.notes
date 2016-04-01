@@ -1,0 +1,11 @@
+###
+# Sample DSC files
+###
+# Here is a list of sample DSC files. Some of them are used in the [short course series|@Quick-Start@].
+#{list
+# [Location parameter estimate I|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location/settings.yaml@] and [II|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location_winsor/settings.yaml@]
+# [Adaptive Shrinkage|@https://github.com/stephenslab/dsc2/tree/master/vignettes/ash/settings.yaml@]
+# Adaptive Shrinkage on variance [version 1|@https://github.com/stephenslab/dsc2/tree/master/vignettes/vash/settings.yaml@] and [version 2|@https://github.com/stephenslab/dsc2/blob/master/vignettes/vash/settings_per_method.yaml@]
+## Version 2 is equivalent to version 1 but differ in style: unlike version 1 which organizes logically similar methods into the same block, version 2 keeps all methods in separate DSC blocks.
+# [Outlier detection from population data I|@https://github.com/stephenslab/dsc2/tree/master/vignettes/outlier_r/settings.yaml@] and [II|@https://github.com/stephenslab/dsc2/tree/master/vignettes/outlier_snakemake/settings.yaml@]
+#}

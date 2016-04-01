@@ -1,7 +1,0 @@
-###
-#! Outlier detection from population data I
-###
-# DSC file @@settings.yaml@@:
-#{out yaml
-output:///cat ../vignettes/outlier_r/settings.yaml
-#}
