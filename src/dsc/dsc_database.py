@@ -69,12 +69,13 @@ class MetaDB:
         For entries involving __input__, for each input, find the other entry with corresponding output and
         copy the parameters (except exec, __input__ and __output__) over.
         '''
-        for k in self.data.keys():
+        for k in list(self.data.keys()):
+            del self.data[k]['exec']
             for item in self.data[k]['__input__']:
                 idx = self.__search_output_idx(item)
                 if idx is None:
                     continue
-                for k1, v1 in self.data[idx].items():
+                for k1, v1 in list(self.data[idx].items()):
                     if k1 in ['exec', '__input__', '__output__']:
                         continue
                     if k1 in self.data[k] and self.data[k][k1] != v1:
@@ -85,9 +86,9 @@ class MetaDB:
         for k in self.data.keys():
             self.data[k]['__input__'] = '; '.join(self.data[k]['__input__'])
             self.data[k]['__output__'] = '; '.join(self.data[k]['__output__'])
-            # Convert string to list so that pandas merge can handle
+            # Convert string to list of strings so that pandas can merge and properly output
             for k1 in self.data[k]:
-                self.data[k][k1] = [self.data[k][k1]]
+                self.data[k][k1] = [str(self.data[k][k1])]
 
     def __merge(self):
         '''

@@ -129,6 +129,9 @@ class SQLiteMan:
             self.c.execute(_insert_tmpl, row)
 
         fo.close()
+        # Set all empty strings to null
+        for field in self.getFields(table):
+            self.c.execute('update {0} set {1} = NULL where {1} = ""'.format(table, field[0]))
         self.conn.commit()
         self.c.close()
 
@@ -198,12 +201,17 @@ class SQLiteMan:
             fields.append((item[1].lower(), item[2]))
         return sorted(fields)
 
-    def execute(self, query):
+    def execute(self, query, display = True, delimiter = ','):
+        text = ''
         for item in self.c.execute(query).fetchall():
             if len([x for x in item if x]) > 0:
-                print (','.join(map(str, item)))
+                text += delimiter.join(map(str, item)) + '\n'
         self.conn.commit()
         self.c.close()
+        text = text.strip()
+        if display:
+            print(text)
+        return text
 
     def load_extension(self, ext):
         try:

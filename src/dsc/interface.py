@@ -9,6 +9,7 @@ import sys, os, argparse
 from dsc import PACKAGE, VERSION
 from .workhorse import execute, query
 from .utils import Timer
+from pysos.utils import env, print_traceback
 
 def main():
     def add_common_args(obj):
@@ -34,12 +35,19 @@ def main():
     p = subparsers.add_parser('query', help = 'Explore DSC benchmark data',
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('dsc_db', metavar = "db", help = 'DSC database')
-    p.add_argument('-i', '--items', nargs = '*', help = 'Items to explore (SQLite functions supported).')
-    p.add_argument('-f', '--filter', nargs = '*', help = 'Filter criteria (in SQLite syntax).')
+    p.add_argument('-i', dest = 'items',
+                   nargs = '*', help = 'Items to display (SQLite functions supported).')
+    p.add_argument('-f', dest = 'filter',
+                   nargs = '*', help = 'Filter criteria (in SQLite syntax).')
+    p.add_argument('-d', dest = 'delimiter', default = '\t', help = 'Delimiter of output data.')
     p.set_defaults(func = query)
     args, argv = parser.parse_known_args()
     try:
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False) as t:
             args.func(args, argv)
     except Exception as e:
-        raise
+        if args.debug:
+            print_traceback()
+        else:
+            env.logger.error(e)
+        sys.exit(1)

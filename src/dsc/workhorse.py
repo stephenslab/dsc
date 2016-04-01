@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, shutil
+import os, sys, atexit, shutil, re
 from .utils import SQLiteMan
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
@@ -87,11 +87,31 @@ def execute(args, argv):
 
 def query(args, argv):
     s = SQLiteMan(args.dsc_db)
+    fields = s.getFields('DSC')
+    field_names = [item[0] for item in fields]
     if args.items is None:
         # show fields
-        print("\033[1mColumns in table 'DSC':\033[0m")
-        print ('\n'.join(['[{}] {}'.format(x[1], x[0]) for x in s.getFields('DSC')]))
+        env.logger.info("Columns in ``DSC``:")
+        print ('\n'.join(['[{}] \033[1m{}\033[0m'.format(x[1], x[0]) for x in fields]))
     else:
-        select_query = 'SELECT {} FROM DSC '.format(', '.join(args.items))
-        where_query = '' if args.filter is None else "WHERE {}".format(' '.join(args.filter))
-        s.execute(select_query + where_query)
+        select_query = 'SELECT {} FROM DSC'.format(', '.join(args.items))
+        where_query = '' if args.filter is None else "{}".format(' '.join(args.filter))
+        # make sure the items are all not NULL
+        fields_involved = []
+        for item in args.items:
+            # handle function
+            groups = re.search('\((.*?)\)', item)
+            if groups is not None:
+                item = groups.group(1)
+            #
+            if item in field_names:
+                fields_involved.append(item)
+        is_null_query = ' AND '.join(['{} IS NOT NULL'.format(item) for item in fields_involved])
+        where_query = ' AND '.join([item for item in (where_query, is_null_query) if item])
+        if where_query:
+            where_query = ' WHERE ' + where_query
+        text = s.execute(select_query + where_query, display = False, delimiter = args.delimiter)
+        if not text:
+            env.logger.warning('No results found. Please ensure queried parameters co-exists in the same DSC sequence.')
+        else:
+            print(text)
