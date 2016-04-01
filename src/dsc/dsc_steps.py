@@ -60,6 +60,9 @@ class DSCJobs(dotdict):
                 params = copy.deepcopy(block.params[0])
                 if (idx + 1) in list(block.params.keys()):
                    params.update(block.params[idx + 1])
+            # Handle seed here
+            if 'seed' in block.meta:
+                params['seed'] = block.meta['seed']
             return params
 
         def load_rules():

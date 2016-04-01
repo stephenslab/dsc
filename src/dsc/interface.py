@@ -35,12 +35,15 @@ def main():
     p = subparsers.add_parser('query', help = 'Explore DSC benchmark data',
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('dsc_db', metavar = "db", help = 'DSC database')
-    p.add_argument('-i', metavar = 'item', dest = 'items',
+    p.add_argument('-i', metavar = 'item', dest = 'items', default = [],
                    nargs = '*', help = 'Items to display (SQLite functions supported).')
-    p.add_argument('-f', metavar = 'filter', dest = 'filter',
+    p.add_argument('-f', metavar = 'filter', dest = 'filter', default = [],
                    nargs = '*', help = 'Filter criteria (in SQLite syntax).')
+    p.add_argument('-g', metavar = 'group_by', dest = 'group_by', default = [],
+                   nargs = '*', help = 'Items to form groups by which output will be reported.')
     p.add_argument('-d', metavar = 'delimiter', dest = 'delimiter',
                    default = '\t', help = 'Delimiter of output data.')
+    add_common_args(p)
     p.set_defaults(func = query)
     args, argv = parser.parse_known_args()
     try:

@@ -98,7 +98,7 @@ def query(args, argv):
         where_query = '' if args.filter is None else "{}".format(' '.join(args.filter))
         # make sure the items are all not NULL
         fields_involved = []
-        for item in args.items:
+        for item in args.items + args.group_by:
             # handle function
             groups = re.search('\((.*?)\)', item)
             if groups is not None:
@@ -110,7 +110,10 @@ def query(args, argv):
         where_query = ' AND '.join([item for item in (where_query, is_null_query) if item])
         if where_query:
             where_query = ' WHERE ' + where_query
-        text = s.execute(select_query + where_query, display = False, delimiter = args.delimiter)
+        group_query = ' GROUP BY ' + ', '.join(args.group_by) if args.group_by else ''
+        query = select_query + where_query + group_query
+        env.logger.debug(query)
+        text = s.execute(query, display = False, delimiter = args.delimiter)
         if not text:
             env.logger.warning('No results found. Please ensure queried parameters co-exists in the same DSC sequence.')
         else:
