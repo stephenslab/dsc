@@ -93,6 +93,7 @@ class MetaDB:
                 self.__search_dependent_idxes(item, data, idxes)
                 if len(idxes) == 0:
                     continue
+                print(idxes)
                 # all its dependent steps
                 for idx in idxes:
                     for k1, v1 in list(data[idx].items()):
