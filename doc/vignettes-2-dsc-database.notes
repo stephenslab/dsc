@@ -1,7 +1,7 @@
 ###
 #! Exploring DSC output
 ###
-# This is a continuation of [previous tutorial|@Quick-Start@]. Here we will focus on the output from DSC.
+# This is a continuation of [the Quick Start tutorial|@Quick-Start@]. Here we will focus on analyzing output from DSC.
 # A DSC file has an entry @@DSC::output@@ where a output name must be specified. In our case it is
 #{out yaml
 DSC:
@@ -13,7 +13,7 @@ DSC:
 # DSC database
 ###
 # File @@*.db@@ is DSC database in SQLite3 format. Users familiar with SQLite3 can interact with the database directly. Otherwise, DSC2 provides a simple command tool, @@dsc query@@, to explore the output.
-# Columns of the DSC database are all input parameters specified, plus ""return values with simple data structure of integer, float or string"". Complex return values such as vectors or matrices will not show in the DSC database. If the end result of your DSC is one or several numeric ``scores'' you should explicitly ``return'' them at their corresponding DSC blocks as single numeric values.
+# Columns of the DSC database consist of input parameters from all DSC blocks, plus ""return values which have simple data structure, i.e. integer, float or string"". Complex return values such as vectors or matrices will not show in the DSC database. Therefore, if the end result of your DSC is one or several numeric ``scores'', it is suggest that you explicitly ``return'' them at their corresponding DSC blocks as single numeric values so that they will be accessible from DSC database.
 # To view the column names in DSC database:
 dsc query dsc_result.db
 #{out
@@ -30,8 +30,8 @@ INFO: Columns in DSC:
 [integer] true_mean__rnorm_r
 [integer] true_mean__rt_r
 #}
-# Notice that the parameters from DSC file are renamed to @@<paramter name>__<exec name>@@, because different DSC blocks might have the same parameter names which can cause a conflict. Also there are two reserve column names @@__input__@@ and @@__output__@@ (will be discussed later).
-# Now, suppose we want to find out the performance of estimating location parameter using the "median" method, under data generated from "t" distribution (df = 2). The relevant columns are @@true_mean__rt_r@@ (@@simulation@@ block), @@mean__median_r@@ (@@estimate@@ block) and @@mse__mse_r@@ (@@mse@@ block). We can use the command below:
+# Notice that the parameters from DSC file are renamed to @@<paramter name>__<exec name>@@, because different DSC blocks might have the same parameter names which can cause conflicts. Also there are two reserve column names @@__input__@@ and @@__output__@@ (will be discussed later).
+# Now, suppose we want to find out the performance of location estimation via "median" method, under data generated from "t" distribution (df = 2). The relevant columns are @@true_mean__rt_r@@ (from @@simulation@@ block), @@mean__median_r@@ (from @@estimate@@ block) and @@mse__mse_r@@ (from @@mse@@ block). We can use the command below:
 dsc query dsc_result.db -i true_mean__rt_r mean__median_r mse__mse_r seed__rt_r
 #{out
 true_mean__rt_r	mean__median_r	mse__mse_r	seed__rt_r
@@ -57,15 +57,15 @@ true_mean__rt_r	mean__median_r	mse__mse_r	seed__rt_r
 1	0.9655083804502684	0.0011896718191634248	4
 #}
 # There are 10 rows for each @@true_mean@@ 0 or 1, due to the 10 seeds used. An additional column @@seed__rt_r@@ is added to the output to illustrate it. Often we are interested in averaged estimate over replicates. In this case we want to display the averaged location parameter estimate for @@true_mean@@ 0 or 1 as well as averaged error score, for example:
-dsc query dsc_result.db -i true_mean__rt_r 'avg(mean__median_r)' 'avg(mse__mse_r)' -g true_mean__rt_r
+dsc query dsc_result.db -i 'avg(mean__median_r)' 'avg(mse__mse_r)' -g true_mean__rt_r
 #{out
 true_mean__rt_r	avg(mean__median_r)	avg(mse__mse_r)
 0	-0.00748265254051096	0.0021355380239265268
 1	0.9925173474594888	0.0021355380239265224
 #}
-# Here @@avg()@@ is a SQLite [aggregate function|@https://www.sqlite.org/lang_aggfunc.html@] and @@-g@@ means to group values by specified column before applying any functions. You can use other SQLite aggregate function to data.
-# You can control the displayed precision of output using @@-p@@ option. For example to display up to 2 decimal points,
-dsc query dsc_result.db -i true_mean__rt_r 'avg(mean__median_r)' 'avg(mse__mse_r)' -g true_mean__rt_r -p 2
+# Here @@avg()@@ is a SQLite [aggregate function|@https://www.sqlite.org/lang_aggfunc.html@] and @@-g@@ means to group values by specified column before applying any functions. You can apply other aggregate functions to data.
+# Displayed precision of output can be controlled by @@-p@@ option. For example to display up to 2 decimal points,
+dsc query dsc_result.db -i 'avg(mean__median_r)' 'avg(mse__mse_r)' -g true_mean__rt_r -p 2
 #{out
 true_mean__rt_r	avg(mean__median_r)	avg(mse__mse_r)
 0	-7.48E-03	2.14E-03
@@ -74,7 +74,7 @@ true_mean__rt_r	avg(mean__median_r)	avg(mse__mse_r)
 ###
 # DSC database in text format
 ###
-# File @@dsc_result.csv.gz@@ contains the same information as @@dsc_result.db@@ in text format. This provides more flexibility to manipulate. For example with R:
+# File @@dsc_result.csv.gz@@ is a compressed text file containing the same information as @@dsc_result.db@@. This provides more flexibility to manipulate. For example to reproduce the results above with R:
 #{r
 > dat = read.table('dsc_result.csv.gz', sep = ',', header = T)
 > colnames(dat)
@@ -91,7 +91,12 @@ true_mean__rt_r	avg(mean__median_r)	avg(mse__mse_r)
 ###
 # Intermediate output files
 ###
-# The @@dsc_result@@ folder contains all output from DSC computational steps, specified by @@return@@ in each DSC block. For our example, there are 280 files in the folder:
+# The @@dsc_result@@ folder contains all output from DSC computational steps, specified by @@return@@ in each DSC block. These files are kept for two reasons:
+#{list
+# To serve as cache file so that a re-run can skip a step if their cached output matches cached runtime signature (in other words the cached output are up-to-date).
+# To provide possibilities to access all intermediate output if desired.
+#}
+# For our example, there are 280 files in the folder:
 #{out
 003529110d65280c370d6a9627780b9f.rds
 0083fdd52e04a0868fa68e4b5ccdfae1.rds
@@ -110,7 +115,7 @@ List of 2
  $ true_mean: num 0
 #}
 # It shows two variables: @@x@@, which is a vector of length 1000, and @@true_mean@@ equals 0. Apparently this data-set is the outcome if a step from @@simulation@@ block.
-# You can use the DSC database to figure out the input and output data for given computational step. For example, to find the output for simulation under "t" distribution with location parameter 0, you can use:
+# You can use the DSC database to figure out the input and output data for given computational step, and interact with them accordingly. For example, to find the output for simulation under "t" distribution with location parameter 0, you can use:
 dsc query dsc_result.db -i true_mean__rt_r __output__ seed__rt_r -f "include(*__rt_r)" "true_mean__rt_r = 0"
 #{out
 true_mean__rt_r	__output__	seed__rt_r

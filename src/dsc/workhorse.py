@@ -100,7 +100,7 @@ def query(args, argv):
         env.logger.info("Columns in ``DSC``:")
         print ('\n'.join(['[{}] \033[1m{}\033[0m'.format(x[1], x[0]) for x in fields]))
     else:
-        select_query = 'SELECT {} FROM DSC'.format(', '.join(args.items))
+        select_query = 'SELECT {} FROM DSC'.format(', '.join(args.group_by + args.items))
         where_query = flatten_list([x.split('AND') for x in args.filter])
         # handle exclude() and include()
         for idx, item in enumerate(where_query):
@@ -118,7 +118,6 @@ def query(args, argv):
                                     if compiled.search(x)
                                     else '{} IS NOT NULL'.format(x)
                                     for x in [y for y in field_names if not y.endswith('__')]])
-        print(where_query)
         where_query = ' AND '.join(where_query)
         # make sure the items are all not NULL
         fields_involved = []
@@ -141,5 +140,5 @@ def query(args, argv):
         if not text:
             env.logger.warning('No results found. If you are expecting otherwise, please ensure proper filter is applied and queried parameters co-exists in the same DSC sequence.')
         else:
-            print(args.delimiter.join(args.items if args.items != ['*'] else field_names))
+            print(args.delimiter.join(args.group_by + (args.items if args.items != ['*'] else field_names)))
             round_print(text, args.delimiter, pc = args.precision)
