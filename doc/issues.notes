@@ -8,25 +8,23 @@
 ###
 #! TODO
 #{list
-# Handle multiple sequences
-# Auto install R library
 # Get 3 examples to work: ashr, one sample location I and II
 ## complete their vignettes
 # Documentation: a short course on dsc2, based on examples in vignettes
 ## Example vignettes should be well written
-# Export in dryrun mode
-# Reset parameters via command options
 # Release version 0.1.0 via pip
 # Unit-tests:
 ## Parameter @@seed@@ name conflict
 ## Parameter cannot start with '_' or '.'
 # Get vash work
+# Reset parameters via command options
 # Get command based system work
 ## File() operator allow for suffix only. Prefix by MD5 anyways. File(*.xxx, *.yyy)
+# Export in dryrun mode (UPSTREAM)
 # On the fly mode, via .option (??)
 # YAML parser look for duplicate entries and keyword conflicts
-# Real parallel
-# Cluster
+# Real parallel (UPSTREAM)
+# Cluster (UPSTREAM)
 # Possibly a web server that will help greatly in boosting its popularity (Nan)?
 #}
 #! Hard TODO
@@ -36,6 +34,17 @@
 ###
 # Resolved
 ###
+#! Done
+#{list
+# Formal documentations
+# Parameter by natural groups
+# Implement @@dsc view@@ for extracting data from results
+## for source codes, parameters, input and output
+# Embarrassing parallel
+# Possible to execute only subset DSC sections, from command line [bad design, not done]
+# Handle multiple sequences
+# Auto install R library
+#}
 #! DSC interface design thoughts
 #{list
 # Make fake dsc configs for Matthew (dsc_shrink), Mengyin, Wei and Ben's existing dsc routines
@@ -102,13 +111,4 @@
 # How to output results?
 ## PrettyPrint for param DB, and a wrapper of ddls for results DB. wrapper because it has to dump data in both python and R formats ...
 # Important detail to handle: interaction with R. Should be least painful (for users) and most efficient (for interfacing)
-#}
-#! Done
-#{list
-# Formal documentations
-# Parameter by natural groups
-# Implement @@dsc view@@ for extracting data from results
-## for source codes, parameters, input and output
-# Embarrassing parallel
-# Possible to execute only subset DSC sections, from command line [bad design, not done]
 #}

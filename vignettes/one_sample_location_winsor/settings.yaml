@@ -1,6 +1,6 @@
 simulate:
     exec: rt.R, rcauchy.R
-    seed: R(1:10)
+    seed: R(1:5)
     params:
         n: 1000
         true_loc: 0, 1

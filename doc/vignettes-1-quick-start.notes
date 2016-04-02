@@ -9,7 +9,7 @@
 
 # The DSC problem is to assess location parameter estimation methods via simulation studies. We will simulate data under normal distribution and "t" distribution with 2 degrees of freedom; then estimate the location parameter using mean and median, and finally compare the performance of estimators by computing the difference between the estimate and the underlying parameter. The problem is fully specified in DSC2 language below:
 #{out yaml
-output:///cat ../vignettes/one_sample_location/settings.yaml
+file:///../vignettes/one_sample_location/settings.yaml
 #}
 # All computational routines in this DSC are R scripts (each with one line of code!), located in directories as specified in the @@DSC::exec_path@@ entry of the configuration file. Contents of these R scripts are:
 #{out r

@@ -317,10 +317,9 @@ run: simulate * sqrt * RUV * DESeq * score,
 #{list
 # @@parameters@@: Defines DSC variables which can be used anywhere in the DSC file through @@$()@@ sigil.
 # @@exec_path@@: search path for executable files.
-# @@R_libs@@: required R libraries, from cran, bioconductor or github. The following specifications are allowed.
-## @@name@@: DSC will first attempt to find it from cran, then bioconductor.
-## @@cran/name/version@@: DSC will install given package with given version from cran.
-## @@bioc/name@@: DSC will install the package from bioconductor.
-## @@github/repo/name@@: DSC will install given package from given repository on github.
+# @@R_libs@@: required R libraries, from cran, bioconductor or github:
+## @@package@@: DSC will check / install @@package@@ from cran or bioconductor.
+## @@github_repo/package@@: DSC will install @@package@@ from @@github_repo@@ on github.
+## @@package (version[s])@@: DSC will install @@package@@ and check version as required. A warning message will be generated if version do not match. It is possible to specify several versions such as @@edgeR (3.12.0, 3.12.1)@@ or simply @@edgeR (3.12.0+)@@.
 # @@work_dir@@: work directory where DSC runs take place.
 #}

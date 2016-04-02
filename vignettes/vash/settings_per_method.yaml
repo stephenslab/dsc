@@ -86,8 +86,8 @@ DSC:
           (SVA, RUV, myrna) * voom * limma,
           (edgeR, DESeq2)) *
          score
-    R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue, mixash, github/mengyin/vash, limma,
-            bioc/edgeR, RUVSeq, sva, data.table, DESeq
+    R_libs: stephens999/ashr (1.0.0+), DESeq2, qvalue, mixash, mengyin/vash, limma,
+            edgeR (3.12.0+), RUVSeq, sva, data.table, DESeq
     exec_path: bin
     work_dir: gtex_total
     parameters:

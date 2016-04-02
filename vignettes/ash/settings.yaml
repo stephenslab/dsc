@@ -28,6 +28,6 @@ DSC:
     run: simulate *
          shrink *
          RMSE
-    R_libs: github/stephens999/ashr
+    R_libs: stephens999/ashr (1.0.0+)
     exec_path: bin
     output: ash

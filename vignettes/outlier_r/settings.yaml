@@ -60,8 +60,7 @@ DSC:
     run: (simulate_1, simulation_2) *
          outlier_test *
          TF_positive
-    R_libs: mvtnorm, ape, MASS, Matrix,
-            github/StoreyLab/lfa
+    R_libs: mvtnorm, ape, MASS, Matrix, StoreyLab/lfa
     exec_path: bin
     work_dir: outlier
     parameters:

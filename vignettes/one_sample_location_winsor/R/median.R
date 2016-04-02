@@ -1,1 +1,1 @@
-mean = median(x)
+loc = median(x)

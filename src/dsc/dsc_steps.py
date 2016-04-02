@@ -12,7 +12,7 @@ from pysos import check_command
 from pysos.utils import Error, env
 from dsc import VERSION
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
-     cartesian_list, merge_lists
+     cartesian_list, merge_lists, install_r_libs
 
 class StepError(Error):
     """Raised when Step parameters are illegal."""
@@ -39,6 +39,7 @@ class DSCJobs(dotdict):
     def __init__(self, data):
         self.output_prefix = data.DSC['output'][0]
         self.default_workdir = data.DSC['work_dir'][0]
+        install_r_libs(try_get_value(data.DSC, ('R_libs')))
         # sequences in action, logically ordered
         self.ordering = self.__merge_sequences(data.DSC['run'])
         self.raw_data = {}

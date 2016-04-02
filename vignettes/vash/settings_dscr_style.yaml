@@ -50,8 +50,8 @@ score:
 
 DSC:
     run: scenario * method * score
-    R_libs: github/stephens999/ashr, bioc/DESeq2, bioc/qvalue/3.2, mixash, github/mengyin/vash, limma,
-            edgeR, RUVSeq, sva, data.table, DESeq
+    R_libs: stephens999/ashr (1.0.0+), DESeq2, qvalue, mixash, mengyin/vash, limma,
+        edgeR (3.12.0+), RUVSeq, sva, data.table, DESeq
     exec_path: bin
     work_dir: vash
     parameters:

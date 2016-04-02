@@ -11,6 +11,7 @@ from difflib import SequenceMatcher
 from io import StringIO
 import rpy2.robjects as RO
 from pysos.utils import env
+from pysos.actions import check_R_library
 
 SQL_KEYWORDS = set([
     'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
@@ -546,3 +547,15 @@ def round_print(text, sep, pc = None):
                 except:
                     pass
         print (sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x) for x in line]).strip())
+
+def install_r_libs(libs):
+    if libs is None:
+        return
+    for value in libs:
+        groups = re.search('(.*?)\((.*?)\)', value)
+        if groups is not None:
+            value = groups.group(1).strip()
+            versions = [x.strip() for x in groups.group(2).split(',')]
+        else:
+            versions = None
+        check_R_library(value, versions)

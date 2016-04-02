@@ -1,0 +1,47 @@
+###
+#! Multiple DSC sequences
+###
+# This is a slightly modified version of [the Quick Start tutorial|@Quick-Start@] to show the use of multiple sequences in DSC. Material used in this document can be found in [DSC2 vignettes repo|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location_winsor@].
+###
+# DSC specification
+###
+# The DSC problem is similar to what we have previously worked on, i.e. comparison of location parameter estimation methods. This time we simulate data under "t" distribution (df = 2) and Cauchy distribution. Then before estimating location parameter using mean or median method, there is an optional @@transform@@ step where we provide two methods for "Winsorization". This results in two possible DSC sequences:
+#{list
+# simulate -> estimate -> score
+# simulate -> transform -> estimate -> score
+#}
+# The DSC problem is fully specified as:
+#{out yaml
+file:///../vignettes/one_sample_location_winsor/settings.yaml
+#}
+# where computational routines in @@transform@@ block are:
+#{r
+output:///find ../vignettes/one_sample_location_winsor/R/ -name "winsor*.R" -type f -exec tail -n+1 {} +
+#}
+###
+# Run DSC
+###
+# To execute the DSC on a computer using 8 CPU threads,
+dsc execute settings.yaml -j8
+#{out
+INFO: Constructing DSC from settings.yaml ...
+INFO: Running DSC jobs ...
+simulate_1+transform_1+estimate_1+mse_1: 100% [===============] 4 0.7/s in 00:00:05
+simulate_1+transform_1+estimate_2+mse_1: 100% [===============] 4 1.5/s in 00:00:02
+simulate_1+transform_2+estimate_1+mse_1: 100% [===============] 4 2.8/s in 00:00:01
+simulate_1+transform_2+estimate_2+mse_1: 100% [==============] 4 67.9/s in 00:00:00
+simulate_2+transform_1+estimate_1+mse_1: 100% [===============] 4 0.7/s in 00:00:05
+simulate_2+transform_1+estimate_2+mse_1: 100% [===============] 4 1.5/s in 00:00:02
+simulate_2+transform_2+estimate_1+mse_1: 100% [===============] 4 2.9/s in 00:00:01
+simulate_2+transform_2+estimate_2+mse_1: 100% [==============] 4 70.3/s in 00:00:00
+DSC: 100% [===================================================] 8 0.4/s in 00:00:19
+simulate_1+estimate_1+mse_1: 100% [==========================] 3 67.0/s in 00:00:00
+simulate_1+estimate_2+mse_1: 100% [==========================] 3 69.8/s in 00:00:00
+simulate_2+estimate_1+mse_1: 100% [==========================] 3 66.4/s in 00:00:00
+simulate_2+estimate_2+mse_1: 100% [==========================] 3 70.9/s in 00:00:00
+DSC: 100% [==================================================] 4 18.8/s in 00:00:00
+INFO: Building summary database dsc_result.csv.gz & dsc_result.db ...
+INFO: DSC complete!
+INFO: Elapsed time 21.218 seconds.
+#}
+# It can be recognized from the output that two DSC sequence are executed, as expected.
