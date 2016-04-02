@@ -100,6 +100,8 @@ def query(args, argv):
         env.logger.info("Columns in ``DSC``:")
         print ('\n'.join(['[{}] \033[1m{}\033[0m'.format(x[1], x[0]) for x in fields]))
     else:
+        args.items = [x.lower() for x in args.items]
+        args.group_by = [x.lower() for x in args.group_by]
         select_query = 'SELECT {} FROM DSC'.format(', '.join(args.group_by + args.items))
         where_query = flatten_list([x.split('AND') for x in args.filter])
         # handle exclude() and include()
@@ -121,7 +123,7 @@ def query(args, argv):
         where_query = ' AND '.join(where_query)
         # make sure the items are all not NULL
         fields_involved = []
-        for item in args.items + args.group_by:
+        for item in args.group_by + args.items:
             # handle function
             groups = re.search('\((.*?)\)', item)
             if groups is not None:

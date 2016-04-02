@@ -7,6 +7,7 @@ __license__ = "MIT"
 import sys, os, random, copy, re, itertools,\
   yaml, collections, hashlib, time, sqlite3,\
   csv
+from difflib import SequenceMatcher
 from io import StringIO
 import rpy2.robjects as RO
 from pysos.utils import env
@@ -306,6 +307,28 @@ def uniq_list(seq):
     seen_add = seen.add
     return [x for x in seq if not (x in seen or seen_add(x))]
 
+def merge_lists(seq1, seq2):
+    '''
+    >>> keys1 = ['A', 'B', 'C', 'D', 'E',           'H', 'I']
+    >>> keys2 = ['A', 'B',           'E', 'F', 'G', 'H',      'J', 'K']
+    >>> merge_lists(keys1, keys2)
+    ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+    '''
+    sm = SequenceMatcher(a=seq1,b=seq2)
+    res = []
+    for (op, start1, end1, start2, end2) in sm.get_opcodes():
+        if op == 'equal' or op=='delete':
+            #This range appears in both sequences, or only in the first one.
+            res += seq1[start1:end1]
+        elif op == 'insert':
+            #This range appears in only the second sequence.
+            res += seq2[start2:end2]
+        elif op == 'replace':
+            #There are different ranges in each sequence - add both.
+            res += seq1[start1:end1]
+            res += seq2[start2:end2]
+    return res
+
 def get_slice(value, all_tuple = True, mismatch_quit = True):
     '''
     Input string is R index style: 1-based, end position inclusive slicing
@@ -488,8 +511,8 @@ def sos_paired_input(values):
     the lists are ordered such that the length of the
     2nd list is always multiples of the previous list.
     The way lists are supposed to be combined is:
-    ABCD              AABBCCDD
-    ABCDEFGH -------> ABCDEFGH ------> AABBCCDDABCDEFGH
+    ABCD              ABCDABCD
+    ABCDEFGH -------> ABCDEFGH ------> ABCDABCDABCDEFGH
     '''
     if len(values) != 2:
         raise ValueError("Input must be a pair of vectors!")
@@ -499,7 +522,7 @@ def sos_paired_input(values):
         raise ValueError('Length of the 2nd list must be multiple of the 1st.')
     else:
         multiplier = int(multiplier)
-    values[0] = flatten_list([[x for y in range(multiplier)] for x in values[0]])
+    values[0] = flatten_list([values[0] for y in range(multiplier)])
     return flatten_list(values)
 
 readRDS = RO.r['readRDS']

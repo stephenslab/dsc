@@ -11,12 +11,65 @@ mean = psych::winsor.mean(x, trim = trim, na.rm = TRUE)
 #{out yaml
 output:///cat ../vignettes/one_sample_location/settings_add_method_v1.yaml 9 15
 #}
-# Note that we appended the new executable @@winsor.R@@ to the `exe` entry, along with an executable specific parameter specification in the @@params@@ section to assign two possible values to @@trim@@ which essentially provides two versions of Winsorization for comparison.
+# Note that we appended the new executable @@winsor.R@@ to the @@exe@@ entry, along with an executable specific parameter specification in the @@params@@ section to assign two possible values to @@trim@@ which essentially provides two versions of Winsorization for comparison.
 dsc execute settings_add_method_v1.yaml -j8
-
+#{out
+INFO: Constructing DSC from settings_add_method_v1.yaml ...
+INFO: Running DSC jobs ...
+simulate_1+estimate_1+mse_1: 100% [==========================] 3 46.0/s in 00:00:00
+simulate_1+estimate_2+mse_1: 100% [==========================] 3 47.7/s in 00:00:00
+simulate_1+estimate_3+mse_1: 100% [===========================] 3 0.6/s in 00:00:05
+simulate_2+estimate_1+mse_1: 100% [==========================] 3 45.9/s in 00:00:00
+simulate_2+estimate_2+mse_1: 100% [==========================] 3 46.0/s in 00:00:00
+simulate_2+estimate_3+mse_1: 100% [===========================] 3 0.6/s in 00:00:05
+DSC: 100% [===================================================] 6 0.6/s in 00:00:10
+INFO: Building summary database dsc_result.csv.gz & dsc_result.db ...
+INFO: DSC complete!
+INFO: Elapsed time 13.018 seconds.
+#}
+# Notice the elapsed time. Compared to 16.612 seconds in [Quick Start|@Quick-Start#run-dsc@], the updated DSC has more computational steps but the time consumption is less. This is because DSC2 can make use of cache and execute only the newly added steps. Elapsed time is 30.094 seconds if no cache is used (via @@-f@@ option, command not shown here).
+# To view performance of @@winsor.R@@
+dsc query dsc_result.db -i 'avg(mean__winsor_r)' 'avg(mse__mse_r)' -g true_mean__rt_r trim__winsor_r
+true_mean__rt_r	trim__winsor_r	avg(mean__winsor_r)	avg(mse__mse_r)
+#{out
+true_mean__rt_r	trim__winsor_r	avg(mean__winsor_r)	avg(mse__mse_r)
+0	0.1	0.011600901288395731	0.0030491268083184544
+0	0.2	0.0038971257264875858	0.003171012342958742
+1	0.1	1.0116009012883957	0.0030491268083184557
+1	0.2	1.0038971257264877	0.003171012342958741
+#}
 #! Add a new block
-# We keep the `estimate` block the same but we add a new block `estimate_winsor`, and modify the ""run"" sequence in the DSC section to use this new block:
+# Here we show an alternative flavor to update the existing DSC file: we keep the @@estimate@@ block as is but add a new block @@estimate_winsor@@, and modify the ""run"" sequence in the DSC section to include this new block:
 #{out yaml
-output:///cat ../vignettes/one_sample_location/settings_add_method_v2.yaml
+output:///cat ../vignettes/one_sample_location/settings_add_method_v2.yaml 9 20
+...
+output:///cat ../vignettes/one_sample_location/settings_add_method_v2.yaml 29 32
+...
 #}
 # In the ""run"" sequence, the previous `estimate` and the new `estimate_winsor` blocks will be executed in parallel to each other, both taking input from `simulate` block and generating output for `mse` block.
+# To run this version,
+dsc execute settings_add_method_v2.yaml -j8
+#{out
+INFO: Constructing DSC from settings_add_method_v2.yaml ...
+INFO: Running DSC jobs ...
+simulate_1+estimate_1+mse_1: 100% [==========================] 3 48.3/s in 00:00:00
+simulate_1+estimate_2+mse_1: 100% [==========================] 3 48.8/s in 00:00:00
+simulate_2+estimate_1+mse_1: 100% [==========================] 3 50.3/s in 00:00:00
+simulate_2+estimate_2+mse_1: 100% [==========================] 3 48.6/s in 00:00:00
+DSC: 100% [==================================================] 4 14.3/s in 00:00:00
+simulate_1+estimate_winsor_1+mse_1: 100% [====================] 3 1.4/s in 00:00:02
+simulate_2+estimate_winsor_1+mse_1: 100% [====================] 3 1.4/s in 00:00:02
+DSC: 100% [===================================================] 2 0.5/s in 00:00:04
+INFO: Building summary database dsc_result.csv.gz & dsc_result.db ...
+INFO: DSC complete!
+INFO: Elapsed time 6.890 seconds.
+#}
+# The result is identical to that from previous section:
+dsc query dsc_result.db -i 'avg(mean__winsor_r)' 'avg(mse__mse_r)' -g true_mean__rt_r trim__winsor_r
+#{out
+true_mean__rt_r	trim__winsor_r	avg(mean__winsor_r)	avg(mse__mse_r)
+0	0.1	0.011600901288395733	0.0030491268083184544
+0	0.2	0.0038971257264875853	0.0031710123429587412
+1	0.1	1.0116009012883957	0.0030491268083184552
+1	0.2	1.0038971257264877	0.00317101234295874
+#}
