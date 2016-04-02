@@ -171,7 +171,10 @@ class DSCJobs(dotdict):
                     return_r = res[curr_idx][0]['return_r']
                 except ValueError:
                     pass
-                curr_idx = curr_idx - 1
+                if dependence is not None:
+                    break
+                else:
+                    curr_idx = curr_idx - 1
             if dependence is None:
                 raise StepError('Cannot find return value for ``${}`` in any of its previous steps.'.format(value))
             if dependence not in raw_data[item][step_idx]['input_depends']:
