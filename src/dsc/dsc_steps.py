@@ -209,6 +209,8 @@ class DSCJobs(dotdict):
                         raw_data[item][step_idx]['parameters'][k] = values
                 if len(raw_data[item][step_idx]['parameters']) == 0:
                     del raw_data[item][step_idx]['parameters']
+                # sort input depends
+                raw_data[item][step_idx]['input_depends'].sort(key = lambda x: self.ordering.index(x[0]))
             res.append(raw_data[item])
         return res
 

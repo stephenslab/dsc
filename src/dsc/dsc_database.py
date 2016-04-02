@@ -5,8 +5,10 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, yaml, gzip
 import pandas as pd
+from copy import deepcopy
 from pysos.utils import Error, env
-from .utils import dict2str, load_rds, SQLiteMan
+from .utils import load_rds, SQLiteMan
+from pprint import pprint
 
 class MetaDBError(Error):
     """Raised when there is a problem building the database."""
@@ -69,14 +71,23 @@ class MetaDB:
         For entries involving __input__, for each input, find the other entry with corresponding output and
         copy the parameters (except exec, __input__ and __output__) over.
         '''
+        def search_output_idx(output):
+            '''Input is output string, output is data ID'''
+            for kk in data.keys():
+                if output in data[kk]['__output__']:
+                    return kk
+            return None
+        #
         for k in list(self.data.keys()):
             del self.data[k]['exec']
+        data = deepcopy(self.data)
+        for k in list(self.data.keys()):
             for item in self.data[k]['__input__']:
-                idx = self.__search_output_idx(item)
+                idx = search_output_idx(item)
                 if idx is None:
                     continue
-                for k1, v1 in list(self.data[idx].items()):
-                    if k1 in ['exec', '__input__', '__output__']:
+                for k1, v1 in list(data[idx].items()):
+                    if k1 in ['__input__', '__output__']:
                         continue
                     if k1 in self.data[k] and self.data[k][k1] != v1:
                         raise MetaDBError('Conflicting key ``{0}`` between section ``{1} (value {3})`` and ``{2} (value {4})``.'.\
@@ -110,13 +121,6 @@ class MetaDB:
         self.data.reindex(columns = cols).to_csv('{}.csv.gz'.format(self.name), index = False,
                                                  compression = 'gzip')
         SQLiteMan('{}.db'.format(self.name)).convert(gzip.open('{}.csv.gz'.format(self.name), mode = 'rt'), 'DSC', ',', None, True)
-
-    def __search_output_idx(self, output):
-        '''Input is output string, output is data ID'''
-        for kk in self.data.keys():
-            if output in self.data[kk]['__output__']:
-                return kk
-        return None
 
     def build(self):
         self.__load_parameters()

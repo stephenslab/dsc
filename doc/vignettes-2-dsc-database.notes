@@ -32,29 +32,29 @@ INFO: Columns in DSC:
 #}
 # Notice that the parameters from DSC file are renamed to @@<paramter name>__<exec name>@@, because different DSC blocks might have the same parameter names which can cause conflicts. Also there are two reserve column names @@__input__@@ and @@__output__@@ (will be discussed later).
 # Now, suppose we want to find out the performance of location estimation via "median" method, under data generated from "t" distribution (df = 2). The relevant columns are @@true_mean__rt_r@@ (from @@simulation@@ block), @@mean__median_r@@ (from @@estimate@@ block) and @@mse__mse_r@@ (from @@mse@@ block). We can use the command below:
-dsc query dsc_result.db -i true_mean__rt_r mean__median_r mse__mse_r seed__rt_r
+dsc query dsc_result.db -i true_mean__rt_r seed__rt_r mean__median_r mse__mse_r
 #{out
-true_mean__rt_r	mean__median_r	mse__mse_r	seed__rt_r
-0	0.04460403758729076	0.0019895201690884466	1
-1	1.1020533254277036	0.010414881230852779	2
-1	0.9946305530403048	2.883096065298016e-05	8
-1	0.9364427562019959	0.0040395232391989295	3
-1	1.0446040375872907	0.001989520169088442	1
-0	-0.018833868071737606	0.0003547145865436172	5
-0	-0.005369446959695264	2.8830960652980717e-05	8
-1	0.9979991546261588	4.003382210021545e-06	7
-0	0.10205332542770379	0.010414881230852813	2
-1	0.9643923455093992	0.0012679050583220013	6
-0	-0.06355724379800415	0.004039523239198936	3
-0	-0.021656831005702114	0.0004690183292095404	9
-0	-0.03560765449060073	0.0012679050583219982	6
-0	-0.002000845373841088	4.0033822100212835e-06	7
-1	0.9811661319282624	0.0003547145865436167	5
-1	0.9783431689942979	0.0004690183292095419	9
-0	-0.03449161954973155	0.001189671819163424	4
-0	-0.03996637917079164	0.001597311464023488	10
-1	0.9600336208292084	0.0015973114640234847	10
-1	0.9655083804502684	0.0011896718191634248	4
+true_mean__rt_r	seed__rt_r	mean__median_r	mse__mse_r
+0	1	0.04460403758729076	0.0019895201690884466
+0	2	0.10205332542770379	0.010414881230852813
+0	3	-0.06355724379800415	0.004039523239198936
+0	4	-0.03449161954973155	0.001189671819163424
+0	5	-0.018833868071737606	0.0003547145865436172
+0	6	-0.03560765449060073	0.0012679050583219982
+0	7	-0.002000845373841088	4.0033822100212835e-06
+0	8	-0.005369446959695264	2.8830960652980717e-05
+0	9	-0.021656831005702114	0.0004690183292095404
+0	10	-0.03996637917079164	0.001597311464023488
+1	1	1.0446040375872907	0.001989520169088442
+1	2	1.1020533254277036	0.010414881230852779
+1	3	0.9364427562019959	0.0040395232391989295
+1	4	0.9655083804502684	0.0011896718191634248
+1	5	0.9811661319282624	0.0003547145865436167
+1	6	0.9643923455093992	0.0012679050583220013
+1	7	0.9979991546261588	4.003382210021545e-06
+1	8	0.9946305530403048	2.883096065298016e-05
+1	9	0.9783431689942979	0.0004690183292095419
+1	10	0.9600336208292084	0.0015973114640234847
 #}
 # There are 10 rows for each @@true_mean@@ 0 or 1, due to the 10 seeds used. An additional column @@seed__rt_r@@ is added to the output to illustrate it. Often we are interested in averaged estimate over replicates. In this case we want to display the averaged location parameter estimate for @@true_mean@@ 0 or 1 as well as averaged error score, for example:
 dsc query dsc_result.db -i 'avg(mean__median_r)' 'avg(mse__mse_r)' -g true_mean__rt_r
@@ -116,18 +116,18 @@ List of 2
 #}
 # It shows two variables: @@x@@, which is a vector of length 1000, and @@true_mean@@ equals 0. Apparently this data-set is the outcome if a step from @@simulation@@ block.
 # You can use the DSC database to figure out the input and output data for given computational step, and interact with them accordingly. For example, to find the output for simulation under "t" distribution with location parameter 0, you can use:
-dsc query dsc_result.db -i true_mean__rt_r __output__ seed__rt_r -f "include(*__rt_r)" "true_mean__rt_r = 0"
+dsc query dsc_result.db -i true_mean__rt_r seed__rt_r __output__ -f "include(*__rt_r)" "true_mean__rt_r = 0"
 #{out
-true_mean__rt_r	__output__	seed__rt_r
-0	9b44bd1e9a4e3c12ca19b11ef26c7a46	9
-0	263295362267da4be44a5afcceb4174f	1
-0	f36a974149b06737ca03d1c6f6538a47	6
-0	b5ecc2bd8771480c10f7e2318e1d2f4b	8
-0	b2b699414663552b43e49721739dbdca	2
-0	78e35abad8bceef8050c9c69a4e82dd5	4
-0	3b399694fbc20a365e9a151f130f8cde	10
-0	c89f1d907020a06b5612c39cf5896524	3
-0	ae8683f2db25066a1fb7f36bd7a2302a	5
-0	72805cc3daab18ce0896a6dc097187b1	7
+true_mean__rt_r	seed__rt_r	__output__
+0	1	263295362267da4be44a5afcceb4174f
+0	2	b2b699414663552b43e49721739dbdca
+0	3	c89f1d907020a06b5612c39cf5896524
+0	4	78e35abad8bceef8050c9c69a4e82dd5
+0	5	ae8683f2db25066a1fb7f36bd7a2302a
+0	6	f36a974149b06737ca03d1c6f6538a47
+0	7	72805cc3daab18ce0896a6dc097187b1
+0	8	b5ecc2bd8771480c10f7e2318e1d2f4b
+0	9	9b44bd1e9a4e3c12ca19b11ef26c7a46
+0	10	3b399694fbc20a365e9a151f130f8cde
 #}
 # The output file name prefix identified here correspond to those RDS files in @@dsc_results@@ directory. We use a special function @@include()@@ because we want to focus on output generated by executable @@rt.R@@. We also provide a special function @@exclude()@@ which will exclude columns with the pattern specified. Only wildcard character @@*@@ is supported in these special functions.
