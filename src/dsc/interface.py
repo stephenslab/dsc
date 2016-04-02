@@ -38,11 +38,14 @@ def main():
     p.add_argument('-i', metavar = 'item', dest = 'items', default = [],
                    nargs = '*', help = 'Items to display (SQLite functions supported).')
     p.add_argument('-f', metavar = 'filter', dest = 'filter', default = [],
-                   nargs = '*', help = 'Filter criteria (in SQLite syntax).')
+                   nargs = '*', help = '''Filter criteria (in SQLite syntax,
+                   plus two special functions "exclude" and "include").''')
     p.add_argument('-g', metavar = 'group_by', dest = 'group_by', default = [],
                    nargs = '*', help = 'Items to form groups by which output will be reported.')
     p.add_argument('-d', metavar = 'delimiter', dest = 'delimiter',
                    default = '\t', help = 'Delimiter of output data.')
+    p.add_argument('-p', metavar = 'precision', dest = 'precision',
+                   help = 'Controls displayed precision of float numbers.')
     add_common_args(p)
     p.set_defaults(func = query)
     args, argv = parser.parse_known_args()

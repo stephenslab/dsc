@@ -54,6 +54,7 @@ for item in "${_input}".split():
             title = f.readlines()[0].replace('#', '').strip()
         except IndexError:
             print('Cannot find title for {}'.format(item))
+            continue
     os.remove('.tmp.md')
     filename = title.replace(':', '').replace(' ', '-')
     res[section].append('* [[{}|{}]]'.format(title, filename))

@@ -491,3 +491,19 @@ readRDS = RO.r['readRDS']
 def load_rds(filename):
     rds = readRDS(filename)
     return dict(zip(rds.names, map(list, list(rds))))
+
+def round_print(text, sep, pc = None):
+    if pc is None:
+        print(text)
+        return
+    for line in text.split('\n'):
+        line = line.rstrip().split(sep)
+        for i in range(len(line)):
+            try:
+                line[i] = int(line[i])
+            except:
+                try:
+                    line[i] = float(line[i])
+                except:
+                    pass
+        print (sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x) for x in line]).strip())

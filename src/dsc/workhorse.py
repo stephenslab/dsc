@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import os, sys, atexit, shutil, re
-from .utils import SQLiteMan
+from .utils import SQLiteMan, round_print, flatten_list
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import MetaDB
@@ -91,6 +91,7 @@ def execute(args, argv):
     env.logger.info("DSC complete!")
 
 def query(args, argv):
+    env.verbosity = args.verbosity
     s = SQLiteMan(args.dsc_db)
     fields = s.getFields('DSC')
     field_names = [item[0] for item in fields]
@@ -100,7 +101,25 @@ def query(args, argv):
         print ('\n'.join(['[{}] \033[1m{}\033[0m'.format(x[1], x[0]) for x in fields]))
     else:
         select_query = 'SELECT {} FROM DSC'.format(', '.join(args.items))
-        where_query = '' if args.filter is None else "{}".format(' '.join(args.filter))
+        where_query = flatten_list([x.split('AND') for x in args.filter])
+        # handle exclude() and include()
+        for idx, item in enumerate(where_query):
+            groups = re.search('^include\((.*?)\)$', item.lower())
+            if groups is not None:
+                compiled = re.compile(groups.group(1).replace('*', '(.*?)'))
+                where_query[idx] = ' AND '.join(['{} IS NOT NULL'.format(x)
+                                    if compiled.search(x)
+                                    else '{} IS NULL'.format(x)
+                                    for x in [y for y in field_names if not y.endswith('__')]])
+            groups = re.search('^exclude\((.*?)\)$', item.lower())
+            if groups is not None:
+                compiled = re.compile(groups.group(1).replace('*', '(.*?)'))
+                where_query[idx] = ' AND '.join(['{} IS NULL'.format(x)
+                                    if compiled.search(x)
+                                    else '{} IS NOT NULL'.format(x)
+                                    for x in [y for y in field_names if not y.endswith('__')]])
+        print(where_query)
+        where_query = ' AND '.join(where_query)
         # make sure the items are all not NULL
         fields_involved = []
         for item in args.items + args.group_by:
@@ -120,6 +139,7 @@ def query(args, argv):
         env.logger.debug(query)
         text = s.execute(query, display = False, delimiter = args.delimiter)
         if not text:
-            env.logger.warning('No results found. Please ensure queried parameters co-exists in the same DSC sequence.')
+            env.logger.warning('No results found. If you are expecting otherwise, please ensure proper filter is applied and queried parameters co-exists in the same DSC sequence.')
         else:
-            print(text)
+            print(args.delimiter.join(args.items if args.items != ['*'] else field_names))
+            round_print(text, args.delimiter, pc = args.precision)
