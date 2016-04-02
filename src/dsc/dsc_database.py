@@ -79,8 +79,8 @@ class MetaDB:
                     if k1 in ['exec', '__input__', '__output__']:
                         continue
                     if k1 in self.data[k] and self.data[k][k1] != v1:
-                        raise MetaDBError('Conflicting key ``{}`` between section ``{}`` and ``{}``.'.\
-                                          format(k1, k, idx))
+                        raise MetaDBError('Conflicting key ``{0}`` between section ``{1} (value {3})`` and ``{2} (value {4})``.'.\
+                                          format(k1, k, idx, self.data[k][k1], v1))
                     else:
                         self.data[k][k1] = v1
         for k in self.data.keys():

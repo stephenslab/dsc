@@ -484,7 +484,23 @@ def registered_output(values, db_name):
     return res
 
 def sos_paired_input(values):
-    return list(sum(zip(*pairwise_list(*values)), ()))
+    '''Input must be a list of two lists,
+    the lists are ordered such that the length of the
+    2nd list is always multiples of the previous list.
+    The way lists are supposed to be combined is:
+    ABCD              AABBCCDD
+    ABCDEFGH -------> ABCDEFGH ------> AABBCCDDABCDEFGH
+    '''
+    if len(values) != 2:
+        raise ValueError("Input must be a pair of vectors!")
+    multiplier = len(values[1]) / len(values[0])
+    if multiplier > int(multiplier):
+        # is not integer
+        raise ValueError('Length of the 2nd list must be multiple of the 1st.')
+    else:
+        multiplier = int(multiplier)
+    values[0] = flatten_list([[x for y in range(multiplier)] for x in values[0]])
+    return flatten_list(values)
 
 readRDS = RO.r['readRDS']
 

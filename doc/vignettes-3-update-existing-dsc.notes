@@ -1,21 +1,19 @@
 ###
 #! Update existing DSC
 ###
-###
-# Add new method
-###
-# The example above contains 3 DSC blocks, `simulate`, `estimate` and `mse`. It is straightforward to incorporate new computational routines into existing blocks, or add additional blocks if the new routine does not resemble existing routines in interface (i.e., input parameters and return values).
-# For example we want to add a new routine for location estimate via the "Winsorized" mean. The routine is implemented as @@winsor.R@@:
+# The [Quick Start|@Quick-Start@] example contains 3 DSC blocks, @@simulate@@, @@estimate@@ and @@mse@@. Suppose we now have a new computational routine for location estimate via the "Winsorized" mean. The routine is implemented as @@winsor.R@@:
 #{r
-mean = winsor.mean(x, trim = trim, na.rm = TRUE)
+mean = psych::winsor.mean(x, trim = trim, na.rm = TRUE)
 #}
-# Note that this routine requires an additional parameter @@trim@@ that does not exist in any old routines. Adding it to current DSC requires minimal changes to the DSC file and we do it in two flavors which will result in the same outcome. In practice a DSC task may often be implemented in multiple flavors; one should always try to adopt a flavor that is most logically clear and succinct.
-#! Add to existing block
-# We change the `estimate` block to the following:
+# There are two ways to incorporate this new computational routine into DSC: either by adding it to the existing @@estimate@@ block, or by adding a new block. For @@winsor.R@@ there is an additional parameter @@trim@@ which does not exist in @@estimate@@. We will show here two flavors to update, both involving minimal changes to the DSC file and result in the same outcome. In practice one should always try to adopt a flavor that is most logically clear and succinct.
+#! Add steps to existing block
+# We change the @@estimate@@ block to the following:
 #{out yaml
-output:///cat ../vignettes/one_sample_location/settings_add_method_v1.yaml
+output:///cat ../vignettes/one_sample_location/settings_add_method_v1.yaml 9 15
 #}
 # Note that we appended the new executable @@winsor.R@@ to the `exe` entry, along with an executable specific parameter specification in the @@params@@ section to assign two possible values to @@trim@@ which essentially provides two versions of Winsorization for comparison.
+dsc execute settings_add_method_v1.yaml -j8
+
 #! Add a new block
 # We keep the `estimate` block the same but we add a new block `estimate_winsor`, and modify the ""run"" sequence in the DSC section to use this new block:
 #{out yaml

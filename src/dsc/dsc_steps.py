@@ -362,7 +362,7 @@ class DSC2SoS:
         if step_data['input_depends']:
             if len(step_data['input_depends']) > 1:
                 # Generate combinations of input files
-                res.append('input_files = sos_paired_input(({}))'.\
+                res.append('input_files = sos_paired_input([{}])'.\
                            format(', '.join(['{}.output'.format(x[0]) for x in step_data['input_depends']])))
                 input_vars = "input_files, group_by = 'pairs', "
             else:
