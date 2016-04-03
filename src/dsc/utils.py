@@ -530,7 +530,12 @@ readRDS = RO.r['readRDS']
 
 def load_rds(filename):
     rds = readRDS(filename)
-    res = [list(x) if hasattr(x, '__iter__') else [str(x)] for x in list(rds)]
+    res = []
+    for x in list(rds):
+        try:
+            res.append(list(x))
+        except:
+            res.append([str(x)])
     return dict(zip(rds.names, res))
 
 def round_print(text, sep, pc = None):

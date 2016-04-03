@@ -1,8 +1,94 @@
 ###
 #! Advance R: Part I
 ###
-# Inline code, list alias and return alias
-# R libraries
-
+# We demonstrate through this tutorial features of DSC2 including:
+#{list
+# Inline code
+# Alias
+## Executable alias
+## Parameter alias and R list alias (a special form of parameter alias)
+## Return alias
+# Use of R libraries
+#}
+###
+# DSC Problem
+###
+# The DSC problem is based on the [ASH example|@https://github.com/stephens999/dscr/blob/master/vignettes/dsc_shrink.rmd@] of DSCR (description below is copied from the DSCR vignette). Material to run this tutorial can be found in [DSC2 vignettes repo|@https://github.com/stephenslab/dsc2/tree/master/vignettes/ash@].
 # To illustrate we consider the problem of shrinkage, which is tackled by the [ashr package|@http://www.github.com/stephens999/ashr@]. The input to this DSC is a set of estimates {$\(\hat\beta\)$}, with associated standard errors {$\(s\)$}. These values are estimates of actual (true) values for {$\(\beta\)$}, so the meta-data in this case are the true values of beta. Methods must take{$\(\hat\beta\)$} and {$\(s\)$} as input, and provide as output ``shrunk'' estimates for {$\(\beta\)$} (so output is a list with one element, called beta_est, which is a vector of estimates for beta). The score function then scores methods on their RMSE comparing @@beta_est@@ with @@beta@@.
 # First define a datamaker which simulates true values of {$\(\beta\)$} from a user-specified normal mixture, where one of the components is a point mass at 0 of mass {$\(\pi_0\)$}, which is a user-specified parameter. It then simulates {$\(\hat\beta \sim N(\beta_j,s_j)\)$} (where {$\(s_j\)$} is again user-specified). It returns the true {$\(\beta\)$} values as meta-data, and the estimates {$\(\hat\beta\)$} and {$\(s\)$} as input-data.
+#{r
+file:///../vignettes/ash/bin/datamaker.R
+#}
+# Now define a method wrapper for the @@ash@@ function from the @@ashr@@ package. Notice that this wrapper does not return output in the required format - it simply returns the entire ash output.
+#{r
+file:///../vignettes/ash/bin/runash.R
+#}
+# Then add a score function
+#{r
+file:///../vignettes/ash/bin/score.R
+#}
+###
+# DSC specification
+###
+# The problem is fully specified in DSC2 language below:
+#{out yaml
+file:///../vignettes/ash/settings.yaml
+#}
+# ""FIXME: explain the use of various alias ... for now please refer to relevant text in [documentation|@DSC2-Syntax@]""
+###
+# Run DSC
+###
+dsc execute settings.yaml -j8
+#{out
+INFO: Constructing DSC from settings.yaml ...
+INFO: R library devtools (1.10.0) is available
+INFO: R library ashr (1.0.13) is available
+INFO: Running DSC jobs ...
+simulate_1+shrink_1+beta_score_1: 100% [======================] 3 0.2/s in 00:00:14
+DSC: 100% [===================================================] 1 0.1/s in 00:00:14
+simulate_1+shrink_1+pi0_score_1: 100% [=======================] 3 0.8/s in 00:00:03
+DSC: 100% [===================================================] 1 0.3/s in 00:00:03
+INFO: Building summary database dsc_result.csv.gz & dsc_result.db ...
+INFO: DSC complete!
+INFO: Elapsed time 21.314 seconds.
+#}
+dsc query dsc_result.db
+#{out
+INFO: Columns in DSC:
+[text] __input__
+[text] __output__
+[integer] betahatsd__datamaker_r
+[text] data__datamaker_r
+[text] g__datamaker_r
+[integer] max_pi0__datamaker_r
+[integer] min_pi0__datamaker_r
+[integer] nsamp__datamaker_r
+[integer] seed__datamaker_r
+[text] true_beta__datamaker_r
+[text] true_pi0__datamaker_r
+[text] args__runash_r
+[text] ash_data__runash_r
+[text] beta_est__runash_r
+[text] pi0_est__runash_r
+[text] result__score_beta
+[integer] result__score_pi0
+#}
+dsc query dsc_result.db -i seed__datamaker_r result__score_beta -f "g__datamaker_r like '%rep%rep%'" "args__runash_r like '%halfuniform%'"
+#{out
+seed__datamaker_r	result__score_beta
+1	0.6909455453928235
+2	0.7255326817717048
+3	0.7099999290309491
+4	0.5936403917764022
+5	0.7035020235683211
+#}
+dsc query dsc_result.db -i seed__datamaker_r result__score_pi0 -f "g__datamaker_r like '%rep%rep%'" "args__runash_r like '%halfuniform%'"
+#{out
+seed__datamaker_r	result__score_pi0
+1	0.21139495512660222
+2	0.16763317210482054
+3	0.2802943920660846
+4	0.18671055088595057
+5	0.2642262843596683
+#}
+# ""FIXME: need to show the results better.""
