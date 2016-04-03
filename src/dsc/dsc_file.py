@@ -496,6 +496,9 @@ class DSCFileLoader(DSCFileParser):
             res.meta['rule'] = section_data['.logic']
         if '.alias' in section_data:
             res.meta['exec_alias'] = section_data['.alias']
+            if len(res.meta['exec_alias']) != len(res.meta['exec']):
+                raise FormatError('Alias for exec does not match the length of exec, in ``{}``!'.\
+                                  format(', '.join(res.meta['exec'])))
         # Parse params
         if 'params' in section_data:
             for key, value in section_data['params'].items():

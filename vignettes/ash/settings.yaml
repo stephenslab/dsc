@@ -16,9 +16,9 @@ shrink:
     exec: runash.R
     params:
         input: $data
-        args: Asis(list(mixcompdist="normal")),
-              Asis(list(mixcompdist="halfuniform"))
-    return: ash_data, beta_est = R(ash_data$PosteriorMean), pi0_est = R(get_pi0(ash_data))
+        mixcompdist: normal, halfuniform
+    return: ash_data, beta_est = R(ash_data$PosteriorMean),
+            pi0_est = R(ashr::get_pi0(ash_data))
 
 beta_score:
     exec: score.R

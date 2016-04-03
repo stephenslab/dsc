@@ -2,24 +2,20 @@
 #! Download and installation
 ###
 ###
-# Package Installation
+# Requirement
 ###
-#! Install conda
+# DSC2 requires Python 3. If you do not have Python 3 on your system it is strongly recommended that you install Python 3 from @@conda@@:
 wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
 bash Miniconda-latest-Linux-x86_64.sh
-#! PIP release
-pip install dsc2
-#! Source compile
-conda install scipy pandas pytables sympy psutil
-pip install rpy2
+# Follow the prompt to install it. Be sure to add the installation path to your shell environment (the installation script will ask if you'd like this be configured automatically: say Yes unless you know what you are doing).
 ###
-# Interface preview
+# Released versions
 ###
-# You can test your @@dsc2@@ installation by viewing its interface via `dsc -h`:
-#{out
-output:///dsc -h
-#}
-# and `dsc execute -h`:
-#{out
-output:///dsc execute -h
-#}
+# Versioned release can be found at @https://github.com/stephenslab/dsc2/releases@. You can download and decompress the package, then run:
+python setup.py install
+# to install it.
+###
+# Developing version
+###
+git clone https://github.com/stephenslab/dsc2.git
+python setup.py install
