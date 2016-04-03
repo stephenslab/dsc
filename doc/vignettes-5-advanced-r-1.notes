@@ -1,0 +1,8 @@
+###
+#! Advance R: Part I
+###
+# Inline code, list alias and return alias
+# R libraries
+
+# To illustrate we consider the problem of shrinkage, which is tackled by the [ashr package|@http://www.github.com/stephens999/ashr@]. The input to this DSC is a set of estimates {$\(\hat\beta\)$}, with associated standard errors {$\(s\)$}. These values are estimates of actual (true) values for {$\(\beta\)$}, so the meta-data in this case are the true values of beta. Methods must take{$\(\hat\beta\)$} and {$\(s\)$} as input, and provide as output ``shrunk'' estimates for {$\(\beta\)$} (so output is a list with one element, called beta_est, which is a vector of estimates for beta). The score function then scores methods on their RMSE comparing @@beta_est@@ with @@beta@@.
+# First define a datamaker which simulates true values of {$\(\beta\)$} from a user-specified normal mixture, where one of the components is a point mass at 0 of mass {$\(\pi_0\)$}, which is a user-specified parameter. It then simulates {$\(\hat\beta \sim N(\beta_j,s_j)\)$} (where {$\(s_j\)$} is again user-specified). It returns the true {$\(\beta\)$} values as meta-data, and the estimates {$\(\hat\beta\)$} and {$\(s\)$} as input-data.

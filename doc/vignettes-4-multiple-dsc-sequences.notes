@@ -1,11 +1,12 @@
 ###
 #! Multiple DSC sequences
 ###
-# This is a slightly modified version of [the Quick Start tutorial|@Quick-Start@] to show the use of multiple sequences in DSC. Material used in this document can be found in [DSC2 vignettes repo|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location_winsor@].
+# This is an enhanced version of [the Quick Start tutorial|@Quick-Start@] to demonstrate the use of multiple sequences in DSC. Material used in this document can be found in [DSC2 vignettes repo|@https://github.com/stephenslab/dsc2/tree/master/vignettes/one_sample_location_winsor@].
+
 ###
-# DSC specification
+# DSC specification and execution
 ###
-# The DSC problem is similar to what we have previously worked on, i.e. comparison of location parameter estimation methods. This time we simulate data under "t" distribution (df = 2) and Cauchy distribution. Then before estimating location parameter using mean or median method, there is an optional @@transform@@ step where we provide two methods for "Winsorization". This results in two possible DSC sequences:
+# The DSC problem is similar to what we have previously worked on, i.e. comparison of location parameter estimation methods. This time we simulate data under "t" distribution (df = 2) and Cauchy distribution. Then before estimating location parameter using mean or median method, there is an ""optional"" @@transform@@ step where we provide two methods for "Winsorization". This results in two possible DSC sequences:
 #{list
 # simulate -> estimate -> score
 # simulate -> transform -> estimate -> score
@@ -14,13 +15,10 @@
 #{out yaml
 file:///../vignettes/one_sample_location_winsor/settings.yaml
 #}
-# where computational routines in @@transform@@ block are:
+# where Winsorization routines in @@transform@@ block are:
 #{r
 output:///find ../vignettes/one_sample_location_winsor/R/ -name "winsor*.R" -type f -exec tail -n+1 {} +
 #}
-###
-# Run DSC
-###
 # To execute the DSC on a computer using 8 CPU threads,
 dsc execute settings.yaml -j8
 #{out
@@ -63,7 +61,9 @@ INFO: Columns in DSC:
 [real] fraction__winsor1_r
 [integer] multiple__winsor2_r
 #}
-#! Performance of @@mean@@ method
+###
+# Performance of @@mean@@ method
+###
 # For demonstration, we focus on Cauchy data location parameter estimation using mean method where @@true_loc = 0@@ and @@seed = 1@@
 dsc query dsc_result.db -i true_loc__rcauchy_r seed__rcauchy_r loc__mean_r mse__mse_r -f "true_loc__rcauchy_r = 0" "seed__rcauchy_r = 1"
 #{out
@@ -73,21 +73,21 @@ true_loc__rcauchy_r	seed__rcauchy_r	loc__mean_r	mse__mse_r
 0	1	0.2974280983040085	0.08846347366073895
 #}
 # There are 3 lines of output: one corresponds to no Winsorization on data, and the other two correspond to two methods of Winsorization.
-#!! No Winsorization
+#! No Winsorization
 # To view result without Winsorization:
 dsc query dsc_result.db -i true_loc__rcauchy_r seed__rcauchy_r loc__mean_r mse__mse_r -f "true_loc__rcauchy_r = 0" "seed__rcauchy_r = 1" "fraction__winsor1_r is null" "multiple__winsor2_r is null"
 #{out
 true_loc__rcauchy_r	seed__rcauchy_r	loc__mean_r	mse__mse_r
 0	1	-0.6418044917297597	0.41191300560449523
 #}
-#!! Winsorization 1: replace with limits
+#! Replace with limits
 # This version of Winsorization replaces data points below 5% or beyond 95% percentile with values on these percentiles:
 dsc query dsc_result.db -i true_loc__rcauchy_r seed__rcauchy_r fraction__winsor1_r loc__mean_r mse__mse_r -f "true_loc__rcauchy_r = 0" "seed__rcauchy_r = 1"
 #{out
 true_loc__rcauchy_r	seed__rcauchy_r	fraction__winsor1_r	loc__mean_r	mse__mse_r
 0	1	0.05	0.2974280983040085	0.08846347366073895
 #}
-#!! Winsorization 2: replace with deviations from mean
+#! Replace with deviations from mean
 # This version of Winsorization replaces data points outside 3 times absolute deviations with mean with @@mean * 3sd@@:
 dsc query dsc_result.db -i true_loc__rcauchy_r seed__rcauchy_r multiple__winsor2_r loc__mean_r mse__mse_r -f "true_loc__rcauchy_r = 0" "seed__rcauchy_r = 1"
 #{out
@@ -95,7 +95,9 @@ true_loc__rcauchy_r	seed__rcauchy_r	multiple__winsor2_r	loc__mean_r	mse__mse_r
 0	1	3	0.18807067859389393	0.03537058014676775
 #}
 # We see from error scores of the 3 methods that Winsorization 2 performs best.
-#! Performance of @@median@@ method
+###
+# Performance of @@median@@ method
+###
 # Median method is robust to outliers and is in fact a better method than any mean-based methods for this application. Winsorization did not have an impact on the median of data, as shown below, where estimates are identical with / without any Winsorization, and consequently the error score.
 dsc query dsc_result.db -i true_loc__rcauchy_r seed__rcauchy_r loc__median_r mse__mse_r -f "true_loc__rcauchy_r = 0" "seed__rcauchy_r = 1"
 #{out

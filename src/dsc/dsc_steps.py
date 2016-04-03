@@ -254,6 +254,7 @@ class DSCJobs(dotdict):
 
     def __format_r_list(self, name, value, params):
         keys = [x.strip() for x in value.split(',')] if value else list(params.keys())
+        keys = [x for x in keys if x != 'seed']
         res = ['{} <- list()'.format(name)]
         for k in keys:
             res.append('%s$%s <- ${_%s}' % (name, k, k))

@@ -75,7 +75,7 @@ def execute(args, argv):
     os.rename('.sos/.dsc/.{}.tmp'.format(db_name), '.sos/.dsc/{}.yaml'.format(db_name))
     env.verbosity = args.verbosity = verbosity
     if args.__dryrun__:
-        # FIXME export scripts
+        # FIXME export scripts to db_name folder
         return
     # Wetrun
     env.logger.info("Running DSC jobs ...")
