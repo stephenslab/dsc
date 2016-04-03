@@ -117,6 +117,18 @@ params:
 #}
 # Without the @@.logic@@ keyword, DSC will run all combinations of 5 values of @@n@@, 2 of @@mu@@ and 2 of @@sigma@@, a total of 20 parallel jobs. The @@.logic@@ here states that instead of 20 jobs, DSC will first run 3 values of @@n@@ with @@mu = 0@@ and 2 values of @@sigma@@, then run another 2 values of @@n@@ with @@mu = 1@@ and @@sigma = 1@@, which is a total of 8 jobs. Notice that parameter index slicing makes it possible to run a subset of parameter values.
 #! .alias [optional]
+#!! For executables
+# When @@.alias@@ occurs outside @@params@@, it should has a one-to-one correspondence with @@exec@@ entry. These alias will be used to name the columns of DSC output database. For example:
+#{out yaml
+pi0_score:
+    exec: score.R
+    .alias: score_pi0
+    params:
+        ...
+    return: result
+#}
+# Without @@.alias@@, the output column name in DSC database for this DSC block will be @@result__score_r@@; with the alias the column name will be @@result__score_pi0@@.
+#!! For parameters
 # @@.alias@@ is often used to adjust parameter names for input to different executables. For example:
 #{out yaml
 params:

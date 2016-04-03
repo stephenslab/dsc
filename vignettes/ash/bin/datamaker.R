@@ -16,6 +16,7 @@
 #' \item{meta}{A list containing the meta data. In this case beta}
 #' \item{input}{A list containing the input data; in this case the set of betahat values and their standard errors}
 #'
+library('ashr')
 rnormmix_datamaker = function(args){
 
   #here is the meat of the function that needs to be defined for each dsc to be done

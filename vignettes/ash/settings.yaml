@@ -10,7 +10,7 @@ simulate:
         nsamp: 1000
         betahatsd: 1
         .alias: args = RList()
-    return: data, true_beta = R(data$meta$beta)
+    return: data, true_beta = R(data$meta$beta), true_pi0 = R(data$meta$pi0)
 
 shrink:
     exec: runash.R
@@ -18,19 +18,30 @@ shrink:
         input: $data
         args: Asis(list(mixcompdist="normal")),
               Asis(list(mixcompdist="halfuniform"))
-    return: data, beta_est = R(data$beta_est)
+    return: ash_data, beta_est = R(ash_data$PosteriorMean), pi0_est = R(get_pi0(ash_data))
 
-RMSE:
+beta_score:
     exec: score.R
+    .alias: score_beta
     params:
         beta_true: $true_beta
         beta_est: $beta_est
+        .alias: est = beta_est, truth = beta_true
+    return: result
+
+pi0_score:
+    exec: score.R
+    .alias: score_pi0
+    params:
+        pi0_est: $pi0_est
+        pi0: $true_pi0
+        .alias: est = pi0_est, truth = pi0
     return: result
 
 DSC:
     run: simulate *
          shrink *
-         RMSE
+         (beta_score, pi0_score)
     R_libs: stephens999/ashr (1.0.0+)
     exec_path: bin
     output: dsc_result

@@ -487,7 +487,7 @@ def registered_output(values, db_name):
         md5 = md5.rsplit('.', 1)[0]
         text = '{}:\n'.format(md5 if depends is None else '{}_{}'.format(md5, depends))
         for item in params.split(':%:'):
-            i, j = item.split('=')
+            i, j = item.split('=', 1)
             text += '    {}: {}\n'.format(i, j)
         return text
     #
@@ -530,7 +530,8 @@ readRDS = RO.r['readRDS']
 
 def load_rds(filename):
     rds = readRDS(filename)
-    return dict(zip(rds.names, map(list, list(rds))))
+    res = [list(x) if hasattr(x, '__iter__') else [str(x)] for x in list(rds)]
+    return dict(zip(rds.names, res))
 
 def round_print(text, sep, pc = None):
     if pc is None:

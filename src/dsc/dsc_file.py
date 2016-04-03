@@ -364,7 +364,7 @@ class DSCFileLoader(DSCFileParser):
         DSCFileParser.__init__(self)
         self.content = content
         # Keywords
-        self.block_kw = ['exec', 'return', 'params', 'seed', '.logic']
+        self.block_kw = ['exec', 'return', 'params', 'seed', '.logic', '.alias']
         self.params_kw = ['.logic', '.alias', '.options']
         self.op = OperationParser()
 
@@ -494,6 +494,8 @@ class DSCFileLoader(DSCFileParser):
         if '.logic' in section_data:
             # no need to expand exec logic
             res.meta['rule'] = section_data['.logic']
+        if '.alias' in section_data:
+            res.meta['exec_alias'] = section_data['.alias']
         # Parse params
         if 'params' in section_data:
             for key, value in section_data['params'].items():

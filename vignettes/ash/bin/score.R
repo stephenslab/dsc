@@ -1,4 +1,4 @@
-score = function(beta_est, true_beta){
-  return(list(RMSE=sqrt(mean((beta_est-true_beta)^2))))
+score = function(est, truth){
+  return(sqrt(mean((est-truth)^2)))
 }
-result = score(beta_est, true_beta)
+result = score(est, truth)

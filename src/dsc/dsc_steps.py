@@ -91,7 +91,7 @@ class DSCJobs(dotdict):
                 else:
                     if groups.group(1) == 'RList':
                         if not data.is_r:
-                            raise StepError("Alias ``RList`` is not applicable to executable ``{}``.".format(data.exe))
+                            raise StepError("Alias ``RList`` is not applicable to executable ``{}``.".format(exe[0]))
                         text, variables = self.__format_r_list(k, groups.group(2), params)
                         data.r_list.extend(text)
                         data.r_list_vars.extend(variables)
@@ -110,7 +110,7 @@ class DSCJobs(dotdict):
                 if '=' in item:
                     # return alias exists
                     lhs, rhs = (x.strip() for x in item.split('='))
-                    groups = re.search(r'^R\((.*?)\)', rhs)
+                    groups = re.search(r'^R\((.*?)\)$', rhs)
                     if not groups:
                         # alias is not within R
                         # have to make it available from parameter list
@@ -135,8 +135,10 @@ class DSCJobs(dotdict):
         # Load command parameters
         self.raw_data[name] = []
         data = self.__initialize_block(name)
+        exec_alias = try_get_value(block.meta, ('exec_alias'))
         for idx, exe in enumerate(block.meta['exec']):
-            self.__reset_block(data, exe, try_get_value(dsc_block, ('exec_path')))
+            self.__reset_block(data, exe, exec_alias[idx] if exec_alias else None,
+                               try_get_value(dsc_block, ('exec_path')))
             # temporary variables
             params, rules, alias = load_params(), load_rules(), load_alias()
             # handle alias
@@ -232,7 +234,7 @@ class DSCJobs(dotdict):
         data.name = name
         return data
 
-    def __reset_block(self, data, exe, exec_path):
+    def __reset_block(self, data, exe, exe_name, exec_path):
         data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + \
                                [x if not x.startswith('$') else '${_%}' % x[1:] for x in exe[1:]])
         # Is the executable an R program
@@ -250,7 +252,7 @@ class DSCJobs(dotdict):
         data.parameters = []
         data.output_ext = []
         data.output_vars = []
-        data.exe = ' '.join(exe)
+        data.exe = ' '.join(exe) if exe_name is None else exe_name
 
     def __format_r_list(self, name, value, params):
         keys = [x.strip() for x in value.split(',')] if value else list(params.keys())

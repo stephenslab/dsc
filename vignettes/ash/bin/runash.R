@@ -3,7 +3,8 @@ ash.wrapper=function(input,args=NULL){
   if(is.null(args)){
     args=list(mixcompdist="halfuniform",method="fdr")
   }
+  args$optmethod = "mixEM"
   res = do.call(ash, args=c(list(betahat=input$betahat,sebetahat=input$sebetahat),args))
   return(res)
 }
-data = ash.wrapper(input, args)
+ash_data = ash.wrapper(input$input, args)
