@@ -12,6 +12,7 @@ bash Miniconda-latest-Linux-x86_64.sh
 # Released versions
 ###
 # Versioned release can be found at @https://github.com/stephenslab/dsc2/releases@. You can download and decompress the package, then run:
+cd src
 python setup.py install
 # to install it.
 ###
