@@ -564,4 +564,4 @@ def install_r_libs(libs):
             versions = [x.strip() for x in groups.group(2).split(',')]
         else:
             versions = None
-        check_R_library(value, versions, strict_versioning = True)
+        check_R_library(value, versions)

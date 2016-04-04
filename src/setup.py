@@ -26,7 +26,7 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
-      install_requires = ['pyyaml', 'numexpr>=2.5.1',
-                          'pandas>=0.18.0', 'rpy2>=2.7.8',
-                          'sympy', 'celery>=3.1.23', 'sos>=0.5.5']
+      install_requires = ['sos>=0.5.6', 'pyyaml', 'pandas>=0.18.0',
+                          'rpy2>=2.7.8', 'sympy', 'numexpr>=2.5.1',
+                          'celery>=3.1.23', 'billiard>=3.3.0']
       )
