@@ -5,9 +5,9 @@
 # Requirement
 ###
 # DSC2 requires Python 3. If you do not have Python 3 on your system it is strongly recommended that you install Python 3 from @@conda@@:
-wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh
-bash Miniconda-latest-Linux-x86_64.sh
-# Follow the prompt to install it. Be sure to add the installation path to your shell environment (the installation script will ask if you'd like this be configured automatically: say Yes unless you know what you are doing).
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh
+# Follow the prompt to install it (use @@ctrl+F@@ to quickly jump to the end of the Licenses if you have read them before). Be sure to add the installation path to your shell environment (the installation script will ask if you'd like this be configured automatically: say Yes unless you know what you are doing).
 ###
 # Released versions
 ###
