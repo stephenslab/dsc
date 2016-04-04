@@ -9,6 +9,7 @@ This file defines the `DSCData` class for loading DSC file
 
 import os, sys, yaml, re, subprocess, itertools, copy, sympy, \
   collections
+import readline
 import rpy2.robjects as RO
 from io import StringIO
 from pysos.utils import env, Error
@@ -496,9 +497,6 @@ class DSCFileLoader(DSCFileParser):
             res.meta['rule'] = section_data['.logic']
         if '.alias' in section_data:
             res.meta['exec_alias'] = section_data['.alias']
-            if len(res.meta['exec_alias']) != len(res.meta['exec']):
-                raise FormatError('Alias for exec does not match the length of exec, in ``{}``!'.\
-                                  format(', '.join(res.meta['exec'])))
         # Parse params
         if 'params' in section_data:
             for key, value in section_data['params'].items():
@@ -580,6 +578,10 @@ class DSCData(dotdict):
                 # double check if any computational routines are
                 # out of index
                 self[name]['meta']['exec'] = [tuple(x.split()) if isinstance(x, str) else x for x in self[name]['meta']['exec']]
+                if 'exec_alias' in self[name]['meta'] \
+                  and len(self[name]['meta']['exec_alias']) != len(self[name]['meta']['exec']):
+                    raise FormatError('Alias does not match the length of exec, in block ``{}``!'.\
+                                  format(name))
                 if 'params' in self[name]:
                     max_exec = max(self[name]['params'].keys())
                 if max_exec > len(self[name]['meta']['exec']):

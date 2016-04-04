@@ -9,6 +9,7 @@ import sys, os, random, copy, re, itertools,\
   csv
 from difflib import SequenceMatcher
 from io import StringIO
+import readline
 import rpy2.robjects as RO
 from pysos.utils import env
 from pysos.actions import check_R_library
