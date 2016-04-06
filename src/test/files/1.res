@@ -1,13 +1,14 @@
 DSC:
+  output:
+  - dsc_result
   run:
   - simulate
-  runtime:
-    output:
-    - files/1
+  work_dir:
+  - ./
 
 simulate:
   meta:
-    exe:
+    exec:
     - (tuple)
       - rnorm.R
     - (tuple)
@@ -18,6 +19,9 @@ simulate:
     - 3
     - 4
     - 5
+  out:
+  - x
+  - true_mean
   params:
     0:
       n:
@@ -25,6 +29,3 @@ simulate:
       true_mean:
       - 0
       - 1
-  return:
-  - x
-  - true_mean

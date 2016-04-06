@@ -1,15 +1,16 @@
 DSC:
+  output:
+  - dsc_result
   run:
   - (tuple)
     - simulate
     - method
-  runtime:
-    output:
-    - files/9
+  work_dir:
+  - ./
 
 method:
   meta:
-    exe:
+    exec:
     - (tuple)
       - deseq2.wrapper.R
     - (tuple)
@@ -20,6 +21,8 @@ method:
       - ash.wrapper.R
     - (tuple)
       - jointash.wrapper.R
+  out:
+  - output
   params:
     0:
       input:
@@ -45,46 +48,13 @@ method:
       exacttest:
       - 'TRUE'
       - 'FALSE'
-      input:
-      - $data
-      transform:
-      - voom
-      - RUVvoom
-      - SVAvoom
-      - quasibinom
-      - RUV+quasibinom
-      - SVA+quasibinom
-      - Myrna+quasibinom
-      - edgeRglm
     3:
-      input:
-      - $data
       robust:
       - 'FALSE'
       - 'TRUE'
-      transform:
-      - voom
-      - RUVvoom
-      - SVAvoom
-      - quasibinom
-      - RUV+quasibinom
-      - SVA+quasibinom
-      - Myrna+quasibinom
-      - edgeRglm
     5:
-      input:
-      - $data
       singlecomp:
       - true
-      transform:
-      - voom
-      - RUVvoom
-      - SVAvoom
-      - quasibinom
-      - RUV+quasibinom
-      - SVA+quasibinom
-      - Myrna+quasibinom
-      - edgeRglm
   params_alias:
     0:
     - RList(args, transform)
@@ -94,8 +64,6 @@ method:
     - args = RList()
     5:
     - args = RList()
-  return:
-  - output
   rules:
     2:
     - exacttest[1]
@@ -114,7 +82,7 @@ method:
 
 simulate:
   meta:
-    exe:
+    exec:
     - (tuple)
       - datamaker.R
     seed:
@@ -175,6 +143,8 @@ simulate:
       - 3
       - 4
       - 5
+  out:
+  - data
   params:
     0:
       Ngene:
@@ -200,8 +170,6 @@ simulate:
   params_alias:
     0:
     - args = RList()
-  return:
-  - data
   rules:
     0:
     - (tuple)

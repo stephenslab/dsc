@@ -7,3 +7,4 @@ simulate:
 
 DSC:
     run: simulate
+    output: dsc_result

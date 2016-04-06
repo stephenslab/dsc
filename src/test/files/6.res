@@ -1,15 +1,18 @@
 DSC:
+  output:
+  - dsc_result
   run:
   - simulate
-  runtime:
-    output:
-    - files/6
+  work_dir:
+  - ./
 
 simulate:
   meta:
-    exe:
+    exec:
     - (tuple)
       - datamaker.R
+  out:
+  - data
   params:
     0:
       g:
@@ -18,5 +21,3 @@ simulate:
   params_alias:
     0:
     - args = RList()
-  return:
-  - data

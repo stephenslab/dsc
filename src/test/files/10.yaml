@@ -13,3 +13,4 @@ myrna(SVA):
 
 DSC:
     run: SVA, RUV, myrna
+    output: dsc_result

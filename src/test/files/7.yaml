@@ -6,5 +6,6 @@ simulate:
 
 DSC:
     run: simulate
+    output: dsc_result
     parameters:
         data_functions: mvngenotypes, discrete.cosine, discrete.cosine2, discrete.cosine.peaksel

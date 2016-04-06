@@ -1,17 +1,20 @@
 DSC:
+  output:
+  - dsc_result
   run:
   - SVA
   - RUV
   - myrna
-  runtime:
-    output:
-    - files/10
+  work_dir:
+  - ./
 
 RUV:
   meta:
-    exe:
+    exec:
     - (tuple)
       - RUV.R
+  out:
+  - data
   params:
     0:
       data:
@@ -19,14 +22,14 @@ RUV:
   params_alias:
     0:
     - args = RList()
-  return:
-  - data
 
 SVA:
   meta:
-    exe:
+    exec:
     - (tuple)
       - SVA.R
+  out:
+  - data
   params:
     0:
       data:
@@ -34,14 +37,14 @@ SVA:
   params_alias:
     0:
     - args = RList()
-  return:
-  - data
 
 myrna:
   meta:
-    exe:
+    exec:
     - (tuple)
       - myrna.R
+  out:
+  - data
   params:
     0:
       data:
@@ -49,5 +52,3 @@ myrna:
   params_alias:
     0:
     - args = RList()
-  return:
-  - data

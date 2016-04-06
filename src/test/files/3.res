@@ -1,21 +1,25 @@
 DSC:
+  output:
+  - dsc_result
   run:
   - simulate
-  runtime:
-    output:
-    - files/3
+  work_dir:
+  - ./
 
 simulate:
   meta:
-    exe:
+    exec:
     - (tuple)
       - datamaker.R
-      - (tuple)
-        - 1
-        - 2
-        - 3
-        - 4
-  params:
-    0: {}
-  return:
+      - 1
+    - (tuple)
+      - datamaker.R
+      - 2
+    - (tuple)
+      - datamaker.R
+      - 3
+    - (tuple)
+      - datamaker.R
+      - 4
+  out:
   - data

@@ -15,3 +15,4 @@ outlier_test:
 
 DSC:
     run: outlier_test
+    output: dsc_result

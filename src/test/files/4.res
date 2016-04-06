@@ -1,13 +1,14 @@
 DSC:
+  output:
+  - dsc_result
   run:
   - outlier_test
-  runtime:
-    output:
-    - files/4
+  work_dir:
+  - ./
 
 outlier_test:
   meta:
-    exe:
+    exec:
     - (tuple)
       - method1.R
     - (tuple)
@@ -20,6 +21,9 @@ outlier_test:
       - method5.R
     - (tuple)
       - method6.R
+  out:
+  - data
+  - score = R(data$score)
   params:
     3:
       K:
@@ -39,6 +43,3 @@ outlier_test:
   params_alias:
     0:
     - args = RList()
-  return:
-  - data
-  - score = R(data$score)

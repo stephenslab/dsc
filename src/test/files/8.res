@@ -1,15 +1,18 @@
 DSC:
+  output:
+  - dsc_result
   run:
   - simulate
-  runtime:
-    output:
-    - files/8
+  work_dir:
+  - ./
 
 simulate:
   meta:
-    exe:
+    exec:
     - (tuple)
       - datamaker.R
+  out:
+  - data
   params:
     0:
       tissue:
@@ -17,5 +20,3 @@ simulate:
         - Adipose-Subcutaneous
         - Lung
       - Lung
-  return:
-  - data

@@ -43,3 +43,4 @@ method:
 
 DSC:
     run: simulate * method
+    output: dsc_result

@@ -1,13 +1,14 @@
 DSC:
+  output:
+  - dsc_result
   run:
   - simulate
-  runtime:
-    output:
-    - files/5
+  work_dir:
+  - ./
 
 simulate:
   meta:
-    exe:
+    exec:
     - (tuple)
       - datamaker.R
     seed:
@@ -16,6 +17,8 @@ simulate:
     - 3
     - 4
     - 5
+  out:
+  - data
   params:
     0:
       angle:
@@ -24,5 +27,3 @@ simulate:
       - 0.7853981633974483
       - 1.1780972450961724
       - 1.5707963267948966
-  return:
-  - data

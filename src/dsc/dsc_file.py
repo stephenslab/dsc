@@ -584,8 +584,8 @@ class DSCData(dotdict):
                                   format(name))
                 if 'params' in self[name]:
                     max_exec = max(self[name]['params'].keys())
-                if max_exec > len(self[name]['meta']['exec']):
-                    raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
+                    if max_exec > len(self[name]['meta']['exec']):
+                        raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
 
     def __str__(self):
         res = ''

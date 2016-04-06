@@ -6,20 +6,22 @@ __license__ = "MIT"
 
 from unittest import main
 from utils import DSCTestCase, load_strings, load_as_string
-from DSC2.dsc_file import DSCData, OperationParser
+from dsc.dsc_file import DSCData, OperationParser
 
 class ParserTest(DSCTestCase):
     def testSequenceParser(self):
         '''Test DSC Operation Parser '''
+        def sort_seq(value):
+            return '; '.join(sorted([x.strip() for x in value.split(';')]))
         op = OperationParser()
         for x, y in load_strings('files/OperationParserTest.txt', group_by = 2):
-            op.apply(x)
-            self.assertEqual(op.value, y)
+            op(x)
+            self.assertEqual(sort_seq(op.value), sort_seq(y))
 
     def __testBlockParser(self, file_prefix):
         f_input = 'files/{}.yaml'.format(file_prefix)
         f_expected = 'files/{}.res'.format(file_prefix)
-        self.assertEqual(str(DSCData(f_input, verbosity = '0')).strip(),
+        self.assertEqual(str(DSCData(f_input)).strip(),
                          load_as_string(f_expected).strip())
 
     def testBasicBlock(self):
