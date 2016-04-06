@@ -1,0 +1,8 @@
+simulate:
+    exec: rnorm.R, rt.R
+    exec: runif.R, rcauchy.R
+    return: x, true_mean
+
+DSC:
+    run: simulate
+    output: dsc_result

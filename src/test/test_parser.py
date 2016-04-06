@@ -5,8 +5,8 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 from unittest import main
-from utils import DSCTestCase, load_strings, load_as_string
-from dsc.dsc_file import DSCData, OperationParser
+from utils import DSCTestCase, load_strings, load_as_string, load_dsc
+from dsc.dsc_file import OperationParser, FormatError
 
 class ParserTest(DSCTestCase):
     def testSequenceParser(self):
@@ -19,10 +19,8 @@ class ParserTest(DSCTestCase):
             self.assertEqual(sort_seq(op.value), sort_seq(y))
 
     def __testBlockParser(self, file_prefix):
-        f_input = 'files/{}.yaml'.format(file_prefix)
-        f_expected = 'files/{}.res'.format(file_prefix)
-        self.assertEqual(str(DSCData(f_input)).strip(),
-                         load_as_string(f_expected).strip())
+        self.assertEqual(str(load_dsc(file_prefix)).strip(),
+                         load_as_string('files/{}.res'.format(file_prefix)).strip())
 
     def testBasicBlock(self):
         '''Basic block parser test'''
@@ -64,9 +62,9 @@ class ParserTest(DSCTestCase):
         '''Test block inheritance'''
         self.__testBlockParser(10)
 
-    # def testRLibraries(self):
-    #     '''Test R library parser'''
-    #     self.__testBlockParser(11)
+    def testDuplication(self):
+        '''Test duplicated keys in input'''
+        self.assertRaises(FormatError, load_dsc, 11)
 
 if __name__ == '__main__':
     main()
