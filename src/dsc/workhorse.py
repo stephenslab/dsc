@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, shutil, re
+import os, sys, atexit, shutil, re, glob
 from .utils import SQLiteMan, round_print, flatten_list
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
@@ -59,8 +59,8 @@ def execute(args, argv):
         os.makedirs('.sos/.dsc')
     dsc_data = DSCData(args.dsc_file)
     db_name = dsc_data['DSC']['output'][0]
-    if os.path.exists('.sos/.dsc/.{}.tmp'.format(db_name)):
-        os.remove('.sos/.dsc/.{}.tmp'.format(db_name))
+    for file_ in glob.glob('.sos/.dsc/.*.tmp'):
+        os.remove(file_)
     with open('.sos/.dsc/{}.data'.format(db_name), 'w') as f:
         f.write(str(dsc_data))
     dsc_jobs = DSCJobs(dsc_data)
@@ -75,7 +75,10 @@ def execute(args, argv):
     for script in sos_jobs.data:
         args.script = script
         sos_dryrun(args, argv)
-    os.rename('.sos/.dsc/.{}.tmp'.format(db_name), '.sos/.dsc/{}.yaml'.format(db_name))
+    with open( '.sos/.dsc/{}.yaml'.format(db_name), 'w' ) as fout:
+        for file_ in glob.glob('.sos/.dsc/.*.tmp'):
+            with open(file_) as fin:
+                fout.write(fin.read())
     env.verbosity = args.verbosity = verbosity
     if args.__dryrun__:
         # FIXME export scripts to db_name folder

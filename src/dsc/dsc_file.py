@@ -15,19 +15,8 @@ from io import StringIO
 from pysos.utils import env, Error
 from .utils import dotdict, lower_keys, is_null, str2num, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_list, flatten_dict, \
-     try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value
-
-def no_duplicates_constructor(loader, node, deep=False):
-    """YAML check for duplicate keys."""
-    mapping = {}
-    for key_node, value_node in node.value:
-        key = loader.construct_object(key_node, deep=deep)
-        value = loader.construct_object(value_node, deep=deep)
-        if key in mapping:
-            raise yaml.constructor.ConstructorError("while constructing a mapping", node.start_mark,
-                                   "found duplicate key (%s)" % key, key_node.start_mark)
-        mapping[key] = value
-    return loader.construct_mapping(node, deep)
+     try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value, \
+     no_duplicates_constructor
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 

@@ -14,6 +14,20 @@ import rpy2.robjects as RO
 from pysos.utils import env
 from pysos.actions import check_R_library
 
+def no_duplicates_constructor(loader, node, deep=False):
+    """YAML check for duplicate keys."""
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        value = loader.construct_object(value_node, deep=deep)
+        if key in mapping:
+            raise yaml.constructor.ConstructorError("while constructing a mapping", node.start_mark,
+                                   "found duplicate key (%s)" % key, key_node.start_mark)
+        mapping[key] = value
+    return loader.construct_mapping(node, deep)
+
+yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
+
 SQL_KEYWORDS = set([
     'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
     'BETWEEN', 'BIGINT', 'BINARY', 'BLOB', 'BOTH', 'BY', 'CALL', 'CASCADE', 'CASE',
@@ -486,26 +500,25 @@ def registered_output(values, db_name):
             params = base
             depends = None
         md5 = md5.rsplit('.', 1)[0]
-        text = '{}:\n'.format(md5 if depends is None else '{}_{}'.format(md5, depends))
+        key = md5 if depends is None else '{}_{}'.format(md5, depends)
+        file_name = '.sos/.dsc/.{}.{}.tmp'.format(db_name, key)
+        if os.path.exists(file_name):
+            return
+        text = '{}:\n'.format(key)
         for item in params.split(':%:'):
             i, j = item.split('=', 1)
             text += '    {}: {}\n'.format(i, j)
-        return text
+        with open(file_name, 'w') as f:
+            f.write(text)
     #
     if isinstance(values, str):
         values = [values]
     res = []
-    registry = ''
     for value in values:
         base, ext = value.rsplit('.', 1)
         md5 = '{}.{}'.format(hashlib.md5(base.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(base).hexdigest(), ext)
         res.append('{}/{}'.format(db_name, md5))
-        registry += register(base, md5)
-    try:
-        with open('.sos/.dsc/.{}.tmp'.format(db_name), 'a') as f:
-            f.write(registry)
-    except IOError:
-        pass
+        register(base, md5)
     return res
 
 def sos_paired_input(values):
