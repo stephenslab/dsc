@@ -14,9 +14,11 @@ bash Miniconda3-latest-Linux-x86_64.sh
 # Versioned release can be found at @https://github.com/stephenslab/dsc2/releases@. You can download and decompress the package, then run:
 cd src
 python setup.py install
-# to install it.
+# to install it. @@DCS2@@ will automatically download and compile its dependent packages, among which @@numpy@@ and @@pandas@@ will take a while to build.
 ###
 # Developing version
 ###
+# We welcome contributions from you! You can [fork|@https://help.github.com/articles/fork-a-repo/@] the repo on github, test it out on your computer and make possible improvements, then send us a [pull request|@https://help.github.com/articles/fork-a-repo/@].
+# If for the moment you only want to download and install the developing version without contributing, please clone the repo to your desktop and run the setup script:
 git clone https://github.com/stephenslab/dsc2.git
 python setup.py install
