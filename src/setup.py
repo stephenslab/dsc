@@ -28,5 +28,5 @@ setup(name        = "dsc",
         ],
       install_requires = ['sos==0.5.7', 'pyyaml', 'pandas>=0.18.0',
                           'rpy2>=2.7.8', 'sympy', 'numexpr>=2.5.1',
-                          'numpy']
+                          'celery', 'numpy']
       )

@@ -4,10 +4,15 @@
 ###
 # Requirement
 ###
-# DSC2 requires Python 3. If you do not have Python 3 on your system it is strongly recommended that you install Python 3 from @@conda@@:
+# DSC2 requires Python 3. If you do not have Python 3 on your system it is strongly recommended that you install Python 3 from @@conda@@.
+#! Download for Linux
 wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh
 bash Miniconda3-latest-Linux-x86_64.sh
+#! For MacOS
+wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+bash Miniconda3-latest-MacOSX-x86_64.sh
 # Follow the prompt to install it (use @@ctrl+F@@ to quickly jump to the end of the Licenses if you have read them before). Be sure to add the installation path to your shell environment (the installation script will ask if you'd like this be configured automatically: say Yes unless you know what you are doing).
+# After the program is installed, you have to reload your @@bash@@ profile. If you do not know what this means, just exit the current terminal and open up a new one.
 ###
 # Released versions
 ###
@@ -15,6 +20,7 @@ bash Miniconda3-latest-Linux-x86_64.sh
 cd src
 python setup.py install
 # to install it. @@DCS2@@ will automatically download and compile its dependent packages, among which @@numpy@@ and @@pandas@@ will take a while to build.
+# ""Note: if during the installation you get the complaint ``numpy'' not found, just run this setup command again and it should work."" This is due to a bug for package @@numexpr@@ which does not recognize @@numpy@@ if it is newly installed.
 ###
 # Developing version
 ###
