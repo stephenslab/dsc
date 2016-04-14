@@ -22,9 +22,12 @@ python setup.py install
 # to install it. @@DCS2@@ will automatically download and compile its dependent packages, among which @@numpy@@ and @@pandas@@ will take a while to build.
 # ""Note: if during the installation you get the complaint ``numpy'' not found, just run this setup command again and it should work."" This is due to a bug for package @@numexpr@@ which does not recognize @@numpy@@ if it is newly installed.
 ###
-# Developing version
+# Developmental version
 ###
 # We welcome contributions from you! You can [fork|@https://help.github.com/articles/fork-a-repo/@] the repo on github, test it out on your computer and make possible improvements, then send us a [pull request|@https://help.github.com/articles/fork-a-repo/@].
-# If for the moment you only want to download and install the developing version without contributing, please clone the repo to your desktop and run the setup script:
+# Since some DSC2 features are directly implemented into `pysos` library, the developmental version of DSC2 requires developmental version of `pysos`. Therefore the latest `pysos` library has to be installed before updating DSC2:
+git clone https://github.com/bpeng2000/SOS.git
+python setup.py install
+# Then install DSC2:
 git clone https://github.com/stephenslab/dsc2.git
 python setup.py install
