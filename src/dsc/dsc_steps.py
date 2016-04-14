@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
-import copy, re, os
+import copy, re, os, hashlib
 from pysos import check_command
 from pysos.utils import Error, env
 from dsc import VERSION
@@ -39,7 +39,7 @@ class DSCJobs(dotdict):
     def __init__(self, data):
         self.output_prefix = data.DSC['output'][0]
         self.default_workdir = data.DSC['work_dir'][0]
-        install_r_libs(try_get_value(data.DSC, ('R_libs')))
+        data.DSC['run'] = [(x,) if isinstance(x, str) else x for x in data.DSC['run']]
         # sequences in action, logically ordered
         self.ordering = self.__merge_sequences(data.DSC['run'])
         self.raw_data = {}
@@ -51,6 +51,12 @@ class DSCJobs(dotdict):
         self.data = []
         for seq, idx in self.sequences:
             self.data.append(self.__get_workflow(seq))
+        rlibs = try_get_value(data.DSC, ('R_libs'))
+        if rlibs:
+            rlibs_md5 = hashlib.md5(repr(rlibs).encode('utf-8')).hexdigest()
+            if not os.path.exists('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)):
+                install_r_libs(rlibs)
+                os.system('touch {}'.format('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)))
 
     def __load(self, block, dsc_block, name = 'block'):
         '''Load block data to self.raw_data with some preliminary processing
@@ -203,6 +209,9 @@ class DSCJobs(dotdict):
                                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
                             else:
                                 p1 = repr(p1)
+                        if isinstance(p1, tuple) and raw_data[item][step_idx]['is_r']:
+                            p1 = 'c({})'.\
+                              format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in p1]))
                         values.append(p1)
                     if len(values) == 0:
                         del raw_data[item][step_idx]['parameters'][k]

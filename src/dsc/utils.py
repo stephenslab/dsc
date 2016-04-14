@@ -516,7 +516,7 @@ def registered_output(values, db_name):
     res = []
     for value in values:
         base, ext = value.rsplit('.', 1)
-        md5 = '{}.{}'.format(hashlib.md5(base.encode('utf-8')).hexdigest() if sys.version_info[0] == 3 else hashlib.md5(base).hexdigest(), ext)
+        md5 = '{}.{}'.format(hashlib.md5(base.encode('utf-8')).hexdigest(), ext)
         res.append('{}/{}'.format(db_name, md5))
         register(base, md5)
     return res

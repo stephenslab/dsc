@@ -8,7 +8,7 @@ This file defines the `DSCData` class for loading DSC file
 '''
 
 import os, sys, yaml, re, subprocess, itertools, copy, sympy, \
-  collections
+  collections, warnings
 import readline
 import rpy2.robjects as RO
 from io import StringIO
@@ -209,7 +209,9 @@ class ExpandActions(DSCEntryParser):
         return pairwise_list(*value)
 
     def __R(self, code):
-        return list(RO.r(code))
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return list(RO.r(code))
 
     def __Python(self, code):
         return eval(code)
@@ -267,6 +269,10 @@ class OperationParser(DSCEntryParser):
             return value
         if not isinstance(value, str):
             raise TypeError("Argument must be string but it is %s." % type(value))
+        value = value.strip()
+        if value[-1] in self.operators:
+            raise FormatError('The end of DSC sequence ``"{}"`` cannot be an operator ``{}``!'.\
+                              format(value, value[-1]))
         res = []
         for seq in self.split(value):
             self.reset()
@@ -580,7 +586,8 @@ class DSCData(dotdict):
             else:
                 # double check if any computational routines are
                 # out of index
-                self[name]['meta']['exec'] = [tuple(x.split()) if isinstance(x, str) else x for x in self[name]['meta']['exec']]
+                self[name]['meta']['exec'] = [tuple(x.split()) if isinstance(x, str) else x
+                                              for x in self[name]['meta']['exec']]
                 if 'exec_alias' in self[name]['meta'] \
                   and len(self[name]['meta']['exec_alias']) != len(self[name]['meta']['exec']):
                     raise FormatError('Alias does not match the length of exec, in block ``{}``!'.\
