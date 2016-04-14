@@ -3,6 +3,11 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
+import sys
+_py_ver = sys.version_info
+if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) < (5, 0)):
+    raise SystemError('Python 3.5 or higher is required. Please upgrade your Python {}.{}.{}.'
+         .format(_py_ver.major, _py_ver.minor, _py_ver.micro))
 from setuptools import setup
 from dsc import VERSION
 
@@ -28,5 +33,5 @@ setup(name        = "dsc",
         ],
       install_requires = ['sos==0.5.7', 'pyyaml', 'pandas>=0.18.0',
                           'rpy2>=2.7.8', 'sympy', 'numexpr>=2.5.1',
-                          'celery', 'numpy']
+                          'numpy']
       )
