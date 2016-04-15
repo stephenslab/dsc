@@ -3,7 +3,7 @@
 ###
 # DSC2 is implemented in Python. It relies on a number of existing packages:
 #{list
-# [@@pysos@@|@https://github.com/bpeng2000/SOS@] library supports the execution of commands involved in DSC, which implements job dependency management and controls parallelization via [celery|@http://www.celeryproject.org/@]. Development of features in DSC2 are directly contributed to @@pysos@@ whenever possible, to keep the codes modular and easier to maintain.
+# [@@pysos@@|@https://github.com/BoPeng/SOS@] library supports the execution of commands involved in DSC, which implements job dependency management and controls parallelization via [celery|@http://www.celeryproject.org/@]. Development of features in DSC2 are directly contributed to @@pysos@@ whenever possible, to keep the codes modular and easier to maintain.
 # [@@sympy@@|@http://www.sympy.org/en/index.html@] is used to interpret logic behind DSC sequences and parameter assignment (if @@.logic@@ options are available).
 # [@@ryp2@@|@http://rpy2.bitbucket.org/@] controls a part of interactions with R in DSC2.
 # [@@pandas@@|@http://pandas.pydata.org/@] is used to manipulate output data.

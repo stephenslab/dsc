@@ -24,10 +24,14 @@ python setup.py install
 ###
 # Developmental version
 ###
-# We welcome contributions from you! You can [fork|@https://help.github.com/articles/fork-a-repo/@] the repo on github, test it out on your computer and make possible improvements, then send us a [pull request|@https://help.github.com/articles/fork-a-repo/@].
 # Since some DSC2 features are directly implemented into `pysos` library, the developmental version of DSC2 requires developmental version of `pysos`. Therefore the latest `pysos` library has to be installed before updating DSC2:
-git clone https://github.com/bpeng2000/SOS.git
+git clone https://github.com/BoPeng/SOS.git
 python setup.py install
 # Then install DSC2:
 git clone https://github.com/stephenslab/dsc2.git
 python setup.py install
+###
+# Feedback
+###
+# We want to hear your comments and critics on the DSC2 design and implementation! If you have an idea that may improve DSC2 design, or need a feature in your research which DSC2 currently does not support, please submit a [ticket|@https://github.com/stephenslab/dsc2/issues@] to detail your thoughts. If you want to report a bug please also open a [ticket|@https://github.com/stephenslab/dsc2/issues@], ideally with an attachment of your DSC2 script or part of it as long as it reproduces the issue.
+# We also welcome contributions from you! You can [fork|@https://help.github.com/articles/fork-a-repo/@] the repo on github, test it out on your computer and make possible improvements, then send us a [pull request|@https://help.github.com/articles/fork-a-repo/@].
