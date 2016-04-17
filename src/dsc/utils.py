@@ -501,7 +501,7 @@ def registered_output(values, db_name):
             depends = None
         md5 = md5.rsplit('.', 1)[0]
         key = md5 if depends is None else '{}_{}'.format(md5, depends)
-        file_name = '.sos/.dsc/.{}.{}.tmp'.format(db_name, key)
+        file_name = '.sos/.dsc/.{}.{}.tmp'.format(os.path.basename(db_name), key)
         if os.path.exists(file_name):
             return
         text = '{}:\n'.format(key)
@@ -513,7 +513,6 @@ def registered_output(values, db_name):
     #
     if isinstance(values, str):
         values = [values]
-    db_name = os.path.basename(db_name)
     res = []
     for value in values:
         base, ext = value.rsplit('.', 1)

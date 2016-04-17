@@ -51,8 +51,9 @@ def execute(args, argv):
         os.makedirs('.sos/.dsc')
     dsc_data = DSCData(args.dsc_file)
     db_name = os.path.basename(dsc_data['DSC']['output'][0])
-    for file_ in glob.glob('.sos/.dsc/.*.tmp'):
-        os.remove(file_)
+    os.makedirs(os.path.dirname(dsc_data['DSC']['output'][0]), exist_ok=True)
+    for item in glob.glob('.sos/.dsc/.*.tmp'):
+        os.remove(item)
     dsc_jobs = DSCJobs(dsc_data)
     sos_jobs = DSC2SoS(dsc_jobs, echo = True if args.debug else False)
     if verbosity > 3:
