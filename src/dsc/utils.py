@@ -513,6 +513,7 @@ def registered_output(values, db_name):
     #
     if isinstance(values, str):
         values = [values]
+    db_name = os.path.basename(db_name)
     res = []
     for value in values:
         base, ext = value.rsplit('.', 1)

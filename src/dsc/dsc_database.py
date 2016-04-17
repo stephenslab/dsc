@@ -28,7 +28,7 @@ class MetaDB:
          * rename each parameter key: key => key_exec
         '''
         try:
-            with open('.sos/.dsc/{}.yaml'.format(self.name)) as f:
+            with open('.sos/.dsc/{}.yaml'.format(os.path.basename(self.name))) as f:
                 data = yaml.load(f)
         except FileNotFoundError:
             raise MetaDBError('Cannot load source data to build database!')

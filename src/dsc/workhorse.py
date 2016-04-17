@@ -50,17 +50,18 @@ def execute(args, argv):
     if not os.path.exists('.sos/.dsc'):
         os.makedirs('.sos/.dsc')
     dsc_data = DSCData(args.dsc_file)
-    db_name = dsc_data['DSC']['output'][0]
+    db_name = os.path.basename(dsc_data['DSC']['output'][0])
     for file_ in glob.glob('.sos/.dsc/.*.tmp'):
         os.remove(file_)
-    with open('.sos/.dsc/{}.data'.format(db_name), 'w') as f:
-        f.write(str(dsc_data))
     dsc_jobs = DSCJobs(dsc_data)
-    with open('.sos/.dsc/{}.jobs'.format(db_name), 'w') as f:
-        f.write(str(dsc_jobs))
     sos_jobs = DSC2SoS(dsc_jobs, echo = True if args.debug else False)
-    with open('.sos/.dsc/{}.sos'.format(db_name), 'w') as f:
-        f.write(str(sos_jobs))
+    if verbosity > 3:
+        with open('.sos/.dsc/{}.data'.format(db_name), 'w') as f:
+            f.write(str(dsc_data))
+        with open('.sos/.dsc/{}.jobs'.format(db_name), 'w') as f:
+            f.write(str(dsc_jobs))
+        with open('.sos/.dsc/{}.sos'.format(db_name), 'w') as f:
+            f.write(str(sos_jobs))
     # Dryrun for sanity checks
     args.workflow = 'DSC'
     args.verbosity = 0
@@ -84,8 +85,8 @@ def execute(args, argv):
     env.verbosity = args.verbosity = verbosity
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
-    env.logger.info("Building summary database ``{0}.csv.gz & {0}.db`` ...".format(db_name))
-    MetaDB(db_name).build()
+    env.logger.info("Building summary database ``{0}.csv.gz & {0}.db`` ...".format(dsc_data['DSC']['output'][0]))
+    MetaDB(dsc_data['DSC']['output'][0]).build()
     env.logger.info("DSC complete!")
 
 def query(args, argv):

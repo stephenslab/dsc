@@ -12,7 +12,7 @@ from pysos import check_command
 from pysos.utils import Error, env
 from dsc import VERSION
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
-     cartesian_list, merge_lists, install_r_libs
+     cartesian_list, merge_lists, install_r_libs, uniq_list
 
 class StepError(Error):
     """Raised when Step parameters are illegal."""
@@ -374,13 +374,18 @@ class DSC2SoS:
         res.append('output_suffix = {}'.format(repr(step_data['output_ext'])))
         input_vars = ''
         if step_data['input_depends']:
-            if len(step_data['input_depends']) > 1:
+            # A step can depend on maximum of other 2 steps, by DSC design
+            depend_steps = uniq_list([x[0] for x in step_data['input_depends']])
+            if len(depend_steps) > 2:
+                raise ValueError("DSC block ``{}`` has too many dependencies: ``{}``. " \
+                "By DSC design a block can have only depend on one or two other blocks.".format(step_data['name'], repr(depend_steps)))
+            elif len(depend_steps) == 2:
                 # Generate combinations of input files
                 res.append('input_files = sos_paired_input([{}])'.\
-                           format(', '.join(['{}.output'.format(x[0]) for x in step_data['input_depends']])))
+                           format(', '.join(['{}.output'.format(x) for x in depend_steps])))
                 input_vars = "input_files, group_by = 'pairs', "
             else:
-                input_vars = "{}.output, group_by = 'single', ".format(step_data['input_depends'][0][0])
+                input_vars = "{}.output, group_by = 'single', ".format(depend_steps[0])
             res.append("input: %spattern = '{path}/{base}.{ext}'%s" % (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
             res.append("output: registered_output('{0}:%%:${{\"_\".join(_base)}}.${{output_suffix}}', '{1}')".format(':%:'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
         else:
