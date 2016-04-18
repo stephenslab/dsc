@@ -1,6 +1,1 @@
-# DSC2
-
-Successor of the [Dynamic Statistical Comparisons in R]
-(https://github.com/stephens999/dscr/)
-
-Project wiki page: https://github.com/stephenslab/dsc2/wiki
+See [Installation guide](http://github.com/stephenslab/dsc2/wiki/01-Download-and-Installation) for details.
