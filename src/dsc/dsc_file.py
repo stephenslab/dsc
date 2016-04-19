@@ -605,7 +605,7 @@ class DSCData(dotdict):
                     if max_exec > len(self[name]['meta']['exec']):
                         raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
         #
-        rlibs = try_get_value(data.DSC, ('R_libs'))
+        rlibs = try_get_value(self['DSC'], ('R_libs'))
         if rlibs:
             rlibs_md5 = hashlib.md5(repr(rlibs).encode('utf-8')).hexdigest()
             if not os.path.exists('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)):

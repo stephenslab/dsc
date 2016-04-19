@@ -13,7 +13,7 @@ from pysos.utils import Error, env
 from dsc import VERSION
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list, merge_lists, install_r_libs, uniq_list
-from .plugin import RPlug, PyPlug
+from .plugin import Plugin
 
 class StepError(Error):
     """Raised when Step parameters are illegal."""
@@ -52,16 +52,55 @@ class DSCJobs(dotdict):
         self.output_prefix = data.DSC['output'][0]
         self.default_workdir = data.DSC['work_dir'][0]
         # sequences in action, logically ordered
-        self.ordering = self.__merge_sequences(data.DSC['run'])
+        self.ordering = self.merge_sequences(data.DSC['run'])
         for block in self.ordering:
-            self.__load_raw_data(data[block], data.DSC, name = block)
+            self.load_raw_data(data[block], data.DSC, name = block)
         # sequences in action, unordered but expanded by index
-        self.sequences = self.__expand_sequences(self.__index_sequences(data.DSC['run']),
+        self.sequences = self.expand_sequences(data.DSC['run'],
                                                 {x : range(len(self.raw_data[x])) for x in self.raw_data})
         for seq, idx in self.sequences:
-            self.data.append(self.__get_workflow(seq))
+            self.data.append(self.get_workflow(seq))
 
-    def __load_raw_data(self, block, dsc_block, name = 'block'):
+    def __initialize_block(self, name):
+        '''Intermediate data to be appended to self.data'''
+        data = dotdict()
+        data.work_dir = self.default_workdir
+        data.output_db = self.output_prefix
+        # to_plugin: If the output is an RDS file: is so, if both `plugin` in ('R', 'Python')
+        # and return parameter is not found in params list
+        data.plugin = Plugin()
+        data.to_plugin = None
+        # Input depends: [(step_name, out_var, idx), (step_name, out_var, idx) ...]
+        # Then out_var will be assigned in the current step as: out_var = step_name.output[idx]
+        data.input_depends = []
+        # For every input_depends if it is from some plugin,
+        # via checking the corresponding to_plugin property.
+        data.input_from_plugin = []
+        data.name = name
+        return data
+
+    def __reset_block(self, data, exe, exe_name, exec_path):
+        '''Intermediate data to be appended to self.data'''
+        data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + \
+                               [x if not x.startswith('$') else '${_%}' % x[1:] for x in exe[1:]])
+        # Decide if this step is a plugin
+        # FIXME: will have to eventually decide this by checking whether or not return
+        # value is in parameter list, not by extension
+        # one need to use "Rscript file_name.R" not "file_name.R"
+        # same for "python file_name.py"
+        plugin = Plugin(os.path.splitext(exe[0])[1].lstrip('.'))
+        if (data.plugin.name is not None and (not plugin.name) != (not data.plugin.name)):
+            raise StepError("A mixture of plugin codes and other executables are not allowed " \
+            "in the same block ``{}``.".format(data.name))
+        else:
+            data.plugin = plugin
+        data.plugin.reset()
+        data.parameters = []
+        data.output_ext = []
+        data.output_vars = []
+        data.exe = ' '.join(exe) if exe_name is None else exe_name
+
+    def load_raw_data(self, block, dsc_block, name = 'block'):
         '''Load block data to self.raw_data with some preliminary processing
         '''
         def load_params():
@@ -99,17 +138,13 @@ class DSCJobs(dotdict):
                     params[k] = params.pop(item)
                 else:
                     if groups.group(1) == 'RList':
-                        if not data.is_r:
+                        if not data.plugin.name == 'R':
                             raise StepError("Alias ``RList`` is not applicable to executable ``{}``.".\
                                             format(exe[0]))
-                        text, variables = self.__format_r_list(k, groups.group(2), params)
-                        data.r_list.extend(text)
-                        data.r_list_vars.extend(variables)
+                        data.plugin.set_container(k, groups.group(2), params)
                     else:
                         raise StepError('Invalid .alias ``{}`` in block ``{}``.'.\
                                         format(groups.group(1), name))
-            # if data.is_r:
-                # problem: what if the list has $? so I cannot do it here.
 
         def process_rules():
             # parameter value slicing
@@ -121,28 +156,30 @@ class DSCJobs(dotdict):
                 if '=' in item:
                     # return alias exists
                     lhs, rhs = (x.strip() for x in item.split('='))
-                    groups = re.search(r'^R\((.*?)\)$', rhs)
+                    groups = re.search(r'^(R|Python)\((.*?)\)$', rhs)
                     if not groups:
-                        # alias is not within R
-                        # have to make it available from parameter list
-                        # FIXME: not sure if this is the best thing to do
+                        # alias is not for value inside other return objects
+                        # which implies that the alias comes from parameter list
+                        # FIXME: Just copy it over here. I should instead do it
+                        # at the saveRDS step to avoid copying
                         try:
                             params[lhs] = params[rhs]
                         except KeyError:
-                            raise StepError("Parameter ``{}`` not found for block ``{}``.".format(rhs, name))
+                            raise StepError("Parameter ``{}`` not found for block ``{}``.".\
+                                            format(rhs, name))
                     else:
-                        # alias is within R
-                        data.r_return_alias.append('{} <- {}'.format(lhs, groups.group(1)))
+                        # alias is within plugin
+                        data.plugin.add_return(lhs, groups.group(1))
                 else:
                     lhs = item.strip()
                 data.output_vars.append(lhs)
-                if not data.is_r:
+                if not data.plugin.name:
                     # output file pattern
-                    # FIXME: have to extract from File()
+                    # FIXME: have to extract extension from File()
+                    # E.g. get_ext(lhs)
                     data.output_ext.append(lhs)
-            if data.is_r:
+            if data.plugin.name:
                 data.output_ext = 'rds'
-        # FIXME: replicates not yet handled
         # Load command parameters
         self.raw_data[name] = []
         data = self.__initialize_block(name)
@@ -156,19 +193,21 @@ class DSCJobs(dotdict):
             process_alias()
             # FIXME: handle rules
             process_rules()
-            # FIXME: File(), handle it directly into SoS syntax
-            # return_r: if all return objects are not File
-            # FIXME: let it be is_r for now
-            data.return_r = data.is_r
+            # FIXME: File() not handled yet
+            # to_plugin: if all return objects are not File
+            # FIXME: let it be whether or not the block uses plugin for now
+            # But in practice if return parameter matches a File() then
+            # to_plugin will be False no matter what data.plugin is
+            data.to_plugin = True if data.plugin.name else False
             # handle output
             process_output(block.out)
             # assign parameters
             data.parameters = params
             self.raw_data[name].append(dict(data))
 
-    def __get_workflow(self, sequence):
+    def get_workflow(self, sequence):
         '''Convert self.raw_data to self.data
-           * Fully expand sequences so that each sequence is standalone to initialize an SoS (though possibly partially duplicate)
+           * Fully expand sequences so that each sequence will be one SoS instance
            * Resolving step dependencies and some syntax conversion, most importantly the $ symbol
         '''
         def find_dependencies(value):
@@ -177,11 +216,12 @@ class DSCJobs(dotdict):
                 raise StepError('Symbol ``$`` is not allowed in the first step of DSC sequence.')
             curr_idx = curr_idx - 1
             dependence = None
-            return_r = None
+            to_plugin = None
             while curr_idx >= 0:
                 try:
-                    dependence = (res[curr_idx][0]['name'], value, res[curr_idx][0]['output_vars'].index(value))
-                    return_r = res[curr_idx][0]['return_r']
+                    dependence = (res[curr_idx][0]['name'], value,
+                                  res[curr_idx][0]['output_vars'].index(value))
+                    to_plugin = res[curr_idx][0]['to_plugin']
                 except ValueError:
                     pass
                 if dependence is not None:
@@ -192,7 +232,7 @@ class DSCJobs(dotdict):
                 raise StepError('Cannot find return value for ``${}`` in any of its previous steps.'.format(value))
             if dependence not in raw_data[item][step_idx]['input_depends']:
                 raw_data[item][step_idx]['input_depends'].append(dependence)
-                raw_data[item][step_idx]['input_is_r'].append(return_r)
+                raw_data[item][step_idx]['input_from_plugin'].append(to_plugin)
         #
         res = []
         raw_data = copy.deepcopy(self.raw_data)
@@ -206,15 +246,14 @@ class DSCJobs(dotdict):
                         if isinstance(p1, str):
                             if p1.startswith('$'):
                                 find_dependencies(p1[1:])
-                                if raw_data[item][step_idx]['is_r'] and p1[1:] != k:
-                                    raw_data[item][step_idx]['r_input_alias'].append('{} <- {}'.\
-                                                                                     format(k, p1[1:]))
+                                if p1[1:] != k:
+                                    raw_data[item][step_idx]['plugin'].add_input(k, p1[1:])
                                 continue
                             elif re.search(r'^Asis\((.*?)\)$', p1):
                                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
                             else:
                                 p1 = repr(p1)
-                        if isinstance(p1, tuple) and raw_data[item][step_idx]['is_r']:
+                        if isinstance(p1, tuple) and raw_data[item][step_idx]['plugin'].name == 'R':
                             p1 = 'c({})'.\
                               format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in p1]))
                         values.append(p1)
@@ -234,47 +273,23 @@ class DSCJobs(dotdict):
             res.append(raw_data[item])
         return res
 
-    def __initialize_block(self, name):
-        data = dotdict()
-        data.work_dir = self.default_workdir
-        data.output_db = self.output_prefix
-        # return_r: If the output is an RDS file: is so, if both `is_r` and return parameter is not found in params list
-        data.is_r = data.return_r = None
-        # Input depends: [(step_name, out_var, idx), (step_name, out_var, idx) ...]
-        # Then out_var will be assigned in the current step as: out_var = step_name.output[idx]
-        data.input_depends = []
-        # For every input_depends if it is from R, via checking the corresponding return_r property.
-        data.input_is_r = []
-        data.name = name
-        return data
+    def merge_sequences(self, input_sequences):
+        '''Extract the proper ordering of elements from multiple sequences'''
+        # remove slicing
+        sequences = [[y.split('[')[0] for y in x] for x in input_sequences]
+        values = sequences[0]
+        for idx in range(len(sequences) - 1):
+            values = merge_lists(values, sequences[idx + 1])
+        return values
 
-    def __reset_block(self, data, exe, exe_name, exec_path):
-        data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + \
-                               [x if not x.startswith('$') else '${_%}' % x[1:] for x in exe[1:]])
-        # Is the executable an R program
-        # If the R program can be executed on its own
-        # one need to use "Rscript file_name.R" not "file_name.R"
-        is_r = exe[0].lower().endswith('.r')
-        if data.is_r is not None and is_r != data.is_r:
-            raise StepError("A mixture of R codes and other executables are not allowed in the same block ``{}``.".format(data.name))
-        else:
-            data.is_r = is_r
-        data.r_list = []
-        data.r_return_alias = []
-        data.r_input_alias = []
-        data.r_list_vars = []
-        data.parameters = []
-        data.output_ext = []
-        data.output_vars = []
-        data.exe = ' '.join(exe) if exe_name is None else exe_name
-
-    def __format_r_list(self, name, value, params):
-        keys = [x.strip() for x in value.split(',')] if value else list(params.keys())
-        keys = [x for x in keys if x != 'seed']
-        res = ['{} <- list()'.format(name)]
-        for k in keys:
-            res.append('%s$%s <- ${_%s}' % (name, k, k))
-        return res, keys
+    def expand_sequences(self, sequences, default = {}):
+        '''expand DSC sequences by index'''
+        res = []
+        for value in self.__index_sequences(sequences):
+            seq = [x[0] for x in value]
+            idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
+            res.append((seq, cartesian_list(*idxes)))
+        return res
 
     def __search_exec(self, exe, exec_path):
         '''Use exec_path information to try to complete the path of cmd'''
@@ -289,29 +304,11 @@ class DSCJobs(dotdict):
                 res = os.path.join(item, exe)
         return res if res else exe
 
-    def __merge_sequences(self, input_sequences):
-        '''Extract the proper ordering of elements from multiple sequences'''
-        # remove slicing
-        sequences = [[y.split('[')[0] for y in x] for x in input_sequences]
-        values = sequences[0]
-        for idx in range(len(sequences) - 1):
-            values = merge_lists(values, sequences[idx + 1])
-        return values
-
     def __index_sequences(self, input_sequences):
         '''Strip slicing symbol out of sequences and add them as index'''
         res = []
         for seq in input_sequences:
             res.append(tuple([get_slice(x, mismatch_quit = False) for x in seq]))
-        return res
-
-    def __expand_sequences(self, sequences, default = {}):
-        '''expand DSC sequences by index'''
-        res = []
-        for value in sequences:
-            seq = [x[0] for x in value]
-            idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
-            res.append((seq, cartesian_list(*idxes)))
         return res
 
     def __str__(self):
@@ -378,12 +375,14 @@ class DSC2SoS:
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
         res.append('output_suffix = {}'.format(repr(step_data['output_ext'])))
         input_vars = ''
+        depend_steps = []
         if step_data['input_depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['input_depends']])
             if len(depend_steps) > 2:
                 raise ValueError("DSC block ``{}`` has too many dependencies: ``{}``. " \
-                "By DSC design a block can have only depend on one or two other blocks.".format(step_data['name'], repr(depend_steps)))
+                "By DSC design a block can have only depend on one or two other blocks.".\
+                format(step_data['name'], repr(depend_steps)))
             elif len(depend_steps) == 2:
                 # Generate combinations of input files
                 res.append('input_files = sos_paired_input([{}])'.\
@@ -391,56 +390,44 @@ class DSC2SoS:
                 input_vars = "input_files, group_by = 'pairs', "
             else:
                 input_vars = "{}.output, group_by = 'single', ".format(depend_steps[0])
-            res.append("input: %spattern = '{path}/{base}.{ext}'%s" % (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
-            res.append("output: registered_output('{0}:%%:${{\"_\".join(_base)}}.${{output_suffix}}', '{1}')".format(':%:'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
+            res.append("input: %spattern = '{path}/{base}.{ext}'%s" % \
+                       (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
+            res.append("output: registered_output('{0}:%%:${{\"_\".join(_base)}}.${{output_suffix}}', "\
+                       "'{1}')".format(':%:'.join(['exec={}'.format(step_data['exe'])] + \
+                                      ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
         else:
             if params:
                 res.append("input: %s" % 'for_each = %s'% repr(params))
-            res.append("output: registered_output(expand_pattern('{0}.${{output_suffix}}'), '{1}')".format(':%:'.join(['exec={}'.format(step_data['exe'])] + ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
-        res.append("process: workdir = {}, concurrent = True".format(repr(step_data['work_dir'])))
+            res.append("output: registered_output(expand_pattern('{0}.${{output_suffix}}'), '{1}')".\
+                       format(':%:'.join(['exec={}'.format(step_data['exe'])] + \
+                                         ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
+        res.append("{}: workdir = {}, concurrent = {}".\
+                   format(step_data['plugin'].name if (not self.echo and step_data['plugin'].name)
+                          else 'run', repr(step_data['work_dir']), 'False' if self.echo else 'True'))
         # Add action
         if self.echo:
             # Debug and test
-            res.append("""run('''\necho {}\necho Input:\n{}\necho Parameters:\n{}\necho Output:\n{}\n''')""".\
+            res.append("""\necho {}\necho Input:\n{}\necho Parameters:\n{}\necho Output:\n{}\n""".\
                        format(step_data['command'],
                               'echo ${_input}', # FIXME input
                               '\n'.join(['echo "\t%s: ${_%s}"' % (key, key) for key in params]),
                               '\n'.join(['echo "\toutput: ${_output!r}"', 'touch ${_output}'])
                               ))
         else:
-            if step_data['is_r']:
-                r_begin = step_data['r_list']
-                r_begin.extend(self.__format_r_args([x for x in params if not x in step_data['r_list_vars']]))
-                if step_data['input_depends']:
-                    # FIXME: using attach might be dangerous. better create some namespace.
-                    if len(step_data['input_depends']) > 1:
-                        r_begin.append('input.files <- c(${_input!r,})\nfor (i in 1:length(input.files)) attach(readRDS(input.files[i]), warn.conflicts = F)')
-                    else:
-                        r_begin.append('attach(readRDS("${_input}"), warn.conflicts = F)')
-                r_begin.extend(step_data['r_input_alias'])
-                r_end = step_data['r_return_alias']
-                if step_data['return_r']:
-                    r_end.append('saveRDS(list({}), ${{_output!r}})'.format(', '.join(['{0}={0}'.format(x) for x in step_data['output_vars']])))
+            if step_data['plugin'].name:
+                script_begin = step_data['plugin'].get_input(params, input_num = len(depend_steps))
+                script_end = step_data['plugin'].get_return(step_data['output_vars'])
                 try:
-                    rscript = """R('''\n{3}\n{0}\n{4}\n{1}\n{3}\n{2}\n{4}\n''')""".\
-                      format('\n'.join(r_begin).strip(),
-                             '\n'.join([x.strip() for x in open(step_data['command'].split()[0], 'r').readlines() if x.strip()]),
-                             '\n'.join(r_end).strip(),
-                             '## BEGIN code auto-generated by DSC',
-                             '## END code auto-generated by DSC')
+                    script = """\n{3}\n{0}\n{4}\n{1}\n{3}\n{2}\n{4}\n""".\
+                      format(script_begin,
+                            '\n'.join([x.strip() for x in open(step_data['command'].split()[0], 'r').\
+                                       readlines() if x.strip()]),
+                            script_end, '## BEGIN code auto-generated by DSC',
+                            '## END code auto-generated by DSC')
                 except IOError:
-                    raise StepError("Cannot find R script ``{}``!".format(step_data['command'].split()[0]))
-                res.append(rscript)
+                    raise StepError("Cannot find script ``{}``!".format(step_data['command'].split()[0]))
+                res.append(script)
             else:
                 check_command(step_data['command'].split()[0])
                 res.append("""run('''\n{}\n''')""".format(step_data['command']))
         return '\n'.join(res) + '\n'
-
-    def __format_r_args(self, keys):
-        res = []
-        if 'seed' in keys:
-            res.append('set.seed(${_seed})')
-        for k in keys:
-            if k != 'seed':
-                res.append('%s <- ${_%s}' % (k, k))
-        return res
