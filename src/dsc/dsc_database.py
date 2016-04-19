@@ -6,9 +6,9 @@ __license__ = "MIT"
 import os, yaml, gzip
 import pandas as pd
 from copy import deepcopy
+from pprint import pprint
 from pysos.utils import Error, env
 from .utils import load_rds, SQLiteMan
-from pprint import pprint
 
 class MetaDBError(Error):
     """Raised when there is a problem building the database."""
@@ -80,8 +80,8 @@ class MetaDB:
 
     def __expand(self):
         '''
-        For entries involving __input__, for each input, find the other entry with corresponding output and
-        copy the parameters (except exec, __input__ and __output__) over.
+        For entries involving __input__, for each input, find the other entry with corresponding
+        output and copy the parameters (except exec, __input__ and __output__) over.
         '''
         #
         for k in list(self.data.keys()):
@@ -99,7 +99,8 @@ class MetaDB:
                         if k1 in ['__input__', '__output__']:
                             continue
                         if k1 in self.data[k] and self.data[k][k1] != v1:
-                            raise MetaDBError('Conflicting key ``{0}`` between section ``{1} (value {3})`` and ``{2} (value {4})``.'.\
+                            raise MetaDBError('Conflicting key ``{0}`` between section '\
+                                              '``{1} (value {3})`` and ``{2} (value {4})``.'.\
                                               format(k1, k, idx, self.data[k][k1], v1))
                         else:
                             self.data[k][k1] = v1
@@ -129,7 +130,8 @@ class MetaDB:
         cols = sorted(self.data.columns.values, reverse = True)
         self.data.reindex(columns = cols).to_csv('{}.csv.gz'.format(self.name), index = False,
                                                  compression = 'gzip')
-        SQLiteMan('{}.db'.format(self.name)).convert(gzip.open('{}.csv.gz'.format(self.name), mode = 'rt'), 'DSC', ',', None, True)
+        SQLiteMan('{}.db'.format(self.name)).\
+          convert(gzip.open('{}.csv.gz'.format(self.name), mode = 'rt'), 'DSC', ',', None, True)
 
     def build(self):
         self.__load_parameters()

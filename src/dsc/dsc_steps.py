@@ -13,6 +13,7 @@ from pysos.utils import Error, env
 from dsc import VERSION
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list, merge_lists, install_r_libs, uniq_list
+from .plugin import RPlug, PyPlug
 
 class StepError(Error):
     """Raised when Step parameters are illegal."""
@@ -22,43 +23,45 @@ class StepError(Error):
 
 class DSCJobs(dotdict):
     '''
-    Convert DSC data to steps compatible with SoS format.
+    Sanity check and convert DSC data to SoS steps.
       * Input is DSCData object
 
     This includes:
       * Ensure step ordering for DSC::run are legitimate
-      * Prepare environments to run R: libraries, alias, return alias
-      * Prepare additional codes for R exec
-      * Prepare environments to run non-R exec: checking / putting together arguments
-      * Figure out step dependencies; figure out whether a step is from R
+      * Prepare environments to run R / Python scripts: libraries, alias, return alias
+      * Prepare additional codes for R / Python exec
+      * Prepare environments to run non-R/py exec: checking / putting together arguments
+      * Figure out step dependencies; figure out whether a step is from plugins
       * Slicing by rules
       * Handle replicates if any
 
     The output of this will be a DSCJobs object ready to convert to SoS steps
     '''
     def __init__(self, data):
+        '''
+        raw_data: dict
+        data: list
+        output_prefix: str
+          output directory
+        default_workdir: str
+        ordering: list
+        sequences: list
+        '''
+        self.data = []
+        self.raw_data = {}
         self.output_prefix = data.DSC['output'][0]
         self.default_workdir = data.DSC['work_dir'][0]
-        data.DSC['run'] = [(x,) if isinstance(x, str) else x for x in data.DSC['run']]
         # sequences in action, logically ordered
         self.ordering = self.__merge_sequences(data.DSC['run'])
-        self.raw_data = {}
         for block in self.ordering:
-            self.__load(data[block], data.DSC, name = block)
+            self.__load_raw_data(data[block], data.DSC, name = block)
         # sequences in action, unordered but expanded by index
         self.sequences = self.__expand_sequences(self.__index_sequences(data.DSC['run']),
                                                 {x : range(len(self.raw_data[x])) for x in self.raw_data})
-        self.data = []
         for seq, idx in self.sequences:
             self.data.append(self.__get_workflow(seq))
-        rlibs = try_get_value(data.DSC, ('R_libs'))
-        if rlibs:
-            rlibs_md5 = hashlib.md5(repr(rlibs).encode('utf-8')).hexdigest()
-            if not os.path.exists('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)):
-                install_r_libs(rlibs)
-                os.system('touch {}'.format('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)))
 
-    def __load(self, block, dsc_block, name = 'block'):
+    def __load_raw_data(self, block, dsc_block, name = 'block'):
         '''Load block data to self.raw_data with some preliminary processing
         '''
         def load_params():
@@ -97,12 +100,14 @@ class DSCJobs(dotdict):
                 else:
                     if groups.group(1) == 'RList':
                         if not data.is_r:
-                            raise StepError("Alias ``RList`` is not applicable to executable ``{}``.".format(exe[0]))
+                            raise StepError("Alias ``RList`` is not applicable to executable ``{}``.".\
+                                            format(exe[0]))
                         text, variables = self.__format_r_list(k, groups.group(2), params)
                         data.r_list.extend(text)
                         data.r_list_vars.extend(variables)
                     else:
-                        raise StepError('Invalid .alias ``{}`` in block ``{}``.'.format(groups.group(1), name))
+                        raise StepError('Invalid .alias ``{}`` in block ``{}``.'.\
+                                        format(groups.group(1), name))
             # if data.is_r:
                 # problem: what if the list has $? so I cannot do it here.
 

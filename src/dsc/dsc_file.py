@@ -16,7 +16,7 @@ from pysos.utils import env, Error
 from .utils import dotdict, lower_keys, is_null, str2num, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_list, flatten_dict, \
      try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value, \
-     no_duplicates_constructor
+     no_duplicates_constructor, install_r_libs
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
@@ -214,7 +214,7 @@ class ExpandActions(DSCEntryParser):
             return list(RO.r(code))
 
     def __Python(self, code):
-        return eval(code)
+        return list(eval(code))
 
     def __Shell(self, code):
         return subprocess.check_output(code, shell = True).decode('utf8').strip()
@@ -338,12 +338,14 @@ class OperationParser(DSCEntryParser):
             x = x.strip().split('*')
             if '2' in x:
                 # error for '**2'
-                raise FormatError("Possibly duplicated elements found in sequence {}".format(self.sequence))
+                raise FormatError("Possibly duplicated elements found in sequence {}".\
+                                  format(self.sequence))
             # re-order elements in x
             # complication: the _ operator
             tmp_1 = dict((y if '_' not in y else y.split('_')[0], y) for y in x)
             if len(tmp_1.keys()) < len(x):
-                raise FormatError("Possibly duplicated elements found in sequence {}".format(self.sequence))
+                raise FormatError("Possibly duplicated elements found in sequence {}".\
+                                  format(self.sequence))
             tmp_2 = []
             for y in sequence_ordering:
                 if y in tmp_1:
@@ -383,7 +385,8 @@ class DSCFileLoader(DSCFileParser):
             try:
                 cfg = yaml.load(f)
             except Exception as e:
-                raise FormatError("DSC configuration ``{}`` not properly formatted!\n``Error message: {}``".format(content, e))
+                raise FormatError("DSC configuration ``{}`` not properly formatted:\n``{}``".\
+                                  format(content, e))
             # data.update(lower_keys(cfg))
             data.update(cfg)
         #
@@ -396,14 +399,15 @@ class DSCFileLoader(DSCFileParser):
                 raise ValueError("Cannot find file ``{}``".format(self.content))
             with StringIO(self.content) as f:
                 load_from_yaml(f, '<Input String>')
-                self.content = 'DSCStringIO.yaml'
+                self.content = 'DSCStringIO.yml'
         has_dsc = False
         blocks = self.__get_blocks(data)
         # Handle derived class
         for block in blocks:
             groups = re.search('(.*?)\((.*?)\)', block)
             if groups:
-                data[groups.group(1).strip()] = update_nested_dict(copy.deepcopy(data[groups.group(2).strip()]), data[block])
+                data[groups.group(1).strip()] = \
+                  update_nested_dict(copy.deepcopy(data[groups.group(2).strip()]), data[block])
                 del data[block]
         # Load data
         for block in list(data.keys()):
@@ -412,9 +416,10 @@ class DSCFileLoader(DSCFileParser):
                 has_dsc = True
                 if 'run' not in data.DSC:
                     raise FormatError('Missing required ``DSC::run``.')
-                data.DSC['run'] = self.op(data.DSC['run'])
+                data.DSC['run'] = [(x,) if isinstance(x, str) else x for x in self.op(data.DSC['run'])]
                 if try_get_value(data, ('DSC', 'output')) is None:
-                    env.logger.warning('Missing output database name in ``DSC::output``. Use default name ``{}``.'.\
+                    env.logger.warning('Missing output database name in ``DSC::output``. '\
+                                       'Use default name ``{}``.'.\
                                        format(os.path.split(self.content[:-5])[-1]))
                     set_nested_value(data, ('DSC', 'output'), os.path.split(self.content[:-5])[-1])
                 if try_get_value(data, ('DSC', 'work_dir')) is None:
@@ -424,7 +429,8 @@ class DSCFileLoader(DSCFileParser):
                 has_exec = has_return = False
                 for key in list(data[block].keys()):
                     if key not in self.block_kw:
-                        env.logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.format(key, block))
+                        env.logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.\
+                                           format(key, block))
                         del data[block][key]
                     if key == 'exec':
                         has_exec = True
@@ -458,7 +464,8 @@ class DSCFileLoader(DSCFileParser):
         tmp = [sorted(x) for x in derived]
         for item in ((i, tmp.count(i)) for i in tmp):
             if item[1] > 1:
-                raise FormatError("Looped block inheritance: {0}({1}) and {1}({0})!".format(item[0][0], item[0][1]))
+                raise FormatError("Looped block inheritance: {0}({1}) and {1}({0})!".\
+                                  format(item[0][0], item[0][1]))
         # Check self-derivation and non-existing base
         tmp = base + [x[0] for x in derived]
         for item in derived:
@@ -572,6 +579,7 @@ class DSCData(dotdict):
       * Translate DSC file text
         * Replace Operators R() / Python() / Shell() / Combo() ...
         * Replace global variables
+      * Some sanity check
 
     Structure of self:
       self.block_name.block_param_name = dict()
@@ -596,6 +604,13 @@ class DSCData(dotdict):
                     max_exec = max(self[name]['params'].keys())
                     if max_exec > len(self[name]['meta']['exec']):
                         raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
+        #
+        rlibs = try_get_value(data.DSC, ('R_libs'))
+        if rlibs:
+            rlibs_md5 = hashlib.md5(repr(rlibs).encode('utf-8')).hexdigest()
+            if not os.path.exists('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)):
+                install_r_libs(rlibs)
+                os.system('touch {}'.format('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)))
 
     def __str__(self):
         res = ''

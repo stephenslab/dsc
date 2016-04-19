@@ -6,32 +6,34 @@ __license__ = "MIT"
 
 import os, sys, atexit, shutil, re, glob
 from .utils import SQLiteMan, round_print, flatten_list
+from pysos.utils import env, get_traceback
+from pysos import SoS_Script
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import MetaDB
-from pysos.utils import env, print_traceback
-from pysos.sos_script import SoS_Script
 
 def sos_run(args, workflow_args):
     env.verbosity = args.verbosity
     env.max_jobs = args.__max_jobs__
     # kill all remainging processes when the master process is killed.
     atexit.register(env.cleanup)
+    if args.__dryrun__:
+        env.run_mode = 'dryrun'
+    if args.__rerun__:
+        env.sig_mode = 'ignore'
     try:
         script = SoS_Script(content=args.script)
         workflow = script.workflow(args.workflow)
-        if args.__dryrun__:
-            env.run_mode = 'dryrun'
-        if args.__rerun__:
-            env.sig_mode = 'ignore'
         workflow.run(workflow_args, cmd_name=args.dsc_file)
     except Exception as e:
         if args.verbosity and args.verbosity > 2:
-            print_traceback()
+            sys.stderr.write(get_traceback())
         env.logger.error(e)
         sys.exit(1)
 
 def sos_dryrun(args, workflow_args):
+    verbosity = args.verbosity
+    args.verbosity = 0
     run_mode = env.run_mode
     max_jobs = args.__max_jobs__
     dryrun = args.__dryrun__
@@ -41,41 +43,47 @@ def sos_dryrun(args, workflow_args):
     args.__max_jobs__ = max_jobs
     args.__dryrun__ = dryrun
     env.run_mode = run_mode
+    env.verbosity = args.verbosity = verbosity
 
 def execute(args, argv):
-    verbosity = args.verbosity
-    env.verbosity = args.verbosity
-    # Archive scripts
-    env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
-    if not os.path.exists('.sos/.dsc'):
-        os.makedirs('.sos/.dsc')
-    dsc_data = DSCData(args.dsc_file)
-    db_name = os.path.basename(dsc_data['DSC']['output'][0])
-    os.makedirs(os.path.dirname(dsc_data['DSC']['output'][0]), exist_ok=True)
-    for item in glob.glob('.sos/.dsc/.*.tmp'):
-        os.remove(item)
-    dsc_jobs = DSCJobs(dsc_data)
-    sos_jobs = DSC2SoS(dsc_jobs, echo = True if args.debug else False)
-    if verbosity > 3:
+    def setup():
+        if os.path.dirname(dsc_data['DSC']['output'][0]):
+            os.makedirs(os.path.dirname(dsc_data['DSC']['output'][0]), exist_ok=True)
+        os.makedirs('.sos/.dsc', exist_ok = True)
+    def cleanup():
+        for item in glob.glob('.sos/.dsc/.*.tmp'):
+            os.remove(item)
+    def log():
         with open('.sos/.dsc/{}.data'.format(db_name), 'w') as f:
             f.write(str(dsc_data))
         with open('.sos/.dsc/{}.jobs'.format(db_name), 'w') as f:
             f.write(str(dsc_jobs))
         with open('.sos/.dsc/{}.sos'.format(db_name), 'w') as f:
             f.write(str(sos_jobs))
-    # Dryrun for sanity checks
+    #
+    verbosity = args.verbosity
+    env.verbosity = args.verbosity
     args.workflow = 'DSC'
-    args.verbosity = 0
+    # Archive scripts
+    env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
+    dsc_data = DSCData(args.dsc_file)
+    db_name = os.path.basename(dsc_data['DSC']['output'][0])
+    setup()
+    dsc_jobs = DSCJobs(dsc_data)
+    sos_jobs = DSC2SoS(dsc_jobs, echo = True if args.debug else False)
+    if verbosity > 3:
+        log()
+    # Dryrun for sanity checks
     for script in sos_jobs.data:
         args.script = script
         sos_dryrun(args, argv)
     with open( '.sos/.dsc/{}.yaml'.format(db_name), 'w' ) as fout:
-        for file_ in glob.glob('.sos/.dsc/.*.tmp'):
-            with open(file_) as fin:
+        for item in glob.glob('.sos/.dsc/.*.tmp'):
+            with open(item) as fin:
                 fout.write(fin.read())
-    env.verbosity = args.verbosity = verbosity
     if args.__dryrun__:
         # FIXME export scripts to db_name folder
+        cleanup()
         return
     # Wetrun
     env.logger.info("Running DSC jobs ...")
@@ -86,7 +94,9 @@ def execute(args, argv):
     env.verbosity = args.verbosity = verbosity
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
-    env.logger.info("Building summary database ``{0}.csv.gz & {0}.db`` ...".format(dsc_data['DSC']['output'][0]))
+    cleanup()
+    env.logger.info("Building summary database ``{0}.csv.gz & {0}.db`` ...".\
+                    format(dsc_data['DSC']['output'][0]))
     MetaDB(dsc_data['DSC']['output'][0]).build()
     env.logger.info("DSC complete!")
 
@@ -143,7 +153,9 @@ def query(args, argv):
         env.logger.debug(query)
         text = s.execute(query, display = False, delimiter = args.delimiter)
         if not text:
-            env.logger.warning('No results found. If you are expecting otherwise, please ensure proper filter is applied and queried parameters co-exists in the same DSC sequence.')
+            env.logger.warning('No results found. If you are expecting otherwise, ' \
+                               'please ensure proper filter is applied and queried parameters ' \
+                               'co-exists in the same DSC sequence.')
         else:
             print(args.delimiter.join(args.group_by + (args.items if args.items != ['*'] else field_names)))
             round_print(text, args.delimiter, pc = args.precision)

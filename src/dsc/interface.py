@@ -7,9 +7,9 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 import sys, os, argparse
 from dsc import PACKAGE, VERSION
+from pysos.utils import env, get_traceback
 from .workhorse import execute, query
 from .utils import Timer
-from pysos.utils import env, print_traceback
 
 def main():
     def add_common_args(obj):
@@ -54,7 +54,7 @@ def main():
             args.func(args, argv)
     except Exception as e:
         if args.verbosity > 2:
-            print_traceback()
+            sys.stderr.write(get_traceback())
         else:
             env.logger.error(e)
         sys.exit(1)
