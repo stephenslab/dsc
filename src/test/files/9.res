@@ -57,13 +57,13 @@ method:
       - true
   params_alias:
     0:
-    - RList(args, transform)
+    - Pack(args, transform)
     2:
-    - args = RList()
+    - args = Pack()
     3:
-    - args = RList()
+    - args = Pack()
     5:
-    - args = RList()
+    - args = Pack()
   rules:
     2:
     - exacttest[1]
@@ -169,7 +169,7 @@ simulate:
       - true
   params_alias:
     0:
-    - args = RList()
+    - args = Pack()
   rules:
     0:
     - (tuple)

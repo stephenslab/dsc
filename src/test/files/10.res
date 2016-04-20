@@ -21,7 +21,7 @@ RUV:
       - $data
   params_alias:
     0:
-    - args = RList()
+    - args = Pack()
 
 SVA:
   meta:
@@ -36,7 +36,7 @@ SVA:
       - $data
   params_alias:
     0:
-    - args = RList()
+    - args = Pack()
 
 myrna:
   meta:
@@ -51,4 +51,4 @@ myrna:
       - $data
   params_alias:
     0:
-    - args = RList()
+    - args = Pack()

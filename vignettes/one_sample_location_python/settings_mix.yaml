@@ -1,5 +1,5 @@
 simulate:
-    exec: rnorm.py, rt.py
+    exec: rnorm.py, rt.R
     seed: R(1:10)
     params:
         n: 1000
@@ -7,11 +7,9 @@ simulate:
     return: x, true_mean
 
 estimate:
-    exec: mean.R, median.py, winsor.R
+    exec: mean.R, median.py
     params:
         x: $x
-        exec[3]:
-            trim: 0.1, 0.2
     return: mean
 
 mse:
@@ -27,5 +25,5 @@ DSC:
          mse
     R_libs: psych
     exec_path: PY/scenarios, PY/methods, PY/scores,
-               R/methods
+               R/scenarios, R/methods
     output: dsc_result

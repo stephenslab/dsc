@@ -5,7 +5,7 @@ simulate:
         max_pi0: 1
         nsamp: 1000
         betahatsd: 1
-        .alias: args = RList()
+        .alias: args = Pack()
     return: data, true_beta = R(data$meta$beta)
 
 DSC:

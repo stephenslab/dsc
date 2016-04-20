@@ -10,7 +10,7 @@ scenario:
         breaksample: FALSE, TRUE
         nullpi: 0.9
         poisthin: TRUE
-        .alias: args = RList()
+        .alias: args = Pack()
         .logic: (seed[1] * path * tissue * Nsamp * Ngene * voom.normalize * breaksample),
                    (seed[2] * path * tissue[2] * Nsamp * Ngene * voom.normalize * breaksample[2] * nullpi),
                    (seed[2] * path * tissue[1] * Nsamp * Ngene * voom.normalize * breaksample[1] * poisthin)
@@ -21,24 +21,24 @@ method:
     params:
         input: $data
         transform: voom, RUVvoom, SVAvoom, quasibinom, RUV+quasibinom, SVA+quasibinom, Myrna+quasibinom, edgeRglm
-        .alias: RList(args, transform)
+        .alias: Pack(args, transform)
         exec[1]:
             .logic: NULL
         exec[2]:
             exacttest: TRUE, FALSE
             RUV: FALSE, FALSE, TRUE
             SVA: FALSE, TRUE, FALSE
-            .alias: args = RList()
+            .alias: args = Pack()
             .logic: exacttest[1], (exacttest[2] * (RUV + SVA))
         exec[3]:
             robust: FALSE, TRUE
-            .alias: args = RList()
+            .alias: args = Pack()
             .logic: (transform[1] * robust), (transform[2,3] * robust[1])
         exec[4]:
             .logic: transform[1:6]
         exec[5]:
             singlecomp: TRUE
-            .alias: args = RList()
+            .alias: args = Pack()
     return: output
 
 score:

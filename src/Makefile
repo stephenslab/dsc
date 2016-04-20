@@ -5,6 +5,9 @@ help:
 install:
 	python setup.py install
 
+release:
+	conda build ./
+
 test:
 	cd test; python run_tests.py; cd -
 

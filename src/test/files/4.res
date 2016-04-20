@@ -42,4 +42,4 @@ outlier_test:
       - 3
   params_alias:
     0:
-    - args = RList()
+    - args = Pack()

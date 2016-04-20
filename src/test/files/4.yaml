@@ -2,7 +2,7 @@ outlier_test:
     exec: method1.R, method2.R, method3.R,
           method4.R, method5.R, method6.R
     params:
-        .alias: args = RList()
+        .alias: args = Pack()
         exec[3]:
             K: 2, 5
         exec[4]:

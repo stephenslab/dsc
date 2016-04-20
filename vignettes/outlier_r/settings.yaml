@@ -4,7 +4,7 @@ simulate_1:
     params:
         n.neutral.snps: 9500
         n.selected.snps: 500
-        .alias: args = RList()
+        .alias: args = Pack()
         exec[1]:
             n.samples: 100
             geno: TRUE
@@ -24,7 +24,7 @@ simulate_2:
         x.scale: 1
         spread: 0.1, 0.2, 1
         geno: TRUE
-        .alias: args = RList()
+        .alias: args = Pack()
         exec[1]:
             sel.strength: 0, 1, 5, 10
             sel.angle: R(seq(0,pi/2,length.out=5))
@@ -37,7 +37,7 @@ simulate_2:
 outlier_test:
     exec: Combo(method.R, $(method_functions))
     params:
-        .alias: args = RList()
+        .alias: args = Pack()
         exec[3]:
             K: 2, 5
         exec[4]:

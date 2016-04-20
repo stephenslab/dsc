@@ -26,4 +26,4 @@ simulate:
       - 1000
   params_alias:
     0:
-    - args = RList()
+    - args = Pack()

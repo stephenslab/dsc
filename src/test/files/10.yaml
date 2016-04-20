@@ -2,7 +2,7 @@ SVA:
     exec: SVA.R
     params:
         data: $data
-        .alias: args = RList()
+        .alias: args = Pack()
     return: data
 
 RUV(SVA):

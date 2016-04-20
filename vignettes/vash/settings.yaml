@@ -7,7 +7,7 @@ simulate:
         Nsamp: 2, 10, 50
         Ngene: 10000
         breaksample: FALSE, TRUE
-        .alias: args = RList()
+        .alias: args = Pack()
     return: data, meta = R(data$meta)
 
 simulate_normalized(simulate):
@@ -32,21 +32,21 @@ correction:
     exec: SVA.R, RUV.R, myrna.R
     params:
         data: $data
-        .alias: args = RList()
+        .alias: args = Pack()
     return: data
 
 transform:
     exec: voom.R, quasibinom.R, edgeRglm.R, DESeq2glm.R
     params:
         data: $data
-        .alias: args = RList()
+        .alias: args = Pack()
     return: data
 
 test:
     exec: edgeR.R, DESeq2.R, ash.R, jointash.R, limma.R
     params:
         data: $data
-        .alias: args = RList()
+        .alias: args = Pack()
         exec[1,2]:
             glm: TRUE, FALSE
         exec[5]:
