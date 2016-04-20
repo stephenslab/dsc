@@ -6,9 +6,9 @@ __license__ = "MIT"
 import os, yaml, gzip
 import pandas as pd
 from copy import deepcopy
-from pprint import pprint
-from pysos.utils import Error, env
+from pysos.utils import Error
 from .utils import load_rds, SQLiteMan
+import rpy2.robjects.vectors as RV
 
 class MetaDBError(Error):
     """Raised when there is a problem building the database."""
@@ -60,7 +60,7 @@ class MetaDB:
                 rds = '{}/{}.rds'.format(self.name, item)
                 if not os.path.isfile(rds):
                     continue
-                rdata = load_rds(rds)
+                rdata = load_rds(rds, types = (RV.Array, RV.IntVector, RV.FloatVector, RV.StrVector))
                 for k1, v1 in rdata.items():
                     # a "simple" object
                     if len(v1) == 1 and '{}__{}'.format(k1, v['exec']) not in v:

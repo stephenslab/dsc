@@ -7,14 +7,14 @@ __license__ = "MIT"
 This file defines the `DSCData` class for loading DSC file
 '''
 
-import os, sys, yaml, re, subprocess, itertools, copy, sympy, \
+import os, yaml, re, subprocess, itertools, copy, sympy, \
   collections, warnings, hashlib
 import readline
 import rpy2.robjects as RO
 from io import StringIO
 from pysos.utils import env, Error
-from .utils import dotdict, lower_keys, is_null, str2num, strip_dict, \
-     cartesian_list, pairwise_list, get_slice, flatten_list, flatten_dict, \
+from .utils import dotdict, is_null, str2num, strip_dict, \
+     cartesian_list, pairwise_list, get_slice, flatten_dict, \
      try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value, \
      no_duplicates_constructor, install_r_libs
 
@@ -441,6 +441,8 @@ class DSCFileLoader(DSCFileParser):
                 if not has_return:
                     raise FormatError('Missing required entry ``return`` in block ``{}``'.format(block))
                 data[block] = self.__format_block(data[block])
+        if not has_dsc:
+            raise ValueError('Cannot find required section ``DSC``!')
 
     def __get_blocks(self, data):
         '''

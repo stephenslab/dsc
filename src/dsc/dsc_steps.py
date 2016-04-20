@@ -9,10 +9,10 @@ to convert DSC configuration to SoS codes
 '''
 import copy, re, os
 from pysos import check_command
-from pysos.utils import Error, env
+from pysos.utils import Error
 from dsc import VERSION
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
-     cartesian_list, merge_lists, install_r_libs, uniq_list
+     cartesian_list, merge_lists, uniq_list
 from .plugin import Plugin
 
 class StepError(Error):

@@ -4,13 +4,14 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import sys, os, random, copy, re, itertools,\
+import sys, os, copy, re, itertools,\
   yaml, collections, hashlib, time, sqlite3,\
   csv
 from difflib import SequenceMatcher
 from io import StringIO
 import readline
 import rpy2.robjects as RO
+import rpy2.robjects.vectors as RV
 from rpy2.robjects import numpy2ri
 numpy2ri.activate()
 from rpy2.robjects import pandas2ri
@@ -264,7 +265,7 @@ def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
         return x
     if isinstance(x, list):
         return [lower_keys(v, level_start, level_end) for v in x]
-    elif isinstance(x, colletions.Mapping):
+    elif isinstance(x, collections.Mapping):
         return mapping((k.lower(), lower_keys(v, level_start, level_end)) for k, v in x.items())
     else:
         return x
@@ -499,17 +500,47 @@ def sos_paired_input(values):
     values[0] = flatten_list([values[0] for y in range(multiplier)])
     return flatten_list(values)
 
-def load_rds(filename):
+def load_rds(filename, types = None):
+    def load(data, types):
+        if types is not None and not isinstance(data, types):
+            return []
+        if isinstance(data, RV.IntVector):
+            res = np.array(data, dtype = int)
+        elif isinstance(data, RV.FloatVector):
+            res = np.array(data, dtype = float)
+        elif isinstance(data, RV.StrVector):
+            res = np.array(data, dtype = str)
+        elif isinstance(data, RV.Matrix):
+            res = np.matrix(data)
+        elif isinstance(data, RV.Array):
+            res = np.array(data)
+        elif isinstance(data, RV.DataFrame):
+            res = pd.DataFrame(data)
+        else:
+            # I do not know what to do for this
+            # But I do not want to throw an error either
+            res = [str(data)]
+        return res
+
+    def load_dict(res, data, types):
+        '''load data to res'''
+        for name, value in zip(data.names, list(data)):
+            if types is not None and not isinstance(value, types):
+                continue
+            if isinstance(value, RV.ListVector):
+                res[name] = {}
+                res[name] = load_dict(res[name], value, types)
+            else:
+                res[name] = load(value, types)
+        return res
+
+    #
     rds = RO.r['readRDS'](filename)
-    res = []
-    for x in list(rds):
-        try:
-            # FIXME: need to determine data type more properly!
-            # Corresponding to save_rds
-            res.append(np.array(x))
-        except:
-            res.append([str(x)])
-    return dict(zip(rds.names, res))
+    if isinstance(rds, RV.ListVector):
+        res = load_dict({}, rds, types)
+    else:
+        res = load(rds, types)
+    return res
 
 def save_rds(data, filename):
     # Supported data types:
@@ -517,7 +548,13 @@ def save_rds(data, filename):
     # numpy matrix and pandas dataframe
     def assign(name, value):
         if isinstance(value, (tuple, list)):
-            value = np.array(value)
+            try:
+                value = np.asarray(value, dtype = int)
+            except:
+                try:
+                    value = np.asarray(value, dtype = float)
+                except:
+                    value = np.asarray(value)
         if isinstance(value, (str, float, int, np.ndarray, pd.DataFrame)):
             RO.r.assign(name, value)
         else:

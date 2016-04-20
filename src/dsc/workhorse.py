@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, shutil, re, glob
+import os, sys, atexit, re, glob
 from .utils import SQLiteMan, round_print, flatten_list
 from pysos.utils import env, get_traceback
 from pysos import SoS_Script

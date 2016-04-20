@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
-import sys, os, argparse
+import sys, argparse
 from dsc import PACKAGE, VERSION
 from pysos.utils import env, get_traceback
 from .workhorse import execute, query
@@ -50,7 +50,7 @@ def main():
     p.set_defaults(func = query)
     args, argv = parser.parse_known_args()
     try:
-        with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False) as t:
+        with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
             args.func(args, argv)
     except Exception as e:
         if args.verbosity > 2:

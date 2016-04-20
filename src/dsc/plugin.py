@@ -113,6 +113,7 @@ class PyPlug(BasePlug):
         res = '\n'.join(self.return_alias)
         res += '\nsave_rds({{{}}}, ${{_output!r}})'.\
           format(', '.join(['"{0}": {0}'.format(x) for x in output_vars]))
+        # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 
     def set_container(self, name, value, params):
