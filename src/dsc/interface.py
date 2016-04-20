@@ -25,6 +25,11 @@ def main():
     p = subparsers.add_parser('execute', help = 'Execute DSC',
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('dsc_file', metavar = "dsc_file", help = 'DSC file')
+    p.add_argument('-s', '--sequence', metavar = "str", nargs = '+',
+                   help = '''DSC sequence to be executed. It will override the DSC::run
+                   entry when specified. Multiple sequences are allowed. Each input should be
+                   a quoted string defining a valid DSC sequence. Multiple such strings should be
+                   separated by space.''')
     p.add_argument('-j', type=int, metavar='jobs', default=1, dest='__max_jobs__',
                    help='''Number of concurrent processes allowed.''')
     p.add_argument('-d', action='store_true', dest='__dryrun__', help = '"dryrun" mode.')
