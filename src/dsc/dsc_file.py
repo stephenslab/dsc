@@ -8,7 +8,7 @@ This file defines the `DSCData` class for loading DSC file
 '''
 
 import os, sys, yaml, re, subprocess, itertools, copy, sympy, \
-  collections, warnings
+  collections, warnings, hashlib
 import readline
 import rpy2.robjects as RO
 from io import StringIO

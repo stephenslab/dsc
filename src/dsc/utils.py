@@ -11,6 +11,12 @@ from difflib import SequenceMatcher
 from io import StringIO
 import readline
 import rpy2.robjects as RO
+from rpy2.robjects import numpy2ri
+numpy2ri.activate()
+from rpy2.robjects import pandas2ri
+pandas2ri.activate()
+import numpy as np
+import pandas as pd
 from pysos.utils import env
 from pysos.actions import check_R_library
 
@@ -493,17 +499,44 @@ def sos_paired_input(values):
     values[0] = flatten_list([values[0] for y in range(multiplier)])
     return flatten_list(values)
 
-readRDS = RO.r['readRDS']
-
 def load_rds(filename):
-    rds = readRDS(filename)
+    rds = RO.r['readRDS'](filename)
     res = []
     for x in list(rds):
         try:
-            res.append(list(x))
+            # FIXME: need to determine data type more properly!
+            # Corresponding to save_rds
+            res.append(np.array(x))
         except:
             res.append([str(x)])
     return dict(zip(rds.names, res))
+
+def save_rds(data, filename):
+    # Supported data types:
+    # int, float, str, tuple, list, numpy array
+    # numpy matrix and pandas dataframe
+    def assign(name, value):
+        if isinstance(value, (tuple, list)):
+            value = np.array(value)
+        if isinstance(value, (str, float, int, np.ndarray, pd.DataFrame)):
+            RO.r.assign(name, value)
+        else:
+            raise ValueError("Saving ``{}`` to RDS file is not supported!".format(str(type(value))))
+    #
+    def assign_dict(name, value):
+        RO.r('%s <- list()' % name)
+        for k, v in value.items():
+            if isinstance(v, collections.Mapping):
+                assign_dict('%s$%s' %(name, k), v)
+            else:
+                assign('item', v)
+                RO.r('%s$%s <- item' % (name, k))
+    #
+    if isinstance(data, collections.Mapping):
+        assign_dict('res', data)
+    else:
+        assign('res', data)
+    RO.r("saveRDS(res, '%s')" % filename)
 
 def round_print(text, sep, pc = None):
     if pc is None:
@@ -519,7 +552,8 @@ def round_print(text, sep, pc = None):
                     line[i] = float(line[i])
                 except:
                     pass
-        print (sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x) for x in line]).strip())
+        print (sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x)
+                         for x in line]).strip())
 
 def install_r_libs(libs):
     if libs is None:

@@ -148,7 +148,7 @@ def query(args, argv):
         if where_query:
             where_query = ' WHERE ' + where_query
         group_query = ' GROUP BY ' + ', '.join(args.group_by) if args.group_by else ''
-        order_query = ' ORDER BY ' + ', '.join(fields_involved)
+        order_query = ' ORDER BY ' + ', '.join(fields_involved) if fields_involved else ''
         query = select_query + where_query + group_query + order_query
         env.logger.debug(query)
         text = s.execute(query, display = False, delimiter = args.delimiter)

@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
-import copy, re, os, hashlib
+import copy, re, os
 from pysos import check_command
 from pysos.utils import Error, env
 from dsc import VERSION
@@ -94,6 +94,8 @@ class DSCJobs(dotdict):
             "in the same block ``{}``.".format(data.name))
         else:
             data.plugin = plugin
+        # if data.plugin.name:
+        #     check_command(data.plugin.name)
         data.plugin.reset()
         data.parameters = []
         data.output_ext = []
@@ -137,9 +139,9 @@ class DSCJobs(dotdict):
                     # swap key
                     params[k] = params.pop(item)
                 else:
-                    if groups.group(1) == 'RList':
-                        if not data.plugin.name == 'R':
-                            raise StepError("Alias ``RList`` is not applicable to executable ``{}``.".\
+                    if groups.group(1) == 'Pack':
+                        if not data.plugin.name:
+                            raise StepError("Alias ``Pack`` is not applicable to executable ``{}``.".\
                                             format(exe[0]))
                         data.plugin.set_container(k, groups.group(2), params)
                     else:
@@ -229,7 +231,8 @@ class DSCJobs(dotdict):
                 else:
                     curr_idx = curr_idx - 1
             if dependence is None:
-                raise StepError('Cannot find return value for ``${}`` in any of its previous steps.'.format(value))
+                raise StepError('Cannot find return value for ``${}`` in any of its previous steps.'.\
+                                format(value))
             if dependence not in raw_data[item][step_idx]['input_depends']:
                 raw_data[item][step_idx]['input_depends'].append(dependence)
                 raw_data[item][step_idx]['input_from_plugin'].append(to_plugin)
@@ -253,16 +256,16 @@ class DSCJobs(dotdict):
                                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
                             else:
                                 p1 = repr(p1)
-                        if isinstance(p1, tuple) and raw_data[item][step_idx]['plugin'].name == 'R':
-                            p1 = 'c({})'.\
-                              format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in p1]))
+                        if isinstance(p1, tuple):
+                            p1 = raw_data[item][step_idx]['plugin'].format_tuple(p1)
                         values.append(p1)
                     if len(values) == 0:
                         del raw_data[item][step_idx]['parameters'][k]
                     elif len(values) < len(p):
                         # This means that $XX and other variables coexist
-                        # For an R program
-                        raise ValueError("Cannot use return value from an R program as input parameter in parallel to others!\nLine: ``{}``".\
+                        # For a plugin script
+                        raise ValueError("Cannot use return value from a script " \
+                                         "as input parameter in parallel to others!\nLine: ``{}``".\
                                          format(', '.join(map(str, p))))
                     else:
                         raw_data[item][step_idx]['parameters'][k] = values
@@ -320,7 +323,7 @@ class DSCJobs(dotdict):
             for block in sequence:
                 for item in block:
                     text += dict2str(item, replace = [('!!python/tuple', '(tuple)')]) + '\n'
-        return res.strip() + '\n#######\n' + text.strip()
+        return res.strip() + '\n{}\n'.format('#' * 20) + text.strip()
 
 class DSC2SoS:
     '''
@@ -329,25 +332,28 @@ class DSC2SoS:
       * Output is SoS workflow codes
 
     Here are the ideas from DSC to SoS:
-      * Each DSC computational routine `exec` is a step; step name is `block name + routine index`; step alias is block name
+      * Each DSC computational routine `exec` is a step; step name is `block name + routine index`;
+        step alias is block name
       * When there are combined routines in a block via `.logic` for `exec` then sub-steps are generated
-        with name `block name + combined routine index + routine index` without alias name then create nested workflow
-        and eventually the nested workflow name will be `block name + combined routine index` with alias being block name
+        with name `block name + combined routine index + routine index` without alias name then
+        create nested workflow
+        and eventually the nested workflow name will be `block name + combined routine index` with
+        alias being block name
       * Parameters utilize `for_each` (and `paired_with`??).
       * Parameters are pre-expanded such that SoS `for_each` and `paired_with` are
         support for otherwise complicated DSC `.logic`.
-      * Final workflow also use nested workflow structure, with workflow name "DSC" for each sequence, indexed by
+      * Final workflow also use nested workflow structure,
+        with workflow name "DSC" for each sequence, indexed by
         the possible ways to combine exec routines. The possible ways are pre-determined and passed here.
       * Each DSC sequence is a separate SoS code piece. These pieces have to be executed sequentially
         to reuse some runtime signature although -j N is allowed in each script
-      * Replicates of the first step (assuming simulation) will be sorted out up-front and they will lead to different
-        SoS code pieces. (Currently not implemented!)
     '''
     def __init__(self, data, echo = False):
         self.echo = echo
         self.data = []
         self.output_prefix = data.output_prefix
-        header = 'from pysos import expand_pattern\nfrom dsc.utils import registered_output, sos_paired_input'
+        header = 'from pysos import expand_pattern\n' \
+          'from dsc.utils import registered_output, sos_paired_input'
         for seq_idx, sequence in enumerate(data.data):
             script = []
             # Get steps
@@ -358,14 +364,18 @@ class DSC2SoS:
             seq, indices = data.sequences[seq_idx]
             for idx, index in enumerate(indices):
                 script.append("[DSC_{0}]\nsos_run('{1}')".\
-                              format(idx + 1, '+'.join(['{}_{}'.format(x, y + 1) for x, y in zip(seq, index)])))
-            self.data.append('{}\n{}\n{}'.format('#!/usr/bin/env sos-runner\n#fileformat=SOS1.0\n# Auto-generated by DSC version {}\n'.format(VERSION), header + '\n', '\n'.join(script)))
+                              format(idx + 1, '+'.join(['{}_{}'.format(x, y + 1)
+                                                        for x, y in zip(seq, index)])))
+            self.data.append('{}\n{}\n{}'.\
+                             format('#!/usr/bin/env sos-runner\n#fileformat=SOS1.0\n'\
+                                    '# Auto-generated by DSC version {}\n'.\
+                                    format(VERSION), header + '\n', '\n'.join(script)))
 
     def __call__(self):
         pass
 
     def __str__(self):
-        return '\n#######\n'.join(self.data)
+        return  '\n{}\n'.format('#' * 20).join(self.data)
 
     def __get_step(self, step_idx, step_data):
         res = ["[{0}_{1}: alias = '{0}']".format(step_data['name'], step_idx + 1)]
@@ -402,7 +412,8 @@ class DSC2SoS:
                        format(':%:'.join(['exec={}'.format(step_data['exe'])] + \
                                          ['{0}=${{_{0}}}'.format(x) for x in params]), self.output_prefix))
         res.append("{}: workdir = {}, concurrent = {}".\
-                   format(step_data['plugin'].name if (not self.echo and step_data['plugin'].name)
+                   format(step_data['plugin'].name
+                          if (not self.echo and step_data['plugin'].name)
                           else 'run', repr(step_data['work_dir']), 'False' if self.echo else 'True'))
         # Add action
         if self.echo:
