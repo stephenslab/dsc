@@ -2,9 +2,12 @@ DSC:
   output:
   - dsc_result
   run:
-  - SVA
-  - RUV
-  - myrna
+  - (tuple)
+    - SVA
+  - (tuple)
+    - RUV
+  - (tuple)
+    - myrna
   work_dir:
   - ./
 

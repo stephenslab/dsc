@@ -2,7 +2,8 @@ DSC:
   output:
   - dsc_result
   run:
-  - simulate
+  - (tuple)
+    - simulate
   work_dir:
   - ./
 

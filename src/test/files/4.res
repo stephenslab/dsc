@@ -2,7 +2,8 @@ DSC:
   output:
   - dsc_result
   run:
-  - outlier_test
+  - (tuple)
+    - outlier_test
   work_dir:
   - ./
 

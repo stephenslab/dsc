@@ -8,7 +8,8 @@ DSC:
     - discrete.cosine2
     - discrete.cosine.peaksel
   run:
-  - simulate
+  - (tuple)
+    - simulate
   work_dir:
   - ./
 

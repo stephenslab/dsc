@@ -270,8 +270,8 @@ class OperationParser(DSCEntryParser):
         if not isinstance(value, str):
             raise TypeError("Argument must be string but it is %s." % type(value))
         value = value.strip()
-        if value[-1] in self.operators:
-            raise FormatError('The end of DSC sequence ``"{}"`` cannot be an operator ``{}``!'.\
+        if value[-1] in ['+', '*', ',', '=', '/']:
+            raise FormatError('The end of DSC sequence ``"{}"`` cannot be operator ``{}``!'.\
                               format(value, value[-1]))
         res = []
         for seq in self.split(value):
