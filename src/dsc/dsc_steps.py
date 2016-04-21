@@ -171,7 +171,7 @@ class DSCJobs(dotdict):
                                             format(rhs, name))
                     else:
                         # alias is within plugin
-                        data.plugin.add_return(lhs, groups.group(1))
+                        data.plugin.add_return(lhs, groups.group(2))
                 else:
                     lhs = item.strip()
                 data.output_vars.append(lhs)

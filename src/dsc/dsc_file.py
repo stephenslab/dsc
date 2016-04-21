@@ -616,6 +616,7 @@ class DSCData(dotdict):
             rlibs_md5 = hashlib.md5(repr(rlibs).encode('utf-8')).hexdigest()
             if not os.path.exists('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)):
                 install_r_libs(rlibs)
+                os.makedirs('.sos/.dsc', exist_ok = True)
                 os.system('touch {}'.format('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)))
 
     def __str__(self):
