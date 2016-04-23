@@ -7,7 +7,7 @@ import os, yaml, json, gzip, glob
 import pandas as pd
 from copy import deepcopy
 from pysos.utils import Error
-from .utils import load_rds, SQLiteMan
+from .utils import load_rds, SQLiteMan, sos_pair_input
 import readline
 import rpy2.robjects.vectors as RV
 
@@ -29,8 +29,9 @@ class ResultDB:
          * rename each parameter key: key => key_exec
         '''
         try:
-            with open('.sos/.dsc/{}.yaml'.format(os.path.basename(self.name))) as f:
-                data = yaml.load(f)
+            data = {}
+            for item in glob.glob('.sos/.dsc/*{}.yaml.tmp'.format(os.path.basename(self.name))):
+                with open(item) as f: data.update(yaml.load(f))
         except FileNotFoundError:
             raise ResultDBError('Cannot load source data to build database!')
         res = {}
@@ -39,9 +40,9 @@ class ResultDB:
             k = k.split('_')
             # FIXME: need to prepare for multiple output
             # make it a list for now
-            res[idx + 1]['__output__'] = [k[0]]
+            res[idx + 1]['__output__'] = [k[1]]
             if len(k) > 1:
-                res[idx + 1]['__input__'] = k[1:]
+                res[idx + 1]['__input__'] = k[2:]
             else:
                 res[idx + 1]['__input__'] = []
             for k1, v1 in v.items():
@@ -156,11 +157,14 @@ class ConfigDB:
                 self.data[fid][sid] = {}
             if name not in self.data[fid][sid]:
                 self.data[fid][sid][name] = {}
-            x, y= open(f).read().strip().split('::')
+            x, y, z= open(f).read().strip().split('::')
             self.data[fid][sid][name]['input'] = [os.path.join(self.name, os.path.basename(item))
                                                    for item in x.split(',') if item]
             self.data[fid][sid][name]['output'] = [os.path.join(self.name, os.path.basename(item))
                                                    for item in y.split(',') if item]
+            if int(z) != 0:
+                # FIXME: need a more efficient solution
+                self.data[fid][sid][name]['input'] = sos_pair_input(self.data[fid][sid][name]['input'])
         #
         with open('.sos/.dsc/{}.conf'.format(os.path.basename(self.name)), 'w') as f:
             f.write(json.dumps(self.data))

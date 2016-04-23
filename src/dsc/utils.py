@@ -312,7 +312,7 @@ def pairwise_list(*args):
     return list(map(tuple, zip(*args)))
 
 def flatten_list(lst):
-    return sum( ([x] if not isinstance(x, list) else flatten_list(x) for x in lst), [] )
+    return sum( ([x] if not isinstance(x, (list, tuple)) else flatten_list(x) for x in lst), [] )
 
 def flatten_dict(d, mapping = dict):
     if not isinstance(d, collections.Mapping):
@@ -462,24 +462,44 @@ def sos_hash_output(values, db_name):
         res.append('{}/{}'.format(db_name, md5))
     return res
 
-def sos_pair_input(values):
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i+n]
+
+def sos_pair_input(value):
     '''Input must be a list of two lists,
     the lists are ordered such that the length of the
     2nd list is always multiples of the previous list.
     The way lists are supposed to be combined is:
     ABCD              ABCDABCD
     ABCDEFGH -------> ABCDEFGH ------> ABCDABCDABCDEFGH
+
+    Input can also be a flat list of 2N length in which case
+    I'll pair the first N with the 2nd N
     '''
-    if len(values) != 2:
-        raise ValueError("Input must be a pair of vectors!")
-    multiplier = len(values[1]) / len(values[0])
-    if multiplier > int(multiplier):
-        # is not integer
-        raise ValueError('Length of the 2nd list must be multiple of the 1st.')
+    if len(value) == 2:
+        if not isinstance(value[0], (list, tuple)):
+            raise ValueError("Input must be a pair of vectors or flat vectors!")
+        multiplier = len(value[1]) / len(value[0])
+        if multiplier > int(multiplier):
+            # is not integer
+            raise ValueError('Length of the 2nd list must be multiple of the 1st.')
+        else:
+            multiplier = int(multiplier)
+        value[0] = flatten_list([value[0] for y in range(multiplier)])
     else:
-        multiplier = int(multiplier)
-    values[0] = flatten_list([values[0] for y in range(multiplier)])
-    return flatten_list(values)
+        if not len(value):
+            return []
+        if isinstance(value[0], (list, tuple)):
+            raise ValueError("Input must be a pair of vectors or flat vectors!")
+        else:
+            # cut by half, by default
+            if len(value) % 2:
+                raise ValueError("Invalid input to pair!")
+            else:
+                value = list(zip(*[x for x in chunks(value, 2)]))
+    return flatten_list(value)
 
 def load_rds(filename, types = None):
     def load(data, types):

@@ -373,7 +373,8 @@ class DSC2SoS:
                                  for x, y in zip(seq, index)])
                 confstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
                               format(idx + 1,
-                                     'sequence_id = "{}"\nsequence_name = "{}"'.format(idx + 1, item),
+                                     'sequence_id = "{}"\nsequence_name = "{}"\n'\
+                                     'run("rm -f .sos/.dsc/md5/*")'.format(idx + 1, item),
                                      item))
                 jobstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
                               format(idx + 1, 'sequence_id = "{}"'.format(idx + 1), item))
@@ -381,8 +382,6 @@ class DSC2SoS:
             self.jobstr.append('{}\n{}'.format(job_header + '\n', '\n'.join(jobstr)))
 
     def cleanup(self):
-        for item in glob.glob('.sos/.dsc/md5/*'):
-            os.remove(item)
         for item in glob.glob('.sos/.dsc/*.tmp'):
             os.remove(item)
         if os.path.isfile(".sos/.dsc/{}.yaml".format(os.path.basename(self.output_prefix))):
@@ -411,6 +410,7 @@ class DSC2SoS:
         res.append('output_suffix = {}'.format(repr(step_data['output_ext'])))
         input_vars = ''
         depend_steps = []
+        io_ratio = 0
         if step_data['input_depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['input_depends']])
@@ -423,6 +423,7 @@ class DSC2SoS:
                 res.append('input_files = sos_pair_input([{}])'.\
                            format(', '.join(['{}.output'.format(x) for x in depend_steps])))
                 input_vars = "input_files, group_by = 'pairs', "
+                io_ratio = 2
             else:
                 input_vars = "{}.output, group_by = 'single', ".format(depend_steps[0])
             res.append("input: %spattern = '{path}/{base}.{ext}'%s" % \
@@ -440,15 +441,14 @@ class DSC2SoS:
         param_string = ["  exec: {}".format(step_data['exe'])]
         param_string += ['  {0}: %(_{0})'.format(x) for x in params]
         # meta data file
-        #res.append("run:\ns='%(_output)'\ns=${{s##*/}}\necho %(sequence_id) %(step_name) "\
-        res.append("run:\ns='%(_output)'\ns=${{s##*/}}\necho "\
+        res.append("run:\ns='%(_output)'\ns=${{s##*/}}\necho %(sequence_id) "\
                    "${{s%.*}}{}: | sed 's/ /_/g' >> %(meta_file)\necho -e '"\
                    "  sequence_id: %(sequence_id)\\n  sequence_name: %(sequence_name)\\n" \
                    "  step_name: %(step_name)\\n{}' >> %(meta_file)\ntouch %(_output)".\
                    format(' %(_base)' if step_data['input_depends'] else '', '\\n'.join(param_string)))
         res.append("if [ ! -f .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp ]; "\
-                   "then echo %(input!,)::%(output!,)"\
-                   " > .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp; fi")
+                   "then echo %(input!,)::%(output!,)::{}"\
+                   " > .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp; fi".format(io_ratio))
         return '\n'.join(res) + '\n'
 
     def __get_run_step(self, step_idx, step_data):
@@ -474,9 +474,10 @@ class DSC2SoS:
                 group_by = "group_by = 'single'"
         else:
             input_var = 'input:'
+        res.append('output_files = CONFIG[file_id][sequence_id][step_name]["output"]')
         if not (not for_each and input_var == 'input:'):
             res.append('{} {}'.format(input_var, ','.join([group_by, for_each]).strip(',')))
-        res.append('output: CONFIG[file_id][sequence_id][step_name]["output"]')
+        res.append('output: output_files[_index]')
         res.append("{}: workdir = {}, concurrent = True".\
                    format(step_data['plugin'].name if step_data['plugin'].name else 'run',
                           repr(step_data['work_dir'])))
