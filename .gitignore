@@ -2,3 +2,4 @@ src/*.egg-info
 src/build 
 src/dist
 **/.sos
+vignettes/outlier_r

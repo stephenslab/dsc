@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import sys, os, copy, re, itertools,\
-  yaml, collections, hashlib, time, sqlite3,\
+  yaml, collections, time, sqlite3,\
   csv
 from difflib import SequenceMatcher
 from io import StringIO
@@ -18,7 +18,7 @@ from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 import numpy as np
 import pandas as pd
-from pysos.utils import env
+from pysos.utils import env, textMD5
 from pysos.actions import check_R_library
 
 def no_duplicates_constructor(loader, node, deep=False):
@@ -452,36 +452,17 @@ class dotdict(dict):
     def __deepcopy__(self, memo):
         return dotdict(copy.deepcopy(dict(self)))
 
-def registered_output(values, db_name):
-    def register(base, md5):
-        if ':%%:' in base:
-            params, depends = base.split(':%%:')
-        else:
-            params = base
-            depends = None
-        md5 = md5.rsplit('.', 1)[0]
-        key = md5 if depends is None else '{}_{}'.format(md5, depends)
-        file_name = '.sos/.dsc/.{}.{}.tmp'.format(os.path.basename(db_name), key)
-        if os.path.exists(file_name):
-            return
-        text = '{}:\n'.format(key)
-        for item in params.split(':%:'):
-            i, j = item.split('=', 1)
-            text += '    {}: {}\n'.format(i, j)
-        with open(file_name, 'w') as f:
-            f.write(text)
-    #
+def sos_hash_output(values, db_name):
     if isinstance(values, str):
         values = [values]
     res = []
     for value in values:
         base, ext = value.rsplit('.', 1)
-        md5 = '{}.{}'.format(hashlib.md5(base.encode('utf-8')).hexdigest(), ext)
+        md5 = '{}.{}'.format(textMD5(base), ext)
         res.append('{}/{}'.format(db_name, md5))
-        register(base, md5)
     return res
 
-def sos_paired_input(values):
+def sos_pair_input(values):
     '''Input must be a list of two lists,
     the lists are ordered such that the length of the
     2nd list is always multiples of the previous list.

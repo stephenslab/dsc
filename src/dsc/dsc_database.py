@@ -3,20 +3,21 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, yaml, gzip
+import os, yaml, json, gzip, glob
 import pandas as pd
 from copy import deepcopy
 from pysos.utils import Error
 from .utils import load_rds, SQLiteMan
+import readline
 import rpy2.robjects.vectors as RV
 
-class MetaDBError(Error):
+class ResultDBError(Error):
     """Raised when there is a problem building the database."""
     def __init__(self, msg):
         Error.__init__(self, msg)
         self.args = (msg, )
 
-class MetaDB:
+class ResultDB:
     def __init__(self, db_name):
         self.name = db_name
 
@@ -31,7 +32,7 @@ class MetaDB:
             with open('.sos/.dsc/{}.yaml'.format(os.path.basename(self.name))) as f:
                 data = yaml.load(f)
         except FileNotFoundError:
-            raise MetaDBError('Cannot load source data to build database!')
+            raise ResultDBError('Cannot load source data to build database!')
         res = {}
         for idx, (k, v) in enumerate(data.items()):
             res[idx + 1] = {}
@@ -99,7 +100,7 @@ class MetaDB:
                         if k1 in ['__input__', '__output__']:
                             continue
                         if k1 in self.data[k] and self.data[k][k1] != v1:
-                            raise MetaDBError('Conflicting key ``{0}`` between section '\
+                            raise ResultDBError('Conflicting key ``{0}`` between section '\
                                               '``{1} (value {3})`` and ``{2} (value {4})``.'.\
                                               format(k1, k, idx, self.data[k][k1], v1))
                         else:
@@ -139,3 +140,27 @@ class MetaDB:
         self.__expand()
         self.__merge()
         self.__write()
+
+class ConfigDB:
+    def __init__(self, db_name):
+        self.name = db_name
+
+    def Build(self):
+        ''''''
+        self.data = {}
+        for f in glob.glob('.sos/.dsc/*.io.tmp'):
+            fid, sid, name = os.path.basename(f).split('.')[:3]
+            if fid not in self.data:
+                self.data[fid] = {}
+            if sid not in self.data[fid]:
+                self.data[fid][sid] = {}
+            if name not in self.data[fid][sid]:
+                self.data[fid][sid][name] = {}
+            x, y= open(f).read().strip().split('::')
+            self.data[fid][sid][name]['input'] = [os.path.join(self.name, os.path.basename(item))
+                                                   for item in x.split(',') if item]
+            self.data[fid][sid][name]['output'] = [os.path.join(self.name, os.path.basename(item))
+                                                   for item in y.split(',') if item]
+        #
+        with open('.sos/.dsc/{}.conf'.format(os.path.basename(self.name)), 'w') as f:
+            f.write(json.dumps(self.data))
