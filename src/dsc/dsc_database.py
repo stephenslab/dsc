@@ -4,10 +4,11 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, yaml, json, gzip, glob
+from collections import OrderedDict
 import pandas as pd
 from copy import deepcopy
 from pysos.utils import Error
-from .utils import load_rds, SQLiteMan, sos_pair_input
+from .utils import load_rds, SQLiteMan, sos_pair_input, ordered_load
 import readline
 import rpy2.robjects.vectors as RV
 
@@ -20,37 +21,61 @@ class ResultDBError(Error):
 class ResultDB:
     def __init__(self, db_name):
         self.name = db_name
+        self.data = {}
 
     def __load_parameters(self):
-        '''
-        Load the parameter YAML database and format it a bit:
-         * each key will be an index
-         * within each key, there are __input__ and __output__ keys for file dependencies
-         * rename each parameter key: key => key_exec
-        '''
+        def search_dependent_index(x):
+            res = None
+            for ii, kk in enumerate(data.keys()):
+                if kk.split('_')[1] == x:
+                    res = ii + 1
+                    break
+            if res is None:
+                raise ResultDBError('Cannot find dependency step for output ``{}``!'.format(x))
+            return res
+        #
         try:
-            data = {}
+            data = OrderedDict()
             for item in glob.glob('.sos/.dsc/*{}.yaml.tmp'.format(os.path.basename(self.name))):
-                with open(item) as f: data.update(yaml.load(f))
+                with open(item) as f: data.update(ordered_load(f, yaml.SafeLoader))
         except FileNotFoundError:
             raise ResultDBError('Cannot load source data to build database!')
-        res = {}
-        for idx, (k, v) in enumerate(data.items()):
-            res[idx + 1] = {}
-            k = k.split('_')
-            # FIXME: need to prepare for multiple output
-            # make it a list for now
-            res[idx + 1]['__output__'] = [k[1]]
-            if len(k) > 1:
-                res[idx + 1]['__input__'] = k[2:]
+        seen = []
+        for k in list(data.keys()):
+            k1 = '_'.join(k.split('_')[1:])
+            if not k1 in seen:
+                seen.append(k1)
             else:
-                res[idx + 1]['__input__'] = []
+                del data[k]
+        for idx, (k, v) in enumerate(data.items()):
+            # each v is a dict
+            for x in ['step_id', 'return', 'depends']:
+                if x in v.keys():
+                    v['.{}'.format(x)] = v.pop(x)
+            table = v['exec']
+            if not table in self.data:
+                self.data[table] = {}
+                for x in list(v.keys()) + ['step_id', 'return', 'depends']:
+                    if x not in ['sequence_id', 'sequence_name', 'step_name', 'exec']:
+                        self.data[table][x] = []
+            else:
+                keys1 = repr(sorted([x for x in v.keys() if not x in ['sequence_id', 'sequence_name', 'step_name', 'exec']]))
+                keys2 = repr(sorted([x for x in self.data[table].keys() if not x in ['step_id', 'return', 'depends']]))
+                if keys1 != keys2:
+                    raise ResultDBError('Inconsistent keys between step '\
+                                              '``{1} (value {3})`` and ``{2} (value {4})``.'.\
+                                              format(idx + 1, keys1, self.data[table]['step_id'], keys2))
+            self.data[table]['step_id'].append(str(idx + 1))
+            k = k.split('_')
+            self.data[table]['return'].append(k[1])
+            if len(k) > 2:
+                depends = [str(search_dependent_index(x)) for x in k[2:]]
+                self.data[table]['depends'].append(','.join(depends))
+            else:
+                self.data[table]['depends'].append(None)
             for k1, v1 in v.items():
-                if k1 == 'exec':
-                    res[idx + 1][k1] = v1
-                else:
-                    res[idx + 1]['{}__{}'.format(k1, v['exec'])] = v1
-        self.data = res
+                if k1 not in ['sequence_id', 'sequence_name', 'step_name', 'exec']:
+                    self.data[table][k1].append(v1)
 
     def __load_output(self):
         '''
