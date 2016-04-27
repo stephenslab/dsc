@@ -269,9 +269,8 @@ def sos_pair_input(value):
     Input can also be a flat list of 2N length in which case
     I'll pair the first N with the 2nd N
     '''
-    if len(value) == 2:
-        if not isinstance(value[0], (list, tuple)):
-            raise ValueError("Input must be a pair of vectors or flat vectors!")
+    if len(value) == 2 and isinstance(value[0], (list, tuple)):
+        # Input is a pair of vectors
         multiplier = len(value[1]) / len(value[0])
         if multiplier > int(multiplier):
             # is not integer

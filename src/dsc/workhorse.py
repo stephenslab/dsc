@@ -16,7 +16,7 @@ from .dsc_database import ResultDB, ConfigDB
 def sos_run(args, workflow_args):
     env.max_jobs = args.__max_jobs__
     env.verbosity = args.verbosity
-    # kill all remainging processes when the master process is killed.
+    # kill all remaining processes when the master process is killed.
     atexit.register(env.cleanup)
     if args.__dryrun__:
         env.run_mode = 'dryrun'
@@ -36,14 +36,17 @@ def sos_drillrun(args, workflow_args):
     verbosity = args.verbosity
     args.verbosity = 0
     run_mode = env.run_mode
+    sig_mode = env.sig_mode
     max_jobs = args.__max_jobs__
     dryrun = args.__dryrun__
     args.__max_jobs__ = 1
     args.__dryrun__ = False
+    args.__rerun__ = True
     sos_run(args, workflow_args)
     args.__max_jobs__ = max_jobs
     args.__dryrun__ = dryrun
     env.run_mode = run_mode
+    env.sig_mode = sig_mode
     env.verbosity = args.verbosity = verbosity
 
 def execute(args, argv):

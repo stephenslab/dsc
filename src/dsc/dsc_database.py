@@ -228,7 +228,7 @@ class ConfigDB:
                 self.data[fid][sid] = {}
             if name not in self.data[fid][sid]:
                 self.data[fid][sid][name] = {}
-            x, y, z= open(f).read().strip().split('::')
+            x, y, z = open(f).read().strip().split('::')
             self.data[fid][sid][name]['input'] = [os.path.join(self.name, os.path.basename(item))
                                                    for item in x.split(',') if item]
             self.data[fid][sid][name]['output'] = [os.path.join(self.name, os.path.basename(item))
