@@ -9,7 +9,8 @@ to convert DSC configuration to SoS codes
 '''
 import copy, re, os, glob
 from pysos import check_command
-from pysos.utils import Error, fileMD5
+from pysos.utils import Error
+from pysos.signature import fileMD5
 from dsc import VERSION
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list, merge_lists, uniq_list

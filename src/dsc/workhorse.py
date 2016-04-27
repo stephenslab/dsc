@@ -4,18 +4,18 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, re
+import os, sys, atexit
 from copy import deepcopy
-from .utils import SQLiteMan, round_print, flatten_list
+from pysos.sos_script import SoS_Script
+from pysos.sos_executor import Sequential_Executor
 from pysos.utils import env, get_traceback
-from pysos import SoS_Script
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
 
 def sos_run(args, workflow_args):
-    env.verbosity = args.verbosity
     env.max_jobs = args.__max_jobs__
+    env.verbosity = args.verbosity
     # kill all remainging processes when the master process is killed.
     atexit.register(env.cleanup)
     if args.__dryrun__:
@@ -24,8 +24,8 @@ def sos_run(args, workflow_args):
         env.sig_mode = 'ignore'
     try:
         script = SoS_Script(content=args.script)
-        workflow = script.workflow(args.workflow)
-        workflow.run(workflow_args, cmd_name=args.dsc_file, config_file = args.__config__)
+        executor = Sequential_Executor(script.workflow(args.workflow))
+        executor.run(workflow_args, cmd_name=args.dsc_file, config_file = args.__config__)
     except Exception as e:
         if args.verbosity and args.verbosity > 2:
             sys.stderr.write(get_traceback())
@@ -90,67 +90,7 @@ def execute(args, argv):
     env.verbosity = args.verbosity = verbosity
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
-    env.logger.info("Building summary database ``{0}.csv.gz & {0}.db`` ...".\
+    env.logger.info("Building output database ``{0}.rds`` ...".\
                     format(dsc_data['DSC']['output'][0]))
-    ResultDB(dsc_data['DSC']['output'][0]).build()
+    ResultDB(dsc_data['DSC']['output'][0]).Build()
     env.logger.info("DSC complete!")
-
-def query(args, argv):
-    env.verbosity = args.verbosity
-    if not os.path.isfile(args.dsc_db):
-        raise IOError('File ``{}`` not found!'.format(args.dsc_db))
-    s = SQLiteMan(args.dsc_db)
-    fields = sorted(s.getFields('DSC'), key = lambda x: x[0].split('__')[-1])
-    field_names = [item[0] for item in fields]
-    if len(args.items) == 0:
-        # show fields
-        env.logger.info("Columns in ``DSC``:")
-        print ('\n'.join(['[{}] \033[1m{}\033[0m'.format(x[1], x[0]) for x in fields]))
-    else:
-        args.items = [x.lower() for x in args.items]
-        args.group_by = [x.lower() for x in args.group_by]
-        select_query = 'SELECT {} FROM DSC'.format(', '.join(args.group_by + args.items))
-        where_query = flatten_list([x.split('AND') for x in args.filter])
-        # handle exclude() and include()
-        for idx, item in enumerate(where_query):
-            groups = re.search('^include\((.*?)\)$', item.lower())
-            if groups is not None:
-                compiled = re.compile(groups.group(1).replace('*', '(.*?)'))
-                where_query[idx] = ' AND '.join(['{} IS NOT NULL'.format(x)
-                                    if compiled.search(x)
-                                    else '{} IS NULL'.format(x)
-                                    for x in [y for y in field_names if not y.endswith('__')]])
-            groups = re.search('^exclude\((.*?)\)$', item.lower())
-            if groups is not None:
-                compiled = re.compile(groups.group(1).replace('*', '(.*?)'))
-                where_query[idx] = ' AND '.join(['{} IS NULL'.format(x)
-                                    if compiled.search(x)
-                                    else '{} IS NOT NULL'.format(x)
-                                    for x in [y for y in field_names if not y.endswith('__')]])
-        where_query = ' AND '.join(where_query)
-        # make sure the items are all not NULL
-        fields_involved = []
-        for item in args.group_by + args.items:
-            # handle function
-            groups = re.search('\((.*?)\)', item)
-            if groups is not None:
-                item = groups.group(1)
-            #
-            if item in field_names:
-                fields_involved.append(item)
-        is_null_query = ' AND '.join(['{} IS NOT NULL'.format(item) for item in fields_involved])
-        where_query = ' AND '.join([item for item in (where_query, is_null_query) if item])
-        if where_query:
-            where_query = ' WHERE ' + where_query
-        group_query = ' GROUP BY ' + ', '.join(args.group_by) if args.group_by else ''
-        order_query = ' ORDER BY ' + ', '.join(fields_involved) if fields_involved else ''
-        query = select_query + where_query + group_query + order_query
-        env.logger.debug(query)
-        text = s.execute(query, display = False, delimiter = args.delimiter)
-        if not text:
-            env.logger.warning('No results found. If you are expecting otherwise, ' \
-                               'please ensure proper filter is applied and queried parameters ' \
-                               'co-exists in the same DSC sequence.')
-        else:
-            print(args.delimiter.join(args.group_by + (args.items if args.items != ['*'] else field_names)))
-            round_print(text, args.delimiter, pc = args.precision)

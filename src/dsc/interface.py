@@ -8,7 +8,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 import sys, argparse
 from dsc import PACKAGE, VERSION
 from pysos.utils import env, get_traceback
-from .workhorse import execute, query
+from .workhorse import execute
 from .utils import Timer
 
 def main():
@@ -37,22 +37,6 @@ def main():
                    help='''Force executing DSC afresh regardless of already created results.''')
     add_common_args(p)
     p.set_defaults(func = execute)
-    p = subparsers.add_parser('query', help = 'Explore DSC benchmark data',
-                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument('dsc_db', metavar = "db", help = 'DSC database')
-    p.add_argument('-i', metavar = 'item', dest = 'items', default = [],
-                   nargs = '*', help = 'Items to display (SQLite functions supported).')
-    p.add_argument('-f', metavar = 'filter', dest = 'filter', default = [],
-                   nargs = '*', help = '''Filter criteria (in SQLite syntax,
-                   plus two special functions "exclude" and "include").''')
-    p.add_argument('-g', metavar = 'group_by', dest = 'group_by', default = [],
-                   nargs = '*', help = 'Items to form groups by which output will be reported.')
-    p.add_argument('-d', metavar = 'delimiter', dest = 'delimiter',
-                   default = '\t', help = 'Delimiter of output data.')
-    p.add_argument('-p', metavar = 'precision', dest = 'precision',
-                   help = 'Controls displayed precision of float numbers.')
-    add_common_args(p)
-    p.set_defaults(func = query)
     args, argv = parser.parse_known_args()
     try:
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
