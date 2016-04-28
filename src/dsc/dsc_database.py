@@ -182,12 +182,16 @@ class ResultDB:
             tmp_colnames = []
             values = []
             for k in sorted(rdata.keys()):
-                if len(rdata[k]) == 1:
+                if len(rdata[k].shape) > 1:
+                    continue
+                elif len(rdata[k]) == 1:
                     tmp_colnames.append(k)
                     values.append(rdata[k][0])
                 else:
                     tmp_colnames.extend(['{}_{}'.format(k, idx + 1) for idx in range(len(rdata[k]))])
                     values.extend(rdata[k])
+            if len(values) == 0:
+                return table
             if colnames is None:
                 colnames = tmp_colnames
             else:

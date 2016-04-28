@@ -338,6 +338,7 @@ def save_rds(data, filename):
     # int, float, str, tuple, list, numpy array
     # numpy matrix and pandas dataframe
     def assign(name, value):
+        name = re.sub(r'[^\w' + '_.' + ']', '_', name)
         if isinstance(value, (tuple, list)):
             try:
                 value = np.asarray(value, dtype = int)
@@ -352,8 +353,10 @@ def save_rds(data, filename):
             raise ValueError("Saving ``{}`` to RDS file is not supported!".format(str(type(value))))
     #
     def assign_dict(name, value):
+        name = re.sub(r'[^\w' + '_.' + ']', '_', name)
         RO.r('%s <- list()' % name)
         for k, v in value.items():
+            k = re.sub(r'[^\w' + '_.' + ']', '_', k)
             if isinstance(v, collections.Mapping):
                 assign_dict('%s$%s' %(name, k), v)
             else:

@@ -8,11 +8,12 @@ This file defines the `DSCData` class for loading DSC file
 '''
 
 import os, yaml, re, subprocess, itertools, copy, sympy, \
-  collections, warnings, hashlib
+  collections, warnings
 import readline
 import rpy2.robjects as RO
 from io import StringIO
 from pysos.utils import env, Error
+from pysos.signature import textMD5
 from .utils import dotdict, is_null, str2num, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_dict, \
      try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value, \
@@ -613,11 +614,12 @@ class DSCData(dotdict):
         #
         rlibs = try_get_value(self['DSC'], ('R_libs'))
         if rlibs:
-            rlibs_md5 = hashlib.md5(repr(rlibs).encode('utf-8')).hexdigest()
+            rlibs_md5 = textMD5(repr(rlibs))
             if not os.path.exists('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)):
                 install_r_libs(rlibs)
                 os.makedirs('.sos/.dsc', exist_ok = True)
-                os.system('touch {}'.format('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)))
+                os.system('echo "{}" > {}'.format(repr(rlibs),
+                                                  '.sos/.dsc/RLib.{}.info'.format(rlibs_md5)))
 
     def __str__(self):
         res = ''
