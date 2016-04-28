@@ -12,7 +12,7 @@ import os, yaml, re, subprocess, itertools, copy, sympy, \
 import readline
 import rpy2.robjects as RO
 from io import StringIO
-from pysos.utils import env, Error
+from pysos.utils import logger, Error
 from pysos.signature import textMD5
 from .utils import dotdict, is_null, str2num, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_dict, \
@@ -393,7 +393,7 @@ class DSCFileLoader(DSCFileParser):
             data.update(cfg)
         #
         if os.path.isfile(self.content):
-            env.logger.debug("Loading configurations from ``{}``.".format(self.content))
+            logger.debug("Loading configurations from ``{}``.".format(self.content))
             with open(self.content) as f:
                 load_from_yaml(f, self.content)
         else:
@@ -420,10 +420,10 @@ class DSCFileLoader(DSCFileParser):
                     raise FormatError('Missing required ``DSC::run``.')
                 if self.sequence is not None:
                     data.DSC['run'] = ', '.join(self.sequence)
-                    env.logger.info("Load command line DSC sequence: ``{}``".format(data.DSC['run']))
+                    logger.info("Load command line DSC sequence: ``{}``".format(data.DSC['run']))
                 data.DSC['run'] = [(x,) if isinstance(x, str) else x for x in self.op(data.DSC['run'])]
                 if try_get_value(data, ('DSC', 'output')) is None:
-                    env.logger.warning('Missing output database name in ``DSC::output``. '\
+                    logger.warning('Missing output database name in ``DSC::output``. '\
                                        'Use default name ``{}``.'.\
                                        format(os.path.split(self.content[:-5])[-1]))
                     set_nested_value(data, ('DSC', 'output'), os.path.split(self.content[:-5])[-1])
@@ -434,7 +434,7 @@ class DSCFileLoader(DSCFileParser):
                 has_exec = has_return = False
                 for key in list(data[block].keys()):
                     if key not in self.block_kw:
-                        env.logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.\
+                        logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.\
                                            format(key, block))
                         del data[block][key]
                     if key == 'exec':

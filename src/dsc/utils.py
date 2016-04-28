@@ -17,7 +17,7 @@ from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 import numpy as np
 import pandas as pd
-from pysos.utils import env
+from pysos.utils import logger
 from pysos.signature import textMD5
 from pysos.actions import check_R_library
 
@@ -48,7 +48,7 @@ class Timer(object):
         self.secs = self.end - self.start
         self.msecs = self.secs * 1000  # millisecs
         if self.verbose:
-            env.logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
+            logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
 
 def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
     level_start += 1
@@ -80,7 +80,7 @@ def str2num(var):
             This variable will be treated as string, not Boolean data. \n\
             It may cause problems to your jobs. \n\
             Please set this variable to ``{}`` if it is indeed Boolean data.'.format(var, bmap[var.lower()])
-            env.logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
+            logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
         try:
             return int(var)
         except ValueError:

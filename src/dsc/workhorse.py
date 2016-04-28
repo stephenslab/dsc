@@ -72,6 +72,7 @@ def execute(args, argv):
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     dsc_data = DSCData(args.dsc_file, args.sequence)
     db_name = os.path.basename(dsc_data['DSC']['output'][0])
+    # env.logfile = db_name + '.log'
     setup()
     dsc_jobs = DSCJobs(dsc_data)
     run_jobs = DSC2SoS(deepcopy(dsc_jobs))
