@@ -29,6 +29,7 @@ class ResultDB:
         self.last_block = []
         # key = block name, item = exec name
         self.groups = {}
+        self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(self.name)))
 
     def load_parameters(self):
         def search_dependent_index(x):
@@ -86,7 +87,7 @@ class ResultDB:
                                               format(idx + 1, keys1, self.data[table]['step_id'], keys2))
             self.data[table]['step_id'].append(idx + 1)
             k = k.split('_')
-            self.data[table]['return'].append(k[1])
+            self.data[table]['return'].append(self.__find_namemap(k[1]))
             if len(k) > 2:
                 self.data[table]['depends'].append(search_dependent_index(k[-1]))
             else:
@@ -94,6 +95,12 @@ class ResultDB:
             for k1, v1 in v.items():
                 if k1 not in ['sequence_id', 'sequence_name', 'step_name', 'exec']:
                     self.data[table][k1].append(v1)
+
+    def __find_namemap(self, value):
+        for k in self.maps:
+            if os.path.splitext(k)[0] == value:
+                return os.path.splitext(self.maps[k])[0]
+        raise ResultDBError('Cannot find name map for ``{}``'.format(value))
 
     def __find_block(self, step):
         for k in self.groups:
@@ -147,20 +154,6 @@ class ResultDB:
             header = data[key].pop(0)
             data[key] = pd.DataFrame(data[key], columns = header)
         return pd.concat([data[key] for key in data], axis = 1)
-
-
-    def __load_output(self):
-        for k, v in self.data.items():
-            for item in v['__output__']:
-                rds = '{}/{}.rds'.format(self.name, item)
-                if not os.path.isfile(rds):
-                    continue
-                rdata = load_rds(rds, types = (RV.Array, RV.IntVector, RV.FloatVector, RV.StrVector,
-                                               RV.DataFrame))
-                for k1, v1 in rdata.items():
-                    # a "simple" object
-                    if len(v1) == 1 and '{}__{}'.format(k1, v['exec']) not in v:
-                        self.data[k]['{}__{}'.format(k1, v['exec'])] = v1[0]
 
 
     def cbind_output(self, name, table):
@@ -218,11 +211,45 @@ class ResultDB:
 
 
 class ConfigDB:
-    def __init__(self, db_name):
+    def __init__(self, db_name, vanilla = False):
+        '''
+        - collect all files inside MD5 folder
+        - check if map file should be loaded, and load it
+        - based on map file and files inside MD5 folder, remove irrelevant files from output folder
+        - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
+        - create conf file based on map file and *.io.tmp
+        '''
         self.name = db_name
+        if os.path.isfile('.sos/.dsc/{}.map'.format(self.name)) and not vanilla:
+            self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(self.name)))
+        else:
+            self.maps = {}
+        self.pre = 'f'
+        self.files = [os.path.basename(x) for x in list(glob.glob('.sos/.dsc/md5/*'))]
+        for k in list(self.maps.keys()):
+            if k not in self.files:
+                del self.maps[k]
+
+    def RemoveObsoleteOutput(self):
+        output_files = glob.glob('{}/*'.format(self.name))
+        to_remove = [x for x in output_files if not os.path.basename(x) in self.maps.values()]
+        for x in to_remove:
+            os.remove(x)
+
+    def WriteMap(self):
+        '''Update maps and write to disk'''
+        start_id = max([int(os.path.splitext(x)[0].lstrip(self.pre))
+                        for x in self.maps.values()]) if len(self.maps.values()) else 1
+        for item in self.files:
+            if item not in self.maps:
+                self.maps[item] = '{}{}{}'.format(self.pre, start_id, os.path.splitext(item)[1])
+                start_id += 1
+        with open('.sos/.dsc/{}.map'.format(self.name), 'w') as f:
+            f.write(yaml.dump(self.maps, default_flow_style=True))
 
     def Build(self):
-        ''''''
+        self.RemoveObsoleteOutput()
+        self.WriteMap()
         self.data = {}
         for f in glob.glob('.sos/.dsc/*.io.tmp'):
             fid, sid, name = os.path.basename(f).split('.')[:3]
@@ -233,9 +260,9 @@ class ConfigDB:
             if name not in self.data[fid][sid]:
                 self.data[fid][sid][name] = {}
             x, y, z = open(f).read().strip().split('::')
-            self.data[fid][sid][name]['input'] = [os.path.join(self.name, os.path.basename(item))
+            self.data[fid][sid][name]['input'] = [os.path.join(self.name, self.maps[os.path.basename(item)])
                                                    for item in x.split(',') if item]
-            self.data[fid][sid][name]['output'] = [os.path.join(self.name, os.path.basename(item))
+            self.data[fid][sid][name]['output'] = [os.path.join(self.name, self.maps[os.path.basename(item)])
                                                    for item in y.split(',') if item]
             if int(z) != 0:
                 # FIXME: need a more efficient solution

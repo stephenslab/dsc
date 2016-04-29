@@ -22,7 +22,7 @@ def main():
     parser.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
     subparsers = parser.add_subparsers(dest = 'subcommands')
     subparsers.required = True
-    p = subparsers.add_parser('execute', help = 'Execute DSC',
+    p = subparsers.add_parser('exec', help = 'Execute DSC',
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('dsc_file', metavar = "dsc_file", help = 'DSC file')
     p.add_argument('-s', '--sequence', metavar = "str", nargs = '+',

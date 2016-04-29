@@ -82,7 +82,7 @@ def execute(args, argv):
     for script in run_jobs.confstr:
         args.script = script
         sos_drillrun(args, argv)
-    ConfigDB(dsc_data['DSC']['output'][0]).Build()
+    ConfigDB(dsc_data['DSC']['output'][0], vanilla = args.__rerun__).Build()
     if args.__dryrun__:
         # FIXME export scripts to db_name folder
         return
