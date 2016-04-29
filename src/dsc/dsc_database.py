@@ -227,6 +227,8 @@ class ConfigDB:
         self.pre = 'f'
         self.files = [os.path.basename(x) for x in list(glob.glob('.sos/.dsc/md5/*'))]
         for k in list(self.maps.keys()):
+            if k == 'NEXT_ID':
+                continue
             if k not in self.files:
                 del self.maps[k]
 
@@ -238,12 +240,12 @@ class ConfigDB:
 
     def WriteMap(self):
         '''Update maps and write to disk'''
-        start_id = max([int(os.path.splitext(x)[0].lstrip(self.pre))
-                        for x in self.maps.values()]) if len(self.maps.values()) else 1
+        start_id = self.maps['NEXT_ID'] if 'NEXT_ID' in self.maps else 1
         for item in self.files:
             if item not in self.maps:
                 self.maps[item] = '{}{}{}'.format(self.pre, start_id, os.path.splitext(item)[1])
                 start_id += 1
+        self.maps['NEXT_ID'] = start_id
         with open('.sos/.dsc/{}.map'.format(self.name), 'w') as f:
             f.write(yaml.dump(self.maps, default_flow_style=True))
 

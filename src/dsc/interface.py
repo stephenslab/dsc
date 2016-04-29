@@ -8,7 +8,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 import sys, argparse
 from dsc import PACKAGE, VERSION
 from pysos.utils import env, get_traceback
-from .workhorse import execute
+from .workhorse import execute, remove
 from .utils import Timer
 
 def main():
@@ -37,6 +37,15 @@ def main():
                    help='''Force executing DSC afresh regardless of already created results.''')
     add_common_args(p)
     p.set_defaults(func = execute)
+    p = subparsers.add_parser('rm', help = 'Remove output of given steps',
+                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    p.add_argument('dsc_file', metavar = "dsc_file", help = 'DSC file')
+    p.add_argument('-s', '--step', metavar = "str", nargs = '+',
+                   help = '''DSC steps whose output are to be removed. Multiple steps are allowed.
+                   Each step should be a quoted string defining a valid DSC step, in the format of
+                   "block_name[step_index]". Multiple such steps should be separated by space.''')
+    add_common_args(p)
+    p.set_defaults(func = remove)
     args, argv = parser.parse_known_args()
     try:
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):

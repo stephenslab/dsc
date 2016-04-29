@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit
+import os, sys, atexit, re, yaml
 from copy import deepcopy
 from pysos.sos_script import SoS_Script
 from pysos.sos_executor import Sequential_Executor
@@ -12,6 +12,7 @@ from pysos.utils import env, get_traceback
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
+from .utils import get_slice, load_rds, flatten_list
 
 def sos_run(args, workflow_args):
     env.max_jobs = args.__max_jobs__
@@ -100,3 +101,38 @@ def execute(args, argv):
                     format(dsc_data['DSC']['output'][0]))
     ResultDB(dsc_data['DSC']['output'][0]).Build()
     env.logger.info("DSC complete!")
+
+def remove(args, argv):
+    env.verbosity = args.verbosity
+    dsc_data = DSCData(args.dsc_file)
+    dsc_jobs = DSCJobs(dsc_data)
+    filename = os.path.basename(dsc_data['DSC']['output'][0]) + '.rds'
+    if not os.path.isfile(filename):
+        raise ValueError('Cannot remove output because DSC database ``{}`` is not found!'.format(filename))
+    to_remove = []
+    for step in args.step:
+        block, step_idx = get_slice(step, mismatch_quit = False)
+        for idx in range(len(dsc_jobs.raw_data[block])):
+            if idx in step_idx or step_idx is None:
+                to_remove.append(re.sub(r'[^\w' + '_.' + ']', '_', dsc_jobs.raw_data[block][idx]['exe']))
+    #
+    data = load_rds(filename)
+    files_to_remove = ' '.join([' '.join([os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
+                                    for x in data[item]['return']]) for item in to_remove])
+    map_to_remove = flatten_list([data[item]['return'].tolist() for item in to_remove])
+    # delete files from disk
+    os.system('rm -f {}'.format(files_to_remove))
+    env.logger.debug('Removing files ``{}``'.format(repr(map_to_remove)))
+    # delete files from map file
+    filename = os.path.basename(dsc_data['DSC']['output'][0])
+    if os.path.isfile('.sos/.dsc/{}.map'.format(filename)):
+        maps = yaml.load(open('.sos/.dsc/{}.map'.format(filename)))
+        for k, v in list(maps.items()):
+            if k == 'NEXT_ID':
+                continue
+            if os.path.splitext(v)[0] in map_to_remove:
+                del maps[k]
+        with open('.sos/.dsc/{}.map'.format(filename), 'w') as f:
+            f.write(yaml.dump(maps, default_flow_style=True))
+    env.logger.info('``{}`` files removed from ``{}``.'.format(len(map_to_remove),
+                                                               dsc_data['DSC']['output'][0]))
