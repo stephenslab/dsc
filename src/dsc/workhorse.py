@@ -12,7 +12,7 @@ from pysos.utils import env, get_traceback
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
-from .utils import get_slice, load_rds, flatten_list
+from .utils import get_slice, load_rds, flatten_list, yaml2html
 
 def sos_run(args, workflow_args):
     env.max_jobs = args.__max_jobs__
@@ -58,10 +58,8 @@ def execute(args, argv):
             os.makedirs(os.path.dirname(dsc_data['DSC']['output'][0]), exist_ok=True)
         os.makedirs('.sos/.dsc/md5', exist_ok = True)
     def log():
-        with open('.sos/.dsc/{}.data'.format(db_name), 'w') as f:
-            f.write(str(dsc_data))
-        with open('.sos/.dsc/{}.jobs'.format(db_name), 'w') as f:
-            f.write(str(dsc_jobs))
+        yaml2html(str(dsc_data), '.sos/.dsc/{}.data'.format(db_name), title = 'DSC data')
+        yaml2html(str(dsc_jobs), '.sos/.dsc/{}.jobs'.format(db_name), title = 'DSC jobs')
         with open('.sos/.dsc/{}.exec'.format(db_name), 'w') as f:
             f.write(str(run_jobs))
     #
@@ -70,6 +68,7 @@ def execute(args, argv):
     args.workflow = 'DSC'
     args.__config__ = None
     # Archive scripts
+    yaml2html(args.dsc_file, os.path.splitext(args.dsc_file)[0] + '.html', title = args.dsc_file)
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     dsc_data = DSCData(args.dsc_file, args.sequence)
     db_name = os.path.basename(dsc_data['DSC']['output'][0])

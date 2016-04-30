@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import copy, re, itertools, yaml, collections, time
+import os, copy, re, itertools, yaml, collections, time
 from collections import OrderedDict
 from difflib import SequenceMatcher
 from io import StringIO
@@ -20,6 +20,22 @@ import pandas as pd
 from pysos.utils import logger
 from pysos.signature import textMD5
 from pysos.actions import check_R_library
+from dsc import HTML_CSS, HTML_JS
+
+R_SOURCE = '''
+source.file <- source
+source <- function(x) {
+ found <- F
+ files <- paste(DSC_LIBPATH, x, sep="/")
+ for (i in 1:length(files))
+   if (file.exists(files[i])) {
+   source.file(files[i])
+   found <- T
+   break
+   }
+ if (!found) source.file(x)
+}
+'''
 
 def no_duplicates_constructor(loader, node, deep=False):
     """YAML check for duplicate keys."""
@@ -424,17 +440,19 @@ def ordered_dump(data, stream=None, Dumper=yaml.Dumper, **kwds):
     OrderedDumper.add_representer(OrderedDict, _dict_representer)
     return yaml.dump(data, stream, OrderedDumper, **kwds)
 
-R_SOURCE = '''
-source.file <- source
-source <- function(x) {
- found <- F
- files <- paste(DSC_LIBPATH, x, sep="/")
- for (i in 1:length(files))
-   if (file.exists(files[i])) {
-   source.file(files[i])
-   found <- T
-   break
-   }
- if (!found) source.file(x)
-}
-'''
+def yaml2html(content, to_file, title = ''):
+    if os.path.isfile(content):
+        content = open(content).read()
+    if not os.path.splitext(to_file)[1] == '.html':
+        to_file += '.html'
+    with open(to_file, 'w') as f:
+        f.write('<!DOCTYPE html><html><head><title>{}</title>\n'.format(title))
+        f.write('<style type="text/css">\nhtml {background: #fdf6e3; font-size: 10pt}\n')
+        f.write(HTML_CSS)
+        f.write('\n</style>\n<script>\n')
+        f.write(HTML_JS)
+        f.write('</script></head><body>{}<pre><code class='\
+                '"language-yaml; line-numbers; left-trim; right-trim;">\n'.\
+                format('<h2>{}:</h2>'.format(title) if title else ''))
+        f.write(content)
+        f.write('\n</code></pre></body></html>')

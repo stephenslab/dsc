@@ -1,3 +1,4 @@
+src/dsc/__init__.py
 src/*.egg-info 
 src/build 
 src/dist
