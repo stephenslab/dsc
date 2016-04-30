@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-
+from .utils import R_SOURCE
 class BasePlug:
     def __init__(self, name = None):
         self.name = name
@@ -30,7 +30,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def get_input(self, params, input_num):
+    def get_input(self, params, input_num, lib = None):
         return ''
 
     def format_tuple(self, value):
@@ -46,8 +46,12 @@ class RPlug(BasePlug):
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} <- {}'.format(lhs, rhs))
 
-    def get_input(self, params, input_num):
-        res = '\n'.join(self.container)
+    def get_input(self, params, input_num, lib):
+        if lib is not None:
+            res = '\nDSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib])) + R_SOURCE
+        else:
+            res = ''
+        res += '\n'.join(self.container)
         keys = [x for x in params if not x in self.container_vars]
         if 'seed' in keys:
             res += '\nset.seed(${_seed})'
@@ -93,8 +97,14 @@ class PyPlug(BasePlug):
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} = {}'.format(lhs, rhs))
 
-    def get_input(self, params, input_num):
-        res = '\nfrom dsc.utils import save_rds, load_rds'
+    def get_input(self, params, input_num, lib):
+        if lib is not None:
+            res = '\nimport sys, os'
+            for item in lib:
+                res += '\nsys.path.append(os.path.abspath("{}"))'.format(item)
+        else:
+            res = ''
+        res += '\nfrom dsc.utils import save_rds, load_rds'
         res += '\n'.join(self.container)
         keys = [x for x in params if not x in self.container_vars]
         if 'seed' in keys:

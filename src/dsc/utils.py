@@ -423,3 +423,18 @@ def ordered_dump(data, stream=None, Dumper=yaml.Dumper, **kwds):
             data.items())
     OrderedDumper.add_representer(OrderedDict, _dict_representer)
     return yaml.dump(data, stream, OrderedDumper, **kwds)
+
+R_SOURCE = '''
+source.file <- source
+source <- function(x) {
+ found <- F
+ files <- paste(DSC_LIBPATH, x, sep="/")
+ for (i in 1:length(files))
+   if (file.exists(files[i])) {
+   source.file(files[i])
+   found <- T
+   break
+   }
+ if (!found) source.file(x)
+}
+'''

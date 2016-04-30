@@ -51,11 +51,13 @@ class DSCJobs(dotdict):
         self.data = []
         self.raw_data = {}
         self.output_prefix = data.DSC['output'][0]
+        self.libpath = try_get_value(data.DSC, ('lib_path'))
+        self.path = try_get_value(data.DSC, ('exec_path'))
         self.default_workdir = data.DSC['work_dir'][0]
         # sequences in action, logically ordered
         self.ordering = self.merge_sequences(data.DSC['run'])
         for block in self.ordering:
-            self.load_raw_data(data[block], data.DSC, name = block)
+            self.load_raw_data(data[block], name = block)
         # sequences in action, unordered but expanded by index
         self.sequences = self.expand_sequences(data.DSC['run'],
                                                 {x : range(len(self.raw_data[x])) for x in self.raw_data})
@@ -103,7 +105,7 @@ class DSCJobs(dotdict):
         data.output_vars = []
         data.exe = ' '.join(exe) if exe_name is None else exe_name
 
-    def load_raw_data(self, block, dsc_block, name = 'block'):
+    def load_raw_data(self, block, name = 'block'):
         '''Load block data to self.raw_data with some preliminary processing
         '''
         def load_params():
@@ -188,8 +190,7 @@ class DSCJobs(dotdict):
         data = self.__initialize_block(name)
         exec_alias = try_get_value(block.meta, ('exec_alias'))
         for idx, exe in enumerate(block.meta['exec']):
-            self.__reset_block(data, exe, exec_alias[idx] if exec_alias else None,
-                               try_get_value(dsc_block, ('exec_path')))
+            self.__reset_block(data, exe, exec_alias[idx] if exec_alias else None, self.path)
             # temporary variables
             params, rules, alias = load_params(), load_rules(), load_alias()
             # handle alias
@@ -351,6 +352,7 @@ class DSC2SoS:
     '''
     def __init__(self, data):
         self.output_prefix = data.output_prefix
+        self.libpath = data.libpath
         self.confstr = []
         self.jobstr = []
         self.cleanup()
@@ -484,7 +486,8 @@ class DSC2SoS:
                           repr(step_data['work_dir'])))
         # Add action
         if step_data['plugin'].name:
-            script_begin = step_data['plugin'].get_input(params, input_num = len(depend_steps))
+            script_begin = step_data['plugin'].get_input(params, input_num = len(depend_steps),
+                                                         lib = self.libpath)
             script_end = step_data['plugin'].get_return(step_data['output_vars'])
             try:
                 script = """\n{3}\n{0}\n{4}\n{1}\n{3}\n{2}\n{4}\n""".\

@@ -224,7 +224,7 @@ class ConfigDB:
             self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(self.name)))
         else:
             self.maps = {}
-        self.pre = 'f'
+        self.pre = 'dsc'
         self.files = [os.path.basename(x) for x in list(glob.glob('.sos/.dsc/md5/*'))]
         for k in list(self.maps.keys()):
             if k == 'NEXT_ID':
