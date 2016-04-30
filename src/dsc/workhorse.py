@@ -60,15 +60,15 @@ def execute(args, argv):
     def log():
         yaml2html(str(dsc_data), '.sos/.dsc/{}.data'.format(db_name), title = 'DSC data')
         yaml2html(str(dsc_jobs), '.sos/.dsc/{}.jobs'.format(db_name), title = 'DSC jobs')
-        with open('.sos/.dsc/{}.exec'.format(db_name), 'w') as f:
-            f.write(str(run_jobs))
+        yaml2html(str(run_jobs), '.sos/.dsc/{}.exec'.format(db_name), title = 'DSC runs')
     #
     verbosity = args.verbosity
     env.verbosity = args.verbosity
     args.workflow = 'DSC'
     args.__config__ = None
     # Archive scripts
-    yaml2html(args.dsc_file, os.path.splitext(args.dsc_file)[0] + '.html', title = args.dsc_file)
+    dsc_script = open(args.dsc_file).read()
+    yaml2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html', title = args.dsc_file)
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     dsc_data = DSCData(args.dsc_file, args.sequence)
     db_name = os.path.basename(dsc_data['DSC']['output'][0])
@@ -98,7 +98,7 @@ def execute(args, argv):
     # For RDS files if the values are trivial (single numbers) I'll just write them here
     env.logger.info("Building output database ``{0}.rds`` ...".\
                     format(dsc_data['DSC']['output'][0]))
-    ResultDB(dsc_data['DSC']['output'][0]).Build()
+    ResultDB(dsc_data['DSC']['output'][0]).Build(script = dsc_script)
     env.logger.info("DSC complete!")
 
 def remove(args, argv):

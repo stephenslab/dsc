@@ -199,7 +199,7 @@ class ResultDB:
         else:
             return table
 
-    def Build(self):
+    def Build(self, script = None):
         self.load_parameters()
         for block in self.last_block:
             self.master['master_{}'.format(block)] = self.write_master_table(block)
@@ -210,6 +210,8 @@ class ResultDB:
             cols = tmp + [x for x in self.data[table].keys() if x not in tmp]
             self.data[table] = pd.DataFrame(self.data[table], columns = cols)
         self.data.update(self.master)
+        if script is not None:
+            self.data['.dscsrc'] = repr(script)
         save_rds(self.data, self.name + '.rds')
 
 
