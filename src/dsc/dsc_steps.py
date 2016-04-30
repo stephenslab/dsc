@@ -197,6 +197,7 @@ class DSCJobs(dotdict):
                 data.output_ext = repr('rds')
         #
         # Load command parameters
+        #
         self.master_data[name] = []
         data = self.__initialize_block(name)
         exec_alias = try_get_value(block.meta, ('exec_alias'))
@@ -206,7 +207,7 @@ class DSCJobs(dotdict):
             params, rules, alias = load_params(), load_rules(), load_alias()
             # handle alias
             process_alias()
-            # FIXME: handle rules
+            # FIXME: handle rules, not implemented
             process_rules()
             # handle return
             # if return is not in parameter then
@@ -216,6 +217,25 @@ class DSCJobs(dotdict):
             # assign parameters
             data.parameters = params
             self.master_data[name].append(dict(data))
+        #
+        # Consolidate commands if there are meta rules (.logic under exec in DSC script)
+        # things to notice:
+        # 1. The signature of the combined execs will consists of every execs
+        # meaning that changes to any of them will result in rerun
+        # 2. For plugin mode, the commands that follows the first one will load and save ${_output}
+        # NOT ${_input}
+        # 3. FIXME: For non-plugin mode ...
+        exec_rule = try_get_value(block.meta, ('rule'))
+        if exec_rule:
+            master_swap = []
+            for item in exec_rule:
+                # Get the sequence in which the exec are combined
+                # Rules to combine:
+                # 1. for 'command' and 'plugin' have to merge them to tuples
+                # 2. for 'exec' have to come up with a combined name (or use alias if provided)
+                # 3. for 'params' have to do concatenate together into one
+                item = flatten_list([get_slice(x)[1] for x in item.split('+')])
+                # [self.master_data[name][idx - 1] for idx in item]
 
     def get_workflow(self, sequence):
         '''Convert self.master_data to self.data
@@ -367,13 +387,12 @@ class DSCJobs(dotdict):
     def __str__(self):
         text1 = ''
         for item in self.ordering:
-            text1 += dict2str({item: self.master_data[item]},
-                            replace = [('!!python/tuple', '(tuple)')]) + '\n'
+            text1 += dict2str({item: self.master_data[item]}) + '\n'
         text2 = ''
         for sequence in self.data:
             for block in sequence:
                 for item in block:
-                    text2 += dict2str(item, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+                    text2 += dict2str(item) + '\n'
         return text1.strip() + '\n{}\n'.format('#' * 20) + text2.strip()
 
 class DSC2SoS:

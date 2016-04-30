@@ -624,5 +624,6 @@ class DSCData(dotdict):
     def __str__(self):
         res = ''
         for item in sorted(list(dict(self).items())):
-            res += dict2str({item[0]: dict(item[1])}, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+            # res += dict2str({item[0]: dict(item[1])}, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+            res += dict2str({item[0]: dict(item[1])}) + '\n'
         return res.strip()

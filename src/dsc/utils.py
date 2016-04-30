@@ -22,21 +22,6 @@ from pysos.signature import textMD5
 from pysos.actions import check_R_library
 from dsc import HTML_CSS, HTML_JS
 
-R_SOURCE = '''
-source.file <- source
-source <- function(x) {
- found <- F
- files <- paste(DSC_LIBPATH, x, sep="/")
- for (i in 1:length(files))
-   if (file.exists(files[i])) {
-   source.file(files[i])
-   found <- T
-   break
-   }
- if (!found) source.file(x)
-}
-'''
-
 def no_duplicates_constructor(loader, node, deep=False):
     """YAML check for duplicate keys."""
     mapping = {}
@@ -50,6 +35,7 @@ def no_duplicates_constructor(loader, node, deep=False):
     return loader.construct_mapping(node, deep)
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
+yaml.Dumper.ignore_aliases = lambda self, value: True
 
 class Timer(object):
     def __init__(self, verbose=False):
@@ -83,7 +69,7 @@ def is_null(var):
     if type(var) is str:
         if var.lower() in ['na','nan','null','none','']:
             return True
-    if isinstance(var, (list, tuple)):
+    if isinstance(var, (list, tuple, dict)):
         return True if len(var) == 0 else False
     return False
 
@@ -224,7 +210,7 @@ def set_nested_value(d, keys, value, default_factory = dict):
 
 def dict2str(value, replace = []):
     out = StringIO()
-    yaml.dump(value, out, default_flow_style=False)
+    yaml.dump(strip_dict(value, into_list = True), out, default_flow_style=False)
     res = out.getvalue()
     out.close()
     for item in replace:
@@ -240,13 +226,17 @@ def update_nested_dict(d, u, mapping = dict):
             d[k] = u[k]
     return d
 
-def strip_dict(data, mapping = dict):
+def strip_dict(data, mapping = dict, into_list = False):
+    if not isinstance(data, mapping):
+        return data
     mapping_null = mapping()
     new_data = mapping()
     for k, v in data.items():
         if isinstance(v, collections.Mapping):
-            v = strip_dict(v)
-        if not v in ('', None, {}, [], mapping_null):
+            v = strip_dict(v, mapping, into_list)
+        if isinstance(v, list) and into_list:
+            v = [strip_dict(x, mapping, into_list) for x in v]
+        if not is_null(v) and v != mapping_null:
             new_data[k] = v
     return new_data
 

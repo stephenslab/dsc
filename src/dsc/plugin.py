@@ -6,7 +6,22 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-from .utils import R_SOURCE
+
+R_SOURCE = '''
+source.file <- source
+source <- function(x) {
+ found <- F
+ files <- paste(DSC_LIBPATH, x, sep="/")
+ for (i in 1:length(files))
+   if (file.exists(files[i])) {
+   source.file(files[i])
+   found <- T
+   break
+   }
+ if (!found) source.file(x)
+}
+'''
+
 class BasePlug:
     def __init__(self, name = None):
         self.name = name
