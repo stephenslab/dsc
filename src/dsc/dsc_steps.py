@@ -40,8 +40,8 @@ class DSCJobs(dotdict):
     '''
     def __init__(self, data):
         '''
-        raw_data: dict
-        data: list
+        master_data: dict
+        data: dict
         output_prefix: str
           output directory
         default_workdir: str
@@ -49,7 +49,7 @@ class DSCJobs(dotdict):
         sequences: list
         '''
         self.data = []
-        self.raw_data = {}
+        self.master_data = {}
         self.output_prefix = data.DSC['output'][0]
         self.libpath = try_get_value(data.DSC, ('lib_path'))
         self.path = try_get_value(data.DSC, ('exec_path'))
@@ -57,10 +57,10 @@ class DSCJobs(dotdict):
         # sequences in action, logically ordered
         self.ordering = self.merge_sequences(data.DSC['run'])
         for block in self.ordering:
-            self.load_raw_data(data[block], name = block)
+            self.load_master_data(data[block], name = block)
         # sequences in action, unordered but expanded by index
         self.sequences = self.expand_sequences(data.DSC['run'],
-                                                {x : range(len(self.raw_data[x])) for x in self.raw_data})
+                                                {x : range(len(self.master_data[x])) for x in self.master_data})
         for seq, idx in self.sequences:
             self.data.append(self.get_workflow(seq))
 
@@ -71,14 +71,31 @@ class DSCJobs(dotdict):
         data.output_db = self.output_prefix
         # to_plugin: If the output is an RDS file: is so, if both `plugin` in ('R', 'Python')
         # and return parameter is not found in params list
+        # About plugin mode:
+        # The logic is a 2 by 2 table:
+        #       | plugin | not plugin
+        # ------|--------|-----------
+        # From  |   A         B
+        # ------|
+        # To    |   C         D
+        # Here we must make sure every step in a block have the same consistent from/to status
+        # to_plugin "C" can result in only one file; others can result in multiple files
+        # FIXME: currently A allows 2 files, D allows only one file and not sure about B yet.
+        # How to determine A, B, C, D?
+        # For C & D: if return value (after alias mapping) is not in parameter list it must be C
+        # If a parameter is File() and it is in return value, it then must be D
+        # If all return values are in parameter list and no File() is there I'll throw an error
+        # For A & B: if the dependent step is to_plugin then A, or B
+        # FIXME: should allow for mixed A & B. then from_plugin parameter should be a dictionary
+        # Because it will be parameter specific.
         data.plugin = Plugin()
         data.to_plugin = None
         # Input depends: [(step_name, out_var, idx), (step_name, out_var, idx) ...]
         # Then out_var will be assigned in the current step as: out_var = step_name.output[idx]
-        data.input_depends = []
-        # For every input_depends if it is from some plugin,
+        data.depends = []
+        # For every depends if it is from some plugin,
         # via checking the corresponding to_plugin property.
-        data.input_from_plugin = []
+        data.from_plugin = None
         data.name = name
         return data
 
@@ -86,11 +103,6 @@ class DSCJobs(dotdict):
         '''Intermediate data to be appended to self.data'''
         data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + \
                                [x if not x.startswith('$') else '${_%}' % x[1:] for x in exe[1:]])
-        # Decide if this step is a plugin
-        # FIXME: will have to eventually decide this by checking whether or not return
-        # value is in parameter list, not by extension
-        # one need to use "Rscript file_name.R" not "file_name.R"
-        # same for "python file_name.py"
         plugin = Plugin(os.path.splitext(exe[0])[1].lstrip('.'))
         if (data.plugin.name is not None and (not plugin.name) != (not data.plugin.name)):
             raise StepError("A mixture of plugin codes and other executables are not allowed " \
@@ -105,8 +117,8 @@ class DSCJobs(dotdict):
         data.output_vars = []
         data.exe = ' '.join(exe) if exe_name is None else exe_name
 
-    def load_raw_data(self, block, name = 'block'):
-        '''Load block data to self.raw_data with some preliminary processing
+    def load_master_data(self, block, name = 'block'):
+        '''Load block data to self.master_data with some preliminary processing
         '''
         def load_params():
             params = {}
@@ -155,7 +167,7 @@ class DSCJobs(dotdict):
             # parameter value slicing
             pass
 
-        def process_output(out):
+        def process_return(out):
             for item in out:
                 lhs = ''
                 if '=' in item:
@@ -175,18 +187,17 @@ class DSCJobs(dotdict):
                     else:
                         # alias is within plugin
                         data.plugin.add_return(lhs, groups.group(2))
+                        data.to_plugin = True
                 else:
                     lhs = item.strip()
+                if lhs not in params:
+                    data.to_plugin = True
                 data.output_vars.append(lhs)
-                if not data.plugin.name:
-                    # output file pattern
-                    # FIXME: have to extract extension from File()
-                    # E.g. get_ext(lhs)
-                    data.output_ext.append(lhs)
-            if data.plugin.name:
-                data.output_ext = 'rds'
+            if data.to_plugin:
+                data.output_ext = repr('rds')
+        #
         # Load command parameters
-        self.raw_data[name] = []
+        self.master_data[name] = []
         data = self.__initialize_block(name)
         exec_alias = try_get_value(block.meta, ('exec_alias'))
         for idx, exe in enumerate(block.meta['exec']):
@@ -197,20 +208,17 @@ class DSCJobs(dotdict):
             process_alias()
             # FIXME: handle rules
             process_rules()
-            # FIXME: File() not handled yet
-            # to_plugin: if all return objects are not File
-            # FIXME: let it be whether or not the block uses plugin for now
-            # But in practice if return parameter matches a File() then
-            # to_plugin will be False no matter what data.plugin is
-            data.to_plugin = True if data.plugin.name else False
-            # handle output
-            process_output(block.out)
+            # handle return
+            # if return is not in parameter then
+            # to_plugin will be True.
+            # After this function, to_plugin is either True or None
+            process_return(block.out)
             # assign parameters
             data.parameters = params
-            self.raw_data[name].append(dict(data))
+            self.master_data[name].append(dict(data))
 
     def get_workflow(self, sequence):
-        '''Convert self.raw_data to self.data
+        '''Convert self.master_data to self.data
            * Fully expand sequences so that each sequence will be one SoS instance
            * Resolving step dependencies and some syntax conversion, most importantly the $ symbol
         '''
@@ -235,15 +243,20 @@ class DSCJobs(dotdict):
             if dependence is None:
                 raise StepError('Cannot find return value for ``${}`` in any of its previous steps.'.\
                                 format(value))
-            if dependence not in raw_data[item][step_idx]['input_depends']:
-                raw_data[item][step_idx]['input_depends'].append(dependence)
-                raw_data[item][step_idx]['input_from_plugin'].append(to_plugin)
+            if dependence not in master_data[item][step_idx]['depends']:
+                master_data[item][step_idx]['depends'].append(dependence)
+                if master_data[item][step_idx]['from_plugin'] is not None \
+                and master_data[item][step_idx]['from_plugin'] != to_plugin:
+                    raise StepError("Mixed input from previous plugin and non-plugin steps is currently "\
+                                    "not implemented!")
+                else:
+                    master_data[item][step_idx]['from_plugin'] = to_plugin
         #
         res = []
-        raw_data = copy.deepcopy(self.raw_data)
+        master_data = copy.deepcopy(self.master_data)
         for idx, item in enumerate(sequence):
             # for each step
-            for step_idx, step in enumerate(raw_data[item]):
+            for step_idx, step in enumerate(master_data[item]):
                 # for each exec
                 for k, p in list(step['parameters'].items()):
                     values = []
@@ -252,30 +265,65 @@ class DSCJobs(dotdict):
                             if p1.startswith('$'):
                                 find_dependencies(p1[1:])
                                 if p1[1:] != k:
-                                    raw_data[item][step_idx]['plugin'].add_input(k, p1[1:])
+                                    master_data[item][step_idx]['plugin'].add_input(k, p1[1:])
                                 continue
                             elif re.search(r'^Asis\((.*?)\)$', p1):
                                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
+                            elif re.search(r'^File\((.*?)\)$', p1):
+                                # p1 is file extension
+                                # then will see if k is in the return list
+                                # if so, this is not plugin mode, set plugin to False
+                                # (this is because we'll not allow returning a file if it is already
+                                # plugin mode! It is possible to use File() though but I'll not monitor
+                                # the resulting product [in terms of signature])
+                                if k in master_data[item][step_idx]['output_vars']:
+                                    if master_data[item][step_idx]['to_plugin'] is True:
+                                        raise StepError("Cannot return to additional file with ``{}`` "\
+                                                        " in plugin mode!".format(k))
+                                    elif master_data[item][step_idx]['to_plugin'] is False:
+                                        # FIXME: multiple file output not allowed for now
+                                        raise StepError('Multiple file output not allowed in ``{}``'.\
+                                                        format(item))
+                                    else:
+                                        master_data[item][step_idx]['to_plugin'] = False
+                                        master_data[item][step_idx]['output_ext'] \
+                                            = repr(re.search(r'^File\((.*?)\)$', p1).group(1))
+                                        # continue because we do not need to have this parameter
+                                        # in the parameter list
+                                        master_data[item][step_idx]['plugin'].add_input(k, '${_output!r}')
+                                        continue
+                                else:
+                                    # FIXME: this file is just hitchhiking (want to use the output name)
+                                    # Need a way to properly handle it
+                                    raise StepError('Not implemented')
                             else:
                                 p1 = repr(p1)
                         if isinstance(p1, tuple):
-                            p1 = raw_data[item][step_idx]['plugin'].format_tuple(p1)
+                            p1 = master_data[item][step_idx]['plugin'].format_tuple(p1)
                         values.append(p1)
                     if len(values) == 0:
-                        del raw_data[item][step_idx]['parameters'][k]
+                        del master_data[item][step_idx]['parameters'][k]
                     elif len(values) < len(p):
                         # This means that $XX and other variables coexist
                         # For a plugin script
-                        raise ValueError("Cannot use return value from a script " \
+                        raise StepError("Cannot use return value from a script " \
                                          "as input parameter in parallel to others!\nLine: ``{}``".\
                                          format(', '.join(map(str, p))))
                     else:
-                        raw_data[item][step_idx]['parameters'][k] = values
-                if len(raw_data[item][step_idx]['parameters']) == 0:
-                    del raw_data[item][step_idx]['parameters']
+                        master_data[item][step_idx]['parameters'][k] = values
+                if len(master_data[item][step_idx]['parameters']) == 0:
+                    del master_data[item][step_idx]['parameters']
                 # sort input depends
-                raw_data[item][step_idx]['input_depends'].sort(key = lambda x: self.ordering.index(x[0]))
-            res.append(raw_data[item])
+                master_data[item][step_idx]['depends'].sort(key = lambda x: self.ordering.index(x[0]))
+                if master_data[item][step_idx]['to_plugin'] is None:
+                    # At this point if this is still pending
+                    # then it means that every return value must be in the parameter list
+                    # and that none of the value is a file to be created.
+                    # then there is no point to run this step because nothing new is produced!
+                    raise StepError("Return values from block ``{}`` are all in its input parameters. "\
+                                    "DSC cannot run this block because no new output data is produced.".\
+                                    format(item))
+            res.append(master_data[item])
         return res
 
     def merge_sequences(self, input_sequences):
@@ -317,15 +365,16 @@ class DSCJobs(dotdict):
         return res
 
     def __str__(self):
-        res = ''
+        text1 = ''
         for item in self.ordering:
-            res += dict2str({item: self.raw_data[item]}, replace = [('!!python/tuple', '(tuple)')]) + '\n'
-        text = ''
+            text1 += dict2str({item: self.master_data[item]},
+                            replace = [('!!python/tuple', '(tuple)')]) + '\n'
+        text2 = ''
         for sequence in self.data:
             for block in sequence:
                 for item in block:
-                    text += dict2str(item, replace = [('!!python/tuple', '(tuple)')]) + '\n'
-        return res.strip() + '\n{}\n'.format('#' * 20) + text.strip()
+                    text2 += dict2str(item, replace = [('!!python/tuple', '(tuple)')]) + '\n'
+        return text1.strip() + '\n{}\n'.format('#' * 20) + text2.strip()
 
 class DSC2SoS:
     '''
@@ -410,15 +459,15 @@ class DSC2SoS:
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
-        res.append('output_suffix = {}'.format(repr(step_data['output_ext'])))
+        res.append('output_suffix = {}'.format(step_data['output_ext']))
         input_vars = ''
         depend_steps = []
         io_ratio = 0
-        if step_data['input_depends']:
+        if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
-            depend_steps = uniq_list([x[0] for x in step_data['input_depends']])
+            depend_steps = uniq_list([x[0] for x in step_data['depends']])
             if len(depend_steps) > 2:
-                raise ValueError("DSC block ``{}`` has too many dependencies: ``{}``. " \
+                raise StepError("DSC block ``{}`` has too many dependencies: ``{}``. " \
                 "By DSC design a block can have only depend on one or two other blocks.".\
                 format(step_data['name'], repr(depend_steps)))
             elif len(depend_steps) == 2:
@@ -448,7 +497,7 @@ class DSC2SoS:
                    "${{s%.*}}{}: | sed 's/ /_/g' >> %(meta_file)\necho -e '"\
                    "  sequence_id: %(sequence_id)\\n  sequence_name: %(sequence_name)\\n" \
                    "  step_name: %(step_name)\\n{}' >> %(meta_file)\ntouch %(_output)".\
-                   format(' %(_base)' if step_data['input_depends'] else '', '\\n'.join(param_string)))
+                   format(' %(_base)' if step_data['depends'] else '', '\\n'.join(param_string)))
         res.append("if [ ! -f .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp ]; "\
                    "then echo %(input!,)::%(output!,)::{}"\
                    " > .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp; fi".format(io_ratio))
@@ -464,11 +513,11 @@ class DSC2SoS:
         for_each = 'for_each = %s' % repr(params) if len(params) else ''
         group_by = ''
         input_var = 'input: CONFIG[file_id][sequence_id][step_name]["input"], dynamic = True, '
-        if step_data['input_depends']:
+        if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
-            depend_steps = uniq_list([x[0] for x in step_data['input_depends']])
+            depend_steps = uniq_list([x[0] for x in step_data['depends']])
             if len(depend_steps) > 2:
-                raise ValueError("DSC block ``{}`` has too many dependencies: ``{}``. " \
+                raise StepError("DSC block ``{}`` has too many dependencies: ``{}``. " \
                 "By DSC design a block can have only depend on one or two other blocks.".\
                 format(step_data['name'], repr(depend_steps)))
             elif len(depend_steps) == 2:
@@ -486,9 +535,15 @@ class DSC2SoS:
                           repr(step_data['work_dir'])))
         # Add action
         if step_data['plugin'].name:
-            script_begin = step_data['plugin'].get_input(params, input_num = len(depend_steps),
-                                                         lib = self.libpath)
-            script_end = step_data['plugin'].get_return(step_data['output_vars'])
+            if step_data['from_plugin'] is False:
+                script_begin = ''
+            else:
+                script_begin = step_data['plugin'].get_input(params, input_num = len(depend_steps),
+                                                             lib = self.libpath)
+            if step_data['to_plugin']:
+                script_end = step_data['plugin'].get_return(step_data['output_vars'])
+            else:
+                script_end = ''
             try:
                 script = """\n{3}\n{0}\n{4}\n{1}\n{3}\n{2}\n{4}\n""".\
                   format(script_begin,

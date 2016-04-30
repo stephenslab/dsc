@@ -193,8 +193,11 @@ class ResultDB:
                                         format(rds))
             data.append([idx] + values)
         # Now bind data to table, by '{}_id'.format(name)
-        return pd.merge(table, pd.DataFrame(data, columns = ['{}_id'.format(name)] + colnames),
-                        on = '{}_id'.format(name), how = 'outer')
+        if data:
+            return pd.merge(table, pd.DataFrame(data, columns = ['{}_id'.format(name)] + colnames),
+                            on = '{}_id'.format(name), how = 'outer')
+        else:
+            return table
 
     def Build(self):
         self.load_parameters()
