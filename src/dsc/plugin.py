@@ -132,7 +132,7 @@ class PyPlug(BasePlug):
         for k in keys:
             res += '\n%s = ${_%s}' % (k, k)
         if input_num > 1:
-            if idx == 0:
+            if index == 0:
                 res += '\nfor item in [${_input!r,}]:\n\tglobals().update(load_rds(item))'
             else:
                 res += '\nglobals().update(load_rds("${_output}"))'

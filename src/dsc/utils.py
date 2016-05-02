@@ -324,7 +324,8 @@ def load_rds(filename, types = None):
 
     def load_dict(res, data, types):
         '''load data to res'''
-        for name, value in zip(data.names, list(data)):
+        names = data.names if data.names else [i + 1 for i in range(len(data))]
+        for name, value in zip(names, list(data)):
             if types is not None and not isinstance(value, types):
                 continue
             if isinstance(value, RV.ListVector):
@@ -333,7 +334,6 @@ def load_rds(filename, types = None):
             else:
                 res[name] = load(value, types)
         return res
-
     #
     rds = RO.r['readRDS'](filename)
     if isinstance(rds, RV.ListVector):
