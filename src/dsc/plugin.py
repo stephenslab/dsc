@@ -45,7 +45,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def get_input(self, params, input_num, lib = None, index = 0):
+    def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None):
         return ''
 
     def format_tuple(self, value):
@@ -61,12 +61,15 @@ class RPlug(BasePlug):
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} <- {}'.format(lhs, rhs))
 
-    def get_input(self, params, input_num, lib, index):
+    def get_input(self, params, input_num, lib, index, cmd_args):
         if lib is not None:
             res = '\nDSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib])) + R_SOURCE
         else:
             res = ''
         res += '\n'.join(self.container)
+        # FIXME: will eventually allow for parameter input for plugins (at SoS level)
+        if cmd_args:
+            res += '\n' + '\n'.join(cmd_args)
         keys = [x for x in params if not x in self.container_vars]
         if 'seed' in keys:
             res += '\nset.seed(${_seed})'
@@ -116,13 +119,18 @@ class PyPlug(BasePlug):
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} = {}'.format(lhs, rhs))
 
-    def get_input(self, params, input_num, lib, index):
+    def get_input(self, params, input_num, lib, index, cmd_args):
         if lib is not None:
             res = '\nimport sys, os'
             for item in lib:
                 res += '\nsys.path.append(os.path.abspath("{}"))'.format(item)
         else:
             res = ''
+        # FIXME: will eventually allow for parameter input for plugins (at SoS level)
+        if cmd_args:
+            if not res:
+                res = '\nimport sys'
+            res += '\nsys.argv.extend({})'.format(repr(cmd_args))
         res += '\nfrom dsc.utils import save_rds, load_rds'
         res += '\n'.join(self.container)
         keys = [x for x in params if not x in self.container_vars]
