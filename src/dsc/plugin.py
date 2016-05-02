@@ -45,7 +45,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def get_input(self, params, input_num, lib = None):
+    def get_input(self, params, input_num, lib = None, index = 0):
         return ''
 
     def format_tuple(self, value):
@@ -61,7 +61,7 @@ class RPlug(BasePlug):
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} <- {}'.format(lhs, rhs))
 
-    def get_input(self, params, input_num, lib):
+    def get_input(self, params, input_num, lib, index):
         if lib is not None:
             res = '\nDSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib])) + R_SOURCE
         else:
@@ -75,10 +75,14 @@ class RPlug(BasePlug):
             res += '\n%s <- ${_%s}' % (k, k)
         if input_num > 1:
             # FIXME: using attach might be dangerous. better create some namespace.
-            res += '\ninput.files <- c(${_input!r,})\nfor (i in 1:length(input.files)) ' \
-              'attach(readRDS(input.files[i]), warn.conflicts = F)'
+            if index == 0:
+                res += '\ninput.files <- c(${_input!r,})\nfor (i in 1:length(input.files)) ' \
+                       'attach(readRDS(input.files[i]), warn.conflicts = F)'
+            else:
+                res += '\nattach(readRDS("${_output}"), warn.conflicts = F)'
+
         elif input_num == 1:
-            res += '\nattach(readRDS("${_input}"), warn.conflicts = F)'
+            res += '\nattach(readRDS("${_%sput}"), warn.conflicts = F)' % ('in' if index == 0 else 'out')
         else:
             pass
         res += '\n' + '\n'.join(self.input_alias)
@@ -112,7 +116,7 @@ class PyPlug(BasePlug):
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} = {}'.format(lhs, rhs))
 
-    def get_input(self, params, input_num, lib):
+    def get_input(self, params, input_num, lib, index):
         if lib is not None:
             res = '\nimport sys, os'
             for item in lib:
@@ -128,9 +132,14 @@ class PyPlug(BasePlug):
         for k in keys:
             res += '\n%s = ${_%s}' % (k, k)
         if input_num > 1:
-            res += '\nfor item in [${_input!r,}]:\n\tglobals().update(load_rds(item))'
-        if input_num == 1:
-            res += '\nglobals().update(load_rds("${_input}"))'
+            if idx == 0:
+                res += '\nfor item in [${_input!r,}]:\n\tglobals().update(load_rds(item))'
+            else:
+                res += '\nglobals().update(load_rds("${_output}"))'
+        elif input_num == 1:
+            res += '\nglobals().update(load_rds("${_%sput}"))' % ('in' if index == 0 else 'out')
+        else:
+            pass
         res += '\n' + '\n'.join(self.input_alias)
         return res
 

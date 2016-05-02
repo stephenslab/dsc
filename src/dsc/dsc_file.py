@@ -603,10 +603,12 @@ class DSCData(dotdict):
                 # out of index
                 self[name]['meta']['exec'] = [tuple(x.split()) if isinstance(x, str) else x
                                               for x in self[name]['meta']['exec']]
-                if 'exec_alias' in self[name]['meta'] \
-                  and len(self[name]['meta']['exec_alias']) != len(self[name]['meta']['exec']):
+                if ('exec_alias' in self[name]['meta'] and 'rule' not in self[name]['meta'] \
+                    and len(self[name]['meta']['exec_alias']) != len(self[name]['meta']['exec'])) or \
+                    ('exec_alias' in self[name]['meta'] and 'rule' in self[name]['meta'] \
+                     and len(self[name]['meta']['exec_alias']) != len(self[name]['meta']['rule'])):
                     raise FormatError('Alias does not match the length of exec, in block ``{}``!'.\
-                                  format(name))
+                                      format(name))
                 if 'params' in self[name]:
                     max_exec = max(self[name]['params'].keys())
                     if max_exec > len(self[name]['meta']['exec']):

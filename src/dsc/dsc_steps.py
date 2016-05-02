@@ -60,7 +60,8 @@ class DSCJobs(dotdict):
             self.load_master_data(data[block], name = block)
         # sequences in action, unordered but expanded by index
         self.sequences = self.expand_sequences(data.DSC['run'],
-                                                {x : range(len(self.master_data[x])) for x in self.master_data})
+                                                {x : range(len(self.master_data[x]))
+                                                 for x in self.master_data})
         for seq, idx in self.sequences:
             self.data.append(self.get_workflow(seq))
 
@@ -201,8 +202,11 @@ class DSCJobs(dotdict):
         self.master_data[name] = []
         data = self.__initialize_block(name)
         exec_alias = try_get_value(block.meta, ('exec_alias'))
+        exec_rule = try_get_value(block.meta, ('rule'))
         for idx, exe in enumerate(block.meta['exec']):
-            self.__reset_block(data, exe, exec_alias[idx] if exec_alias else None, self.path)
+            self.__reset_block(data, exe,
+                               exec_alias[idx] if exec_alias and len(exec_alias) > idx else None,
+                               self.path)
             # temporary variables
             params, rules, alias = load_params(), load_rules(), load_alias()
             # handle alias
@@ -225,7 +229,6 @@ class DSCJobs(dotdict):
         # 2. For plugin mode, the commands that follows the first one will load and save ${_output}
         # NOT ${_input}
         # 3. FIXME: For non-plugin mode ...
-        exec_rule = try_get_value(block.meta, ('rule'))
         if exec_rule:
             master_swap = []
             for item in exec_rule:
@@ -245,11 +248,16 @@ class DSCJobs(dotdict):
                         tmp_master['command'].append(self.master_data[name][idx]['command'])
                         tmp_master['plugin'].append(self.master_data[name][idx]['plugin'])
                         tmp_master['parameters'].update(self.master_data[name][idx]['parameters'])
-                        tmp_master['exe'] += '.{}'.format(self.master_data[name][idx]['exe'])
+                        if exec_alias is None:
+                            tmp_master['exe'] += '.{}'.format(self.master_data[name][idx]['exe'])
                 tmp_master['command'] = tuple(tmp_master['command'])
                 tmp_master['plugin'] = tuple(tmp_master['plugin'])
                 master_swap.append(tmp_master)
             self.master_data[name] = master_swap
+        else:
+            for idx in range(len(self.master_data[name])):
+                self.master_data[name][idx]['command'] = (self.master_data[name][idx]['command'],)
+                self.master_data[name][idx]['plugin'] = (self.master_data[name][idx]['plugin'],)
 
     def get_workflow(self, sequence):
         '''Convert self.master_data to self.data
@@ -299,7 +307,8 @@ class DSCJobs(dotdict):
                             if p1.startswith('$'):
                                 find_dependencies(p1[1:])
                                 if p1[1:] != k:
-                                    master_data[item][step_idx]['plugin'].add_input(k, p1[1:])
+                                    for plugin in master_data[item][step_idx]['plugin']:
+                                        plugin.add_input(k, p1[1:])
                                 continue
                             elif re.search(r'^Asis\((.*?)\)$', p1):
                                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
@@ -324,7 +333,8 @@ class DSCJobs(dotdict):
                                             = repr(re.search(r'^File\((.*?)\)$', p1).group(1))
                                         # continue because we do not need to have this parameter
                                         # in the parameter list
-                                        master_data[item][step_idx]['plugin'].add_input(k, '${_output!r}')
+                                        for plugin in master_data[item][step_idx]['plugin']:
+                                            plugin.add_input(k, '${_output!r}')
                                         continue
                                 else:
                                     # FIXME: this file is just hitchhiking (want to use the output name)
@@ -333,7 +343,14 @@ class DSCJobs(dotdict):
                             else:
                                 p1 = repr(p1)
                         if isinstance(p1, tuple):
-                            p1 = master_data[item][step_idx]['plugin'].format_tuple(p1)
+                            # FIXME: for ambiguous tuple, will have to ask users to reformat
+                            tmp = set([plugin.format_tuple(p1)
+                                      for plugin in master_data[item][step_idx]['plugin']])
+                            if len(tmp) > 0:
+                                raise StepError('Cannot properly determine the format for ``{}`` '\
+                                                'for multiple executables of different types. '\
+                                                'Please explicitly format it via ``Asis()`` syntax.')
+                            p1 = tmp[0]
                         values.append(p1)
                     if len(values) == 0:
                         del master_data[item][step_idx]['parameters'][k]
@@ -407,7 +424,7 @@ class DSCJobs(dotdict):
             for block in sequence:
                 for item in block:
                     text2 += dict2str(item) + '\n'
-        return text1.strip() + '\n{}\n'.format('#' * 20) + text2.strip()
+        return text1.strip() + '\n{}'.format('#\n' * 5) + text2.strip()
 
 class DSC2SoS:
     '''
@@ -476,8 +493,8 @@ class DSC2SoS:
         pass
 
     def __str__(self):
-        return  '\n{}\n'.format('#' * 20).join(self.confstr) + '\n' * 10 + \
-          '\n{}\n'.format('#' * 20).join(self.jobstr)
+        return  '\n{}'.format('#\n' * 5).join(self.confstr) + '##\n' * 5 + \
+          '\n{}'.format('#\n' * 5).join(self.jobstr)
 
     def __get_prepare_step(self, step_idx, step_data, output_prefix):
         '''
@@ -496,6 +513,7 @@ class DSC2SoS:
         input_vars = ''
         depend_steps = []
         io_ratio = 0
+        cmds_md5 = ''.join([fileMD5(item, partial = False) for item in step_data['command']])
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
@@ -514,14 +532,13 @@ class DSC2SoS:
             res.append("input: %spattern = '{path}/{base}.{ext}'%s" % \
                        (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
             res.append("output: sos_hash_output('{0}:%%:%(\"_\".join(_base)).%(output_suffix)', "\
-                       "'{1}')".format(':%:'.join(['exec={}'.format(fileMD5(step_data['command'],
-                                                                            partial = False))] + \
+                       "'{1}')".format(':%:'.join(['exec={}'.format(cmds_md5)] + \
                                       ['{0}=%(_{0})'.format(x) for x in params]), output_prefix))
         else:
             if params:
                 res.append("input: %s" % 'for_each = %s'% repr(params))
             res.append("output: sos_hash_output(expand_pattern('{0}.%(output_suffix)'), '{1}')".\
-                       format(':%:'.join(['exec={}'.format(fileMD5(step_data['command'], partial = False))] \
+                       format(':%:'.join(['exec={}'.format(cmds_md5)] \
                                          + ['{0}=%(_{0})'.format(x) for x in params]), output_prefix))
         param_string = ["  exec: {}".format(step_data['exe'])]
         param_string += ['  {0}: %(_{0})'.format(x) for x in params]
@@ -563,31 +580,41 @@ class DSC2SoS:
         if not (not for_each and input_var == 'input:'):
             res.append('{} {}'.format(input_var, ','.join([group_by, for_each]).strip(',')))
         res.append('output: output_files[_index]')
-        res.append("{}: workdir = {}, concurrent = True".\
-                   format(step_data['plugin'].name if step_data['plugin'].name else 'run',
-                          repr(step_data['work_dir'])))
-        # Add action
-        if step_data['plugin'].name:
-            if step_data['from_plugin'] is False:
-                script_begin = ''
+        for idx, (plugin, cmd) in enumerate(zip(step_data['plugin'], step_data['command'])):
+            res.append("{}: {}".format(plugin.name if plugin.name else 'run',
+                                       'workdir = {}, concurrent = True'.\
+                                       format(repr(step_data['work_dir'])) if idx == 0 else ''))
+            # Add action
+            if plugin.name:
+                if step_data['from_plugin'] is False:
+                    script_begin = ''
+                else:
+                    script_begin = plugin.get_input(params, input_num = len(depend_steps),
+                                                                 lib = self.libpath, index = idx)
+                if step_data['to_plugin']:
+                    script_end = plugin.get_return(step_data['output_vars'])
+                else:
+                    script_end = ''
+                if script_begin:
+                    script_begin = '{1}\n{0}\n{2}'.\
+                                   format(script_begin.strip(),
+                                          '## BEGIN code auto-generated by DSC {}'.format(VERSION),
+                                          '## END code auto-generated by DSC {}'.format(VERSION))
+                if script_end:
+                    script_end = '{1}\n{0}\n{2}'.\
+                                   format(script_end.strip(),
+                                          '## BEGIN code auto-generated by DSC {}'.format(VERSION),
+                                          '## END code auto-generated by DSC {}'.format(VERSION))
+                try:
+                    script = """{0}\n{1}\n{2}""".\
+                             format(script_begin,
+                                    '\n'.join([x.rstrip() for x in open(cmd.split()[0], 'r').\
+                                               readlines() if x.strip()]),
+                                    script_end)
+                except IOError:
+                    raise StepError("Cannot find script ``{}``!".format(cmd.split()[0]))
+                res.append(script)
             else:
-                script_begin = step_data['plugin'].get_input(params, input_num = len(depend_steps),
-                                                             lib = self.libpath)
-            if step_data['to_plugin']:
-                script_end = step_data['plugin'].get_return(step_data['output_vars'])
-            else:
-                script_end = ''
-            try:
-                script = """\n{3}\n{0}\n{4}\n{1}\n{3}\n{2}\n{4}\n""".\
-                  format(script_begin,
-                        '\n'.join([x.strip() for x in open(step_data['command'].split()[0], 'r').\
-                                   readlines() if x.strip()]),
-                        script_end, '## BEGIN code auto-generated by DSC {}'.format(VERSION),
-                        '## END code auto-generated by DSC {}'.format(VERSION))
-            except IOError:
-                raise StepError("Cannot find script ``{}``!".format(step_data['command'].split()[0]))
-            res.append(script)
-        else:
-            check_command(step_data['command'].split()[0])
-            res.append("""run('''\n{}\n''')""".format(step_data['command']))
+                check_command(cmd.split()[0])
+                res.append("""run('''\n{}\n''')""".format(cmd))
         return '\n'.join(res) + '\n'
