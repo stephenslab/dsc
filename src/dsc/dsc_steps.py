@@ -13,7 +13,7 @@ from pysos.utils import Error
 from pysos.signature import fileMD5
 from dsc import VERSION
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
-     cartesian_list, merge_lists, uniq_list
+     cartesian_list, merge_lists, uniq_list, flatten_list
 from .plugin import Plugin
 
 class StepError(Error):
@@ -235,7 +235,21 @@ class DSCJobs(dotdict):
                 # 2. for 'exec' have to come up with a combined name (or use alias if provided)
                 # 3. for 'params' have to do concatenate together into one
                 item = flatten_list([get_slice(x)[1] for x in item.split('+')])
-                # [self.master_data[name][idx - 1] for idx in item]
+                tmp_master = None
+                for idx in item:
+                    if tmp_master is None:
+                        tmp_master = self.master_data[name][idx]
+                        tmp_master['command'] = [tmp_master['command']]
+                        tmp_master['plugin'] = [tmp_master['plugin']]
+                    else:
+                        tmp_master['command'].append(self.master_data[name][idx]['command'])
+                        tmp_master['plugin'].append(self.master_data[name][idx]['plugin'])
+                        tmp_master['parameters'].update(self.master_data[name][idx]['parameters'])
+                        tmp_master['exe'] += '.{}'.format(self.master_data[name][idx]['exe'])
+                tmp_master['command'] = tuple(tmp_master['command'])
+                tmp_master['plugin'] = tuple(tmp_master['plugin'])
+                master_swap.append(tmp_master)
+            self.master_data[name] = master_swap
 
     def get_workflow(self, sequence):
         '''Convert self.master_data to self.data
