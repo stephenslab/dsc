@@ -69,6 +69,8 @@ def execute(args, argv):
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
     yaml2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html', title = args.dsc_file)
+    if args.sequence:
+        env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     dsc_data = DSCData(args.dsc_file, args.sequence)
     db_name = os.path.basename(dsc_data['DSC']['output'][0])
@@ -109,11 +111,20 @@ def remove(args, argv):
     if not os.path.isfile(filename):
         raise ValueError('Cannot remove output because DSC database ``{}`` is not found!'.format(filename))
     to_remove = []
-    for step in args.step:
-        block, step_idx = get_slice(step, mismatch_quit = False)
-        for idx in range(len(dsc_jobs.raw_data[block])):
-            if idx in step_idx or step_idx is None:
-                to_remove.append(re.sub(r'[^\w' + '_.' + ']', '_', dsc_jobs.raw_data[block][idx]['exe']))
+    for item in args.step:
+        block, step_idx = get_slice(item, mismatch_quit = False)
+        removed = False
+        for sequence in dsc_jobs.data:
+            for steps in sequence:
+                for step in steps:
+                    if step['name'] == block and (step_idx is None or step_idx == step['exe_index']):
+                        tmp = re.sub(r'[^\w' + '_.' + ']', '_', step['exe'])
+                        if tmp not in to_remove:
+                            to_remove.append(tmp)
+                        removed = True
+        if removed is False:
+            env.logger.warning('Cannot find step ``{}`` in DSC run sequence defined in ``{}``; '\
+                               'thus not processed.'.format(item, args.dsc_file))
     #
     data = load_rds(filename)
     files_to_remove = ' '.join([' '.join([os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
@@ -133,5 +144,6 @@ def remove(args, argv):
                 del maps[k]
         with open('.sos/.dsc/{}.map'.format(filename), 'w') as f:
             f.write(yaml.dump(maps, default_flow_style=True))
-    env.logger.info('``{}`` files removed from ``{}``.'.format(len(map_to_remove),
-                                                               dsc_data['DSC']['output'][0]))
+    env.logger.info('Force removed ``{}`` files from ``{}``.'.\
+                    format(len(map_to_remove),
+                           os.path.abspath(os.path.expanduser(dsc_data['DSC']['output'][0]))))

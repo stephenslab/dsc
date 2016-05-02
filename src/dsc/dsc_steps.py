@@ -346,11 +346,11 @@ class DSCJobs(dotdict):
                             # FIXME: for ambiguous tuple, will have to ask users to reformat
                             tmp = set([plugin.format_tuple(p1)
                                       for plugin in master_data[item][step_idx]['plugin']])
-                            if len(tmp) > 0:
+                            if len(tmp) > 1:
                                 raise StepError('Cannot properly determine the format for ``{}`` '\
                                                 'for multiple executables of different types. '\
                                                 'Please explicitly format it via ``Asis()`` syntax.')
-                            p1 = tmp[0]
+                            p1 = list(tmp)[0]
                         values.append(p1)
                     if len(values) == 0:
                         del master_data[item][step_idx]['parameters'][k]
@@ -374,6 +374,8 @@ class DSCJobs(dotdict):
                     raise StepError("Return values from block ``{}`` are all in its input parameters. "\
                                     "DSC cannot run this block because no new output data is produced.".\
                                     format(item))
+                # add exec position
+                master_data[item][step_idx]['exe_index'] = step_idx
             res.append(master_data[item])
         return res
 
@@ -513,7 +515,7 @@ class DSC2SoS:
         input_vars = ''
         depend_steps = []
         io_ratio = 0
-        cmds_md5 = ''.join([fileMD5(item, partial = False) for item in step_data['command']])
+        cmds_md5 = ''.join([fileMD5(item.split()[0], partial = False) for item in step_data['command']])
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
@@ -616,5 +618,5 @@ class DSC2SoS:
                 res.append(script)
             else:
                 check_command(cmd.split()[0])
-                res.append("""run('''\n{}\n''')""".format(cmd))
+                res.append('\n{}\n'.format(cmd))
         return '\n'.join(res) + '\n'

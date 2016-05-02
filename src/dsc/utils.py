@@ -335,6 +335,8 @@ def load_rds(filename, types = None):
                 res[name] = load(value, types)
         return res
     #
+    if not os.path.isfile(filename):
+        raise IOError('Cannot find file ``{}``!'.format(filename))
     rds = RO.r['readRDS'](filename)
     if isinstance(rds, RV.ListVector):
         res = load_dict({}, rds, types)
@@ -356,13 +358,14 @@ def save_rds(data, filename):
                     value = np.asarray(value, dtype = float)
                 except:
                     value = np.asarray(value)
+        if isinstance(value, np.matrix):
+            value = np.asarray(value)
         if isinstance(value, (str, float, int, np.ndarray, pd.DataFrame)):
             RO.r.assign(name, value)
         else:
             raise ValueError("Saving ``{}`` to RDS file is not supported!".format(str(type(value))))
     #
     def assign_dict(name, value):
-        name = re.sub(r'[^\w' + '_.' + ']', '_', name)
         RO.r('%s <- list()' % name)
         for k, v in value.items():
             k = re.sub(r'[^\w' + '_.' + ']', '_', k)

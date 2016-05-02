@@ -200,7 +200,10 @@ class ExpandActions(DSCEntryParser):
         return value
 
     def __Combo(self, value):
+        raw_value = value
         value = [self.decodeVar(x) for x in self.split(value)]
+        if len(value) == 1:
+            raise ValueError('Cannot produce Combos for single value ``{}``!'.format(raw_value))
         value = [x if isinstance(x, (list, tuple)) else [x] for x in value]
         return cartesian_list(*value)
 
@@ -420,7 +423,6 @@ class DSCFileLoader(DSCFileParser):
                     raise FormatError('Missing required ``DSC::run``.')
                 if self.sequence is not None:
                     data.DSC['run'] = ', '.join(self.sequence)
-                    logger.info("Load command line DSC sequence: ``{}``".format(data.DSC['run']))
                 data.DSC['run'] = [(x,) if isinstance(x, str) else x for x in self.op(data.DSC['run'])]
                 if try_get_value(data, ('DSC', 'output')) is None:
                     logger.warning('Missing output database name in ``DSC::output``. '\
