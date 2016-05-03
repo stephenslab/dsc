@@ -439,7 +439,7 @@ def yaml2html(content, to_file, title = ''):
     if not os.path.splitext(to_file)[1] == '.html':
         to_file += '.html'
     with open(to_file, 'w') as f:
-        f.write('<!DOCTYPE html><html><head><title>{}</title>\n'.format(title))
+        f.write('<!DOCTYPE html><html><head><title>{} | DCS2</title>\n'.format(title))
         f.write('<style type="text/css">\nhtml {background: #fdf6e3; font-size: 10pt; '\
                 'font-family:Consolas, Monaco, \'Andale Mono\', \'Ubuntu Mono\', monospace;}\n')
         f.write(HTML_CSS)
