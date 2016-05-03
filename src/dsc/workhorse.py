@@ -68,7 +68,8 @@ def execute(args, argv):
     args.__config__ = None
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
-    yaml2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html', title = args.dsc_file)
+    yaml2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',
+              title = os.path.basename(args.dsc_file))
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
