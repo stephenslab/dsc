@@ -515,7 +515,9 @@ class DSC2SoS:
         input_vars = ''
         depend_steps = []
         io_ratio = 0
-        cmds_md5 = ''.join([fileMD5(item.split()[0], partial = False) for item in step_data['command']])
+        cmds_md5 = ''.join([fileMD5(item.split()[0], partial = False) + \
+                            (item.split()[1] if len(item.split()) > 1 else '')
+                            for item in step_data['command']])
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])

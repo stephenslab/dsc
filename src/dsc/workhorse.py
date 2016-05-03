@@ -128,8 +128,9 @@ def remove(args, argv):
     #
     data = load_rds(filename)
     files_to_remove = ' '.join([' '.join([os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
-                                    for x in data[item]['return']]) for item in to_remove])
-    map_to_remove = flatten_list([data[item]['return'].tolist() for item in to_remove])
+                                          for x in data[item]['return']])
+                                for item in to_remove if item in data])
+    map_to_remove = flatten_list([data[item]['return'].tolist() for item in to_remove if item in data])
     # delete files from disk
     os.system('rm -f {}'.format(files_to_remove))
     env.logger.debug('Removing files ``{}``'.format(repr(map_to_remove)))
