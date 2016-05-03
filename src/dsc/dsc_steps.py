@@ -102,8 +102,7 @@ class DSCJobs(dotdict):
 
     def __reset_block(self, data, exe, exe_name, exec_path):
         '''Intermediate data to be appended to self.data'''
-        data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + \
-                               [x if not x.startswith('$') else '${_%}' % x[1:] for x in exe[1:]])
+        data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + list(exe[1:]))
         plugin = Plugin(os.path.splitext(exe[0])[1].lstrip('.'))
         if (data.plugin.name is not None and (not plugin.name) != (not data.plugin.name)):
             raise StepError("A mixture of plugin codes and other executables are not allowed " \
