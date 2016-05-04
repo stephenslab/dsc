@@ -472,7 +472,7 @@ class DSC2SoS:
                     jobstr.append(self.__get_run_step(step_idx, step))
             # Get workflows
             seq, indices = data.sequences[seq_idx]
-            confstr.append("[DSC_1]\nrun(\"rm -f .sos/.dsc/md5/*; rm -f .sos/.dsc/*.io.tmp\")")
+            confstr.append("[DSC_1]\nrun(\"rm -f .sos/.dsc/md5/*\")")
             for idx, index in enumerate(indices):
                 item = '+'.join(['{}_{}'.format(x, y + 1)
                                  for x, y in zip(seq, index)])
