@@ -38,14 +38,11 @@ def sos_drillrun(args, workflow_args):
     args.verbosity = 0
     run_mode = env.run_mode
     sig_mode = env.sig_mode
-    max_jobs = args.__max_jobs__
     dryrun = args.__dryrun__
     rerun = args.__rerun__
-    args.__max_jobs__ = 1
     args.__dryrun__ = False
     args.__rerun__ = True
     sos_run(args, workflow_args)
-    args.__max_jobs__ = max_jobs
     args.__dryrun__ = dryrun
     args.__rerun__ = rerun
     env.run_mode = run_mode
@@ -90,6 +87,8 @@ def execute(args, argv):
         return
     # Wetrun
     env.logger.info("Running DSC jobs ...")
+    env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
+    if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.verbosity = verbosity - 1 if verbosity > 0 else verbosity
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(dsc_data['DSC']['output'][0]))
     for script in run_jobs.jobstr:

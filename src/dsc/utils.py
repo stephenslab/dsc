@@ -297,6 +297,26 @@ def sos_pair_input(value):
                 value = list(zip(*[x for x in chunks(value, 2)]))
     return flatten_list(value)
 
+def sos_group_input(value):
+    '''
+    Input is a list of lists or tuples. Lists are ordered such that
+    the length of the next list is always multiples of the previous
+    ABCD              ABCDABCD
+    ABCDEFGH -------> ABCDEFGH ------> AABBCCDDAEBFCGDH
+    '''
+    for idx in reversed(range(1, len(value))):
+        if not isinstance(value[idx], (list, tuple)):
+            raise ValueError('Input elements must be list or tuples')
+        multiplier = len(value[idx]) / len(value[idx - 1])
+        if multiplier > int(multiplier):
+            # is not integer
+            raise ValueError('Length of the next list must be multiple of the previous.')
+        else:
+            multiplier = int(multiplier)
+        if multiplier > 1:
+            value[idx - 1] = flatten_list([value[idx - 1] for i in range(multiplier)])
+    return flatten_list(list(zip(*value)))
+
 def load_rds(filename, types = None):
     def load(data, types):
         if types is not None and not isinstance(data, types):

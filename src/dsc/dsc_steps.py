@@ -113,6 +113,7 @@ class DSCJobs(dotdict):
         #     check_command(data.plugin.name)
         data.plugin.reset()
         data.parameters = []
+        # FIXME: currently only one output ext is set
         data.output_ext = []
         data.output_vars = []
         data.exe = ' '.join(exe) if exe_name is None else exe_name
@@ -457,7 +458,7 @@ class DSC2SoS:
         self.jobstr = []
         self.cleanup()
         for seq_idx, sequence in enumerate(data.data):
-            conf_header = 'from dsc.utils import sos_hash_output, sos_pair_input\n'
+            conf_header = 'from dsc.utils import sos_hash_output, sos_group_input\n'
             conf_header += 'meta_file = ".sos/.dsc/{}.{}.yaml.tmp"\n'.\
                 format(seq_idx + 1, os.path.basename(self.output_prefix))
             conf_header += 'file_id = "{}"'.format(seq_idx + 1)
@@ -471,7 +472,7 @@ class DSC2SoS:
                     jobstr.append(self.__get_run_step(step_idx, step))
             # Get workflows
             seq, indices = data.sequences[seq_idx]
-            confstr.append("[DSC_1]\nrun(\"rm -f .sos/.dsc/md5/*\")")
+            confstr.append("[DSC_1]\nrun(\"rm -f .sos/.dsc/md5/*; rm -f .sos/.dsc/*.io.tmp\")")
             for idx, index in enumerate(indices):
                 item = '+'.join(['{}_{}'.format(x, y + 1)
                                  for x, y in zip(seq, index)])
@@ -494,7 +495,7 @@ class DSC2SoS:
         pass
 
     def __str__(self):
-        return  '\n{}'.format('#\n' * 5).join(self.confstr) + '##\n' * 5 + \
+        return  '\n{}'.format('#\n' * 5).join(self.confstr) + '\n' + '##\n' * 5 + \
           '\n{}'.format('#\n' * 5).join(self.jobstr)
 
     def __get_prepare_step(self, step_idx, step_data, output_prefix):
@@ -513,23 +514,17 @@ class DSC2SoS:
         res.append('output_suffix = {}'.format(step_data['output_ext']))
         input_vars = ''
         depend_steps = []
-        io_ratio = 0
         cmds_md5 = ''.join([fileMD5(item.split()[0], partial = False) + \
                             (item.split()[1] if len(item.split()) > 1 else '')
                             for item in step_data['command']])
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
-            if len(depend_steps) > 2:
-                raise StepError("DSC block ``{}`` has too many dependencies: ``{}``. " \
-                "By DSC design a block can have only depend on one or two other blocks.".\
-                format(step_data['name'], repr(depend_steps)))
-            elif len(depend_steps) == 2:
+            if len(depend_steps) >= 2:
                 # Generate combinations of input files
-                res.append('input_files = sos_pair_input([{}])'.\
+                res.append('input_files = sos_group_input([{}])'.\
                            format(', '.join(['{}.output'.format(x) for x in depend_steps])))
-                input_vars = "input_files, group_by = 'pairs', "
-                io_ratio = 2
+                input_vars = "input_files, group_by = {}, ".format(len(depend_steps))
             else:
                 input_vars = "{}.output, group_by = 'single', ".format(depend_steps[0])
             res.append("input: %spattern = '{path}/{base}.{ext}'%s" % \
@@ -546,14 +541,15 @@ class DSC2SoS:
         param_string = ["  exec: {}".format(step_data['exe'])]
         param_string += ['  {0}: %(_{0})'.format(x) for x in params]
         # meta data file
-        res.append("run:\ns='%(_output)'\ns=${{s##*/}}\necho %(sequence_id) "\
-                   "${{s%.*}}{}: | sed 's/ /_/g' >> %(meta_file)\necho -e '"\
+        res.append("task: concurrent = True\nrun:\necho %(sequence_id) `basename %(_output) .{}`{}: | "\
+                   "sed 's/ /_/g' > %(_output)\necho -e '"\
                    "  sequence_id: %(sequence_id)\\n  sequence_name: %(sequence_name)\\n" \
-                   "  step_name: %(step_name)\\n{}' >> %(meta_file)\ntouch %(_output)".\
-                   format(' %(_base)' if step_data['depends'] else '', '\\n'.join(param_string)))
-        res.append("if [ ! -f .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp ]; "\
-                   "then echo %(input!,)::%(output!,)::{}"\
-                   " > .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp; fi".format(io_ratio))
+                   "  step_name: %(step_name)\\n{}' >> %(_output)".\
+                   format(eval(step_data['output_ext']),
+                          ' %(_base)' if step_data['depends'] else '', '\\n'.join(param_string)))
+        res.append("run: active = -1\necho %(input!,)::%(output!,)" \
+                   " > .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp\n"\
+                   "cat %(output) >> %(meta_file)")
         return '\n'.join(res) + '\n'
 
     def __get_run_step(self, step_idx, step_data):
@@ -569,24 +565,16 @@ class DSC2SoS:
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
-            if len(depend_steps) > 2:
-                raise StepError("DSC block ``{}`` has too many dependencies: ``{}``. " \
-                "By DSC design a block can have only depend on one or two other blocks.".\
-                format(step_data['name'], repr(depend_steps)))
-            elif len(depend_steps) == 2:
-                group_by = "group_by = 'pairs'"
-            else:
-                group_by = "group_by = 'single'"
+            group_by = "group_by = {}".format(len(depend_steps))
         else:
             input_var = 'input:'
         res.append('output_files = CONFIG[file_id][sequence_id][step_name]["output"]')
         if not (not for_each and input_var == 'input:'):
-            res.append('{} {}'.format(input_var, ','.join([group_by, for_each]).strip(',')))
+            res.append('{} {}'.format(input_var, ', '.join([group_by, for_each]).strip().strip(',')))
         res.append('output: output_files[_index]')
         for idx, (plugin, cmd) in enumerate(zip(step_data['plugin'], step_data['command'])):
-            res.append("{}: {}".format(plugin.name if plugin.name else 'run',
-                                       'workdir = {}, concurrent = True'.\
-                                       format(repr(step_data['work_dir'])) if idx == 0 else ''))
+            res.append("task: workdir = {}, concurrent = True\n{}:".\
+                       format(repr(step_data['work_dir']), plugin.name if plugin.name else 'run'))
             # Add action
             if plugin.name:
                 if step_data['from_plugin'] is False:

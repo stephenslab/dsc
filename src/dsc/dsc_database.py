@@ -7,7 +7,7 @@ import os, yaml, json, glob
 from collections import OrderedDict
 import pandas as pd
 from pysos.utils import Error
-from .utils import load_rds, save_rds, sos_pair_input, ordered_load, \
+from .utils import load_rds, save_rds, ordered_load, \
      flatten_list
 import readline
 import rpy2.robjects.vectors as RV
@@ -266,14 +266,11 @@ class ConfigDB:
                 self.data[fid][sid] = {}
             if name not in self.data[fid][sid]:
                 self.data[fid][sid][name] = {}
-            x, y, z = open(f).read().strip().split('::')
+            x, y = open(f).read().strip().split('::')
             self.data[fid][sid][name]['input'] = [os.path.join(self.name, self.maps[os.path.basename(item)])
                                                    for item in x.split(',') if item]
             self.data[fid][sid][name]['output'] = [os.path.join(self.name, self.maps[os.path.basename(item)])
                                                    for item in y.split(',') if item]
-            if int(z) != 0:
-                # FIXME: need a more efficient solution
-                self.data[fid][sid][name]['input'] = sos_pair_input(self.data[fid][sid][name]['input'])
         #
         with open('.sos/.dsc/{}.conf'.format(os.path.basename(self.name)), 'w') as f:
             f.write(json.dumps(self.data))
