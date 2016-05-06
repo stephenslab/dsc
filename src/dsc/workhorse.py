@@ -38,11 +38,12 @@ def execute(args, argv):
         args.__config__ = None
         env.run_mode = 'prepare'
         verbosity = args.verbosity
-        args.verbosity = 0
+        if not args.debug:
+            args.verbosity = 0
         sig_mode = env.sig_mode
         rerun = args.__rerun__
         args.__rerun__ = True
-        dsc_data = DSCData(args.dsc_file, args.sequence)
+        dsc_data = DSCData(args.dsc_file, sequence = args.sequence, output = args.output)
         db_name = os.path.basename(dsc_data['DSC']['output'][0])
         db_dir = os.path.dirname(dsc_data['DSC']['output'][0])
         if db_dir:

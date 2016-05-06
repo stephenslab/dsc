@@ -376,10 +376,11 @@ class DSCFileLoader(DSCFileParser):
     '''
     Load DSC configuration file in YAML format and perform initial sanity check
     '''
-    def __init__(self, content, sequence = None):
+    def __init__(self, content, sequence = None, output = None):
         DSCFileParser.__init__(self)
         self.content = content
         self.sequence = sequence
+        self.output = output
         # Keywords
         self.block_kw = ['exec', 'return', 'params', 'seed', '.logic', '.alias']
         self.params_kw = ['.logic', '.alias', '.options']
@@ -423,6 +424,8 @@ class DSCFileLoader(DSCFileParser):
                 if self.sequence is not None:
                     data.DSC['run'] = ', '.join(self.sequence)
                 data.DSC['run'] = [(x,) if isinstance(x, str) else x for x in self.op(data.DSC['run'])]
+                if self.output is not None:
+                    data.DSC['output'] = self.output
                 if try_get_value(data, ('DSC', 'output')) is None:
                     logger.warning('Missing output database name in ``DSC::output``. '\
                                        'Use default name ``{}``.'.\
@@ -592,8 +595,8 @@ class DSCData(dotdict):
     Structure of self:
       self.block_name.block_param_name = dict()
     '''
-    def __init__(self, content, sequence = None):
-        actions = [DSCFileLoader(content, sequence), DSCEntryFormatter()]
+    def __init__(self, content, sequence = None, output = None):
+        actions = [DSCFileLoader(content, sequence, output), DSCEntryFormatter()]
         for a in actions:
             a(self)
         for name in list(self.keys()):
