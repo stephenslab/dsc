@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
-import copy, re, os, glob
+import copy, re, os, glob, shutil
 from pysos import check_command
 from pysos.utils import Error
 from pysos.signature import fileMD5
@@ -370,10 +370,13 @@ class DSCJobs(dotdict):
                     # At this point if this is still pending
                     # then it means that every return value must be in the parameter list
                     # and that none of the value is a file to be created.
-                    # then there is no point to run this step because nothing new is produced!
-                    raise StepError("Return values from block ``{}`` are all in its input parameters. "\
-                                    "DSC cannot run this block because no new output data is produced.".\
-                                    format(item))
+                    # FIXME: logically this should be a plugin mode
+                    # because I assume the data is transformed in this computational routine.
+                    # I cannot think of situations otherwise.
+                    # and written back into RDS. Treat it plugin for now until I see things break.
+                    # then it is there is no point to run this step because nothing new is produced!
+                    master_data[item][step_idx]['to_plugin'] = True
+                    master_data[item][step_idx]['output_ext'] = repr('rds')
                 # add exec position
                 master_data[item][step_idx]['exe_index'] = step_idx
             res.append(master_data[item])
@@ -472,12 +475,11 @@ class DSC2SoS:
                     jobstr.append(self.__get_run_step(step_idx, step))
             # Get workflows
             seq, indices = data.sequences[seq_idx]
-            confstr.append("[DSC_1]\nrun(\"rm -f .sos/.dsc/md5/*\")")
             for idx, index in enumerate(indices):
                 item = '+'.join(['{}_{}'.format(x, y + 1)
                                  for x, y in zip(seq, index)])
                 confstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
-                              format(idx + 2,
+                              format(idx + 1,
                                      'sequence_id = "{}"\nsequence_name = "{}"'.format(idx + 1, item),
                                      item))
                 jobstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
@@ -488,6 +490,8 @@ class DSC2SoS:
     def cleanup(self):
         for item in glob.glob('.sos/.dsc/*.tmp'):
             os.remove(item)
+        if os.path.isdir('.sos/.dsc/md5'):
+            shutil.rmtree('.sos/.dsc/md5')
         if os.path.isfile(".sos/.dsc/{}.yaml".format(os.path.basename(self.output_prefix))):
             os.remove(".sos/.dsc/{}.yaml".format(os.path.basename(self.output_prefix)))
 

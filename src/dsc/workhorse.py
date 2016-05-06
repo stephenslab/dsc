@@ -19,8 +19,7 @@ def sos_run(args, workflow_args):
     env.verbosity = args.verbosity
     # kill all remainging processes when the master process is killed.
     atexit.register(env.cleanup)
-    if args.__dryrun__:
-        env.run_mode = 'dryrun'
+    env.run_mode = 'run'
     if args.__rerun__:
         env.sig_mode = 'ignore'
     try:
@@ -36,31 +35,35 @@ def sos_run(args, workflow_args):
 def sos_drillrun(args, workflow_args):
     verbosity = args.verbosity
     args.verbosity = 0
-    run_mode = env.run_mode
     sig_mode = env.sig_mode
-    dryrun = args.__dryrun__
     rerun = args.__rerun__
-    args.__dryrun__ = False
     args.__rerun__ = True
     sos_run(args, workflow_args)
-    args.__dryrun__ = dryrun
-    args.__rerun__ = rerun
-    env.run_mode = run_mode
-    env.sig_mode = sig_mode
-    env.verbosity = args.verbosity = verbosity
 
 def execute(args, argv):
     def setup():
+        env.run_mode = 'prepare'
+        verbosity = args.verbosity
+        args.verbosity = 0
+        sig_mode = env.sig_mode
+        rerun = args.__rerun__
+        args.__rerun__ = True
+        dsc_data = DSCData(args.dsc_file, args.sequence)
         if os.path.dirname(dsc_data['DSC']['output'][0]):
             os.makedirs(os.path.dirname(dsc_data['DSC']['output'][0]), exist_ok=True)
         os.makedirs('.sos/.dsc/md5', exist_ok = True)
-    def log():
-        yaml2html(str(dsc_data), '.sos/.dsc/{}.data'.format(db_name), title = 'DSC data')
-        yaml2html(str(dsc_jobs), '.sos/.dsc/{}.jobs'.format(db_name), title = 'DSC jobs')
-        yaml2html(str(run_jobs), '.sos/.dsc/{}.exec'.format(db_name), title = 'DSC runs')
+        dsc_jobs = DSCJobs(dsc_data)
+        run_jobs = DSC2SoS(deepcopy(dsc_jobs))
+        if verbosity > 3:
+            yaml2html(str(dsc_data), '.sos/.dsc/{}.data'.format(db_name), title = 'DSC data')
+            yaml2html(str(dsc_jobs), '.sos/.dsc/{}.jobs'.format(db_name), title = 'DSC jobs')
+            yaml2html(str(run_jobs), '.sos/.dsc/{}.exec'.format(db_name), title = 'DSC runs')
+        return dsc_data, run_jobs, verbosity, rerun, sig_mode
+    def reset():
+        args.__rerun__ = rerun
+        env.sig_mode = sig_mode
+        env.verbosity = args.verbosity = verbosity
     #
-    verbosity = args.verbosity
-    env.verbosity = args.verbosity
     args.workflow = 'DSC'
     args.__config__ = None
     # Archive scripts
@@ -69,18 +72,13 @@ def execute(args, argv):
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
-    dsc_data = DSCData(args.dsc_file, args.sequence)
+    dsc_data, run_jobs, verbosity, rerun, sig_mode = setup()
     db_name = os.path.basename(dsc_data['DSC']['output'][0])
-    # env.logfile = db_name + '.log'
-    setup()
-    dsc_jobs = DSCJobs(dsc_data)
-    run_jobs = DSC2SoS(deepcopy(dsc_jobs))
-    if verbosity > 3:
-        log()
-    # Dryrun for sanity checks
+    # Setup run for config files
     for script in run_jobs.confstr:
         args.script = script
-        sos_drillrun(args, argv)
+        sos_run(args, argv)
+    reset()
     ConfigDB(dsc_data['DSC']['output'][0], vanilla = args.__rerun__).Build()
     if args.__dryrun__:
         # FIXME export scripts to db_name folder

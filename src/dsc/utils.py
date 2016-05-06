@@ -1,4 +1,4 @@
-#!/usr/binenv python
+#!/usr/bin/env python
 __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
@@ -17,9 +17,11 @@ from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 import numpy as np
 import pandas as pd
+from pysos import SoS_Script
+from pysos.sos_executor import Sequential_Executor
 from pysos.utils import logger
 from pysos.signature import textMD5
-from pysos.actions import check_R_library
+
 from dsc import HTML_CSS, HTML_JS
 
 def no_duplicates_constructor(loader, node, deep=False):
@@ -428,7 +430,8 @@ def install_r_libs(libs):
             versions = [x.strip() for x in groups.group(2).split(',')]
         else:
             versions = None
-        check_R_library(value, versions)
+        script = SoS_Script('[0]\ncheck_R_library({}, {})'.format(repr(value), repr(versions)))
+        Sequential_Executor(script.workflow()).run()
 
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     # ordered_load(stream, yaml.SafeLoader)

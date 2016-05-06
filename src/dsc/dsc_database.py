@@ -153,7 +153,7 @@ class ResultDB:
         for key in data:
             header = data[key].pop(0)
             data[key] = pd.DataFrame(data[key], columns = header)
-        return pd.concat([data[key] for key in data], axis = 1)
+        return pd.concat([data[key] for key in data], ignore_index = True)
 
 
     def cbind_output(self, name, table):

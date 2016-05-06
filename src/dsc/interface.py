@@ -32,7 +32,7 @@ def main():
                    separated by space.''')
     p.add_argument('-j', type=int, metavar='jobs', default=1, dest='__max_jobs__',
                    help='''Number of concurrent processes allowed.''')
-    p.add_argument('-d', action='store_true', dest='__dryrun__', help = '"dryrun" mode.')
+    p.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
     p.add_argument('-f', action='store_true', dest='__rerun__',
                    help='''Force executing DSC afresh regardless of already created results.''')
     add_common_args(p)

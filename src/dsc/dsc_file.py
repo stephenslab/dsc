@@ -8,7 +8,7 @@ This file defines the `DSCData` class for loading DSC file
 '''
 
 import os, yaml, re, subprocess, itertools, copy, sympy, \
-  collections, warnings
+  collections, warnings, datetime
 import readline
 import rpy2.robjects as RO
 from io import StringIO
@@ -618,7 +618,7 @@ class DSCData(dotdict):
         #
         rlibs = try_get_value(self['DSC'], ('R_libs'))
         if rlibs:
-            rlibs_md5 = textMD5(repr(rlibs))
+            rlibs_md5 = textMD5(repr(rlibs) + str(datetime.date.today()))
             if not os.path.exists('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)):
                 install_r_libs(rlibs)
                 os.makedirs('.sos/.dsc', exist_ok = True)
