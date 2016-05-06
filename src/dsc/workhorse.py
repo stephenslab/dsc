@@ -96,7 +96,7 @@ def execute(args, argv):
 
 def remove(args, argv):
     env.verbosity = args.verbosity
-    dsc_data = DSCData(args.dsc_file)
+    dsc_data = DSCData(args.dsc_file, output = args.output)
     dsc_jobs = DSCJobs(dsc_data)
     filename = os.path.basename(dsc_data['DSC']['output'][0]) + '.rds'
     if not os.path.isfile(filename):

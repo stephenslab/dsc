@@ -47,6 +47,9 @@ def main():
                    help = '''DSC steps whose output are to be removed. Multiple steps are allowed.
                    Each step should be a quoted string defining a valid DSC step, in the format of
                    "block_name[step_index]". Multiple such steps should be separated by space.''')
+    p.add_argument('-o', metavar = "str", dest = 'output',
+                   help = '''DSC output filename/directory. There is no need to set it unless it is
+                   different from that specified in the DSC script''')
     add_common_args(p)
     p.set_defaults(func = remove)
     args, argv = parser.parse_known_args()
