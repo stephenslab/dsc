@@ -396,7 +396,6 @@ class DSCFileLoader(DSCFileParser):
             data.update(cfg)
         #
         if os.path.isfile(self.content):
-            logger.debug("Loading configurations from ``{}``.".format(self.content))
             with open(self.content) as f:
                 load_from_yaml(f, self.content)
         else:

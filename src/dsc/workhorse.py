@@ -32,16 +32,10 @@ def sos_run(args, workflow_args):
         env.logger.error(e)
         sys.exit(1)
 
-def sos_drillrun(args, workflow_args):
-    verbosity = args.verbosity
-    args.verbosity = 0
-    sig_mode = env.sig_mode
-    rerun = args.__rerun__
-    args.__rerun__ = True
-    sos_run(args, workflow_args)
-
 def execute(args, argv):
     def setup():
+        args.workflow = 'DSC'
+        args.__config__ = None
         env.run_mode = 'prepare'
         verbosity = args.verbosity
         args.verbosity = 0
@@ -53,10 +47,11 @@ def execute(args, argv):
             os.makedirs(os.path.dirname(dsc_data['DSC']['output'][0]), exist_ok=True)
         os.makedirs('.sos/.dsc/md5', exist_ok = True)
         dsc_jobs = DSCJobs(dsc_data)
-        run_jobs = DSC2SoS(deepcopy(dsc_jobs))
         if verbosity > 3:
             yaml2html(str(dsc_data), '.sos/.dsc/{}.data'.format(db_name), title = 'DSC data')
             yaml2html(str(dsc_jobs), '.sos/.dsc/{}.jobs'.format(db_name), title = 'DSC jobs')
+        run_jobs = DSC2SoS(dsc_jobs)
+        if verbosity > 3:
             yaml2html(str(run_jobs), '.sos/.dsc/{}.exec'.format(db_name), title = 'DSC runs')
         return dsc_data, run_jobs, verbosity, rerun, sig_mode
     def reset():
@@ -64,8 +59,6 @@ def execute(args, argv):
         env.sig_mode = sig_mode
         env.verbosity = args.verbosity = verbosity
     #
-    args.workflow = 'DSC'
-    args.__config__ = None
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
     yaml2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html', title = args.dsc_file)
