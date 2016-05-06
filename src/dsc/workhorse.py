@@ -43,6 +43,7 @@ def execute(args, argv):
         rerun = args.__rerun__
         args.__rerun__ = True
         dsc_data = DSCData(args.dsc_file, args.sequence)
+        db_name = os.path.basename(dsc_data['DSC']['output'][0])
         if os.path.dirname(dsc_data['DSC']['output'][0]):
             os.makedirs(os.path.dirname(dsc_data['DSC']['output'][0]), exist_ok=True)
         os.makedirs('.sos/.dsc/md5', exist_ok = True)
@@ -66,7 +67,6 @@ def execute(args, argv):
         env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     dsc_data, run_jobs, verbosity, rerun, sig_mode = setup()
-    db_name = os.path.basename(dsc_data['DSC']['output'][0])
     # Setup run for config files
     for script in run_jobs.confstr:
         args.script = script
@@ -74,7 +74,7 @@ def execute(args, argv):
     reset()
     ConfigDB(dsc_data['DSC']['output'][0], vanilla = args.__rerun__).Build()
     if args.__dryrun__:
-        # FIXME export scripts to db_name folder
+        # FIXME export scripts to somewhere
         return
     # Wetrun
     env.logger.info("Running DSC jobs ...")
