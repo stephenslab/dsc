@@ -348,8 +348,6 @@ def load_rds(filename, types = None):
         '''load data to res'''
         names = data.names if data.names else [i + 1 for i in range(len(data))]
         for name, value in zip(names, list(data)):
-            if types is not None and not isinstance(value, types):
-                continue
             if isinstance(value, RV.ListVector):
                 res[name] = {}
                 res[name] = load_dict(res[name], value, types)

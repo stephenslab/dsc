@@ -8,7 +8,7 @@ from collections import OrderedDict
 import pandas as pd
 from pysos.utils import Error
 from .utils import load_rds, save_rds, ordered_load, \
-     flatten_list
+     flatten_list, flatten_dict
 import readline
 import rpy2.robjects.vectors as RV
 
@@ -29,7 +29,7 @@ class ResultDB:
         self.last_block = []
         # key = block name, item = exec name
         self.groups = {}
-        self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(self.name)))
+        self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(os.path.basename(db_name))))
 
     def load_parameters(self):
         def search_dependent_index(x):
@@ -50,7 +50,7 @@ class ResultDB:
             raise ResultDBError('Cannot load source data to build database!')
         seen = []
         for k in list(data.keys()):
-            k1 = '_'.join(k.split('_')[1:])
+            k1 = k.split('_', 1)[1]
             if not k1 in seen:
                 seen.append(k1)
             else:
@@ -59,7 +59,7 @@ class ResultDB:
             # each v is a dict
             # collect some meta info
             table = v['exec']
-            block_name = v['step_name'].split('_')[0]
+            block_name = v['step_name'].rsplit('_', 1)[0]
             if block_name not in self.groups:
                 self.groups[block_name] = []
             if table not in self.groups[block_name]:
@@ -171,7 +171,8 @@ class ResultDB:
                                      self.data[step]['return'][self.data[step]['step_id'].index(idx)])
             if not os.path.isfile(rds):
                 continue
-            rdata = load_rds(rds, types = (RV.Array, RV.IntVector, RV.FloatVector, RV.StrVector))
+            rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector,
+                                                        RV.FloatVector, RV.StrVector)))
             tmp_colnames = []
             values = []
             for k in sorted(rdata.keys()):
@@ -225,8 +226,8 @@ class ConfigDB:
         - create conf file based on map file and *.io.tmp
         '''
         self.name = db_name
-        if os.path.isfile('.sos/.dsc/{}.map'.format(self.name)) and not vanilla:
-            self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(self.name)))
+        if os.path.isfile('.sos/.dsc/{}.map'.format(os.path.basename(db_name))) and not vanilla:
+            self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(os.path.basename(db_name))))
         else:
             self.maps = {}
         self.pre = 'dsc'
@@ -251,7 +252,7 @@ class ConfigDB:
                 self.maps[item] = '{}{}{}'.format(self.pre, start_id, os.path.splitext(item)[1])
                 start_id += 1
         self.maps['NEXT_ID'] = start_id
-        with open('.sos/.dsc/{}.map'.format(self.name), 'w') as f:
+        with open('.sos/.dsc/{}.map'.format(os.path.basename(self.name)), 'w') as f:
             f.write(yaml.dump(self.maps, default_flow_style=True))
 
     def Build(self):

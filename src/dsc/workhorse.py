@@ -44,8 +44,9 @@ def execute(args, argv):
         args.__rerun__ = True
         dsc_data = DSCData(args.dsc_file, args.sequence)
         db_name = os.path.basename(dsc_data['DSC']['output'][0])
-        if os.path.dirname(dsc_data['DSC']['output'][0]):
-            os.makedirs(os.path.dirname(dsc_data['DSC']['output'][0]), exist_ok=True)
+        db_dir = os.path.dirname(dsc_data['DSC']['output'][0])
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
         os.makedirs('.sos/.dsc/md5', exist_ok = True)
         dsc_jobs = DSCJobs(dsc_data)
         if verbosity > 3:
@@ -54,7 +55,7 @@ def execute(args, argv):
         run_jobs = DSC2SoS(dsc_jobs)
         if verbosity > 3:
             yaml2html(str(run_jobs), '.sos/.dsc/{}.exec'.format(db_name), title = 'DSC runs')
-        return dsc_data, run_jobs, verbosity, rerun, sig_mode
+        return run_jobs, dsc_data['DSC']['output'][0], verbosity, rerun, sig_mode
     def reset():
         args.__rerun__ = rerun
         env.sig_mode = sig_mode
@@ -66,13 +67,13 @@ def execute(args, argv):
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
-    dsc_data, run_jobs, verbosity, rerun, sig_mode = setup()
+    run_jobs, db, verbosity, rerun, sig_mode = setup()
     # Setup run for config files
     for script in run_jobs.confstr:
         args.script = script
         sos_run(args, argv)
     reset()
-    ConfigDB(dsc_data['DSC']['output'][0], vanilla = args.__rerun__).Build()
+    ConfigDB(db, vanilla = args.__rerun__).Build()
     if args.__dryrun__:
         # FIXME export scripts to somewhere
         return
@@ -81,16 +82,15 @@ def execute(args, argv):
     env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.verbosity = verbosity - 1 if verbosity > 0 else verbosity
-    args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(dsc_data['DSC']['output'][0]))
+    args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     for script in run_jobs.jobstr:
         args.script = script
         sos_run(args, argv)
     env.verbosity = args.verbosity = verbosity
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
-    env.logger.info("Building output database ``{0}.rds`` ...".\
-                    format(dsc_data['DSC']['output'][0]))
-    ResultDB(dsc_data['DSC']['output'][0]).Build(script = dsc_script)
+    env.logger.info("Building output database ``{0}.rds`` ...".format(db))
+    ResultDB(db).Build(script = dsc_script)
     env.logger.info("DSC complete!")
 
 def remove(args, argv):
