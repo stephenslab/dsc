@@ -23,8 +23,9 @@ source <- function(x) {
 '''
 
 class BasePlug:
-    def __init__(self, name = None):
+    def __init__(self, name = None, identifier = ''):
         self.name = name
+        self.identifier = 'DSC_{}'.format(identifier.upper())
         self.reset()
 
     def reset(self):
@@ -52,11 +53,13 @@ class BasePlug:
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
 
 class RPlug(BasePlug):
-    def __init__(self):
-        super().__init__('R')
+    def __init__(self, identifier = ''):
+        super().__init__(name = 'R', identifier = identifier)
 
     def add_input(self, lhs, rhs):
-        self.input_alias.append('{} <- {}'.format(lhs, rhs))
+        self.input_alias.append('{} <- {}'.format(lhs,
+                                                  rhs if (not rhs.startswith('$')) or rhs == '${_output!r}'
+                                                  else '{}{}'.format(self.identifier, rhs)))
 
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} <- {}'.format(lhs, rhs))
@@ -86,15 +89,16 @@ class RPlug(BasePlug):
         for k in keys:
             res += '\n%s <- ${_%s}' % (k, k)
         if input_num > 1:
-            # FIXME: using attach might be dangerous. better create some namespace.
             if index == 0:
-                res += '\ninput.files <- c(${_input!r,})\nfor (i in 1:length(input.files)) ' \
-                       'attach(readRDS(input.files[i]), warn.conflicts = F)'
+                res += '\n{} <- list()'.format(self.identifier)
+                res += '\ninput.files <- c(${{_input!r,}})\nfor (i in 1:length(input.files)) ' \
+                       '{0} <- append({0}, readRDS(input.files[i]))'.format(self.identifier)
             else:
-                res += '\nattach(readRDS("${_output}"), warn.conflicts = F)'
+                res += '\n{} <- readRDS("${{_output}}")'.format(self.identifier)
 
         elif input_num == 1:
-            res += '\nattach(readRDS("${_%sput}"), warn.conflicts = F)' % ('in' if index == 0 else 'out')
+            res += '\n{0} <- readRDS("${{_{1}put}}")'.format(self.identifier,
+                                                                'in' if index == 0 else 'out')
         else:
             pass
         res += '\n' + '\n'.join(self.input_alias)
@@ -119,11 +123,13 @@ class RPlug(BasePlug):
         return 'c({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
 
 class PyPlug(BasePlug):
-    def __init__(self):
-        super().__init__('python')
+    def __init__(self, identifier = ''):
+        super().__init__(name = 'python', identifier = identifier)
 
     def add_input(self, lhs, rhs):
-        self.input_alias.append('{} = {}'.format(lhs, rhs))
+        self.input_alias.append('{} = {}'.format(lhs,
+                                                 rhs if (not rhs.startswith('$')) or rhs == '${_output!r}'
+                                                 else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
 
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} = {}'.format(lhs, rhs))
@@ -160,11 +166,14 @@ class PyPlug(BasePlug):
             res += '\n%s = ${_%s}' % (k, k)
         if input_num > 1:
             if index == 0:
-                res += '\nfor item in [${_input!r,}]:\n\tglobals().update(load_rds(item))'
+                res += '\n{} = {{}}'.format(self.identifier)
+                res += '\nfor item in [${{_input!r,}}]:\n\t{}.update(load_rds(item))'.\
+                       format(self.identifier)
             else:
-                res += '\nglobals().update(load_rds("${_output}"))'
+                res += '\n{} = load_rds("${{_output}}")'.format(self.identifier)
         elif input_num == 1:
-            res += '\nglobals().update(load_rds("${_%sput}"))' % ('in' if index == 0 else 'out')
+            res += '\n{0} = load_rds("${{_{1}put}}")'.\
+                   format(self.identifier, 'in' if index == 0 else 'out')
         else:
             pass
         res += '\n' + '\n'.join(self.input_alias)
@@ -190,12 +199,12 @@ class PyPlug(BasePlug):
         return '({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
 
 
-def Plugin(key = None):
+def Plugin(key = None, identifier = ''):
     if key is None:
-        return BasePlug()
+        return BasePlug(identifier = identifier)
     elif key.upper() == 'R':
-        return RPlug()
+        return RPlug(identifier = identifier)
     elif key.upper() == 'PY':
-        return PyPlug()
+        return PyPlug(identifier = identifier)
     else:
-        return BasePlug('')
+        return BasePlug(name = '', identifier = identifier)

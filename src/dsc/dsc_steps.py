@@ -10,7 +10,7 @@ to convert DSC configuration to SoS codes
 import copy, re, os, glob, shutil
 from pysos import check_command
 from pysos.utils import Error
-from pysos.signature import fileMD5
+from pysos.signature import fileMD5, textMD5
 from dsc import VERSION
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list, merge_lists, uniq_list, flatten_list
@@ -103,7 +103,8 @@ class DSCJobs(dotdict):
     def __reset_block(self, data, exe, exe_name, exec_path):
         '''Intermediate data to be appended to self.data'''
         data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + list(exe[1:]))
-        plugin = Plugin(os.path.splitext(exe[0])[1].lstrip('.'))
+        plugin = Plugin(os.path.splitext(exe[0])[1].lstrip('.'), textMD5(data.command)[:10])
+                        # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
         if (data.plugin.name is not None and (not plugin.name) != (not data.plugin.name)):
             raise StepError("A mixture of plugin codes and other executables are not allowed " \
             "in the same block ``{}``.".format(data.name))
@@ -306,9 +307,8 @@ class DSCJobs(dotdict):
                         if isinstance(p1, str):
                             if p1.startswith('$'):
                                 find_dependencies(p1[1:])
-                                if p1[1:] != k:
-                                    for plugin in master_data[item][step_idx]['plugin']:
-                                        plugin.add_input(k, p1[1:])
+                                for plugin in master_data[item][step_idx]['plugin']:
+                                    plugin.add_input(k, p1)
                                 continue
                             elif re.search(r'^Asis\((.*?)\)$', p1):
                                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
