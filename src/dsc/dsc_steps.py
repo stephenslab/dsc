@@ -577,8 +577,9 @@ class DSC2SoS:
             res.append('{} {}'.format(input_var, ', '.join([group_by, for_each]).strip().strip(',')))
         res.append('output: output_files[_index]')
         for idx, (plugin, cmd) in enumerate(zip(step_data['plugin'], step_data['command'])):
-            res.append("task: workdir = {}, concurrent = True\n{}:".\
-                       format(repr(step_data['work_dir']), plugin.name if plugin.name else 'run'))
+            res.append("{}{}:".format("task: workdir = {}, concurrent = True\n".\
+                                      format(repr(step_data['work_dir'])) if idx == 0 else '',
+                                      plugin.name if plugin.name else 'run'))
             # Add action
             if plugin.name:
                 if step_data['from_plugin'] is False:
