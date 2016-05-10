@@ -56,7 +56,12 @@ def execute(args, argv):
         run_jobs = DSC2SoS(dsc_jobs)
         if verbosity > 3:
             yaml2html(str(run_jobs), '.sos/.dsc/{}.exec'.format(db_name), title = 'DSC runs')
-        return run_jobs, dsc_data['DSC']['output'][0], verbosity, rerun, sig_mode
+        # master block for output
+        try:
+            master = dsc_data['DSC']['master']
+        except:
+            master = None
+        return run_jobs, dsc_data['DSC']['output'][0], master, verbosity, rerun, sig_mode
     def reset():
         args.__rerun__ = rerun
         env.sig_mode = sig_mode
@@ -68,7 +73,7 @@ def execute(args, argv):
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
-    run_jobs, db, verbosity, rerun, sig_mode = setup()
+    run_jobs, db, master, verbosity, rerun, sig_mode = setup()
     # Setup run for config files
     for script in run_jobs.confstr:
         args.script = script
@@ -91,7 +96,7 @@ def execute(args, argv):
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
-    ResultDB(db).Build(script = dsc_script)
+    ResultDB(db, master).Build(script = dsc_script)
     env.logger.info("DSC complete!")
 
 def remove(args, argv):

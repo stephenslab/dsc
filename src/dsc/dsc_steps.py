@@ -117,7 +117,7 @@ class DSCJobs(dotdict):
         # FIXME: currently only one output ext is set
         data.output_ext = []
         data.output_vars = []
-        data.exe = ' '.join(exe) if exe_name is None else exe_name
+        data.exe = ' '.join([x for x in exe if not x.startswith('$')]) if exe_name is None else exe_name
 
     def load_master_data(self, block, name = 'block'):
         '''Load block data to self.master_data with some preliminary processing

@@ -19,8 +19,11 @@ class ResultDBError(Error):
         self.args = (msg, )
 
 class ResultDB:
-    def __init__(self, db_name):
+    def __init__(self, db_name, master_names):
         self.name = db_name
+        # If this is None, then the last block will be used
+        # As master table
+        self.master_names = master_names
         # different tables; one exec per table
         self.data = {}
         # master tables
@@ -64,7 +67,10 @@ class ResultDB:
                 self.groups[block_name] = []
             if table not in self.groups[block_name]:
                 self.groups[block_name].append(table)
-            if not block_name in self.last_block and v['step_name'] == v['sequence_name'].split('+')[-1]:
+            is_last_block = (v['step_name'] == v['sequence_name'].split('+')[-1])
+            if self.master_names is not None:
+                is_last_block = block_name in self.master_names or is_last_block
+            if not block_name in self.last_block and is_last_block:
                 self.last_block.append(block_name)
             #
             for x in ['step_id', 'return', 'depends']:
