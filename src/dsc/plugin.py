@@ -22,6 +22,20 @@ source <- function(x) {
 }
 '''
 
+R_LMERGE = '''
+DSC_LMERGE <-
+function(x, y, ...)
+{
+  if(length(x) == 0)
+    return(y)
+  if(length(y) == 0)
+    return(x)
+  for (i in 1:length(names(y)))
+    x[names(y)[i]] = y[i]
+  return(x)
+}
+'''
+
 class BasePlug:
     def __init__(self, name = None, identifier = ''):
         self.name = name
@@ -88,20 +102,25 @@ class RPlug(BasePlug):
             keys.remove('seed')
         for k in keys:
             res += '\n%s <- ${_%s}' % (k, k)
+        load_multi_in = R_LMERGE + '\n{} <- list()'.format(self.identifier) + \
+          '\ninput.files <- c(${{_input!r,}})\nfor (i in 1:length(input.files)) ' \
+          '{0} <- DSC_LMERGE({0}, readRDS(input.files[i]))'.format(self.identifier)
+        load_single_in = '\n{} <- readRDS("${{_input}}")'.format(self.identifier)
+        load_out = '\nattach(readRDS("${_output}"), warn.conflicts = F)'
+        flag = False
         if input_num > 1:
-            if index == 0:
-                res += '\n{} <- list()'.format(self.identifier)
-                res += '\ninput.files <- c(${{_input!r,}})\nfor (i in 1:length(input.files)) ' \
-                       '{0} <- append({0}, readRDS(input.files[i]))'.format(self.identifier)
-            else:
-                res += '\n{} <- readRDS("${{_output}}")'.format(self.identifier)
-
+            res += load_multi_in
+            if index > 0:
+                flag = True
         elif input_num == 1:
-            res += '\n{0} <- readRDS("${{_{1}put}}")'.format(self.identifier,
-                                                                'in' if index == 0 else 'out')
+            res += load_single_in
+            if index > 0:
+                flag = True
         else:
             pass
         res += '\n' + '\n'.join(self.input_alias)
+        if flag:
+            res += load_out
         return res
 
     def get_return(self, output_vars):
@@ -164,19 +183,24 @@ class PyPlug(BasePlug):
             keys.remove('seed')
         for k in keys:
             res += '\n%s = ${_%s}' % (k, k)
+        load_multi_in = '\n{} = {{}}'.format(self.identifier) + \
+          '\nfor item in [${{_input!r,}}]:\n\t{}.update(load_rds(item))'.format(self.identifier)
+        load_single_in = '\n{} = load_rds("${{_input}}")'.format(self.identifier)
+        load_out = '\nglobals().update(load_rds("${_output}"))'
+        flag = False
         if input_num > 1:
-            if index == 0:
-                res += '\n{} = {{}}'.format(self.identifier)
-                res += '\nfor item in [${{_input!r,}}]:\n\t{}.update(load_rds(item))'.\
-                       format(self.identifier)
-            else:
-                res += '\n{} = load_rds("${{_output}}")'.format(self.identifier)
+            res += load_multi_in
+            if index > 0:
+                flag = True
         elif input_num == 1:
-            res += '\n{0} = load_rds("${{_{1}put}}")'.\
-                   format(self.identifier, 'in' if index == 0 else 'out')
+            res += load_single_in
+            if index > 0:
+                flag = True
         else:
             pass
         res += '\n' + '\n'.join(self.input_alias)
+        if flag:
+            res += load_out
         return res
 
     def get_return(self, output_vars):
