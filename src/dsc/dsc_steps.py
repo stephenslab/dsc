@@ -471,7 +471,7 @@ class DSC2SoS:
             # Get steps
             for blk_idx, block in enumerate(sequence):
                 for step_idx, step in enumerate(block):
-                    confstr.append(self.__get_prepare_step(step_idx, step, '.sos/.dsc/md5'))
+                    confstr.append(self.__get_prepare_step(step_idx, step, '.sos/.dsc/md5/%(file_id)_%(sequence_id)'))
                     jobstr.append(self.__get_run_step(step_idx, step))
             # Get workflows
             seq, indices = data.sequences[seq_idx]

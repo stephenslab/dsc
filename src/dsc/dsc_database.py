@@ -231,7 +231,7 @@ class ConfigDB:
         else:
             self.maps = {}
         self.pre = 'dsc'
-        self.files = [os.path.basename(x) for x in list(glob.glob('.sos/.dsc/md5/*'))]
+        self.files = set([os.path.basename(x) for x in list(glob.glob('.sos/.dsc/md5/*/*'))])
         for k in list(self.maps.keys()):
             if k == 'NEXT_ID':
                 continue

@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from pysos import SoS_Script
 from pysos.sos_executor import Sequential_Executor
-from pysos.utils import logger
+from pysos.utils import env
 from pysos.signature import textMD5
 
 from dsc import HTML_CSS, HTML_JS
@@ -52,7 +52,7 @@ class Timer(object):
         self.secs = self.end - self.start
         self.msecs = self.secs * 1000  # millisecs
         if self.verbose:
-            logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
+            env.logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
 
 def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
     level_start += 1
@@ -84,7 +84,7 @@ def str2num(var):
             This variable will be treated as string, not Boolean data. \n\
             It may cause problems to your jobs. \n\
             Please set this variable to ``{}`` if it is indeed Boolean data.'.format(var, bmap[var.lower()])
-            logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
+            env.logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
         try:
             return int(var)
         except ValueError:
@@ -421,6 +421,8 @@ def round_print(text, sep, pc = None):
 def install_r_libs(libs):
     if libs is None:
         return
+    verbosity = env.verbosity
+    env.verbosity = 0
     for value in libs:
         groups = re.search('(.*?)\((.*?)\)', value)
         if groups is not None:
@@ -430,6 +432,7 @@ def install_r_libs(libs):
             versions = None
         script = SoS_Script('[0]\ncheck_R_library({}, {})'.format(repr(value), repr(versions)))
         Sequential_Executor(script.workflow()).run()
+    env.verbosity = verbosity
 
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     # ordered_load(stream, yaml.SafeLoader)
