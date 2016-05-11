@@ -61,6 +61,8 @@ def main():
                    help = 'Queries to run. Please see DSC2 documentation for details.')
     p.add_argument('-o', dest = 'output', metavar = 'columns',
                    help = 'Patterns of desired output columns. Please see DSC2 documentation for details.')
+    p.add_argument('--no-header', dest = 'no_header', action='store_true',
+                   help = 'Do not display header in output')
     p.set_defaults(func = query)
     args, argv = parser.parse_known_args()
     try:

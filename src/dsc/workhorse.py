@@ -218,4 +218,4 @@ def query(args, argv):
             else:
                 return_id = [x for x in get_id(item) if x in return_id]
     res = get_output(return_id)
-    res.to_csv(sys.stdout, index = False)
+    res.to_csv(sys.stdout, index = False, header = not args.no_header)
