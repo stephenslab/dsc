@@ -4,8 +4,9 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, re, yaml
+import os, sys, atexit, re, yaml, fnmatch
 from copy import deepcopy
+import pandas as pd
 from pysos.sos_script import SoS_Script
 from pysos.sos_executor import Sequential_Executor
 from pysos.utils import env, get_traceback
@@ -144,3 +145,77 @@ def remove(args, argv):
     env.logger.info('Force removed ``{}`` files from ``{}``.'.\
                     format(len(map_to_remove),
                            os.path.abspath(os.path.expanduser(dsc_data['DSC']['output'][0]))))
+
+def query(args, argv):
+    def get_id(query, target = None):
+        name = master[7:] if master.startswith('master_') else master
+        if target is None:
+            col_id = data[master].query(query)[name + '_id']
+        else:
+            col_id = [x for x, y in zip(data[master][name + '_id'].tolist(),
+                                        data[master][target[1][:-5] + '_id'].\
+                                        isin(data[target[0]].query(query)['step_id']).tolist()) if y]
+        return col_id
+    #
+    def get_output(col_id):
+        name = master[7:] if master.startswith('master_') else master
+        # Get list of files
+        lookup = {}
+        for x, y in zip(data[master].query('{}_id == @col_id'.format(name))[name + '_name'].tolist(), col_id):
+            if x not in lookup:
+                lookup[x] = []
+            lookup[x].append(y)
+        results = []
+        files = []
+        for k, value in lookup.items():
+            # Get output columns
+            if output:
+                tmp = ['{}_id'.format(name)]
+                tmp.extend(flatten_list([[x for x in fnmatch.filter(data[master].columns.values, o)]
+                                         for o in output]))
+                results.append(data[master].query('{}_id == @value'.format(name))[tmp])
+            else:
+                results.append(pd.DataFrame())
+            # Get output files
+            files.append(data[k].query('step_id == @value')[['step_id', 'return']])
+        res = []
+        for dff, dfr in zip(files, results):
+            if len(dfr.columns.values) > 2:
+                res.append(pd.merge(dff, dfr, left_on = '{}_id'.format(name), right_on = 'step_id'))
+            else:
+                res.append(dff.drop('step_id', axis = 1))
+        res = pd.concat(res)
+        for item in ['{}_id'.format(name), 'step_id']:
+            if item in res.columns.values:
+                res.drop(item, axis = 1, inplace = True)
+        return res
+    #
+    master = args.master if args.master.startswith('master_') else 'master_{}'.format(args.master)
+    queries = args.queries
+    output = args.output
+    data = {k : pd.DataFrame(v) for k, v in load_rds(args.dsc_db).items() if k != '.dscsrc'}
+    #
+    return_id = None
+    for item in queries:
+        pattern = re.search(r'^\[(.*)\](.*)', item)
+        if pattern:
+            # query from sub-table
+            for k in data[master]:
+                if pattern.group(1) in data[master][k].tolist():
+                    if return_id is None:
+                        return_id = get_id(pattern.group(2).strip(), (pattern.group(1).strip(), k))
+                    else:
+                        return_id = [x for x in get_id(pattern.group(2).strip(),
+                                                       (pattern.group(1).strip(), k))
+                                     if x in return_id]
+                    break
+                else:
+                    continue
+        else:
+            # query from master table
+            if return_id is None:
+                return_id = get_id(item)
+            else:
+                return_id = [x for x in get_id(item) if x in return_id]
+    res = get_output(return_id)
+    res.to_csv(sys.stdout, index = False)

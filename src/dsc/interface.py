@@ -8,7 +8,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 import sys, argparse
 from dsc import PACKAGE, VERSION
 from pysos.utils import env, get_traceback
-from .workhorse import execute, remove
+from .workhorse import execute, remove, query
 from .utils import Timer
 
 def main():
@@ -52,12 +52,21 @@ def main():
                    different from that specified in the DSC script''')
     add_common_args(p)
     p.set_defaults(func = remove)
+    p = subparsers.add_parser('query', help = 'A simple command interface to query the output database.',
+                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    p.add_argument('dsc_db', metavar = "dsc_db", help = 'DSC output database')
+    p.add_argument('-t', dest = 'master', metavar = 'master', help = 'Name of master table to query from.')
+    p.add_argument('-q', dest = 'queries', metavar = 'queries', nargs = '+',
+                   help = 'Queries to run. Please see DSC2 documentation for details.')
+    p.add_argument('-o', dest = 'output', metavar = 'columns',
+                   help = 'Patterns of desired output columns. Please see DSC2 documentation for details.')
+    p.set_defaults(func = query)
     args, argv = parser.parse_known_args()
     try:
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
             args.func(args, argv)
     except Exception as e:
-        if args.verbosity > 2:
+        if 'verbosity' in args and args.verbosity > 2:
             sys.stderr.write(get_traceback())
         else:
             env.logger.error(e)
