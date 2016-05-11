@@ -55,8 +55,9 @@ def main():
     p = subparsers.add_parser('query', help = 'A simple command interface to query the output database.',
                               formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument('dsc_db', metavar = "dsc_db", help = 'DSC output database')
-    p.add_argument('-t', dest = 'master', metavar = 'master', help = 'Name of master table to query from.')
-    p.add_argument('-q', dest = 'queries', metavar = 'queries', nargs = '+',
+    p.add_argument('-t', dest = 'master', metavar = 'master', required = True,
+                   help = 'Name of master table to query from.')
+    p.add_argument('-q', dest = 'queries', metavar = 'queries', nargs = '+', required = True,
                    help = 'Queries to run. Please see DSC2 documentation for details.')
     p.add_argument('-o', dest = 'output', metavar = 'columns',
                    help = 'Patterns of desired output columns. Please see DSC2 documentation for details.')
