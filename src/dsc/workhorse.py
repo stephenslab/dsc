@@ -150,7 +150,7 @@ def query(args, argv):
     def get_id(query, target = None):
         name = master[7:] if master.startswith('master_') else master
         if target is None:
-            col_id = data[master].query(query)[name + '_id']
+            col_id = data[master].query(query)[name + '_id'].tolist()
         else:
             col_id = [x for x, y in zip(data[master][name + '_id'].tolist(),
                                         data[master][target[1][:-5] + '_id'].\
@@ -217,5 +217,8 @@ def query(args, argv):
                 return_id = get_id(item)
             else:
                 return_id = [x for x in get_id(item) if x in return_id]
-    res = get_output(return_id)
-    res.to_csv(sys.stdout, index = False, header = not args.no_header)
+    if len(return_id) == 0:
+        env.logger.warning("Cannot find matching entries based on query ``{}``".format(repr(args.queries)))
+    else:
+        res = get_output(return_id)
+        res.to_csv(sys.stdout, index = False, header = not args.no_header)
