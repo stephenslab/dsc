@@ -7,7 +7,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 import sys, argparse
 from dsc import PACKAGE, VERSION
-from pysos.utils import env, get_traceback
+from pysos.utils import logger, get_traceback
 from .workhorse import execute, remove, query
 from .utils import Timer
 
@@ -72,5 +72,5 @@ def main():
         if 'verbosity' in args and args.verbosity > 2:
             sys.stderr.write(get_traceback())
         else:
-            env.logger.error(e)
+            logger.error(e)
         sys.exit(1)
