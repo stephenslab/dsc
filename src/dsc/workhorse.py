@@ -80,6 +80,7 @@ def execute(args, argv):
         sos_run(args, argv, verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
+    env.verbosity = args.verbosity
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
     ResultDB(db, master).Build(script = dsc_script)
     env.logger.info("DSC complete!")
