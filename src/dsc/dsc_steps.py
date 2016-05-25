@@ -462,8 +462,6 @@ class DSC2SoS:
         self.cleanup()
         for seq_idx, sequence in enumerate(data.data):
             conf_header = 'from dsc.utils import sos_hash_output, sos_group_input\n'
-            conf_header += 'meta_file = ".sos/.dsc/{}.{}.yaml.tmp"\n'.\
-                format(seq_idx + 1, os.path.basename(self.output_prefix))
             conf_header += 'file_id = "{}"'.format(seq_idx + 1)
             job_header = 'file_id = "{}"'.format(seq_idx + 1)
             confstr = []
@@ -471,7 +469,7 @@ class DSC2SoS:
             # Get steps
             for blk_idx, block in enumerate(sequence):
                 for step_idx, step in enumerate(block):
-                    confstr.append(self.__get_prepare_step(step_idx, step, '.sos/.dsc/md5/%(file_id)_%(sequence_id)'))
+                    confstr.append(self.__get_prepare_step(step_idx, step))
                     jobstr.append(self.__get_run_step(step_idx, step))
             # Get workflows
             seq, indices = data.sequences[seq_idx]
@@ -490,10 +488,6 @@ class DSC2SoS:
     def cleanup(self):
         for item in glob.glob('.sos/.dsc/*.tmp'):
             os.remove(item)
-        if os.path.isdir('.sos/.dsc/md5'):
-            shutil.rmtree('.sos/.dsc/md5')
-        if os.path.isfile(".sos/.dsc/{}.yaml".format(os.path.basename(self.output_prefix))):
-            os.remove(".sos/.dsc/{}.yaml".format(os.path.basename(self.output_prefix)))
 
     def __call__(self):
         pass
@@ -502,7 +496,7 @@ class DSC2SoS:
         return  '\n{}'.format('#\n' * 5).join(self.confstr) + '\n' + '##\n' * 5 + \
           '\n{}'.format('#\n' * 5).join(self.jobstr)
 
-    def __get_prepare_step(self, step_idx, step_data, output_prefix):
+    def __get_prepare_step(self, step_idx, step_data):
         '''
         This will produce source to build config and database for
         parameters and file names
@@ -531,29 +525,27 @@ class DSC2SoS:
                 input_vars = "input_files, group_by = {}, ".format(len(depend_steps))
             else:
                 input_vars = "{}.output, group_by = 'single', ".format(depend_steps[0])
-            res.append("input: %spattern = '{path}/{base}.{ext}'%s" % \
+            res.append("input: %spattern = '{base}.{ext}'%s" % \
                        (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
-            res.append("output: sos_hash_output('{0}:%%:%(\"_\".join(_base)).%(output_suffix)', "\
-                       "'{1}')".format(':%:'.join(['exec={}'.format(cmds_md5)] + \
-                                      ['{0}=%(_{0})'.format(x) for x in params]), output_prefix))
+            res.append("output: sos_hash_output('{0}:%%:%(\"_\".join(_base)).%(output_suffix)')".\
+                       format(':%:'.join(['exec={}'.format(cmds_md5)] + \
+                                         ['{0}=%(_{0})'.format(x) for x in params])))
         else:
             if params:
                 res.append("input: %s" % 'for_each = %s'% repr(params))
-            res.append("output: sos_hash_output(expand_pattern('{0}.%(output_suffix)'), '{1}')".\
+            res.append("output: sos_hash_output(expand_pattern('{0}.%(output_suffix)'))".\
                        format(':%:'.join(['exec={}'.format(cmds_md5)] \
-                                         + ['{0}=%(_{0})'.format(x) for x in params]), output_prefix))
+                                         + ['{0}=%(_{0})'.format(x) for x in params])))
         param_string = ["  exec: {}".format(step_data['exe'])]
         param_string += ['  {0}: %(_{0})'.format(x) for x in params]
         # meta data file
-        res.append("task: concurrent = True\nrun:\necho %(sequence_id) `basename %(_output) .{}`{}: | "\
-                   "sed 's/ /_/g' > %(_output)\necho -e '"\
+        res.append("run:\necho %(_output) %(sequence_id) %(_output!r).replace('.{}',''){}:\\n"\
                    "  sequence_id: %(sequence_id)\\n  sequence_name: %(sequence_name)\\n" \
-                   "  step_name: %(step_name)\\n{}' >> %(_output)".\
+                   "  step_name: %(step_name)\\n{}".\
                    format(eval(step_data['output_ext']),
                           ' %(_base)' if step_data['depends'] else '', '\\n'.join(param_string)))
-        res.append("run: active = -1\necho %(input!,)::%(output!,)" \
-                   " > .sos/.dsc/%(file_id).%(sequence_id).%(step_name).io.tmp\n"\
-                   "cat %(output) >> %(meta_file)")
+        res.append("run: active = -1\necho output::%(input!,)::%(output!,)" \
+                   "::%(file_id).%(sequence_id).%(step_name)\n")
         return '\n'.join(res) + '\n'
 
     def __get_run_step(self, step_idx, step_data):

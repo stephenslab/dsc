@@ -14,15 +14,16 @@ from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
 from .utils import get_slice, load_rds, flatten_list, yaml2html
 
-def sos_run(args, workflow_args, verbosity = 1, sig_mode = 'default', run_mode = 'run'):
-    env.max_jobs = args.__max_jobs__
+def sos_run(args, workflow_args, verbosity = 1, jobs = None,
+            sig_mode = 'default', run_mode = 'run', transcript = None):
+    env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remainging processes when the master process is killed.
     atexit.register(env.cleanup)
     if args.__rerun__:
         sig_mode = 'ignore'
     try:
         script = SoS_Script(content=args.script)
-        executor = Sequential_Executor(script.workflow(args.workflow))
+        executor = Sequential_Executor(script.workflow(args.workflow), transcript = transcript)
         executor.run(workflow_args, cmd_name=args.dsc_file, config_file = args.__config__,
                      run_mode = run_mode, sig_mode = sig_mode, verbosity = verbosity)
     except Exception as e:
@@ -53,7 +54,7 @@ def execute(args, argv):
             master = dsc_data['DSC']['master']
         except:
             master = None
-        return run_jobs, dsc_data['DSC']['output'][0], master
+        return run_jobs, dsc_data['DSC']['output'][0], db_name, master
     #
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
@@ -61,14 +62,15 @@ def execute(args, argv):
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
-    run_jobs, db, master = setup()
+    run_jobs, db, db_name, master = setup()
     # Setup run for config files
-    for script in run_jobs.confstr:
+    for idx, script in enumerate(run_jobs.confstr):
         args.script = script
-        sos_run(args, argv, verbosity = 0, sig_mode = 'ignore', run_mode = 'run')
+        sos_run(args, argv, verbosity = 0, jobs = 1, sig_mode = 'ignore', run_mode = 'inspect',
+                transcript = '.sos/.dsc/{}.{}.io.tmp'.format(db_name, idx + 1))
     ConfigDB(db, vanilla = args.__rerun__).Build()
     if args.__dryrun__:
-        # FIXME export scripts to somewhere
+        # FIXME save transcript
         return
     # Wetrun
     env.logger.info("Running DSC jobs ...")

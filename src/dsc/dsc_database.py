@@ -4,6 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, yaml, json, glob
+from io import StringIO
 from collections import OrderedDict
 import pandas as pd
 from pysos.utils import Error
@@ -11,6 +12,25 @@ from .utils import load_rds, save_rds, ordered_load, \
      flatten_list, flatten_dict
 import readline
 import rpy2.robjects.vectors as RV
+
+def read_parameters(files):
+    data = OrderedDict()
+    for item in files:
+        lines = []
+        for line in open(item).readlines():
+            line = line.strip().split('\\n')
+            if line[0].startswith('echo') and not line[0].startswith('echo output::'):
+                line[0] = line[0].split()[2:]
+                if 'replace' in line[0][1]:
+                    if line[0][1].endswith(':'):
+                        line[0][1] = eval(line[0][1].strip(':')) + ':'
+                    else:
+                        line[0][1] = eval(line[0][1])
+                line[0] = '_'.join(line[0])
+                lines.extend(line)
+        with StringIO('\n'.join(lines)) as f:
+            data.update(ordered_load(f, yaml.SafeLoader))
+    return data
 
 class ResultDBError(Error):
     """Raised when there is a problem building the database."""
@@ -46,9 +66,7 @@ class ResultDB:
             return res
         #
         try:
-            data = OrderedDict()
-            for item in glob.glob('.sos/.dsc/*{}.yaml.tmp'.format(os.path.basename(self.name))):
-                with open(item) as f: data.update(ordered_load(f, yaml.SafeLoader))
+            data = read_parameters(glob.glob('.sos/.dsc/{}.*.io.tmp'.format(os.path.basename(self.name))))
         except FileNotFoundError:
             raise ResultDBError('Cannot load source data to build database!')
         seen = []
@@ -221,23 +239,30 @@ class ResultDB:
             self.data['.dscsrc'] = repr(script)
         save_rds(self.data, self.name + '.rds')
 
-
 class ConfigDB:
     def __init__(self, db_name, vanilla = False):
         '''
-        - collect all files inside MD5 folder
+        - collect all output file names in md5 style
         - check if map file should be loaded, and load it
-        - based on map file and files inside MD5 folder, remove irrelevant files from output folder
+        - based on map file and file names in md5 style, remove irrelevant files from output folder
         - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
         - create conf file based on map file and *.io.tmp
         '''
+        def get_names(fn):
+            names = []
+            for line in open(fn).readlines():
+                line = line.strip()
+                if line.startswith('echo') and not line.startswith('echo output::'):
+                    names.append(line.split()[1])
+            return names
+        #
         self.name = db_name
         if os.path.isfile('.sos/.dsc/{}.map'.format(os.path.basename(db_name))) and not vanilla:
             self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(os.path.basename(db_name))))
         else:
             self.maps = {}
         self.pre = 'dsc'
-        self.files = set([os.path.basename(x) for x in list(glob.glob('.sos/.dsc/md5/*/*'))])
+        self.files = set(flatten_list([get_names(x) for x in glob.glob('.sos/.dsc/*.io.tmp')]))
         for k in list(self.maps.keys()):
             if k == 'NEXT_ID':
                 continue
@@ -266,18 +291,22 @@ class ConfigDB:
         self.WriteMap()
         self.data = {}
         for f in glob.glob('.sos/.dsc/*.io.tmp'):
-            fid, sid, name = os.path.basename(f).split('.')[:3]
-            if fid not in self.data:
-                self.data[fid] = {}
-            if sid not in self.data[fid]:
-                self.data[fid][sid] = {}
-            if name not in self.data[fid][sid]:
-                self.data[fid][sid][name] = {}
-            x, y = open(f).read().strip().split('::')
-            self.data[fid][sid][name]['input'] = [os.path.join(self.name, self.maps[os.path.basename(item)])
-                                                   for item in x.split(',') if item]
-            self.data[fid][sid][name]['output'] = [os.path.join(self.name, self.maps[os.path.basename(item)])
-                                                   for item in y.split(',') if item]
+            for line in open(f).readlines():
+                line = line.strip()
+                if not line.startswith('echo output::'):
+                    continue
+                o, x, y, z = line.split('::')
+                fid, sid, name = z.split('.')
+                if fid not in self.data:
+                    self.data[fid] = {}
+                if sid not in self.data[fid]:
+                    self.data[fid][sid] = {}
+                if name not in self.data[fid][sid]:
+                    self.data[fid][sid][name] = {}
+                self.data[fid][sid][name]['input'] = [os.path.join(self.name, self.maps[item.strip()]) \
+                                                      for item in x.split(',') if item]
+                self.data[fid][sid][name]['output'] = [os.path.join(self.name, self.maps[item.strip()]) \
+                                                       for item in y.split(',') if item]
         #
         with open('.sos/.dsc/{}.conf'.format(os.path.basename(self.name)), 'w') as f:
             f.write(json.dumps(self.data))
