@@ -12,8 +12,14 @@ if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) 
 from setuptools import setup
 
 # init
-css = open('asset/prism.css').read()
-js = open('asset/prism.js').read()
+jquery = open('asset/jquery-1.10.1.min.js').read()
+mousewheel = open('asset/jquery.mousewheel-3.0.6.pack.js').read()
+fancybox = open('asset/jquery.fancybox.js').read()
+fancybox_css = open('asset/jquery.fancybox.css').read()
+user = open('asset/user.js').read()
+user_css = open('asset/user.css').read()
+prism = open('asset/prism.js').read()
+prism_css = open('asset/prism.css').read()
 
 with open('dsc/__init__.py', 'w') as f:
     f.write('#!/usr/bin/env python3\n')
@@ -24,8 +30,9 @@ with open('dsc/__init__.py', 'w') as f:
     f.write('__version__ = "{}"\n'.format(__version__))
     f.write('PACKAGE = "dsc"\n')
     f.write('VERSION = __version__\n')
-    f.write('HTML_CSS = {}\n'.format(repr(css)))
-    f.write('HTML_JS = {}\n'.format(repr(js)))
+    f.write('HTML_CSS = {}\n{}\n{}\n'.format(repr(fancybox_css), repr(user_css), repr(prism_css)))
+    f.write('HTML_JS = {}\n{}\n{}\n{}\n{}\n'.format(repr(jquery), repr(mousewheel), repr(fancybox),
+                                                    repr(user), repr(prism)))
 
 setup(name        = "dsc",
       description = "Implementation of Dynamic Statistical Comparisons",

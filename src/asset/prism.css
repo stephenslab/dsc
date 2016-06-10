@@ -1,4 +1,4 @@
-/* http://prismjs.com/download.html?themes=prism-solarizedlight&plugins=line-numbers+normalize-whitespace */
+/* http://prismjs.com/download.html?themes=prism-solarizedlight&languages=clike+bash+ruby+matlab+perl+python+r+yaml&plugins=line-numbers+normalize-whitespace */
 /*
  Solarized Color Schemes originally by Ethan Schoonover
  http://ethanschoonover.com/solarized
@@ -72,6 +72,8 @@ pre[class*="language-"] {
 :not(pre) > code[class*="language-"],
 pre[class*="language-"] {
 	background-color: #fdf6e3; /* base3 */
+  font-family:Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
+  font-size: 10pt;
 }
 
 /* Inline code */

@@ -1,0 +1,147 @@
+table {
+    font-family: verdana,arial,sans-serif;
+    font-size:12px;
+    color:#333333;
+    border-width: 1px;
+    border-color: #CCCCCC;
+    border-collapse: collapse;
+}
+.inlineTable {
+    display: inline-block;
+}
+table th {
+    border-width: 1px;
+    padding: 6px;
+    color: #006295;
+    border-style: solid;
+    border-color: #CCCCCC;
+    background-color: #F8F8F8;
+}
+table td {
+    border-width: 1px;
+    padding: 6px;
+    border-style: solid;
+    border-color: #CCCCCC;
+    background-color: #ffffff;
+}
+a,
+a:link,
+a:visited,
+a:active
+      {
+	  color: #3366CC;
+	  border-bottom: 1px dotted #3366CC;
+	  text-decoration:none;
+      }
+/*a:hover
+      {
+	  border-bottom: none;
+	  color: #ffffff;
+	  background-color: #006295;
+      }*/
+body {font-family:Lucida Sans Unicode,arial,sans-serif;}
+
+/*----- Accordion -----*/
+
+.accordion, .accordion * {
+    -webkit-box-sizing:border-box; 
+    -moz-box-sizing:border-box; 
+    box-sizing:border-box;
+}
+ 
+.accordion {
+    overflow:hidden;
+    box-shadow:0px 1px 3px rgba(0,0,0,0.25);
+    border-radius:3px;
+    background:#f7f7f7;
+}
+ 
+/*----- Section Titles -----*/
+
+.accordion-section-title {
+    width:100%;
+    padding:15px;
+    display:inline-block;
+    border-bottom:1px solid #1a1a1a;
+    background:#333;
+    transition:all linear 0.15s;
+    /* Type */
+    font-size:1.200em;
+    text-shadow:0px 1px 0px #1a1a1a;
+    color:#fff;
+}
+ 
+.accordion-section-title.active, .accordion-section-title:hover {
+    background:#4c4c4c;
+    /* Type */
+    text-decoration:none;
+}
+ 
+.accordion-section:last-child .accordion-section-title {
+    border-bottom:none;
+}
+ 
+/*----- Section Content -----*/
+.accordion-section-content {
+    padding:15px;
+    display:none;
+}
+
+/*----- Tabs -----*/
+.tabs {
+    width:100%;
+    display:inline-block;
+}
+ 
+/*----- Tab Links -----*/
+/* Clearfix */
+
+.tab-links:after {
+    display:block;
+    clear:both;
+    content:'';
+}
+ 
+.tab-links li {
+    margin:0px 5px;
+    float:left;
+    list-style:none;
+}
+
+.tab-links a {
+    padding:9px 15px;
+    display:inline-block;
+    border-radius:3px 3px 0px 0px;
+    /*background:#7FB5DA;*/
+    font-size:16px;
+    font-weight:600;
+    color:#4c4c4c;
+    transition:all linear 0.15s;
+}
+
+.tab-links a:hover {
+    background:#a7cce5;
+    text-decoration:none;
+}
+
+li.active a, li.active a:hover {
+		 background:#7fb5da;
+		 color:#4c4c4c;
+	     }
+ 
+/*----- Content of Tabs -----*/
+
+.tab-content {
+    padding:15px;
+    border-radius:3px;
+    box-shadow:-1px 1px 1px rgba(0,0,0,0.15);
+    background:#fff;
+}
+ 
+.tab {
+    display:none;
+}
+
+.tab.active {
+    display:block;
+}
