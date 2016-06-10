@@ -454,6 +454,9 @@ def ordered_dump(data, stream=None, Dumper=yaml.Dumper, **kwds):
     OrderedDumper.add_representer(OrderedDict, _dict_representer)
     return yaml.dump(data, stream, OrderedDumper, **kwds)
 
+def make_html_name(value):
+    return "".join(x for x in value.replace(' ', '-') if x.isalnum() or x in ['-', '_']).lower()
+
 def yaml2html(content, to_file, title = ''):
     if os.path.isfile(content):
         content = open(content).read()
@@ -467,27 +470,68 @@ def yaml2html(content, to_file, title = ''):
         f.write(HTML_JS)
         f.write('</script></head><body>{}<pre><code class='\
                 '"language-yaml; line-numbers; left-trim; right-trim;">\n'.\
-                format('<h2>{}:</h2>'.format(os.path.basename(title)) if title else ''))
+                format('<h3>{}:</h3>'.format(os.path.basename(title)) if title else ''))
         f.write(content)
         f.write('\n</code></pre></body></html>')
 
-def dsc2html(content, to_file, title, section_content):
+def dsc2html(content, to_file, title, section_content = {}):
     '''
     section_content: ordered dictionary of lists,
     {'section 1': ['exec1.R', 'exec2.py']}
     '''
+    languages = {'py': 'python', 'sh': 'bash', 'rb': 'ruby', 'r': 'r', 'm': 'matlab', 'pl': 'perl'}
     if os.path.isfile(content):
         content = open(content).read()
     if not os.path.splitext(to_file)[1] == '.html':
         to_file += '.html'
     with open(to_file, 'w') as f:
+        # header and style/scripts
         f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(title))
         f.write('<style type="text/css">\n')
         f.write(HTML_CSS)
         f.write('\n</style>\n<script type="text/javascript">\n')
         f.write(HTML_JS)
-        f.write('</script></head><body>{}<pre><code class='\
-                '"language-yaml; line-numbers; left-trim; right-trim;">\n'.\
-                format('<h2>{}:</h2>'.format(os.path.basename(title)) if title else ''))
+        # DSC script file
+        f.write('</script></head><body><h3>DSC script <a class="various" href="#dsc">{}</a></h3>\n'.\
+            format(os.path.basename(title) if title else os.path.basename(to_file)))
+        f.write('<div style="display:none"><div id="dsc"><pre><code class="language-yaml; '
+                'line-numbers; left-trim; right-trim;">\n')
         f.write(content)
-        f.write('\n</code></pre></body></html>')
+        f.write('\n</code></pre></div></div><div class="accordion">\n')
+        # DSC sections with executable scripts
+        for name, section in section_content.items():
+            # get section scripts
+            commands = flatten_list([x['command'] for x in section])
+            scripts = []
+            seen = []
+            for command in commands:
+                command = command.split()[0]
+                if command in seen:
+                    continue
+                else:
+                    seen.append(command)
+                try:
+                    text = open(command).read()
+                except:
+                    continue
+                scripts.append((os.path.basename(command), os.path.splitext(command)[1][1:].lower(), text))
+            if len(scripts) == 0:
+                continue
+            f.write('<div class="accodion-section">\n'
+                    '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
+                    '<div id={1} class="accordion-section-content">\n'.format(name, make_html_name(name)))
+            f.write('<div class="tabs">\n<ul class="tab-links">\n')
+            for idx, script in enumerate(scripts):
+                f.write('<li{2}><a href="#{0}">{1}</a></li>\n'.\
+                        format(make_html_name(name + '_' + script[0]), script[0],
+                               ' class="active"' if idx == 0 else ''))
+            f.write('</ul>\n<div class="tab-content">\n')
+            for idx, script in enumerate(scripts):
+                f.write('<div id="{0}" class="tab{1}">\n'.\
+                        format(make_html_name(name + '_' + script[0]), ' active' if idx == 0 else ''))
+                f.write('<pre><code class="{}line-numbers; left-trim; right-trim;">\n'.\
+                        format(("language-" + languages[script[1]] + "; ") if script[1] in languages else ''))
+                f.write(script[2])
+                f.write('\n</code></pre></div>\n')
+            f.write('</div></div></div></div>\n')
+        f.write('\n</div></body></html>')

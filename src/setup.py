@@ -30,9 +30,9 @@ with open('dsc/__init__.py', 'w') as f:
     f.write('__version__ = "{}"\n'.format(__version__))
     f.write('PACKAGE = "dsc"\n')
     f.write('VERSION = __version__\n')
-    f.write('HTML_CSS = {}\n{}\n{}\n'.format(repr(fancybox_css), repr(user_css), repr(prism_css)))
-    f.write('HTML_JS = {}\n{}\n{}\n{}\n{}\n'.format(repr(jquery), repr(mousewheel), repr(fancybox),
-                                                    repr(user), repr(prism)))
+    f.write('HTML_CSS = {}\n'.format(repr('\n\n'.join([fancybox_css, user_css, prism_css]))))
+    f.write('HTML_JS = {}\n'.format(repr('\n\n'.join([jquery, mousewheel,
+                                                      fancybox, user, prism]))))
 
 setup(name        = "dsc",
       description = "Implementation of Dynamic Statistical Comparisons",
