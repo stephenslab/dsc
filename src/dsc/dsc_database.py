@@ -262,7 +262,7 @@ class ConfigDB:
         else:
             self.maps = {}
         self.pre = 'dsc'
-        self.files = set(flatten_list([get_names(x) for x in glob.glob('.sos/.dsc/*.io.tmp')]))
+        self.files = sorted(set(flatten_list([get_names(x) for x in glob.glob('.sos/.dsc/*.io.tmp')])))
         for k in list(self.maps.keys()):
             if k == 'NEXT_ID':
                 continue

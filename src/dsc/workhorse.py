@@ -32,6 +32,7 @@ def sos_run(args, workflow_args, verbosity = 1, jobs = None,
             sys.stderr.write(get_traceback())
         env.logger.error(e)
         sys.exit(1)
+    env.verbosity = args.verbosity
 
 def execute(args, argv):
     def setup():
@@ -76,7 +77,6 @@ def execute(args, argv):
         # FIXME save transcript
         return
     # Wetrun
-    env.logger.info("Running DSC jobs ...")
     env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
@@ -85,7 +85,6 @@ def execute(args, argv):
         sos_run(args, argv, verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
-    env.verbosity = args.verbosity
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
     ResultDB(db, master).Build(script = dsc_script)
     env.logger.info("DSC complete!")
