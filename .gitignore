@@ -1,7 +1,7 @@
-src/dsc/__init__.py
-src/*.egg-info 
-src/build 
-src/dist
+dsc/__init__.py
+*.egg-info 
+build 
+dist
 **/.sos
 vignettes/outlier_r
 vignettes/**/test.py
