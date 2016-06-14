@@ -12,14 +12,14 @@ if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) 
 from setuptools import setup
 
 # init
-jquery = open('asset/jquery-1.10.1.min.js').read()
-mousewheel = open('asset/jquery.mousewheel-3.0.6.pack.js').read()
-fancybox = open('asset/jquery.fancybox.js').read()
-fancybox_css = open('asset/jquery.fancybox.css').read()
-user = open('asset/user.js').read()
-user_css = open('asset/user.css').read()
-prism = open('asset/prism.js').read()
-prism_css = open('asset/prism.css').read()
+jquery = open('dsc/asset/jquery-1.10.1.min.js').read()
+mousewheel = open('dsc/asset/jquery.mousewheel-3.0.6.pack.js').read()
+fancybox = open('dsc/asset/jquery.fancybox.js').read()
+fancybox_css = open('dsc/asset/jquery.fancybox.css').read()
+user = open('dsc/asset/user.js').read()
+user_css = open('dsc/asset/user.css').read()
+prism = open('dsc/asset/prism.js').read()
+prism_css = open('dsc/asset/prism.css').read()
 
 with open('dsc/__init__.py', 'w') as f:
     f.write('#!/usr/bin/env python3\n')
