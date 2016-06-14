@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 import sys
 _py_ver = sys.version_info
 if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) < (5, 0)):
@@ -35,12 +35,13 @@ with open('dsc/__init__.py', 'w') as f:
                                                       fancybox, user, prism]))))
 
 setup(name        = "dsc",
+      packages    = ["dsc"],
       description = "Implementation of Dynamic Statistical Comparisons",
       author      = "Gao Wang",
       author_email = 'gaow@uchicago.edu',
       url         = 'https://github.com/stephenslab/dsc2',
+      download_url= 'https://github.com/stephenslab/dsc2/archive/v{}.tar.gz'.format(__version__),
       version     = __version__,
-      packages    = ["dsc"],
       scripts     = ["dsc/dsc", "dsc/dsc-run"],
       package_dir = {"dsc": "dsc"},
       license     = 'MIT',
@@ -54,7 +55,7 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
-      install_requires = ['sos>=0.6.2', 'pyyaml', 'pandas>=0.18.0',
+      install_requires = ['sos>=0.6.4', 'pyyaml', 'pandas>=0.18.0',
                           'rpy2>=2.7.8', 'sympy', 'numexpr',
                           'numpy']
       )
