@@ -83,25 +83,7 @@ class RPlug(BasePlug):
             res = '\nDSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib])) + R_SOURCE
         else:
             res = ''
-        res += '\n'.join(self.container)
-        if cmd_args:
-            for item in cmd_args:
-                # FIXME: will eventually allow for parameter input for plugins (at SoS level)
-                lhs, rhs = item.split('=')
-                if rhs.startswith('$'):
-                    if rhs[1:] not in params:
-                        raise ValueError('Cannot find ``{}`` in parameter list'.format(rhs))
-                    else:
-                        res += '\n%s <- ${_%s}' % (lhs, rhs[1:])
-                        params.remove(rhs[1:])
-                else:
-                    res += '\n%s <- %s' % (lhs, rhs)
-        keys = [x for x in params if not x in self.container_vars]
-        if 'seed' in keys:
-            res += '\nset.seed(${_seed})'
-            keys.remove('seed')
-        for k in keys:
-            res += '\n%s <- ${_%s}' % (k, k)
+        # load files
         load_multi_in = R_LMERGE + '\n{} <- list()'.format(self.identifier) + \
           '\ninput.files <- c(${{_input!r,}})\nfor (i in 1:length(input.files)) ' \
           '{0} <- DSC_LMERGE({0}, readRDS(input.files[i]))'.format(self.identifier)
@@ -118,9 +100,29 @@ class RPlug(BasePlug):
                 flag = True
         else:
             pass
-        res += '\n' + '\n'.join(self.input_alias)
         if flag:
             res += load_out
+        res += '\n' + '\n'.join(self.input_alias)
+        # load parameters
+        keys = [x for x in params if not x in self.container_vars]
+        if 'seed' in keys:
+            res += '\nset.seed(${_seed})'
+            keys.remove('seed')
+        res += '\n'.join(self.container)
+        if cmd_args:
+            for item in cmd_args:
+                # FIXME: will eventually allow for parameter input for plugins (at SoS level)
+                lhs, rhs = item.split('=')
+                if rhs.startswith('$'):
+                    if rhs[1:] not in params:
+                        raise ValueError('Cannot find ``{}`` in parameter list'.format(rhs))
+                    else:
+                        res += '\n%s <- ${_%s}' % (lhs, rhs[1:])
+                        params.remove(rhs[1:])
+                else:
+                    res += '\n%s <- %s' % (lhs, rhs)
+        for k in keys:
+            res += '\n%s <- ${_%s}' % (k, k)
         return res
 
     def get_return(self, output_vars):
@@ -160,29 +162,8 @@ class PyPlug(BasePlug):
                 res += '\nsys.path.append(os.path.abspath("{}"))'.format(item)
         else:
             res = ''
-        # FIXME: will eventually allow for parameter input for plugins (at SoS level)
-        if cmd_args:
-            if not res:
-                res = '\nimport sys'
-            cmd_list = []
-            for item in cmd_args:
-                if item.startswith('$'):
-                    if item[1:] not in params:
-                        raise ValueError('Cannot find ``{}`` in parameter list'.format(item))
-                    else:
-                        cmd_list.append('${_%s}' % item[1:])
-                        params.remove(item[1:])
-                else:
-                    cmd_list.append(repr(item))
-            res += '\nsys.argv.extend([{}])'.format(', '.join(cmd_list))
+        # load files
         res += '\nfrom dsc.utils import save_rds, load_rds'
-        res += '\n'.join(self.container)
-        keys = [x for x in params if not x in self.container_vars]
-        if 'seed' in keys:
-            res += '\nimport random, numpy\nrandom.seed(${_seed})\nnumpy.random.seed(${_seed})'
-            keys.remove('seed')
-        for k in keys:
-            res += '\n%s = ${_%s}' % (k, k)
         load_multi_in = '\n{} = {{}}'.format(self.identifier) + \
           '\nfor item in [${{_input!r,}}]:\n\t{}.update(load_rds(item))'.format(self.identifier)
         load_single_in = '\n{} = load_rds("${{_input}}")'.format(self.identifier)
@@ -198,9 +179,32 @@ class PyPlug(BasePlug):
                 flag = True
         else:
             pass
-        res += '\n' + '\n'.join(self.input_alias)
         if flag:
             res += load_out
+        res += '\n' + '\n'.join(self.input_alias)
+        # load parameters
+        keys = [x for x in params if not x in self.container_vars]
+        if 'seed' in keys:
+            res += '\nimport random, numpy\nrandom.seed(${_seed})\nnumpy.random.seed(${_seed})'
+            keys.remove('seed')
+        res += '\n'.join(self.container)
+        # FIXME: will eventually allow for parameter input for plugins (at SoS level)
+        if cmd_args:
+            if not res:
+                res = '\nimport sys'
+            cmd_list = []
+            for item in cmd_args:
+                if item.startswith('$'):
+                    if item[1:] not in params:
+                        raise ValueError('Cannot find ``{}`` in parameter list'.format(item))
+                    else:
+                        cmd_list.append('${_%s}' % item[1:])
+                        params.remove(item[1:])
+                else:
+                    cmd_list.append(repr(item))
+            res += '\nsys.argv.extend([{}])'.format(', '.join(cmd_list))
+        for k in keys:
+            res += '\n%s = ${_%s}' % (k, k)
         return res
 
     def get_return(self, output_vars):
