@@ -17,6 +17,7 @@ from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
 
 def sos_run(args, workflow_args, verbosity = 1, jobs = None,
             sig_mode = 'default', run_mode = 'run', transcript = None):
+    env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remainging processes when the master process is killed.
     atexit.register(env.cleanup)
