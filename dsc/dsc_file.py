@@ -7,14 +7,14 @@ __license__ = "MIT"
 This file defines the `DSCData` class for loading DSC file
 '''
 
-import os, yaml, re, subprocess, itertools, copy, sympy, \
+import os, yaml, re, subprocess, itertools, copy, \
   collections, warnings, datetime
 import readline
 import rpy2.robjects as RO
 from io import StringIO
 from pysos.utils import logger, Error
 from pysos.signature import textMD5
-from .utils import dotdict, is_null, str2num, strip_dict, \
+from .utils import dotdict, is_null, str2num, non_commutative_symexpand, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_dict, \
      try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value, \
      no_duplicates_constructor, install_r_libs
@@ -333,31 +333,28 @@ class OperationParser(DSCEntryParser):
         return value
 
     def reconstruct(self, value):
-        sequence_ordering = uniq_list(re.sub(r'\(|\)|\+|\*|,', ' ', value).split())
         value = value.replace('+', '_')
         value = value.replace(',', '+')
-        # restore order and syntax
         res = []
-        for x in str(sympy.expand(value)).split('+'):
+        for x in str(non_commutative_symexpand(value)).split('+'):
             x = x.strip().split('*')
             if '2' in x:
                 # error for '**2'
                 raise FormatError("Possibly duplicated elements found in sequence {}".\
                                   format(self.sequence))
-            # re-order elements in x
+            # re-construct elements in x
             # complication: the _ operator
-            tmp_1 = dict((y if '_' not in y else y.split('_')[0], y) for y in x)
+            tmp_1 = collections.OrderedDict((y if '_' not in y else y.split('_')[0], y) for y in x)
             if len(tmp_1.keys()) < len(x):
                 raise FormatError("Possibly duplicated elements found in sequence {}".\
                                   format(self.sequence))
             tmp_2 = []
-            for y in sequence_ordering:
-                if y in tmp_1:
-                    if '_' in tmp_1[y]:
-                        tmp_3 = [self.cache[x] for x in tmp_1[y].split('_')]
-                        tmp_2.append('+'.join(tmp_3))
-                    else:
-                        tmp_2.append(self.cache[tmp_1[y]])
+            for y in tmp_1:
+                if '_' in tmp_1[y]:
+                    tmp_3 = [self.cache[x] for x in tmp_1[y].split('_')]
+                    tmp_2.append('+'.join(tmp_3))
+                else:
+                    tmp_2.append(self.cache[tmp_1[y]])
             res.append(tuple(tmp_2) if len(tmp_2) > 1 else tmp_2[0])
         return res
 

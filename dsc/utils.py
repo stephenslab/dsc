@@ -4,7 +4,8 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, copy, re, itertools, yaml, collections, time
+import os, copy, re, itertools, yaml, collections, time, sympy
+from sympy.parsing.sympy_parser import parse_expr
 from collections import OrderedDict
 from difflib import SequenceMatcher
 from io import StringIO
@@ -23,6 +24,26 @@ from pysos.utils import logger
 from pysos.signature import textMD5
 
 from dsc import HTML_CSS, HTML_JS
+
+Expr_mul = sympy.Expr.__mul__
+
+def mymul(a,b):
+     if not a.is_commutative and not b.is_commutative:
+         if isinstance(a, sympy.Symbol) and isinstance(b, sympy.Symbol):
+             return(Expr_mul(a,b))
+         else:
+             return(Expr_mul(a,b))
+     else:
+         return(Expr_mul(a,b))
+
+sympy.Expr.__mul__ = mymul
+
+def non_commutative_symexpand(expr_string):
+    parsed_expr = parse_expr(expr_string, evaluate=False)
+
+    new_locals = {sym.name:sympy.Symbol(sym.name, commutative=False)
+                  for sym in parsed_expr.atoms(sympy.Symbol)}
+    return sympy.expand(eval(expr_string, {}, new_locals))
 
 def no_duplicates_constructor(loader, node, deep=False):
     """YAML check for duplicate keys."""
