@@ -63,6 +63,13 @@ class DSCJobs(dotdict):
                                                 {x : range(len(self.master_data[x]))
                                                  for x in self.master_data})
         for seq, idx in self.sequences:
+            # check duplicated block names
+            if len(set(seq)) != len(seq):
+                raise ValueError('Duplicated blocks found in DSC sequence ``{}``. '\
+                                 'Iteratively executing blocks is logically disallowed. '\
+                                 'If you need to execute one routine after another in the same block '\
+                                 'please re-write your DSC script to make these routines in separate blocks'.\
+                                 format(seq))
             self.data.append(self.get_workflow(seq))
 
     def __initialize_block(self, name):
