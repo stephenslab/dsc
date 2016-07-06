@@ -195,7 +195,8 @@ class ResultDB:
                                      self.data[step]['return'][self.data[step]['step_id'].index(idx)])
             if not os.path.isfile(rds):
                 continue
-            rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector,
+            rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
+                                                        RV.BoolVector,
                                                         RV.FloatVector, RV.StrVector)))
             tmp_colnames = []
             values = []

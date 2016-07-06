@@ -342,28 +342,31 @@ def sos_group_input(value):
 
 def load_rds(filename, types = None):
     def load(data, types):
-        if types is not None and not isinstance(data, types):
-            return []
-        if isinstance(data, RV.FactorVector):
-            data = RO.r['as.character'](data)
-            res = np.array(data, dtype = str)
-        elif isinstance(data, RV.IntVector):
-            res = np.array(data, dtype = int)
-        elif isinstance(data, RV.FloatVector):
-            res = np.array(data, dtype = float)
-        elif isinstance(data, RV.StrVector):
-            res = np.array(data, dtype = str)
-        elif isinstance(data, RV.DataFrame):
-            res = pd.DataFrame(data)
-        elif isinstance(data, RV.Matrix):
-            res = np.matrix(data)
-        elif isinstance(data, RV.Array):
-            res = np.array(data)
-        else:
-            # I do not know what to do for this
-            # But I do not want to throw an error either
-            res = [str(data)]
-        return res
+         if types is not None and not isinstance(data, types):
+              return []
+         if isinstance(data, RV.BoolVector):
+              data = RO.r['as.integer'](data)
+              res = np.array(data, dtype = bool)
+         if isinstance(data, RV.FactorVector):
+              data = RO.r['as.character'](data)
+              res = np.array(data, dtype = str)
+         elif isinstance(data, RV.IntVector):
+              res = np.array(data, dtype = int)
+         elif isinstance(data, RV.FloatVector):
+              res = np.array(data, dtype = float)
+         elif isinstance(data, RV.StrVector):
+              res = np.array(data, dtype = str)
+         elif isinstance(data, RV.DataFrame):
+              res = pd.DataFrame(data)
+         elif isinstance(data, RV.Matrix):
+              res = np.matrix(data)
+         elif isinstance(data, RV.Array):
+              res = np.array(data)
+         else:
+              # I do not know what to do for this
+              # But I do not want to throw an error either
+              res = [str(data)]
+         return res
 
     def load_dict(res, data, types):
         '''load data to res'''
