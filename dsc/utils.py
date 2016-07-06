@@ -12,6 +12,7 @@ from io import StringIO
 import readline
 import rpy2.robjects as RO
 import rpy2.robjects.vectors as RV
+import rpy2.rinterface as RI
 from rpy2.robjects import numpy2ri
 numpy2ri.activate()
 from rpy2.robjects import pandas2ri
@@ -346,8 +347,13 @@ def load_rds(filename, types = None):
               return []
          if isinstance(data, RV.BoolVector):
               data = RO.r['as.integer'](data)
-              res = np.array(data, dtype = bool)
-         if isinstance(data, RV.FactorVector):
+              res = np.array(data, dtype = int)
+              # Handle c(NA, NA) situation
+              if np.sum(np.logical_and(res != 0, res != 1)):
+                   res = res.astype(float)
+                   res[res < 0] = np.nan
+                   res[res > 1] = np.nan
+         elif isinstance(data, RV.FactorVector):
               data = RO.r['as.character'](data)
               res = np.array(data, dtype = str)
          elif isinstance(data, RV.IntVector):

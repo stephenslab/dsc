@@ -9,9 +9,10 @@ from collections import OrderedDict
 import pandas as pd
 from pysos.utils import Error
 from .utils import load_rds, save_rds, ordered_load, \
-     flatten_list, flatten_dict
+     flatten_list, flatten_dict, is_null
 import readline
 import rpy2.robjects.vectors as RV
+import rpy2.rinterface as RI
 
 def read_parameters(files):
     data = OrderedDict()
@@ -201,7 +202,9 @@ class ResultDB:
             tmp_colnames = []
             values = []
             for k in sorted(rdata.keys()):
-                if len(rdata[k].shape) > 1:
+                if is_null(rdata[k]):
+                    continue
+                elif len(rdata[k].shape) > 1:
                     continue
                 elif len(rdata[k]) == 1:
                     tmp_colnames.append(k)
