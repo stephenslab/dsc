@@ -20,7 +20,7 @@ def read_parameters(files):
         lines = []
         for line in open(item).readlines():
             line = line.strip().split('\\n')
-            if line[0].startswith('echo') and not line[0].startswith('echo output::'):
+            if line[0].startswith('##') and not line[0].startswith('## output::'):
                 line[0] = line[0].split()[2:]
                 if 'replace' in line[0][1]:
                     if line[0][1].endswith(':'):
@@ -266,7 +266,7 @@ class ConfigDB:
             names = []
             for line in open(fn).readlines():
                 line = line.strip()
-                if line.startswith('echo') and not line.startswith('echo output::'):
+                if line.startswith('##') and not line.startswith('## output::'):
                     names.append(line.split()[1])
             return names
         #
@@ -307,7 +307,7 @@ class ConfigDB:
         for f in glob.glob('.sos/.dsc/*.io.tmp'):
             for line in open(f).readlines():
                 line = line.strip()
-                if not line.startswith('echo output::'):
+                if not line.startswith('## output::'):
                     continue
                 o, x, y, z = line.split('::')
                 fid, sid, name = z.split('.')

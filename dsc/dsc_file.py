@@ -426,8 +426,9 @@ class DSCFileLoader(DSCFileParser):
                 if try_get_value(data, ('DSC', 'output')) is None:
                     logger.warning('Missing output database name in ``DSC::output``. '\
                                        'Use default name ``{}``.'.\
-                                       format(os.path.split(self.content[:-5])[-1]))
-                    set_nested_value(data, ('DSC', 'output'), os.path.split(self.content[:-5])[-1])
+                                       format(os.path.split(os.path.splitext(self.content)[0])[-1]))
+                    set_nested_value(data, ('DSC', 'output'),
+                                     os.path.split(os.path.splitext(self.content)[0])[-1])
                 if try_get_value(data, ('DSC', 'work_dir')) is None:
                     set_nested_value(data, ('DSC', 'work_dir'), './')
             else:

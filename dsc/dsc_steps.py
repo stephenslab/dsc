@@ -549,12 +549,12 @@ class DSC2SoS:
         param_string = ["  exec: {}".format(step_data['exe'])]
         param_string += ['  {0}: %(_{0})'.format(x) for x in params]
         # meta data file
-        res.append("run:\necho %(_output) %(sequence_id) %(_output!r).replace('.{}',''){}:\\n"\
+        res.append("run:\n## %(_output) %(sequence_id) %(_output!r).replace('.{}',''){}:\\n"\
                    "  sequence_id: %(sequence_id)\\n  sequence_name: %(sequence_name)\\n" \
                    "  step_name: %(step_name)\\n{}".\
                    format(eval(step_data['output_ext']),
                           ' %(_base)' if step_data['depends'] else '', '\\n'.join(param_string)))
-        res.append("run: active = -1\necho output::%(input!,)::%(output!,)" \
+        res.append("run: active = -1\n## output::%(input!,)::%(output!,)" \
                    "::%(file_id).%(sequence_id).%(step_name)\n")
         return '\n'.join(res) + '\n'
 
