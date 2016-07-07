@@ -132,9 +132,10 @@ class DSCJobs(dotdict):
         def load_params():
             params = {}
             if 'params' in block:
-                params = copy.deepcopy(block.params[0])
+                if 0 in list(block.params.keys()):
+                    params = copy.deepcopy(block.params[0])
                 if (idx + 1) in list(block.params.keys()):
-                   params.update(block.params[idx + 1])
+                    params.update(block.params[idx + 1])
             # Handle seed here
             if 'seed' in block.meta:
                 params['seed'] = block.meta['seed']
@@ -143,7 +144,8 @@ class DSCJobs(dotdict):
         def load_rules():
             rules = None
             if 'rules' in block:
-                rules = block.rules[0]
+                if 0 in list(block.rules.keys()):
+                    rules = block.rules[0]
                 if (idx + 1) in list(block.rules.keys()):
                     rules = block.rules[idx + 1]
             return rules
@@ -151,9 +153,10 @@ class DSCJobs(dotdict):
         def load_alias():
             alias = {}
             if 'params_alias' in block:
-                alias = dict([(x.strip() for x in item.split('=')) for item in block.params_alias[0]])
-                if (idx + 1) in list(block.params_alias.keys()):
+                if 0 in list(block.params_alias.keys()):
                     alias = dict([(x.strip() for x in item.split('=')) for item in block.params_alias[0]])
+                if (idx + 1) in list(block.params_alias.keys()):
+                    alias = dict([(x.strip() for x in item.split('=')) for item in block.params_alias[idx + 1]])
             return alias
 
         def process_alias():
