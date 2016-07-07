@@ -191,18 +191,24 @@ class ResultDB:
         '''
         data = []
         colnames = None
+        previous_rds = None
+        previous_step = None
         for step, idx in zip(table['{}_name'.format(name)], table['{}_id'.format(name)]):
             rds = '{}/{}.rds'.format(self.name,
                                      self.data[step]['return'][self.data[step]['step_id'].index(idx)])
+            if previous_rds is None:
+                previous_rds = rds
+            if previous_step is None:
+                previous_step = step
             if not os.path.isfile(rds):
                 continue
             rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
-                                                        RV.BoolVector,
-                                                        RV.FloatVector, RV.StrVector)))
+                                                        RV.BoolVector, RV.FloatVector, RV.StrVector,
+                                                        RI.RNULLType)))
             tmp_colnames = []
             values = []
             for k in sorted(rdata.keys()):
-                if is_null(rdata[k]):
+                if is_null(rdata[k]) or len(rdata[k]) == 0:
                     continue
                 elif len(rdata[k].shape) > 1:
                     continue
@@ -218,9 +224,13 @@ class ResultDB:
                 colnames = tmp_colnames
             else:
                 if colnames != tmp_colnames:
-                    raise ResultDBError('Variables in ``{}`` are not consistent with existing variables!'.\
-                                        format(rds))
+                    raise ResultDBError('``{0}`` from ``{1}`` (in file ``{2}``, len({0}) = {3}) and '\
+                                        '``{4}`` (in file ``{5}``, len({0}) = {6}) are inconsistent!'.\
+                                        format(colnames[0].split("_")[0], step, rds, len(tmp_colnames),
+                                               previous_step, previous_rds, len(colnames)))
             data.append([idx] + values)
+            previous_rds = rds
+            previous_step = step
         # Now bind data to table, by '{}_id'.format(name)
         if data:
             return pd.merge(table, pd.DataFrame(data, columns = ['{}_id'.format(name)] + colnames),

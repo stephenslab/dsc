@@ -344,8 +344,10 @@ def sos_group_input(value):
 def load_rds(filename, types = None):
     def load(data, types):
          if types is not None and not isinstance(data, types):
-              return []
-         if isinstance(data, RV.BoolVector):
+              return np.array([])
+         if isinstance(data, RI.RNULLType):
+              res = np.array([np.nan])
+         elif isinstance(data, RV.BoolVector):
               data = RO.r['as.integer'](data)
               res = np.array(data, dtype = int)
               # Handle c(NA, NA) situation
@@ -371,7 +373,7 @@ def load_rds(filename, types = None):
          else:
               # I do not know what to do for this
               # But I do not want to throw an error either
-              res = [str(data)]
+              res = np.array([str(data)])
          return res
 
     def load_dict(res, data, types):
