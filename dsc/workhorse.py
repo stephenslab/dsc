@@ -43,8 +43,8 @@ def execute(args, argv):
         db_name = os.path.basename(dsc_data['DSC']['output'][0])
         db_dir = os.path.dirname(dsc_data['DSC']['output'][0])
         if db_dir:
-            os.makedirs(db_dir, exist_ok=True)
-        os.makedirs('.sos/.dsc/md5', exist_ok = True)
+            os.makedirs(db_dir, exist_ok = True)
+        os.makedirs('.sos/.dsc', exist_ok = True)
         dsc_jobs = DSCJobs(dsc_data)
         if args.verbosity > 3:
             yaml2html(str(dsc_data), '.sos/.dsc/{}.data'.format(db_name), title = 'DSC data')
@@ -59,21 +59,22 @@ def execute(args, argv):
             master = None
         return run_jobs, OrderedDict([(k, dsc_jobs.master_data[k]) for k in dsc_jobs.ordering]), dsc_data['DSC']['output'][0], db_name, master
     #
+    env.verbosity = args.verbosity
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
-    env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     run_jobs, section_content, db, db_name, master = setup()
+    # Archive scripts
+    dsc_script = open(args.dsc_file).read()
+    dsc2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',
+             title = args.dsc_file, section_content = section_content)
+    env.logger.info("DSC exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
+    env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
     for idx, script in enumerate(run_jobs.confstr):
         args.script = script
         sos_run(args, argv, verbosity = 0, jobs = 1, sig_mode = 'ignore', run_mode = 'inspect',
                 transcript = '.sos/.dsc/{}.{}.io.tmp'.format(db_name, idx + 1))
     ConfigDB(db, vanilla = args.__rerun__).Build()
-    # Archive scripts
-    dsc_script = open(args.dsc_file).read()
-    dsc2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',
-             title = args.dsc_file, section_content = section_content)
-    env.logger.info("DSC exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     if args.__dryrun__:
         # FIXME save transcript
         return
