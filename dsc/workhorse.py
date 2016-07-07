@@ -67,7 +67,7 @@ def execute(args, argv):
     dsc_script = open(args.dsc_file).read()
     dsc2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',
              title = args.dsc_file, section_content = section_content)
-    env.logger.info("DSC exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
+    env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
     for idx, script in enumerate(run_jobs.confstr):
@@ -76,7 +76,6 @@ def execute(args, argv):
                 transcript = '.sos/.dsc/{}.{}.io.tmp'.format(db_name, idx + 1))
     ConfigDB(db, vanilla = args.__rerun__).Build()
     if args.__dryrun__:
-        # FIXME save transcript
         return
     # Wetrun
     env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
