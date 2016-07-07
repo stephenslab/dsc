@@ -387,11 +387,11 @@ class DSCFileLoader(DSCFileParser):
         def load_from_yaml(f, content):
             try:
                 cfg = yaml.load(f)
+                # data.update(lower_keys(cfg))
+                data.update(cfg)
             except Exception as e:
-                raise FormatError("DSC configuration ``{}`` not properly formatted:\n``{}``".\
+                raise FormatError("DSC script ``{}`` is ill-formatted:\n``{}``".\
                                   format(content, e))
-            # data.update(lower_keys(cfg))
-            data.update(cfg)
         #
         if os.path.isfile(self.content):
             with open(self.content) as f:

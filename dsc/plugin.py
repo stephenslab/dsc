@@ -108,7 +108,7 @@ class RPlug(BasePlug):
         if 'seed' in keys:
             res += '\nset.seed(${_seed})'
             keys.remove('seed')
-        res += '\n'.join(self.container)
+        res += '\n' + '\n'.join(self.container)
         if cmd_args:
             for item in cmd_args:
                 # FIXME: will eventually allow for parameter input for plugins (at SoS level)
@@ -187,7 +187,7 @@ class PyPlug(BasePlug):
         if 'seed' in keys:
             res += '\nimport random, numpy\nrandom.seed(${_seed})\nnumpy.random.seed(${_seed})'
             keys.remove('seed')
-        res += '\n'.join(self.container)
+        res += '\n' + '\n'.join(self.container)
         # FIXME: will eventually allow for parameter input for plugins (at SoS level)
         if cmd_args:
             if not res:
