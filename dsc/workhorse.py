@@ -8,14 +8,14 @@ import os, sys, atexit, re, yaml, fnmatch
 import pandas as pd
 from collections import OrderedDict
 from pysos.sos_script import SoS_Script
-from pysos.sos_executor import Sequential_Executor
+from pysos.sos_executor import Base_Executor, Sequential_Executor
 from pysos.utils import env, get_traceback
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
 from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
 
-def sos_run(args, workflow_args, verbosity = 1, jobs = None,
+def cmd_run(args, workflow_args, verbosity = 1, jobs = None,
             sig_mode = 'default', run_mode = 'run', transcript = None):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
@@ -24,10 +24,13 @@ def sos_run(args, workflow_args, verbosity = 1, jobs = None,
     if args.__rerun__:
         sig_mode = 'ignore'
     try:
-        script = SoS_Script(content=args.script)
-        executor = Sequential_Executor(script.workflow(args.workflow), transcript = transcript)
-        executor.run(workflow_args, cmd_name=args.dsc_file, config_file = args.__config__,
-                     run_mode = run_mode, sig_mode = sig_mode, verbosity = verbosity)
+        script = SoS_Script(content=args.script, transcript = transcript)
+        if run_mode == 'run':
+            Sequential_Executor(script.workflow(args.workflow),
+                          args = workflow_args, config_file = args.__config__).run()
+        else:
+            Base_Executor(script.workflow(args.workflow),
+                          args = workflow_args, config_file = args.__config__).inspect()
     except Exception as e:
         if verbosity and verbosity > 2:
             sys.stderr.write(get_traceback())
@@ -72,8 +75,8 @@ def execute(args, argv):
     # Setup run for config files
     for idx, script in enumerate(run_jobs.confstr):
         args.script = script
-        sos_run(args, argv, verbosity = 0, jobs = 1, sig_mode = 'ignore', run_mode = 'inspect',
-                transcript = '.sos/.dsc/{}.{}.io.tmp'.format(db_name, idx + 1))
+        cmd_run(args, argv, verbosity = 0, jobs = 1, sig_mode = 'ignore', run_mode = 'inspect',
+                transcript = None)
     ConfigDB(db, vanilla = args.__rerun__).Build()
     if args.__dryrun__:
         return
@@ -83,7 +86,7 @@ def execute(args, argv):
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     for script in run_jobs.jobstr:
         args.script = script
-        sos_run(args, argv, verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
+        cmd_run(args, argv, verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))

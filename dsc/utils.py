@@ -462,7 +462,8 @@ def install_r_libs(libs):
             versions = None
         script = SoS_Script('[0]\ncheck_R_library({}, {})'.format(repr(value), repr(versions)))
         verbosity = env.verbosity
-        Sequential_Executor(script.workflow()).run(verbosity = 0)
+        env.verbosity = 0
+        Sequential_Executor(script.workflow()).run()
         env.verbosity = verbosity
 
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
