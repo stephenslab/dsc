@@ -8,7 +8,6 @@ This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
 import copy, re, os, glob, shutil
-from collections import OrderedDict
 from pysos import check_command
 from pysos.utils import Error
 from pysos.signature import fileMD5, textMD5
@@ -470,10 +469,8 @@ class DSC2SoS:
         self.libpath = data.libpath
         self.confstr = []
         self.jobstr = []
-        self.confdict = {}
         self.cleanup()
         for seq_idx, sequence in enumerate(data.data):
-            self.confdict[seq_idx + 1] = OrderedDict()
             conf_header = 'from dsc.utils import sos_hash_output, sos_group_input\n'
             conf_header += 'file_id = "{}"'.format(seq_idx + 1)
             job_header = 'file_id = "{}"'.format(seq_idx + 1)
@@ -484,7 +481,6 @@ class DSC2SoS:
                 for step_idx, step in enumerate(block):
                     confstr.append(self.__get_prepare_step(step_idx, step))
                     jobstr.append(self.__get_run_step(step_idx, step))
-                    self.confdict[seq_idx + 1][step['name']] = self.__get_prepare_step_1(step_idx, step)
             # Get workflows
             seq, indices = data.sequences[seq_idx]
             for idx, index in enumerate(indices):
@@ -496,10 +492,8 @@ class DSC2SoS:
                                      item))
                 jobstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
                               format(idx + 1, 'sequence_id = "{}"'.format(idx + 1), item))
-                self.__get_prepare_step_2(idx + 1, item)
             self.confstr.append('{}\n{}'.format(conf_header + '\n', '\n'.join(confstr)))
             self.jobstr.append('{}\n{}'.format(job_header + '\n', '\n'.join(jobstr)))
-        print(self.confdict)
 
     def cleanup(self):
         for item in glob.glob('.sos/.dsc/*.tmp'):
@@ -511,57 +505,6 @@ class DSC2SoS:
     def __str__(self):
         return  '\n{}'.format('#\n' * 5).join(self.confstr) + '\n' + '##\n' * 5 + \
           '\n{}'.format('#\n' * 5).join(self.jobstr)
-
-    def __get_prepare_step_1(self, step_idx, step_data):
-        '''
-        This is the first step of a procedure that
-        will generate a number of maps for I/O file name specifications and
-        parameter / result database:
-          * Ordered dictionaries with key 'X.Y': X = file_id, Y = step_name
-            (DSC block name plus index for a computational routine)
-          * In each dictionary there are:
-            * step_name: name of step
-            * params: sorted, and put together as a string ready to go to SoS script
-            * input_files: empty dict for now (leave for __get_prepare_step_2)
-            * output_files: empty dict for now (leave for __get_prepare_step_2)
-            * step_info: empty for now
-        'step_name' is reserved SoS keyword for name_idx
-        '''
-        res = {}
-        res['id'] = step_idx + 1
-        params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
-        res['params'] = [(key, step_data['parameters'][key]) for key in params]
-        res['cmds_md5'] = '+'.join([fileMD5(item.split()[0], partial = False) + \
-                                    (item.split()[1] if len(item.split()) > 1 else '')
-                                    for item in step_data['command']])
-        res['depend_steps'] = uniq_list([x[0] for x in step_data['depends']]) \
-                              if step_data['depends'] else None
-        return res
-
-    def __get_prepare_step_2(self, sequence_id, sequence_name):
-        '''
-        This is continuation of __get_prepare_step_1 where using the master structure previously
-        created, we populate the input / output file names based on sequence_id
-          * input_files: populate it (by looking back into all existing dependencies)! -- None if there is no dependency.
-          * output_files: populate it (by combining all parameters and input and create MD5 signature)
-        Here for `input_files` and `output_files` the corresponding dicts are [file_id][sequence_id][step_name]
-          * step_info: a dict organized with relevant contents involved in this step. This is in preparation for building result database down the line
-        '''
-        for key, step in self.confdict[sequence_id].items():
-            if step[depend_steps] is not None:
-                if len(step[depend_steps]) >= 2:
-                    # Input files put together by sos_group_input()
-                    # and generate output files accordingly
-                    input_files = sos_group_input([])
-                    pass
-                else:
-                    # Input files put forward as is
-                    # and generate output files accordingly
-                    pass
-            else:
-                # parameters: generate output files only
-                pass
-        pass
 
     def __get_prepare_step(self, step_idx, step_data):
         '''
@@ -582,6 +525,10 @@ class DSC2SoS:
         cmds_md5 = ''.join([fileMD5(item.split()[0], partial = False) + \
                             (item.split()[1] if len(item.split()) > 1 else '')
                             for item in step_data['command']])
+        if params:
+            loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in params])
+        else:
+            loop_string = ''
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
@@ -589,20 +536,21 @@ class DSC2SoS:
                 # Generate combinations of input files
                 res.append('input_files = sos_group_input([{}])'.\
                            format(', '.join(['{}.output'.format(x) for x in depend_steps])))
-                input_vars = "input_files, group_by = {}, ".format(len(depend_steps))
+                input_vars = "input_files, group_by = {}".format(len(depend_steps))
             else:
-                input_vars = "{}.output, group_by = 'single', ".format(depend_steps[0])
-            res.append("input: %spattern = '{base}.{ext}'%s" % \
-                       (input_vars, (', for_each = %s'% repr(params)) if len(params) else ''))
-            res.append("output: sos_hash_output('{0}:%%:%(\"_\".join(_base)).%(output_suffix)')".\
-                       format(':%:'.join(['exec={}'.format(cmds_md5)] + \
-                                         ['{0}=%(_{0})'.format(x) for x in params])))
+                input_vars = "{}.output, group_by = 'single'".format(depend_steps[0])
+            res.append("input: {}".format(input_vars))
+            loop_string += ' for __i in input'
+            out_string = '[sos_hash_output("{0}.:%%:%{{0}}.%(output_suffix)".format("_".join(__i))) {1}]'.\
+                         format(':%:'.join(['exec={}'.format(cmds_md5)] \
+                                           + ['{0}=%(_{0})'.format(x) for x in params]),
+                                loop_string)
         else:
-            if params:
-                res.append("input: %s" % 'for_each = %s'% repr(params))
-            res.append("output: sos_hash_output(expand_pattern('{0}.%(output_suffix)'))".\
-                       format(':%:'.join(['exec={}'.format(cmds_md5)] \
-                                         + ['{0}=%(_{0})'.format(x) for x in params])))
+            out_string = '[sos_hash_output("{0}.%(output_suffix)") {1}]'.\
+                         format(':%:'.join(['exec={}'.format(cmds_md5)] \
+                                           + ['{0}=%(_{0})'.format(x) for x in params]),
+                                loop_string)
+        res.append("output: {}".format(out_string))
         param_string = ["  exec: {}".format(step_data['exe'])]
         param_string += ['  {0}: %(_{0})'.format(x) for x in params]
         # meta data file

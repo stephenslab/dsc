@@ -274,14 +274,17 @@ class dotdict(dict):
         return dotdict(copy.deepcopy(dict(self)))
 
 def sos_hash_output(values, db_name = ''):
-    if isinstance(values, str):
-        values = [values]
-    res = []
-    for value in values:
-        base, ext = value.rsplit('.', 1)
-        md5 = '{}.{}'.format(textMD5(base), ext)
-        res.append(os.path.join(db_name, md5))
-    return res
+     if isinstance(values, str):
+          base, ext = values.rsplit('.', 1)
+          md5 = '{}.{}'.format(textMD5(base), ext)
+          return os.path.join(db_name, md5)
+     else:
+          res = []
+          for value in values:
+               base, ext = value.rsplit('.', 1)
+               md5 = '{}.{}'.format(textMD5(base), ext)
+               res.append(os.path.join(db_name, md5))
+          return res
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
