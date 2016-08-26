@@ -274,7 +274,7 @@ class dotdict(dict):
         return dotdict(copy.deepcopy(dict(self)))
 
 def sos_hash_output(values, db_name = ''):
-     if isinstance(values, str):
+     if not isinstance(values, list):
           base, ext = values.rsplit('.', 1)
           md5 = '{}.{}'.format(textMD5(base), ext)
           return os.path.join(db_name, md5)

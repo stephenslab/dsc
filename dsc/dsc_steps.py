@@ -526,7 +526,7 @@ class DSC2SoS:
                             (item.split()[1] if len(item.split()) > 1 else '')
                             for item in step_data['command']])
         if params:
-            loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in params])
+            loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(params)])
         else:
             loop_string = ''
         if step_data['depends']:
@@ -541,19 +541,25 @@ class DSC2SoS:
                 input_vars = "{}.output, group_by = 'single'".format(depend_steps[0])
             res.append("input: {}".format(input_vars))
             loop_string += ' for __i in input'
-            out_string = '[sos_hash_output("{0}.:%%:%{{0}}.%(output_suffix)".format("_".join(__i))) {1}]'.\
-                         format(':%:'.join(['exec={}'.format(cmds_md5)] \
-                                           + ['{0}=%(_{0})'.format(x) for x in params]),
-                                loop_string)
+            format_string = '.format({})'.\
+                            format(', '.join(['_{}'.format(s) for s in reversed(params)] + \
+                                             ['"_".join(__i)', 'output_suffix']))
+            out_string = '[sos_hash_output("{0} {{}}.{{}}"{1}) {2}]'.\
+                         format(' '.join(['exec={}'.format(cmds_md5)] \
+                                           + ['{0}={{}}'.format(x) for x in reversed(params)]),
+                                format_string, loop_string)
         else:
-            out_string = '[sos_hash_output("{0}.%(output_suffix)") {1}]'.\
-                         format(':%:'.join(['exec={}'.format(cmds_md5)] \
-                                           + ['{0}=%(_{0})'.format(x) for x in params]),
-                                loop_string)
+            format_string = '.format({})'.\
+                            format(', '.join(['_{}'.format(s) for s in reversed(params)] + ['output_suffix']))
+            out_string = '[sos_hash_output("{0}.{{}}"{1}) {2}]'.\
+                         format(' '.join(['exec={}'.format(cmds_md5)] \
+                                           + ['{0}={{}}'.format(x) for x in reversed(params)]),
+                                format_string, loop_string)
         res.append("output: {}".format(out_string))
         param_string = ["  exec: {}".format(step_data['exe'])]
-        param_string += ['  {0}: %(_{0})'.format(x) for x in params]
+        param_string += ['  {0}: _{0}'.format(x) for x in params]
         # meta data file
+        run_string = "params = [('{0}', ) {1}]".format(param_string, loop_string)
         res.append("run:\n## %(_output) %(sequence_id) %(_output!r).replace('.{}',''){}:\\n"\
                    "  sequence_id: %(sequence_id)\\n  sequence_name: %(sequence_name)\\n" \
                    "  step_name: %(step_name)\\n{}".\
