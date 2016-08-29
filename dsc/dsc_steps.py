@@ -471,7 +471,8 @@ class DSC2SoS:
         self.jobstr = []
         self.cleanup()
         for seq_idx, sequence in enumerate(data.data):
-            conf_header = 'from dsc.utils import sos_hash_output, sos_group_input\n'
+            conf_header = 'import msgpack\n'
+            conf_header += 'from dsc.utils import sos_hash_output, sos_group_input, chunks\n'
             conf_header += 'file_id = "{}"'.format(seq_idx + 1)
             job_header = 'file_id = "{}"'.format(seq_idx + 1)
             confstr = []
@@ -514,7 +515,7 @@ class DSC2SoS:
             (name of computational routine). Contents of this file are "input_names::output_names"
           * X.NAME.yaml.tmp: X = DSC sequence ID, NAME = value of DSC::output entry. Contents are
         '''
-        res = ['[{0}_{1}: alias = "{0}", sigil = "%( )"]'.format(step_data['name'], step_idx + 1)]
+        res = ['[{0}_{1}: alias = "{0}"]'.format(step_data['name'], step_idx + 1)]
         # Set params, make sure each time the ordering is the same
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
@@ -536,37 +537,44 @@ class DSC2SoS:
                 # Generate combinations of input files
                 res.append('input_files = sos_group_input([{}])'.\
                            format(', '.join(['{}.output'.format(x) for x in depend_steps])))
-                input_vars = "input_files, group_by = {}".format(len(depend_steps))
+                input_vars = "input_files"
             else:
-                input_vars = "{}.output, group_by = 'single'".format(depend_steps[0])
+                input_vars = "{}.output".format(depend_steps[0])
             res.append("input: {}".format(input_vars))
-            loop_string += ' for __i in input'
+            loop_string += ' for __i in chunks(input, {})'.format(len(depend_steps))
             format_string = '.format({})'.\
                             format(', '.join(['_{}'.format(s) for s in reversed(params)] + \
                                              ['"_".join(__i)', 'output_suffix']))
             out_string = '[sos_hash_output("{0} {{}}.{{}}"{1}) {2}]'.\
-                         format(' '.join(['exec={}'.format(cmds_md5)] \
-                                           + ['{0}={{}}'.format(x) for x in reversed(params)]),
+                         format(' '.join(['exec:{}'.format(cmds_md5)] \
+                                           + ['{0}:{{}}'.format(x) for x in reversed(params)]),
                                 format_string, loop_string)
         else:
             format_string = '.format({})'.\
                             format(', '.join(['_{}'.format(s) for s in reversed(params)] + ['output_suffix']))
             out_string = '[sos_hash_output("{0}.{{}}"{1}) {2}]'.\
-                         format(' '.join(['exec={}'.format(cmds_md5)] \
-                                           + ['{0}={{}}'.format(x) for x in reversed(params)]),
+                         format(' '.join(['exec:{}'.format(cmds_md5)] \
+                                           + ['{0}:{{}}'.format(x) for x in reversed(params)]),
                                 format_string, loop_string)
         res.append("output: {}".format(out_string))
-        param_string = ["  exec: {}".format(step_data['exe'])]
-        param_string += ['  {0}: _{0}'.format(x) for x in params]
-        # meta data file
-        run_string = "params = [('{0}', ) {1}]".format(param_string, loop_string)
-        res.append("run:\n## %(_output) %(sequence_id) %(_output!r).replace('.{}',''){}:\\n"\
-                   "  sequence_id: %(sequence_id)\\n  sequence_name: %(sequence_name)\\n" \
-                   "  step_name: %(step_name)\\n{}".\
-                   format(eval(step_data['output_ext']),
-                          ' %(_base)' if step_data['depends'] else '', '\\n'.join(param_string)))
-        res.append("run: active = -1\n## output::%(input!,)::%(output!,)" \
-                   "::%(file_id).%(sequence_id).%(step_name)\n")
+        param_string = '[([{0}], {1}) {2}]'.\
+                       format(', '.join(['("exec", "{}")'.format(step_data['exe'])] \
+                                          + ['("{0}", _{0})'.format(x) for x in reversed(params)]),
+                              None if '__i' not in loop_string else '\'{}.{}\'.format("_".join(__i), ' \
+                              'output_suffix)', loop_string)
+        key = '_res_[".".join((file_id, sequence_id, step_name))]'
+        run_string = "_params_ = {}\n_res_ = {{}}\n{} = {{}}\n".format(param_string, key)
+        if step_data['depends']:
+            run_string += "for x, y in zip(_params_, output):\n\t %s['{0} {1} {2}'"\
+                          ".format(y, sequence_id, x[1])] = dict([('sequence_id', sequence_id), "\
+                          "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
+        else:
+            run_string += "for x, y in zip(_params_, output):\n\t %s['{0} {1}'"\
+                          ".format(y, sequence_id)] = dict([('sequence_id', sequence_id), "\
+                          "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
+        run_string += '{0}["step_io"] = "{{}}::{{}}".format(",".join(input), ",".join(output))\n'.format(key)
+        run_string += 'if os.path.exists("{}.bjson".format(file_id)):\n\t_res_.update(msgpack.unpackb(open("{}.bjson".format(file_id), "rb").read()))\nopen("{}.bjson".format(file_id), "wb").write(msgpack.packb(_res_))\n'
+        res.append(run_string)
         return '\n'.join(res) + '\n'
 
     def __get_run_step(self, step_idx, step_data):

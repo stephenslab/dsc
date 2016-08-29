@@ -55,7 +55,7 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
-      install_requires = ['sos>=0.6.4', 'pyyaml', 'pandas>=0.18.0',
-                          'rpy2>=2.7.8', 'sympy', 'numexpr',
-                          'numpy']
+      install_requires = ['sos>=0.6.4', 'msgpack-python', 'pyyaml',
+                          'pandas>=0.18.0', 'rpy2>=2.7.8',
+                          'sympy', 'numexpr', 'numpy']
       )
