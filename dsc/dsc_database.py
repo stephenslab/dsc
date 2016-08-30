@@ -3,35 +3,15 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, yaml, json, glob
-from io import StringIO
+import os, msgpack, json, glob
 from collections import OrderedDict
 import pandas as pd
 from pysos.utils import Error
-from .utils import load_rds, save_rds, ordered_load, \
+from .utils import load_rds, save_rds, \
      flatten_list, flatten_dict, is_null
 import readline
 import rpy2.robjects.vectors as RV
 import rpy2.rinterface as RI
-
-def read_parameters(files):
-    data = OrderedDict()
-    for item in files:
-        lines = []
-        for line in open(item).readlines():
-            line = line.strip().split('\\n')
-            if line[0].startswith('##') and not line[0].startswith('## output::'):
-                line[0] = line[0].split()[2:]
-                if 'replace' in line[0][1]:
-                    if line[0][1].endswith(':'):
-                        line[0][1] = eval(line[0][1].strip(':')) + ':'
-                    else:
-                        line[0][1] = eval(line[0][1])
-                line[0] = '_'.join(line[0])
-                lines.extend(line)
-        with StringIO('\n'.join(lines)) as f:
-            data.update(ordered_load(f, yaml.SafeLoader))
-    return data
 
 class ResultDBError(Error):
     """Raised when there is a problem building the database."""
@@ -53,30 +33,44 @@ class ResultDB:
         self.last_block = []
         # key = block name, item = exec name
         self.groups = {}
-        self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(os.path.basename(db_name))))
+        self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
+        if os.path.isfile(self.data_prefix + '.map.pkg'):
+            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.pkg', 'rb').read(),
+                                        encoding = 'utf-8')
+        else:
+            raise ResultDBError("DSC file name database is corrupted!")
 
     def load_parameters(self):
+
         def search_dependent_index(x):
             res = None
             for ii, kk in enumerate(data.keys()):
-                if kk.split('_')[1] == x:
+                if kk.split()[0] == x:
                     res = ii + 1
                     break
             if res is None:
                 raise ResultDBError('Cannot find dependency step for output ``{}``!'.format(x))
             return res
         #
+        def find_namemap(x):
+            if x in self.maps:
+                return os.path.splitext(self.maps[x])[0]
+            raise ResultDBError('Cannot find name map for ``{}``'.format(x))
+        #
         try:
-            data = read_parameters(glob.glob('.sos/.dsc/{}.*.io.tmp'.format(os.path.basename(self.name))))
-        except FileNotFoundError:
+            data_all = msgpack.unpackb(open(self.dat_prefix + ".io.mpk", "rb").read(),
+                                    encoding = 'utf-8', object_pairs_hook = OrderedDict)
+        except:
             raise ResultDBError('Cannot load source data to build database!')
         seen = []
-        for k in list(data.keys()):
-            k1 = k.split('_', 1)[1]
-            if not k1 in seen:
-                seen.append(k1)
-            else:
-                del data[k]
+        data = OrderedDict()
+        for k0 in reversed(list(data_all.keys())):
+            for k in list(data_all[k0].keys()):
+                if k == 'DSC_IO_':
+                    continue
+                if not k in seen:
+                    data[k] = data_all[k0][k]
+                    seen.append(k)
         for idx, (k, v) in enumerate(data.items()):
             # each v is a dict
             # collect some meta info
@@ -111,21 +105,15 @@ class ResultDB:
                                               '``{1} (value {3})`` and ``{2} (value {4})``.'.\
                                               format(idx + 1, keys1, self.data[table]['step_id'], keys2))
             self.data[table]['step_id'].append(idx + 1)
-            k = k.split('_')
-            self.data[table]['return'].append(self.__find_namemap(k[1]))
-            if len(k) > 2:
+            k = k.split()
+            self.data[table]['return'].append(find_namemap(k[0]))
+            if len(k) > 1:
                 self.data[table]['depends'].append(search_dependent_index(k[-1]))
             else:
                 self.data[table]['depends'].append(None)
             for k1, v1 in v.items():
                 if k1 not in ['sequence_id', 'sequence_name', 'step_name', 'exec']:
                     self.data[table][k1].append(v1)
-
-    def __find_namemap(self, value):
-        for k in self.maps:
-            if os.path.splitext(k)[0] == value:
-                return os.path.splitext(self.maps[k])[0]
-        raise ResultDBError('Cannot find name map for ``{}``'.format(value))
 
     def __find_block(self, step):
         for k in self.groups:
@@ -260,23 +248,27 @@ class ConfigDB:
         - check if map file should be loaded, and load it
         - based on map file and file names in md5 style, remove irrelevant files from output folder
         - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
-        - create conf file based on map file and *.io.tmp
+        - create conf file based on map file and io file
         '''
-        def get_names(fn):
+        def get_names():
             names = []
-            for line in open(fn).readlines():
-                line = line.strip()
-                if line.startswith('##') and not line.startswith('## output::'):
-                    names.append(line.split()[1])
-            return names
+            for k in self.data:
+                for k1 in self.data[k]:
+                    if k1 != "DSC_IO_":
+                        names.append(k1.split()[0])
+            return sorted(set(names))
         #
+        self.pre = 'dsc'
         self.name = db_name
-        if os.path.isfile('.sos/.dsc/{}.map'.format(os.path.basename(db_name))) and not vanilla:
-            self.maps = yaml.load(open('.sos/.dsc/{}.map'.format(os.path.basename(db_name))))
+        self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
+        if os.path.isfile(self.dat_prefix + '.map.pkg') and not vanilla:
+            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.pkg', 'rb').read(),
+                                        encoding = 'utf-8')
         else:
             self.maps = {}
-        self.pre = 'dsc'
-        self.files = sorted(set(flatten_list([get_names(x) for x in glob.glob('.sos/.dsc/*.io.tmp')])))
+        self.data = msgpack.unpackb(open(self.dat_prefix + ".io.mpk", "rb").read(),
+                                    encoding = 'utf-8', object_pairs_hook = OrderedDict)
+        self.files = get_names()
         for k in list(self.maps.keys()):
             if k == 'NEXT_ID':
                 continue
@@ -297,30 +289,24 @@ class ConfigDB:
                 self.maps[item] = '{}{}{}'.format(self.pre, start_id, os.path.splitext(item)[1])
                 start_id += 1
         self.maps['NEXT_ID'] = start_id
-        with open('.sos/.dsc/{}.map'.format(os.path.basename(self.name)), 'w') as f:
-            f.write(yaml.dump(self.maps, default_flow_style=True))
+        open(self.dat_prefix + ".map.mpk", "wb").write(msgpack.packb(self.maps))
 
     def Build(self):
         self.RemoveObsoleteOutput()
         self.WriteMap()
-        self.data = {}
-        for f in glob.glob('.sos/.dsc/*.io.tmp'):
-            for line in open(f).readlines():
-                line = line.strip()
-                if not line.startswith('## output::'):
-                    continue
-                o, x, y, z = line.split('::')
-                fid, sid, name = z.split('.')
-                if fid not in self.data:
-                    self.data[fid] = {}
-                if sid not in self.data[fid]:
-                    self.data[fid][sid] = {}
-                if name not in self.data[fid][sid]:
-                    self.data[fid][sid][name] = {}
-                self.data[fid][sid][name]['input'] = [os.path.join(self.name, self.maps[item.strip()]) \
-                                                      for item in x.split(',') if item]
-                self.data[fid][sid][name]['output'] = [os.path.join(self.name, self.maps[item.strip()]) \
-                                                       for item in y.split(',') if item]
+        data = {}
+        for k in self.data:
+            fid, sid, name = k.split(':')
+            if fid not in data:
+                data[fid] = {}
+            if sid not in data[fid]:
+                data[fid][sid] = {}
+            if name not in data[fid][sid]:
+                data[fid][sid][name] = {}
+            data[fid][sid][name]['input'] = [os.path.join(self.name, self.maps[item]) \
+                                                  for item in self.data[k]['DSC_IO_'][0]]
+            data[fid][sid][name]['output'] = [os.path.join(self.name, self.maps[item]) \
+                                                   for item in self.data[k]['DSC_IO_'][1]]
         #
         with open('.sos/.dsc/{}.conf'.format(os.path.basename(self.name)), 'w') as f:
-            f.write(json.dumps(self.data))
+            f.write(json.dumps(data))

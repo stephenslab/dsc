@@ -469,9 +469,10 @@ class DSC2SoS:
         self.libpath = data.libpath
         self.confstr = []
         self.jobstr = []
-        self.cleanup()
+        self.confdb =  '.sos/.dsc/{}.io.mpk'.format(os.path.basename(data.output_prefix))
+        if os.path.isfile(self.confdb): os.remove(self.confdb)
         for seq_idx, sequence in enumerate(data.data):
-            conf_header = 'import msgpack\n'
+            conf_header = 'import msgpack\nfrom collections import OrderedDict\n'
             conf_header += 'from dsc.utils import sos_hash_output, sos_group_input, chunks\n'
             conf_header += 'file_id = "{}"'.format(seq_idx + 1)
             job_header = 'file_id = "{}"'.format(seq_idx + 1)
@@ -496,10 +497,6 @@ class DSC2SoS:
             self.confstr.append('{}\n{}'.format(conf_header + '\n', '\n'.join(confstr)))
             self.jobstr.append('{}\n{}'.format(job_header + '\n', '\n'.join(jobstr)))
 
-    def cleanup(self):
-        for item in glob.glob('.sos/.dsc/*.tmp'):
-            os.remove(item)
-
     def __call__(self):
         pass
 
@@ -510,10 +507,9 @@ class DSC2SoS:
     def __get_prepare_step(self, step_idx, step_data):
         '''
         This will produce source to build config and database for
-        parameters and file names
-          * X.Y.Z.io.tmp: X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
-            (name of computational routine). Contents of this file are "input_names::output_names"
-          * X.NAME.yaml.tmp: X = DSC sequence ID, NAME = value of DSC::output entry. Contents are
+        parameters and file names. The result is one binary json file (via msgpack)
+        with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
+            (name of indexed DSC block corresponding to a computational routine).
         '''
         res = ['[{0}_{1}: alias = "{0}"]'.format(step_data['name'], step_idx + 1)]
         # Set params, make sure each time the ordering is the same
@@ -560,20 +556,21 @@ class DSC2SoS:
         param_string = '[([{0}], {1}) {2}]'.\
                        format(', '.join(['("exec", "{}")'.format(step_data['exe'])] \
                                           + ['("{0}", _{0})'.format(x) for x in reversed(params)]),
-                              None if '__i' not in loop_string else '\'{}.{}\'.format("_".join(__i), ' \
-                              'output_suffix)', loop_string)
-        key = 'DSC_UPDATES_[".".join((file_id, sequence_id, step_name))]'
-        run_string = "DSC_PARAMS_ = {}\nDSC_UPDATES_ = {{}}\n{} = {{}}\n".format(param_string, key)
+                              None if '__i' not in loop_string else '\'{}\'.format(" ".join(__i))',
+                              loop_string)
+        key = 'DSC_UPDATES_[":".join((file_id, sequence_id, step_name))]'
+        run_string = "DSC_PARAMS_ = {}\nDSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".\
+                     format(param_string, key)
         if step_data['depends']:
-            run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s['{0} {1} {2}'"\
-                          ".format(y, sequence_id, x[1])] = dict([('sequence_id', sequence_id), "\
+            run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s[' '.join((y, x[1]))]"\
+                          " = OrderedDict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
         else:
-            run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s['{0} {1}'"\
-                          ".format(y, sequence_id)] = dict([('sequence_id', sequence_id), "\
+            run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s[y]"\
+                          " = OrderedDict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
-        run_string += '{0}["step_io"] = "{{}}::{{}}".format(",".join(input), ",".join(output))\n'.format(key)
-        run_string += 'if os.path.exists("{}.bjson".format(file_id)):\n\tDSC_UPDATES_.update(msgpack.unpackb(open("{}.bjson".format(file_id), "rb").read()))\nopen("{}.bjson".format(file_id), "wb").write(msgpack.packb(DSC_UPDATES_))\n'
+        run_string += '{0}["DSC_IO_"] = (input, output)\n'.format(key)
+        run_string += 'if os.path.exists("{0}"):\n\tDSC_UPDATES_.update(msgpack.unpackb(open("{0}", "rb").read(), object_pairs_hook = OrderedDict))\nopen("{0}", "wb").write(msgpack.packb(DSC_UPDATES_))\n'.format(self.confdb)
         res.append(run_string)
         return '\n'.join(res) + '\n'
 

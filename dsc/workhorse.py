@@ -15,7 +15,7 @@ from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
 from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
 
-def cmd_run(args, workflow_args, content, verbosity = 1, jobs = None, run_mode = 'run', transcript = None):
+def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None, run_mode = 'run'):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remainging processes when the master process is killed.
@@ -25,7 +25,7 @@ def cmd_run(args, workflow_args, content, verbosity = 1, jobs = None, run_mode =
     else:
         env.sig_mode = 'default'
     try:
-        script = SoS_Script(content=content, transcript = transcript)
+        script = SoS_Script(content=content, transcript = None)
         if run_mode == 'run':
             Sequential_Executor(script.workflow(args.workflow),
                           args = workflow_args, config_file = args.__config__).run()
@@ -61,12 +61,12 @@ def execute(args, argv):
             master = dsc_data['DSC']['master']
         except:
             master = None
-        return run_jobs, OrderedDict([(k, dsc_jobs.master_data[k]) for k in dsc_jobs.ordering]), dsc_data['DSC']['output'][0], db_name, master
+        return run_jobs, OrderedDict([(k, dsc_jobs.master_data[k]) for k in dsc_jobs.ordering]), dsc_data['DSC']['output'][0], master
     #
     env.verbosity = args.verbosity
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
-    run_jobs, section_content, db, db_name, master = setup()
+    run_jobs, section_content, db, master = setup()
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
     dsc2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',
@@ -75,7 +75,7 @@ def execute(args, argv):
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
     for idx, script in enumerate(run_jobs.confstr):
-        cmd_run(args, argv, script, verbosity = 0, jobs = 1, run_mode = 'inspect', transcript = None)
+        dsc_run(args, argv, script, verbosity = 0, jobs = 1, run_mode = 'inspect')
     ConfigDB(db, vanilla = args.__rerun__).Build()
     if args.__dryrun__:
         return
@@ -84,7 +84,7 @@ def execute(args, argv):
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     for script in run_jobs.jobstr:
-        cmd_run(args, argv, script, verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
+        dsc_run(args, argv, script, verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
