@@ -562,18 +562,18 @@ class DSC2SoS:
                                           + ['("{0}", _{0})'.format(x) for x in reversed(params)]),
                               None if '__i' not in loop_string else '\'{}.{}\'.format("_".join(__i), ' \
                               'output_suffix)', loop_string)
-        key = '_res_[".".join((file_id, sequence_id, step_name))]'
-        run_string = "_params_ = {}\n_res_ = {{}}\n{} = {{}}\n".format(param_string, key)
+        key = 'DSC_UPDATES_[".".join((file_id, sequence_id, step_name))]'
+        run_string = "DSC_PARAMS_ = {}\nDSC_UPDATES_ = {{}}\n{} = {{}}\n".format(param_string, key)
         if step_data['depends']:
-            run_string += "for x, y in zip(_params_, output):\n\t %s['{0} {1} {2}'"\
+            run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s['{0} {1} {2}'"\
                           ".format(y, sequence_id, x[1])] = dict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
         else:
-            run_string += "for x, y in zip(_params_, output):\n\t %s['{0} {1}'"\
+            run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s['{0} {1}'"\
                           ".format(y, sequence_id)] = dict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
         run_string += '{0}["step_io"] = "{{}}::{{}}".format(",".join(input), ",".join(output))\n'.format(key)
-        run_string += 'if os.path.exists("{}.bjson".format(file_id)):\n\t_res_.update(msgpack.unpackb(open("{}.bjson".format(file_id), "rb").read()))\nopen("{}.bjson".format(file_id), "wb").write(msgpack.packb(_res_))\n'
+        run_string += 'if os.path.exists("{}.bjson".format(file_id)):\n\tDSC_UPDATES_.update(msgpack.unpackb(open("{}.bjson".format(file_id), "rb").read()))\nopen("{}.bjson".format(file_id), "wb").write(msgpack.packb(DSC_UPDATES_))\n'
         res.append(run_string)
         return '\n'.join(res) + '\n'
 

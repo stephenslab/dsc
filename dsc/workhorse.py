@@ -15,16 +15,17 @@ from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
 from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
 
-def cmd_run(args, workflow_args, verbosity = 1, jobs = None,
-            sig_mode = 'default', run_mode = 'run', transcript = None):
+def cmd_run(args, workflow_args, content, verbosity = 1, jobs = None, run_mode = 'run', transcript = None):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remainging processes when the master process is killed.
     atexit.register(env.cleanup)
-    if args.__rerun__:
-        sig_mode = 'ignore'
+    if args.__rerun__ or run_mode != 'run':
+        env.sig_mode = 'ignore'
+    else:
+        env.sig_mode = 'default'
     try:
-        script = SoS_Script(content=args.script, transcript = transcript)
+        script = SoS_Script(content=content, transcript = transcript)
         if run_mode == 'run':
             Sequential_Executor(script.workflow(args.workflow),
                           args = workflow_args, config_file = args.__config__).run()
@@ -74,9 +75,7 @@ def execute(args, argv):
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
     for idx, script in enumerate(run_jobs.confstr):
-        args.script = script
-        cmd_run(args, argv, verbosity = 0, jobs = 1, sig_mode = 'ignore', run_mode = 'inspect',
-                transcript = None)
+        cmd_run(args, argv, script, verbosity = 0, jobs = 1, run_mode = 'inspect', transcript = None)
     ConfigDB(db, vanilla = args.__rerun__).Build()
     if args.__dryrun__:
         return
@@ -85,8 +84,7 @@ def execute(args, argv):
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     for script in run_jobs.jobstr:
-        args.script = script
-        cmd_run(args, argv, verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
+        cmd_run(args, argv, script, verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
