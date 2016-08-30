@@ -469,8 +469,10 @@ class DSC2SoS:
         self.libpath = data.libpath
         self.confstr = []
         self.jobstr = []
-        self.confdb =  '.sos/.dsc/{}.io.mpk'.format(os.path.basename(data.output_prefix))
-        if os.path.isfile(self.confdb): os.remove(self.confdb)
+        self.confdb =  '".sos/.dsc/{}.{{}}.mpk".format("_".join((file_id, sequence_id, step_name)))'.\
+                       format(os.path.basename(data.output_prefix))
+        self.confdb_list = '.sos/.dsc/{}.io'.format(os.path.basename(data.output_prefix))
+        if os.path.isfile(self.confdb_list): os.remove(self.confdb_list)
         for seq_idx, sequence in enumerate(data.data):
             conf_header = 'import msgpack\nfrom collections import OrderedDict\n'
             conf_header += 'from dsc.utils import sos_hash_output, sos_group_input, chunks\n'
@@ -570,7 +572,9 @@ class DSC2SoS:
                           " = OrderedDict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
         run_string += '{0}["DSC_IO_"] = (input, output)\n'.format(key)
-        run_string += 'if os.path.exists("{0}"):\n\tDSC_UPDATES_.update(msgpack.unpackb(open("{0}", "rb").read(), object_pairs_hook = OrderedDict))\nopen("{0}", "wb").write(msgpack.packb(DSC_UPDATES_))\n'.format(self.confdb)
+        run_string += 'open({0}, "wb").write(msgpack.packb(DSC_UPDATES_))\n'\
+                      'open("{1}", "a").write("_".join((file_id, sequence_id, step_name)) + "\\n")\n'.\
+                      format(self.confdb, self.confdb_list)
         res.append(run_string)
         return '\n'.join(res) + '\n'
 

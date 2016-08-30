@@ -64,7 +64,7 @@ class ResultDB:
             raise ResultDBError('Cannot load source data to build database!')
         seen = []
         data = OrderedDict()
-        for k0 in reversed(list(data_all.keys())):
+        for k0 in data_all.keys():
             for k in list(data_all[k0].keys()):
                 if k == 'DSC_IO_':
                     continue
@@ -155,8 +155,7 @@ class ResultDB:
             for step_idx, step_id in enumerate(self.data[step]['step_id']):
                 tmp = []
                 self.__get_sequence(step, step_id, step_idx, tmp)
-                tmp.reverse()
-                res.append(tmp)
+                res.append(reversed(tmp))
         data = {}
         for item in res:
             key = tuple([self.__find_block(x[0]) for x in item])
@@ -266,8 +265,12 @@ class ConfigDB:
                                         encoding = 'utf-8')
         else:
             self.maps = {}
-        self.data = msgpack.unpackb(open(self.dat_prefix + ".io.mpk", "rb").read(),
-                                    encoding = 'utf-8', object_pairs_hook = OrderedDict)
+        self.data = OrderedDict()
+        for item in [x.strip() for x in open(self.dat_prefix + ".io").readlines()]:
+            self.data.update(msgpack.unpackb(open("{}.{}.mpk".format(self.dat_prefix, item), "rb").read(),
+                                             encoding = 'utf-8', object_pairs_hook = OrderedDict))
+            os.remove("{}.{}.mpk".format(self.dat_prefix, item))
+        open("{}.io.mpk".format(self.dat_prefix), "wb").write(msgpack.packb(self.data))
         self.files = get_names()
         for k in list(self.maps.keys()):
             if k == 'NEXT_ID':
