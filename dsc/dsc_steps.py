@@ -571,7 +571,7 @@ class DSC2SoS:
             run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s[y]"\
                           " = OrderedDict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
-        run_string += '{0}["DSC_IO_"] = (input, output)\n'.format(key)
+        run_string += '{0}["DSC_IO_"] = (input if input is not None else [], output)\n'.format(key)
         run_string += 'open({0}, "wb").write(msgpack.packb(DSC_UPDATES_))\n'\
                       'open("{1}", "a").write("_".join((file_id, sequence_id, step_name)) + "\\n")\n'.\
                       format(self.confdb, self.confdb_list)

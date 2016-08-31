@@ -34,8 +34,8 @@ class ResultDB:
         # key = block name, item = exec name
         self.groups = {}
         self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
-        if os.path.isfile(self.data_prefix + '.map.pkg'):
-            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.pkg', 'rb').read(),
+        if os.path.isfile(self.dat_prefix + '.map.mpk'):
+            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.mpk', 'rb').read(),
                                         encoding = 'utf-8')
         else:
             raise ResultDBError("DSC file name database is corrupted!")
@@ -260,8 +260,8 @@ class ConfigDB:
         self.pre = 'dsc'
         self.name = db_name
         self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
-        if os.path.isfile(self.dat_prefix + '.map.pkg') and not vanilla:
-            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.pkg', 'rb').read(),
+        if os.path.isfile(self.dat_prefix + '.map.mpk') and not vanilla:
+            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.mpk', 'rb').read(),
                                         encoding = 'utf-8')
         else:
             self.maps = {}
