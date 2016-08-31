@@ -6,6 +6,7 @@ __license__ = "MIT"
 import os, msgpack, json, glob
 from collections import OrderedDict
 import pandas as pd
+import numpy as np
 from pysos.utils import Error
 from .utils import load_rds, save_rds, \
      flatten_list, flatten_dict, is_null
@@ -110,7 +111,7 @@ class ResultDB:
             if len(k) > 1:
                 self.data[table]['depends'].append(search_dependent_index(k[-1]))
             else:
-                self.data[table]['depends'].append(None)
+                self.data[table]['depends'].append(np.nan)
             for k1, v1 in v.items():
                 if k1 not in ['sequence_id', 'sequence_name', 'step_name', 'exec']:
                     self.data[table][k1].append(v1)
@@ -125,7 +126,7 @@ class ResultDB:
         '''Input are last step name, ID, and corresponding index (in its data frame)'''
         res.append((step, step_id))
         depend_id = self.data[step]['depends'][step_idx]
-        if depend_id is None:
+        if depend_id is np.nan:
             return
         else:
             idx = None
@@ -155,7 +156,7 @@ class ResultDB:
             for step_idx, step_id in enumerate(self.data[step]['step_id']):
                 tmp = []
                 self.__get_sequence(step, step_id, step_idx, tmp)
-                res.append(reversed(tmp))
+                res.append(list(reversed(tmp)))
         data = {}
         for item in res:
             key = tuple([self.__find_block(x[0]) for x in item])
