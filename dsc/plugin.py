@@ -102,9 +102,9 @@ class RPlug(BasePlug):
             pass
         if flag:
             res += load_out
-        res += '\n' + '\n'.join(self.input_alias)
+        res += '\n' + '\n'.join(sorted(self.input_alias))
         # load parameters
-        keys = [x for x in params if not x in self.container_vars]
+        keys = sorted([x for x in params if not x in self.container_vars])
         if 'seed' in keys:
             res += '\nset.seed(${_seed})'
             keys.remove('seed')
@@ -133,7 +133,7 @@ class RPlug(BasePlug):
 
     def set_container(self, name, value, params):
         keys = [x.strip() for x in value.split(',')] if value else list(params.keys())
-        keys = [x for x in keys if x != 'seed']
+        keys = sorted([x for x in keys if x != 'seed'])
         res = ['{} <- list()'.format(name)]
         for k in keys:
             res.append('%s$%s <- ${_%s}' % (name, k, k))
@@ -181,9 +181,9 @@ class PyPlug(BasePlug):
             pass
         if flag:
             res += load_out
-        res += '\n' + '\n'.join(self.input_alias)
+        res += '\n' + '\n'.join(sorted(self.input_alias))
         # load parameters
-        keys = [x for x in params if not x in self.container_vars]
+        keys = sorted([x for x in params if not x in self.container_vars])
         if 'seed' in keys:
             res += '\nimport random, numpy\nrandom.seed(${_seed})\nnumpy.random.seed(${_seed})'
             keys.remove('seed')
@@ -216,7 +216,7 @@ class PyPlug(BasePlug):
 
     def set_container(self, name, value, params):
         keys = [x.strip() for x in value.split(',')] if value else list(params.keys())
-        keys = [x for x in keys if x != 'seed']
+        keys = sorted([x for x in keys if x != 'seed'])
         res = ['{} = {{}}'.format(name)]
         for k in keys:
             res.append('%s[%s] = ${_%s}' % (name, k, k))
