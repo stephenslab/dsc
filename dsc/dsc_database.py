@@ -310,17 +310,15 @@ class ConfigDB:
         self.WriteMap()
         data = {}
         for k in self.data:
-            fid, sid, name = k.split(':')
-            if fid not in data:
-                data[fid] = {}
-            if sid not in data[fid]:
-                data[fid][sid] = {}
-            if name not in data[fid][sid]:
-                data[fid][sid][name] = {}
-            data[fid][sid][name]['input'] = [os.path.join(self.name, self.maps[item]) \
-                                                  for item in self.data[k]['DSC_IO_'][0]]
-            data[fid][sid][name]['output'] = [os.path.join(self.name, self.maps[item]) \
-                                                   for item in self.data[k]['DSC_IO_'][1]]
+            sid, name = k.split(':')
+            if sid not in data:
+                data[sid] = {}
+            if name not in data[sid]:
+                data[sid][name] = {}
+            data[sid][name]['input'] = [os.path.join(self.name, self.maps[item]) \
+                                        for item in self.data[k]['DSC_IO_'][0]]
+            data[sid][name]['output'] = [os.path.join(self.name, self.maps[item]) \
+                                         for item in self.data[k]['DSC_IO_'][1]]
         #
         with open('.sos/.dsc/{}.conf'.format(os.path.basename(self.name)), 'w') as f:
             f.write(json.dumps(data))

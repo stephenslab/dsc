@@ -467,53 +467,57 @@ class DSC2SoS:
     def __init__(self, data):
         self.output_prefix = data.output_prefix
         self.libpath = data.libpath
-        self.confstr = []
-        self.jobstr = []
-        self.confdb =  '".sos/.dsc/{}.{{}}.mpk".format("_".join((file_id, sequence_id, step_name)))'.\
+        self.confdb =  '".sos/.dsc/{}.{{}}.mpk".format("_".join((sequence_id, step_name)))'.\
                        format(os.path.basename(data.output_prefix))
         self.confdb_list = '.sos/.dsc/{}.io'.format(os.path.basename(data.output_prefix))
         if os.path.isfile(self.confdb_list): os.remove(self.confdb_list)
-        for seq_idx, sequence in enumerate(data.data):
-            conf_header = 'import msgpack\nfrom collections import OrderedDict\n'
-            conf_header += 'from dsc.utils import sos_hash_output, sos_group_input, chunks\n'
-            conf_header += 'file_id = "{}"'.format(seq_idx + 1)
-            job_header = 'file_id = "{}"'.format(seq_idx + 1)
-            confstr = []
-            jobstr = []
-            # Get steps
-            for blk_idx, block in enumerate(sequence):
-                for step_idx, step in enumerate(block):
-                    confstr.append(self.__get_prepare_step(step_idx, step))
-                    jobstr.append(self.__get_run_step(step_idx, step))
-            # Get workflows
-            seq, indices = data.sequences[seq_idx]
-            for idx, index in enumerate(indices):
+        conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
+                      'from dsc.utils import sos_hash_output, sos_group_input, chunks\n\n\n'
+        conf_steps = []
+        job_steps = []
+        confstr = []
+        jobstr = []
+        # Get steps
+        for sequence in data.data:
+            for block in sequence:
+                for step in block:
+                    name = "{0}_{1}".format(step['name'], step['exe_index'] + 1)
+                    if name not in conf_steps:
+                        confstr.append(self.__get_prepare_step(step))
+                        conf_steps.append(name)
+                    if name not in job_steps:
+                        jobstr.append(self.__get_run_step(step))
+                        job_steps.append(name)
+        # Get workflows
+        i = 1
+        for sequence in data.sequences:
+            seq, indices = sequence
+            for index in indices:
                 item = '+'.join(['{}_{}'.format(x, y + 1)
                                  for x, y in zip(seq, index)])
                 confstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
-                              format(idx + 1,
-                                     'sequence_id = "{}"\nsequence_name = "{}"'.format(idx + 1, item),
+                              format(i, 'sequence_id = "{}"\nsequence_name = "{}"'.format(i, item),
                                      item))
                 jobstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
-                              format(idx + 1, 'sequence_id = "{}"'.format(idx + 1), item))
-            self.confstr.append('{}\n{}'.format(conf_header + '\n', '\n'.join(confstr)))
-            self.jobstr.append('{}\n{}'.format(job_header + '\n', '\n'.join(jobstr)))
+                              format(i, 'sequence_id = "{}"'.format(i), item))
+                i += 1
+        self.confstr = conf_header + '\n'.join(confstr)
+        self.jobstr = '\n'.join(jobstr)
 
     def __call__(self):
         pass
 
     def __str__(self):
-        return  '\n{}'.format('#\n' * 5).join(self.confstr) + '\n' + '##\n' * 5 + \
-          '\n{}'.format('#\n' * 5).join(self.jobstr)
+        return  '{}'.format(self.confstr) + '\n\n' + '##\n' * 5 + '\n{}'.format(self.jobstr)
 
-    def __get_prepare_step(self, step_idx, step_data):
+    def __get_prepare_step(self, step_data):
         '''
         This will produce source to build config and database for
         parameters and file names. The result is one binary json file (via msgpack)
         with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
             (name of indexed DSC block corresponding to a computational routine).
         '''
-        res = ['[{0}_{1}: alias = "{0}"]'.format(step_data['name'], step_idx + 1)]
+        res = ['[{0}_{1}: alias = "{0}"]'.format(step_data['name'], step_data['exe_index'] + 1)]
         # Set params, make sure each time the ordering is the same
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
@@ -560,7 +564,7 @@ class DSC2SoS:
                                           + ['("{0}", _{0})'.format(x) for x in reversed(params)]),
                               None if '__i' not in loop_string else '\'{}\'.format(" ".join(__i))',
                               loop_string)
-        key = 'DSC_UPDATES_[":".join((file_id, sequence_id, step_name))]'
+        key = 'DSC_UPDATES_[":".join((sequence_id, step_name))]'
         run_string = "DSC_PARAMS_ = {}\nDSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".\
                      format(param_string, key)
         if step_data['depends']:
@@ -573,13 +577,13 @@ class DSC2SoS:
                           "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
         run_string += '{0}["DSC_IO_"] = (input if input is not None else [], output)\n'.format(key)
         run_string += 'open({0}, "wb").write(msgpack.packb(DSC_UPDATES_))\n'\
-                      'open("{1}", "a").write("_".join((file_id, sequence_id, step_name)) + "\\n")\n'.\
+                      'open("{1}", "a").write("_".join((sequence_id, step_name)) + "\\n")\n'.\
                       format(self.confdb, self.confdb_list)
         res.append(run_string)
         return '\n'.join(res) + '\n'
 
-    def __get_run_step(self, step_idx, step_data):
-        res = ["[{0}_{1}]".format(step_data['name'], step_idx + 1)]
+    def __get_run_step(self, step_data):
+        res = ["[{0}_{1}]".format(step_data['name'], step_data['exe_index'] + 1)]
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
@@ -587,14 +591,14 @@ class DSC2SoS:
         depend_steps = []
         for_each = 'for_each = %s' % repr(params) if len(params) else ''
         group_by = ''
-        input_var = 'input: CONFIG[file_id][sequence_id][step_name]["input"], dynamic = True, '
+        input_var = 'input: CONFIG[sequence_id][step_name]["input"], dynamic = True, '
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
             group_by = "group_by = {}".format(len(depend_steps))
         else:
             input_var = 'input:'
-        res.append('output_files = CONFIG[file_id][sequence_id][step_name]["output"]')
+        res.append('output_files = CONFIG[sequence_id][step_name]["output"]')
         if not (not for_each and input_var == 'input:'):
             res.append('{} {}'.format(input_var, ', '.join([group_by, for_each]).strip().strip(',')))
         res.append('output: output_files[_index]')
