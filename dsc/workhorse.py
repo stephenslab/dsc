@@ -115,26 +115,17 @@ def remove(args, argv):
                                'thus not processed.'.format(item, args.dsc_file))
     #
     data = load_rds(filename)
-    files_to_remove = ' '.join([' '.join([os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
-                                          for x in data[item]['return']])
-                                for item in to_remove if item in data])
-    map_to_remove = flatten_list([data[item]['return'].tolist() for item in to_remove if item in data])
+    files_to_remove = flatten_list([[os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
+                                     for x in data[item]['return']]
+                                    for item in to_remove if item in data])
     # delete files from disk
-    os.system('rm -f {}'.format(files_to_remove))
-    env.logger.debug('Removing files ``{}``'.format(repr(map_to_remove)))
-    # delete files from map file
-    filename = os.path.basename(dsc_data['DSC']['output'][0])
-    if os.path.isfile('.sos/.dsc/{}.map'.format(filename)):
-        maps = yaml.load(open('.sos/.dsc/{}.map'.format(filename)))
-        for k, v in list(maps.items()):
-            if k == 'NEXT_ID':
-                continue
-            if os.path.splitext(v)[0] in map_to_remove:
-                del maps[k]
-        with open('.sos/.dsc/{}.map'.format(filename), 'w') as f:
-            f.write(yaml.dump(maps, default_flow_style=True))
+    for f in files_to_remove:
+        try:
+            os.remove(f)
+        except:
+            pass
     env.logger.info('Force removed ``{}`` files from ``{}``.'.\
-                    format(len(map_to_remove),
+                    format(len(files_to_remove),
                            os.path.abspath(os.path.expanduser(dsc_data['DSC']['output'][0]))))
 
 def query(args, argv):
