@@ -386,8 +386,8 @@ class DSCJobs(dotdict):
                     # then it is there is no point to run this step because nothing new is produced!
                     master_data[item][step_idx]['to_plugin'] = True
                     master_data[item][step_idx]['output_ext'] = repr('rds')
-                # add exec position
-                master_data[item][step_idx]['exe_index'] = step_idx
+                # add exec identifier
+                master_data[item][step_idx]['exe_id'] = step_idx + 1
             res.append(master_data[item])
         return res
 
@@ -476,12 +476,24 @@ class DSC2SoS:
         job_steps = []
         confstr = []
         jobstr = []
+        step_map = {} # name map for steps
         # Get steps
-        for sequence in data.data:
+        for idx, sequence in enumerate(data.data):
+            step_map[idx] = {}
             for block in sequence:
                 for step in block:
-                    name = "{0}_{1}".format(step['name'], step['exe_index'] + 1)
+                    name = "{0}_{1}_{2}".\
+                           format(step['name'], step['exe_id'],
+                                  '_'.join([i[0] for i in step['depends']]))
                     if name not in conf_steps:
+                        pattern = re.compile("^{0}_{1}$|^{0}_[0-9]+_{1}$".\
+                                             format(step['name'], step['exe_id']))
+                        cnt = sum([len([k for k in step_map[i].keys() if pattern.match(k)])
+                                   for i in range(idx)])
+                        exe_id = step['exe_id']
+                        step['exe_id'] = "{0}_{1}".\
+                                         format(cnt, step['exe_id']) if cnt > 0 else step['exe_id']
+                        step_map[idx]["{}_{}".format(step['name'], exe_id)] = "{}_{}".format(step['name'], step['exe_id'])
                         confstr.append(self.__get_prepare_step(step))
                         conf_steps.append(name)
                     if name not in job_steps:
@@ -489,11 +501,11 @@ class DSC2SoS:
                         job_steps.append(name)
         # Get workflows
         i = 1
-        for sequence in data.sequences:
+        for idx, sequence in enumerate(data.sequences):
             seq, indices = sequence
             for index in indices:
-                item = '+'.join(['{}_{}'.format(x, y + 1)
-                                 for x, y in zip(seq, index)])
+                item = '+'.join(['{}_{}'.format(x, y + 1) if '{}_{}'.format(x, y + 1) not in step_map[idx]
+                                 else step_map[idx]['{}_{}'.format(x, y + 1)] for x, y in zip(seq, index)])
                 confstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
                               format(i, 'sequence_id = "{}"\nsequence_name = "{}"'.format(i, item),
                                      item))
@@ -516,7 +528,7 @@ class DSC2SoS:
         with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
             (name of indexed DSC block corresponding to a computational routine).
         '''
-        res = ['[{0}_{1}: alias = "{0}"]'.format(step_data['name'], step_data['exe_index'] + 1)]
+        res = ['[{0}_{1}: alias = "{0}"]'.format(step_data['name'], step_data['exe_id'])]
         # Set params, make sure each time the ordering is the same
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
@@ -582,7 +594,7 @@ class DSC2SoS:
         return '\n'.join(res) + '\n'
 
     def __get_run_step(self, step_data):
-        res = ["[{0}_{1}]".format(step_data['name'], step_data['exe_index'] + 1)]
+        res = ["[{0}_{1}]".format(step_data['name'], step_data['exe_id'])]
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))

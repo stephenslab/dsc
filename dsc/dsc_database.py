@@ -77,7 +77,9 @@ class ResultDB:
             # each v is a dict
             # collect some meta info
             table = v['exec']
-            block_name = v['step_name'].rsplit('_', 1)[0]
+            block_name = v['step_name'].split("_")[:-1]
+            block_name = '_'.join(block_name[:-1]) if (block_name[-1].isdigit() and len(block_name) > 1) \
+                         else '_'.join(block_name)
             if block_name not in self.groups:
                 self.groups[block_name] = []
             if table not in self.groups[block_name]:
