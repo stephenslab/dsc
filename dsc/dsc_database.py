@@ -8,7 +8,6 @@ from collections import OrderedDict
 import pandas as pd
 import numpy as np
 from pysos.utils import Error
-from pysos.signature import FileSignature
 from .utils import load_rds, save_rds, \
      flatten_list, flatten_dict, is_null
 import readline
@@ -284,18 +283,26 @@ class ConfigDB:
 
     def RemoveObsoleteOutput(self):
         # Remove file signature when files are deleted
+        runtime_dir = os.path.expanduser('~/.sos/.runtime') if os.path.isabs(os.path.expanduser(self.name)) \
+                      else '.sos/.runtime'
         for k, x in self.maps.items():
             if k == 'NEXT_ID':
                 continue
             x = os.path.join(self.name, x)
             if not os.path.isfile(x):
-                FileSignature(os.path.abspath(os.path.expanduser(x))).remove()
+                try:
+                    os.remove('{}/{}.file_info'.format(runtime_dir, x))
+                except:
+                    pass
         # Remove irrelevant files in the output file folder as well as their signature
         output_files = glob.glob('{}/*'.format(self.name))
         to_remove = [x for x in output_files if not os.path.basename(x) in self.maps.values()]
         for x in to_remove:
             os.remove(x)
-            FileSignature(os.path.abspath(os.path.expanduser(x))).remove()
+            try:
+                os.remove('{}/{}.file_info'.format(runtime_dir, x))
+            except:
+                pass
 
     def WriteMap(self):
         '''Update maps and write to disk'''
