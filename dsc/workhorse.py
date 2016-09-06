@@ -74,7 +74,7 @@ def execute(args, argv):
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, argv, run_jobs.confstr, verbosity = 0, jobs = 1, run_mode = 'inspect')
+    dsc_run(args, argv, run_jobs.conf_str, verbosity = 0, jobs = 1, run_mode = 'inspect')
     ConfigDB(db, vanilla = args.__rerun__).Build()
     if args.__dryrun__:
         return
@@ -82,7 +82,7 @@ def execute(args, argv):
     env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
-    dsc_run(args, argv, run_jobs.jobstr,
+    dsc_run(args, argv, run_jobs.job_str,
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here

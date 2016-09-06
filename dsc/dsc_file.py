@@ -403,23 +403,23 @@ class DSCFileLoader(DSCFileParser):
                 load_from_yaml(f, '<Input String>')
                 self.content = 'DSCStringIO.yml'
         has_dsc = False
-        blocks = self.__get_blocks(data)
         # Handle derived class
-        for block in blocks:
+        for block in self.__get_blocks(data):
             groups = re.search('^(.*?)\((.*?)\)$', block)
             if groups:
                 data[groups.group(1).strip()] = \
                   update_nested_dict(copy.deepcopy(data[groups.group(2).strip()]), data[block])
                 del data[block]
-        # Check invalid block names
         invalid_patterns = [re.compile(x) for x in ['']]
-        for block in blocks:
-            if not re.match(r'^[A-Za-z0-9_]+$', block):
-                raise FormatError("Block name should contain only alphanumeric letters or underscore: ``{}``".format(block))
-            if block.split('_')[-1].isdigit():
-                raise FormatError("Block name should not end with ``_{}``: ``{}``".format(block.split('_')[-1], block))
-        # Load data
         for block in list(data.keys()):
+            # Check invalid block names
+            if not re.match(r'^[A-Za-z0-9_]+$', block):
+                raise FormatError("Block name should contain only alphanumeric letters "\
+                                  "or underscore: ``{}``".format(block))
+            if block.split('_')[-1].isdigit():
+                raise FormatError("Block name should not end with ``_{}``: ``{}``".\
+                                  format(block.split('_')[-1], block))
+            # Load data
             if block == 'DSC':
                 # handle DSC section
                 has_dsc = True

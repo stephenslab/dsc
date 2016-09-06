@@ -472,54 +472,56 @@ class DSC2SoS:
         if os.path.isfile(self.confdb_list): os.remove(self.confdb_list)
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n\n\n'
-        conf_steps = []
+        processed_steps = {}
         job_steps = []
-        confstr = []
-        jobstr = []
-        step_map = {} # name map for steps
+        conf_str = []
+        job_str = []
+        self.step_map = {} # name map for steps
         # Get steps
         for idx, sequence in enumerate(data.data):
-            step_map[idx] = {}
+            self.step_map[idx] = {}
             for block in sequence:
                 for step in block:
                     name = "{0}_{1}_{2}".\
                            format(step['name'], step['exe_id'],
                                   '_'.join([i[0] for i in step['depends']]))
-                    if name not in conf_steps:
+                    exe_id = step['exe_id']
+                    if name not in processed_steps:
                         pattern = re.compile("^{0}_{1}$|^{0}_[0-9]+_{1}$".\
                                              format(step['name'], step['exe_id']))
-                        cnt = sum([len([k for k in step_map[i].keys() if pattern.match(k)])
-                                   for i in range(idx)])
-                        exe_id = step['exe_id']
+                        cnt = len([k for k in
+                                   set(flatten_list([list(self.step_map[i].values()) for i in range(idx)]))
+                                   if pattern.match(k)])
                         step['exe_id'] = "{0}_{1}".\
                                          format(cnt, step['exe_id']) if cnt > 0 else step['exe_id']
-                        step_map[idx]["{}_{}".format(step['name'], exe_id)] = "{}_{}".format(step['name'], step['exe_id'])
-                        confstr.append(self.__get_prepare_step(step))
-                        conf_steps.append(name)
-                    if name not in job_steps:
-                        jobstr.append(self.__get_run_step(step))
-                        job_steps.append(name)
+                        conf_str.append(self.__get_prepare_step(step))
+                        job_str.append(self.__get_run_step(step))
+                        processed_steps[name] = "{}_{}".format(step['name'], step['exe_id'])
+                    self.step_map[idx]["{}_{}".format(step['name'], exe_id)] = processed_steps[name]
         # Get workflows
         i = 1
         for idx, sequence in enumerate(data.sequences):
             seq, indices = sequence
             for index in indices:
-                item = '+'.join(['{}_{}'.format(x, y + 1) if '{}_{}'.format(x, y + 1) not in step_map[idx]
-                                 else step_map[idx]['{}_{}'.format(x, y + 1)] for x, y in zip(seq, index)])
-                confstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
+                item = '+'.join(['{}_{}'.format(x, y + 1)
+                                 if '{}_{}'.format(x, y + 1) not in self.step_map[idx]
+                                 else self.step_map[idx]['{}_{}'.format(x, y + 1)]
+                                 for x, y in zip(seq, index)])
+                conf_str.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
                               format(i, 'sequence_id = "{}"\nsequence_name = "{}"'.format(i, item),
                                      item))
-                jobstr.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
+                job_str.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
                               format(i, 'sequence_id = "{}"'.format(i), item))
                 i += 1
-        self.confstr = conf_header + '\n'.join(confstr)
-        self.jobstr = '\n'.join(jobstr)
+        self.conf_str = conf_header + '\n'.join(conf_str)
+        self.job_str = '\n'.join(job_str)
 
     def __call__(self):
         pass
 
     def __str__(self):
-        return  '{}'.format(self.confstr) + '\n\n' + '##\n' * 5 + '\n{}'.format(self.jobstr)
+        return '{}'.format(dict2str(self.step_map)) + '\n\n' + '##\n' * 5 \
+            + '\n{}'.format(self.conf_str) + '\n\n' + '##\n' * 5 + '\n{}'.format(self.job_str)
 
     def __get_prepare_step(self, step_data):
         '''
