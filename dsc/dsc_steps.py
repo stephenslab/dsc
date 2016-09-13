@@ -604,7 +604,7 @@ class DSC2SoS:
         depend_steps = []
         for_each = 'for_each = %s' % repr(params) if len(params) else ''
         group_by = ''
-        input_var = 'input: CONFIG[sequence_id][step_name]["input"], dynamic = True, '
+        input_var = 'input: dynamic(CONFIG[sequence_id][step_name]["input"]), '
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])

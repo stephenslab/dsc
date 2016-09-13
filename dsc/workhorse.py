@@ -82,6 +82,7 @@ def execute(args, argv):
     env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
+    env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     dsc_run(args, argv, run_jobs.job_str,
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
     # Extracting information as much as possible
