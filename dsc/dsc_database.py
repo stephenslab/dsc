@@ -260,7 +260,7 @@ class ConfigDB:
                         names.append(k1.split()[0])
             return sorted(set(names))
         #
-        self.pre = 'dsc'
+        self.pre = 'DSC'
         self.name = db_name
         self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
         if os.path.isfile(self.dat_prefix + '.map.mpk') and not vanilla:
@@ -275,34 +275,33 @@ class ConfigDB:
             os.remove("{}.{}.mpk".format(self.dat_prefix, item))
         open("{}.io.mpk".format(self.dat_prefix), "wb").write(msgpack.packb(self.data))
         self.files = get_names()
-        for k in list(self.maps.keys()):
-            if k == 'NEXT_ID':
-                continue
-            if k not in self.files:
-                del self.maps[k]
 
     def RemoveObsoleteOutput(self):
         # Remove file signature when files are deleted
-        runtime_dir = os.path.expanduser('~/.sos/.runtime') if os.path.isabs(os.path.expanduser(self.name)) \
+        runtime_dir = os.path.expanduser('~/.sos/.runtime') \
+                      if os.path.isabs(os.path.expanduser(self.name)) \
                       else '.sos/.runtime'
         for k, x in self.maps.items():
             if k == 'NEXT_ID':
                 continue
+            # # Remove obsolete output from map
+            # if k not in self.files:
+            #     del self.maps[k]
             x = os.path.join(self.name, x)
             if not os.path.isfile(x):
                 try:
                     os.remove('{}/{}.file_info'.format(runtime_dir, x))
                 except:
                     pass
-        # Remove irrelevant files in the output file folder as well as their signature
-        output_files = glob.glob('{}/*'.format(self.name))
-        to_remove = [x for x in output_files if not os.path.basename(x) in self.maps.values()]
-        for x in to_remove:
-            os.remove(x)
-            try:
-                os.remove('{}/{}.file_info'.format(runtime_dir, x))
-            except:
-                pass
+        # # Remove irrelevant files in the output file folder as well as their signature
+        # output_files = glob.glob('{}/*'.format(self.name))
+        # to_remove = [x for x in output_files if not os.path.basename(x) in self.maps.values()]
+        # for x in to_remove:
+        #     os.remove(x)
+        #     try:
+        #         os.remove('{}/{}.file_info'.format(runtime_dir, x))
+        #     except:
+        #         pass
 
     def WriteMap(self):
         '''Update maps and write to disk'''
