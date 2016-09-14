@@ -65,7 +65,8 @@ def execute(args, argv):
     #
     env.verbosity = args.verbosity
     if args.sequence:
-        env.logger.info("Load command line DSC sequence: ``{}``".format(', '.join(args.sequence)))
+        env.logger.info("Load command line DSC sequence: ``{}``".\
+                        format(' '.join(', '.join(args.sequence).split())))
     run_jobs, section_content, db, master = setup()
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
