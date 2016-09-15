@@ -20,7 +20,7 @@ pandas2ri.activate()
 import numpy as np
 import pandas as pd
 from pysos import SoS_Script
-from pysos.sos_executor import Sequential_Executor
+from pysos.sos_executor import Base_Executor
 from pysos.utils import env
 from pysos.signature import textMD5
 
@@ -456,6 +456,7 @@ def round_print(text, sep, pc = None):
 def install_r_libs(libs):
     if libs is None:
         return
+    verbosity = env.verbosity
     for value in libs:
         groups = re.search('(.*?)\((.*?)\)', value)
         if groups is not None:
@@ -463,10 +464,10 @@ def install_r_libs(libs):
             versions = [x.strip() for x in groups.group(2).split(',')]
         else:
             versions = None
-        script = SoS_Script('[0]\ncheck_R_library({}, {})'.format(repr(value), repr(versions)))
-        verbosity = env.verbosity
+        env.logger.info("Checking R library ``{}`` ...".format(value))
         env.verbosity = 0
-        Sequential_Executor(script.workflow()).run()
+        script = SoS_Script('[0]\ncheck_R_library({}, {})'.format(repr(value), repr(versions)))
+        Base_Executor(script.workflow()).prepare()
         env.verbosity = verbosity
 
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
