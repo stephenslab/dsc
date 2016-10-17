@@ -513,8 +513,8 @@ class DSC2SoS:
                 job_str.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
                               format(i, 'sequence_id = "{}"'.format(i), item))
                 i += 1
-        self.conf_str = conf_header + '\n'.join(conf_str)
-        self.job_str = '\n'.join(job_str)
+        self.conf_str = conf_header + '\n'.join([x for x in conf_str if not x.startswith('#')])
+        self.job_str = '\n'.join([x for x in job_str if not x.startswith('#')])
 
     def __call__(self):
         pass
