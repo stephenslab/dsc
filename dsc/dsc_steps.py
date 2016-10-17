@@ -8,7 +8,7 @@ This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
 import copy, re, os, glob, shutil
-from pysos import check_command
+from pysos.target import executable
 from pysos.utils import Error
 from pysos.signature import fileMD5, textMD5
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
@@ -117,7 +117,7 @@ class DSCJobs(dotdict):
         else:
             data.plugin = plugin
         # if data.plugin.name:
-        #     check_command(data.plugin.name)
+        #     executable(data.plugin.name)
         data.plugin.reset()
         data.parameters = []
         # FIXME: currently only one output ext is set
@@ -513,8 +513,8 @@ class DSC2SoS:
                 job_str.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
                               format(i, 'sequence_id = "{}"'.format(i), item))
                 i += 1
-        self.conf_str = conf_header + '\n'.join(conf_str)
-        self.job_str = '\n'.join(job_str)
+        self.conf_str = conf_header + '\n'.join([x for x in conf_str if not x.startswith('#')])
+        self.job_str = '\n'.join([x for x in job_str if not x.startswith('#')])
 
     def __call__(self):
         pass
@@ -530,7 +530,7 @@ class DSC2SoS:
         with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
             (name of indexed DSC block corresponding to a computational routine).
         '''
-        res = ['[{0}_{1}: alias = "{0}"]'.format(step_data['name'], step_data['exe_id'])]
+        res = ['[{0}_{1}: shared = {{"{0}_output": "output"}}]'.format(step_data['name'], step_data['exe_id'])]
         # Set params, make sure each time the ordering is the same
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
@@ -551,10 +551,10 @@ class DSC2SoS:
             if len(depend_steps) >= 2:
                 # Generate combinations of input files
                 res.append('input_files = sos_group_input([{}])'.\
-                           format(', '.join(['{}.output'.format(x) for x in depend_steps])))
+                           format(', '.join(['{}_output'.format(x) for x in depend_steps])))
                 input_vars = "input_files"
             else:
-                input_vars = "{}.output".format(depend_steps[0])
+                input_vars = "{}_output".format(depend_steps[0])
             res.append("input: {}".format(input_vars))
             loop_string += ' for __i in chunks(input, {})'.format(len(depend_steps))
             format_string = '.format({})'.\
@@ -652,6 +652,6 @@ class DSC2SoS:
                     raise StepError("Cannot find script ``{}``!".format(cmd.split()[0]))
                 res.append(script)
             else:
-                check_command(cmd.split()[0])
+                executable(cmd.split()[0])
                 res.append('\n{}\n'.format(cmd))
         return '\n'.join(res) + '\n'

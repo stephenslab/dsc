@@ -19,7 +19,7 @@ from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 import numpy as np
 import pandas as pd
-from pysos import SoS_Script
+from pysos.sos_script import SoS_Script
 from pysos.sos_executor import Base_Executor
 from pysos.utils import env
 from pysos.signature import textMD5

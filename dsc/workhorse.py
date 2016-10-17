@@ -8,34 +8,52 @@ import os, sys, atexit, re, yaml, fnmatch
 import pandas as pd
 from collections import OrderedDict
 from pysos.sos_script import SoS_Script
-from pysos.sos_executor import Base_Executor, Sequential_Executor
+from pysos.sos_executor import Base_Executor, MP_Executor, RQ_Executor
 from pysos.utils import env, get_traceback
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
 from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
 
-def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None, run_mode = 'run'):
+def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
+            run_mode = 'run', bin_dirs = None, queue = 'rq'):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remainging processes when the master process is killed.
     atexit.register(env.cleanup)
     if args.__rerun__ or run_mode != 'run':
         env.sig_mode = 'ignore'
+    elif run_mode == 'construct':
+        env.sig_mode = 'construct'
     else:
         env.sig_mode = 'default'
+    if bin_dirs:
+        for d in bin_dirs:
+            with fasteners.InterProcessLock('/tmp/sos_lock_bin'):
+                if d == '~/.sos/bin' and not os.path.isdir(os.path.expanduser(d)):
+                    os.makedirs(os.path.expanduser(d))
+                elif not os.path.isdir(os.path.expanduser(d)):
+                    raise ValueError('directory does not exist: {}'.format(d))
+        os.environ['PATH'] = os.pathsep.join([os.path.expanduser(x) for x in bin_dirs]) + os.pathsep + os.environ['PATH']
     try:
         script = SoS_Script(content=content, transcript = None)
-        if run_mode == 'run':
-            Sequential_Executor(script.workflow(args.workflow),
-                          args = workflow_args, config_file = args.__config__).run()
+        workflow = script.workflow(args.workflow)
+        if queue is None or env.max_jobs == 1:
+            # single process executor
+            executor = Base_Executor(workflow, args=workflow_args, config_file=args.__config__)
+        elif queue is None:
+            executor = MP_Executor(workflow, args=workflow_args, config_file=args.__config__)
         else:
-            Base_Executor(script.workflow(args.workflow),
-                          args = workflow_args, config_file = args.__config__).inspect()
+            executor = RQ_Executor(workflow, args=workflow_args, config_file=args.__config__)
+        if run_mode == 'run':
+            executor.run()
+        else:
+            executor.dryrun()
     except Exception as e:
         if verbosity and verbosity > 2:
             sys.stderr.write(get_traceback())
         env.logger.error(e)
+        raise
         sys.exit(1)
     env.verbosity = args.verbosity
 
@@ -75,7 +93,7 @@ def execute(args, argv):
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, argv, run_jobs.conf_str, verbosity = 0, jobs = 1, run_mode = 'inspect')
+    dsc_run(args, argv, run_jobs.conf_str, verbosity = 0, jobs = 1, run_mode = 'dryrun')
     ConfigDB(db, vanilla = args.__rerun__).Build()
     if args.__dryrun__:
         return
