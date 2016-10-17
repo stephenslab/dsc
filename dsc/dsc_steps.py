@@ -510,8 +510,8 @@ class DSC2SoS:
                 conf_str.append("[DSC_{0}]\nsos_run('{2}', {1})".\
                               format(i, 'sequence_id = "{}", sequence_name = "{}"'.format(i, item),
                                      item))
-                job_str.append("[DSC_{0}]\nsos_run('{2}', {1})".\
-                              format(i, 'sequence_id = "{}"'.format(i), item))
+                job_str.append("[DSC_{0} ({3})]\nsos_run('{2}', {1})".\
+                              format(i, 'sequence_id = "{}"'.format(i), item, "DSC sequence {}".format(i)))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = '\n'.join(job_str)

@@ -16,7 +16,7 @@ from .dsc_database import ResultDB, ConfigDB
 from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
 
 def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
-            run_mode = 'run', queue = 'rq'):
+            run_mode = 'run', queue = None):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remainging processes when the master process is killed.
