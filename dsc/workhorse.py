@@ -16,7 +16,7 @@ from .dsc_database import ResultDB, ConfigDB
 from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
 
 def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
-            run_mode = 'run', bin_dirs = None, queue = 'rq'):
+            run_mode = 'run', queue = 'rq'):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remainging processes when the master process is killed.
@@ -27,14 +27,6 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
         env.sig_mode = 'construct'
     else:
         env.sig_mode = 'default'
-    if bin_dirs:
-        for d in bin_dirs:
-            with fasteners.InterProcessLock('/tmp/sos_lock_bin'):
-                if d == '~/.sos/bin' and not os.path.isdir(os.path.expanduser(d)):
-                    os.makedirs(os.path.expanduser(d))
-                elif not os.path.isdir(os.path.expanduser(d)):
-                    raise ValueError('directory does not exist: {}'.format(d))
-        os.environ['PATH'] = os.pathsep.join([os.path.expanduser(x) for x in bin_dirs]) + os.pathsep + os.environ['PATH']
     try:
         script = SoS_Script(content=content, transcript = None)
         workflow = script.workflow(args.workflow)
@@ -53,7 +45,6 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
         if verbosity and verbosity > 2:
             sys.stderr.write(get_traceback())
         env.logger.error(e)
-        raise
         sys.exit(1)
     env.verbosity = args.verbosity
 
