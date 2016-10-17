@@ -507,10 +507,10 @@ class DSC2SoS:
                                  if '{}_{}'.format(x, y + 1) not in self.step_map[idx]
                                  else self.step_map[idx]['{}_{}'.format(x, y + 1)]
                                  for x, y in zip(seq, index)])
-                conf_str.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
-                              format(i, 'sequence_id = "{}"\nsequence_name = "{}"'.format(i, item),
+                conf_str.append("[DSC_{0}]\nsos_run('{2}', {1})".\
+                              format(i, 'sequence_id = "{}", sequence_name = "{}"'.format(i, item),
                                      item))
-                job_str.append("[DSC_{0}]\n{1}\nsos_run('{2}')".\
+                job_str.append("[DSC_{0}]\nsos_run('{2}', {1})".\
                               format(i, 'sequence_id = "{}"'.format(i), item))
                 i += 1
         self.conf_str = conf_header + '\n'.join([x for x in conf_str if not x.startswith('#')])
