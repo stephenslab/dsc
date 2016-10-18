@@ -16,7 +16,7 @@ from pysos.utils import logger, Error
 from pysos.signature import textMD5
 from .utils import dotdict, is_null, str2num, non_commutative_symexpand, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_dict, \
-     try_get_value, dict2str, update_nested_dict, uniq_list, set_nested_value, \
+     try_get_value, dict2str, update_nested_dict, set_nested_value, \
      no_duplicates_constructor, install_r_libs
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
@@ -410,7 +410,6 @@ class DSCFileLoader(DSCFileParser):
                 data[groups.group(1).strip()] = \
                   update_nested_dict(copy.deepcopy(data[groups.group(2).strip()]), data[block])
                 del data[block]
-        invalid_patterns = [re.compile(x) for x in ['']]
         for block in list(data.keys()):
             # Check invalid block names
             if not re.match(r'^[A-Za-z0-9_]+$', block):

@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, msgpack, json, glob
+import os, msgpack, json
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
@@ -263,7 +263,6 @@ class ConfigDB:
                         names.append((prefix, k1.split()[0]))
             return sorted(set(names))
         #
-        self.pre = 'DSC'
         self.name = db_name
         self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
         if os.path.isfile(self.dat_prefix + '.map.mpk') and not vanilla:

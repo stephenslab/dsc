@@ -8,7 +8,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 import sys, argparse
 from dsc import PACKAGE, VERSION
 from pysos.utils import logger, get_traceback
-from .workhorse import execute, remove, query
+from .workhorse import execute, query
 from .utils import Timer
 
 def main():

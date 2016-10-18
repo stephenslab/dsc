@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, re, yaml, fnmatch
+import os, sys, atexit, re, fnmatch
 import pandas as pd
 from collections import OrderedDict
 from pysos.sos_script import SoS_Script
@@ -50,7 +50,7 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
     env.verbosity = args.verbosity
 
 
-def remove(dsc_jobs, steps, db):
+def remove(dsc_jobs, dsc_data, steps, db):
     filename = os.path.basename(db) + '.rds'
     if not os.path.isfile(filename):
         raise ValueError('Cannot remove output because DSC database ``{}`` is not found!'.format(filename))
@@ -100,7 +100,7 @@ def execute(args, argv):
         except:
             master = None
         section_content = OrderedDict([(k, dsc_jobs.master_data[k]) for k in dsc_jobs.ordering])
-        return run_jobs, dsc_jobs, section_content, dsc_data['DSC']['output'][0], master
+        return run_jobs, dsc_jobs, dsc_data, section_content, dsc_data['DSC']['output'][0], master
     #
     if args.host is not None:
         queue = 'rq'
@@ -111,9 +111,9 @@ def execute(args, argv):
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.sequence).split())))
-    run_jobs, dsc_jobs, section_content, db, master = setup()
+    run_jobs, dsc_jobs, dsc_data, section_content, db, master = setup()
     if args.to_remove:
-        remove(dsc_jobs, args.to_remove, db)
+        remove(dsc_jobs, dsc_data, args.to_remove, db)
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
     dsc2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',

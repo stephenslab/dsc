@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
-import copy, re, os, glob, shutil
+import copy, re, os
 from pysos.target import executable
 from pysos.utils import Error
 from pysos.signature import fileMD5, textMD5
@@ -473,7 +473,6 @@ class DSC2SoS:
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n\n\n'
         processed_steps = {}
-        job_steps = []
         conf_str = []
         job_str = []
         self.step_map = {} # name map for steps
