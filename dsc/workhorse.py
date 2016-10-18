@@ -13,7 +13,7 @@ from pysos.utils import env, get_traceback
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
-from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
+from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html, rq_worker
 
 def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
             run_mode = 'run', queue = None):
@@ -72,6 +72,12 @@ def execute(args, argv):
             master = None
         return run_jobs, OrderedDict([(k, dsc_jobs.master_data[k]) for k in dsc_jobs.ordering]), dsc_data['DSC']['output'][0], master
     #
+    if args.host is not None:
+        # rq_worker(args.host)
+        queue = 'rq'
+        args.verbosity = 1 if args.verbosity == 2 else args.verbosity
+    else:
+        queue = None
     env.verbosity = args.verbosity
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".\
@@ -94,7 +100,8 @@ def execute(args, argv):
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     dsc_run(args, argv, run_jobs.job_str,
-            verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
+            verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
+            queue = queue)
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))

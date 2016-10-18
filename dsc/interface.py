@@ -33,11 +33,13 @@ def main():
     p.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''DSC output filename/directory. When used, it will override the
                    specification in DSC script''')
-    p.add_argument('-j', type=int, metavar='N', default=1, dest='__max_jobs__',
-                   help='''Number of concurrent processes allowed.''')
     p.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
     p.add_argument('-f', action='store_true', dest='__rerun__',
                    help='''Force executing DSC afresh regardless of already created results.''')
+    p.add_argument('-j', type=int, metavar='N', default=1, dest='__max_jobs__',
+                   help='''Number of concurrent processes allowed.''')
+    p.add_argument('--host', metavar='URL',
+                   help='''URL of Redis server for distributed computation.''')
     add_common_args(p)
     p.set_defaults(func = execute)
     p = subparsers.add_parser('rm', help = 'Remove output of given steps',

@@ -574,3 +574,13 @@ def dsc2html(content, to_file, title, section_content = {}):
                 f.write('\n</code></pre></div>\n')
             f.write('</div></div></div></div>\n')
         f.write('\n</div></body></html>')
+
+def rq_worker(host_url):
+     import redis
+     from rq import Worker, Queue, Connection
+     listen = ['high', 'default', 'low']
+     redis_url = 'redis://' + host_url
+     conn = redis.from_url(redis_url)
+     with Connection(conn):
+          worker = Worker(map(Queue, listen))
+          worker.work()
