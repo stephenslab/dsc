@@ -13,10 +13,10 @@ from pysos.utils import env, get_traceback
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
-from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html
+from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html, rq_worker
 
 def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
-            run_mode = 'run', bin_dirs = None, queue = 'rq'):
+            run_mode = 'run', queue = None):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remainging processes when the master process is killed.
@@ -27,14 +27,6 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
         env.sig_mode = 'construct'
     else:
         env.sig_mode = 'default'
-    if bin_dirs:
-        for d in bin_dirs:
-            with fasteners.InterProcessLock('/tmp/sos_lock_bin'):
-                if d == '~/.sos/bin' and not os.path.isdir(os.path.expanduser(d)):
-                    os.makedirs(os.path.expanduser(d))
-                elif not os.path.isdir(os.path.expanduser(d)):
-                    raise ValueError('directory does not exist: {}'.format(d))
-        os.environ['PATH'] = os.pathsep.join([os.path.expanduser(x) for x in bin_dirs]) + os.pathsep + os.environ['PATH']
     try:
         script = SoS_Script(content=content, transcript = None)
         workflow = script.workflow(args.workflow)
@@ -53,7 +45,6 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
         if verbosity and verbosity > 2:
             sys.stderr.write(get_traceback())
         env.logger.error(e)
-        raise
         sys.exit(1)
     env.verbosity = args.verbosity
 
@@ -81,6 +72,12 @@ def execute(args, argv):
             master = None
         return run_jobs, OrderedDict([(k, dsc_jobs.master_data[k]) for k in dsc_jobs.ordering]), dsc_data['DSC']['output'][0], master
     #
+    if args.host is not None:
+        # rq_worker(args.host)
+        queue = 'rq'
+        args.verbosity = 1 if args.verbosity == 2 else args.verbosity
+    else:
+        queue = None
     env.verbosity = args.verbosity
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".\
@@ -103,7 +100,8 @@ def execute(args, argv):
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     dsc_run(args, argv, run_jobs.job_str,
-            verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity))
+            verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
+            queue = queue)
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
