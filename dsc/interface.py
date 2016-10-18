@@ -12,19 +12,13 @@ from .workhorse import execute, remove, query
 from .utils import Timer
 
 def main():
-    def add_common_args(obj):
-        obj.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
-                         help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
-                         information.''')
-        obj.add_argument('--debug', action='store_true', help = argparse.SUPPRESS)
-    #
-    parser = argparse.ArgumentParser(description = __doc__)
-    parser.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
-    subparsers = parser.add_subparsers(dest = 'subcommands')
-    subparsers.required = True
-    p = subparsers.add_parser('exec', help = 'Execute DSC',
-                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument('dsc_file', metavar = "dsc_file", help = 'DSC file')
+    p = argparse.ArgumentParser(description = __doc__)
+    p.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
+    p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
+                   help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
+                   information.''')
+    p.add_argument('--debug', action='store_true', help = argparse.SUPPRESS)
+    p.add_argument('dsc_file', metavar = "DSC file", help = '')
     p.add_argument('-s', '--sequence', metavar = "str", nargs = '+',
                    help = '''DSC sequence to be executed. It will override the DSC::run
                    entry when specified. Multiple sequences are allowed. Each input should be
@@ -33,40 +27,21 @@ def main():
     p.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''DSC output filename/directory. When used, it will override the
                    specification in DSC script''')
-    p.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
-    p.add_argument('-f', action='store_true', dest='__rerun__',
+    p1 = p.add_argument_group("Execute DSC")
+    p1.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
+    p1.add_argument('-f', action='store_true', dest='__rerun__',
                    help='''Force executing DSC afresh regardless of already created results.''')
-    p.add_argument('-j', type=int, metavar='N', default=1, dest='__max_jobs__',
+    p1.add_argument('-j', type=int, metavar='N', default=1, dest='__max_jobs__',
                    help='''Number of concurrent processes allowed.''')
-    p.add_argument('--host', metavar='URL',
+    p1.add_argument('--host', metavar='str',
                    help='''URL of Redis server for distributed computation.''')
-    add_common_args(p)
-    p.set_defaults(func = execute)
-    p = subparsers.add_parser('rm', help = 'Remove output of given steps',
-                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument('dsc_file', metavar = "dsc_file", help = 'DSC file')
-    p.add_argument('-s', '--step', metavar = "str", nargs = '+',
+    p2 = p.add_argument_group("Remove DSC")
+    p2.add_argument('-r', '--to_remove', metavar = "str", nargs = '+',
                    help = '''DSC steps whose output are to be removed. Multiple steps are allowed.
                    Each step should be a quoted string defining a valid DSC step, in the format of
                    "block_name[step_index]". Multiple such steps should be separated by space.''')
-    p.add_argument('-o', metavar = "str", dest = 'output',
-                   help = '''DSC output filename/directory. There is no need to set it unless it is
-                   different from that specified in the DSC script''')
-    add_common_args(p)
-    p.set_defaults(func = remove)
-    p = subparsers.add_parser('query', help = 'A simple command interface to query the output database.',
-                              formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument('dsc_db', metavar = "dsc_db", help = 'DSC output database')
-    p.add_argument('-t', dest = 'master', metavar = 'master', required = True,
-                   help = 'Name of master table to query from.')
-    p.add_argument('-q', dest = 'queries', metavar = 'queries', nargs = '+', required = True,
-                   help = 'Queries to run. Please see DSC2 documentation for details.')
-    p.add_argument('-o', dest = 'output', metavar = 'columns',
-                   help = 'Patterns of desired output columns. Please see DSC2 documentation for details.')
-    p.add_argument('--no-header', dest = 'no_header', action='store_true',
-                   help = 'Do not display header in output')
-    p.set_defaults(func = query)
-    args, argv = parser.parse_known_args()
+    p.set_defaults(func = execute)
+    args, argv = p.parse_known_args()
     try:
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
             args.func(args, argv)
@@ -76,3 +51,23 @@ def main():
         else:
             logger.error(e)
         sys.exit(1)
+
+def main_viz():
+    p = argparse.ArgumentParser(description = __doc__ + " (the visualization module)")
+    p.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
+    p.add_argument('dsc_db', metavar = 'DSC output database', help = '')
+    p1 = p.add_argument_group("Output query")
+    p1.add_argument('-t', dest = 'master', metavar = 'str', required = True,
+                   help = 'Name of master table to query from.')
+    p1.add_argument('-q', dest = 'queries', metavar = 'str', nargs = '+', required = True,
+                   help = 'Queries to run. Please see DSC2 documentation for details.')
+    p1.add_argument('-o', dest = 'output', metavar = 'str',
+                   help = 'Patterns of desired output columns. Please see DSC2 documentation for details.')
+    p1.add_argument('--no-header', dest = 'no_header', action='store_true',
+                   help = 'Do not display header in output')
+    p1.set_defaults(func = query)
+    args, argv = p.parse_known_args()
+    try:
+        args.func(args, argv)
+    except Exception as e:
+        sys.exit(e)

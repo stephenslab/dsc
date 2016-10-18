@@ -14,13 +14,13 @@ from pysos.main import cmd_remove
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
-from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html, rq_worker
+from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html, dotdict
 
 def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
             run_mode = 'run', queue = None):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
-    # kill all remainging processes when the master process is killed.
+    # kill all remaining processes when the master process is killed.
     atexit.register(env.cleanup)
     if args.__rerun__ or run_mode != 'run':
         env.sig_mode = 'ignore'
@@ -49,6 +49,34 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
         sys.exit(1)
     env.verbosity = args.verbosity
 
+
+def remove(dsc_jobs, steps, db):
+    filename = os.path.basename(db) + '.rds'
+    if not os.path.isfile(filename):
+        raise ValueError('Cannot remove output because DSC database ``{}`` is not found!'.format(filename))
+    to_remove = []
+    for item in steps:
+        block, step_idx = get_slice(item, mismatch_quit = False)
+        removed = False
+        for sequence in dsc_jobs.data:
+            for steps in sequence:
+                for step in steps:
+                    if step['name'] == block and (step_idx is None or step_idx == step['exe_index']):
+                        tmp = re.sub(r'[^\w' + '_.' + ']', '_', step['exe'])
+                        if tmp not in to_remove:
+                            to_remove.append(tmp)
+                        removed = True
+        if removed is False:
+            env.logger.warning('Cannot find step ``{}`` in DSC run sequence specified; '\
+                               'thus not processed.'.format(item))
+    #
+    data = load_rds(filename)
+    to_remove = flatten_list([[os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
+                               for x in data[item]['return']]
+                              for item in to_remove if item in data])
+    cmd_remove(dotdict({"__tracked__": to_remove, "targets": to_remove}), [])
+
+
 def execute(args, argv):
     def setup():
         args.workflow = 'DSC'
@@ -71,10 +99,10 @@ def execute(args, argv):
             master = dsc_data['DSC']['master']
         except:
             master = None
-        return run_jobs, OrderedDict([(k, dsc_jobs.master_data[k]) for k in dsc_jobs.ordering]), dsc_data['DSC']['output'][0], master
+        section_content = OrderedDict([(k, dsc_jobs.master_data[k]) for k in dsc_jobs.ordering])
+        return run_jobs, dsc_jobs, section_content, dsc_data['DSC']['output'][0], master
     #
     if args.host is not None:
-        # rq_worker(args.host)
         queue = 'rq'
         args.verbosity = 1 if args.verbosity == 2 else args.verbosity
     else:
@@ -83,7 +111,9 @@ def execute(args, argv):
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.sequence).split())))
-    run_jobs, section_content, db, master = setup()
+    run_jobs, dsc_jobs, section_content, db, master = setup()
+    if args.to_remove:
+        remove(dsc_jobs, args.to_remove, db)
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
     dsc2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',
@@ -108,36 +138,6 @@ def execute(args, argv):
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
     ResultDB(db, master).Build(script = dsc_script)
     env.logger.info("DSC complete!")
-
-def remove(args, argv):
-    env.verbosity = args.verbosity
-    dsc_data = DSCData(args.dsc_file, output = args.output)
-    dsc_jobs = DSCJobs(dsc_data)
-    filename = os.path.basename(dsc_data['DSC']['output'][0]) + '.rds'
-    if not os.path.isfile(filename):
-        raise ValueError('Cannot remove output because DSC database ``{}`` is not found!'.format(filename))
-    to_remove = []
-    for item in args.step:
-        block, step_idx = get_slice(item, mismatch_quit = False)
-        removed = False
-        for sequence in dsc_jobs.data:
-            for steps in sequence:
-                for step in steps:
-                    if step['name'] == block and (step_idx is None or step_idx == step['exe_index']):
-                        tmp = re.sub(r'[^\w' + '_.' + ']', '_', step['exe'])
-                        if tmp not in to_remove:
-                            to_remove.append(tmp)
-                        removed = True
-        if removed is False:
-            env.logger.warning('Cannot find step ``{}`` in DSC run sequence defined in ``{}``; '\
-                               'thus not processed.'.format(item, args.dsc_file))
-    #
-    data = load_rds(filename)
-    args.__tracked__ = args.targets = \
-                       flatten_list([[os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
-                                      for x in data[item]['return']]
-                                     for item in to_remove if item in data])
-    cmd_remove(args, argv)
 
 def query(args, argv):
     def get_id(query, target = None):
