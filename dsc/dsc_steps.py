@@ -560,17 +560,17 @@ class DSC2SoS:
             format_string = '.format({})'.\
                             format(', '.join(['_{}'.format(s) for s in reversed(params)] + \
                                              ['"_".join(__i)', 'output_suffix']))
-            out_string = '[sos_hash_output("{0} {{}}.{{}}"{1}) {2}]'.\
+            out_string = '[sos_hash_output("{0} {{}}.{{}}"{1}, prefix = "{3}") {2}]'.\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
-                                format_string, loop_string)
+                                format_string, loop_string, step_data['exe'])
         else:
             format_string = '.format({})'.\
                             format(', '.join(['_{}'.format(s) for s in reversed(params)] + ['output_suffix']))
-            out_string = '[sos_hash_output("{0}.{{}}"{1}) {2}]'.\
+            out_string = '[sos_hash_output("{0}.{{}}"{1}, prefix = "{3}") {2}]'.\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
-                                format_string, loop_string)
+                                format_string, loop_string, step_data['exe'])
         res.append("output: {}".format(out_string))
         param_string = '[([{0}], {1}) {2}]'.\
                        format(', '.join(['("exec", "{}")'.format(step_data['exe'])] \

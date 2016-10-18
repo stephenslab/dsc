@@ -139,6 +139,7 @@ def execute(args, argv):
     ResultDB(db, master).Build(script = dsc_script)
     env.logger.info("DSC complete!")
 
+
 def query(args, argv):
     def get_id(query, target = None):
         name = master[7:] if master.startswith('master_') else master

@@ -257,7 +257,10 @@ class ConfigDB:
             for k in self.data:
                 for k1 in self.data[k]:
                     if k1 != "DSC_IO_":
-                        names.append(k1.split()[0])
+                        prefix = [x.split(':')[0] for x in k1.split()]
+                        prefix.append(prefix.pop(0))
+                        prefix = '_'.join(prefix)
+                        names.append((prefix, k1.split()[0]))
             return sorted(set(names))
         #
         self.pre = 'DSC'
@@ -298,8 +301,8 @@ class ConfigDB:
         '''Update maps and write to disk'''
         start_id = self.maps['NEXT_ID'] if 'NEXT_ID' in self.maps else 1
         for item in self.files:
-            if item not in self.maps:
-                self.maps[item] = '{}{}{}'.format(self.pre, start_id, os.path.splitext(item)[1])
+            if item[1] not in self.maps:
+                self.maps[item[1]] = '{}_{}{}'.format(item[0], start_id, os.path.splitext(item[1])[1])
                 start_id += 1
         self.maps['NEXT_ID'] = start_id
         open(self.dat_prefix + ".map.mpk", "wb").write(msgpack.packb(self.maps))

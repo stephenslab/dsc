@@ -27,16 +27,16 @@ def main():
     p.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''DSC output filename/directory. When used, it will override the
                    specification in DSC script''')
-    p1 = p.add_argument_group("Execute DSC")
-    p1.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
-    p1.add_argument('-f', action='store_true', dest='__rerun__',
+    p_execute = p.add_argument_group("Execute DSC")
+    p_execute.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
+    p_execute.add_argument('-f', action='store_true', dest='__rerun__',
                    help='''Force executing DSC afresh regardless of already created results.''')
-    p1.add_argument('-j', type=int, metavar='N', default=1, dest='__max_jobs__',
+    p_execute.add_argument('-j', type=int, metavar='N', default=1, dest='__max_jobs__',
                    help='''Number of concurrent processes allowed.''')
-    p1.add_argument('--host', metavar='str',
+    p_execute.add_argument('--host', metavar='str',
                    help='''URL of Redis server for distributed computation.''')
-    p2 = p.add_argument_group("Remove DSC")
-    p2.add_argument('-r', '--to_remove', metavar = "str", nargs = '+',
+    p_remove = p.add_argument_group("Remove DSC")
+    p_remove.add_argument('-r', '--to_remove', metavar = "str", nargs = '+',
                    help = '''DSC steps whose output are to be removed. Multiple steps are allowed.
                    Each step should be a quoted string defining a valid DSC step, in the format of
                    "block_name[step_index]". Multiple such steps should be separated by space.''')
@@ -56,16 +56,16 @@ def main_viz():
     p = argparse.ArgumentParser(description = __doc__ + " (the visualization module)")
     p.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
     p.add_argument('dsc_db', metavar = 'DSC output database', help = '')
-    p1 = p.add_argument_group("Output query")
-    p1.add_argument('-t', dest = 'master', metavar = 'str', required = True,
+    p_query = p.add_argument_group("Output query")
+    p_query.add_argument('-t', dest = 'master', metavar = 'str', required = True,
                    help = 'Name of master table to query from.')
-    p1.add_argument('-q', dest = 'queries', metavar = 'str', nargs = '+', required = True,
+    p_query.add_argument('-q', dest = 'queries', metavar = 'str', nargs = '+', required = True,
                    help = 'Queries to run. Please see DSC2 documentation for details.')
-    p1.add_argument('-o', dest = 'output', metavar = 'str',
+    p_query.add_argument('-o', dest = 'output', metavar = 'str',
                    help = 'Patterns of desired output columns. Please see DSC2 documentation for details.')
-    p1.add_argument('--no-header', dest = 'no_header', action='store_true',
+    p_query.add_argument('--no-header', dest = 'no_header', action='store_true',
                    help = 'Do not display header in output')
-    p1.set_defaults(func = query)
+    p_query.set_defaults(func = query)
     args, argv = p.parse_known_args()
     try:
         args.func(args, argv)
