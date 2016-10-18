@@ -10,6 +10,7 @@ from collections import OrderedDict
 from pysos.sos_script import SoS_Script
 from pysos.sos_executor import Base_Executor, MP_Executor, RQ_Executor
 from pysos.utils import env, get_traceback
+from pysos.main import cmd_remove
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ConfigDB
@@ -132,18 +133,11 @@ def remove(args, argv):
                                'thus not processed.'.format(item, args.dsc_file))
     #
     data = load_rds(filename)
-    files_to_remove = flatten_list([[os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
-                                     for x in data[item]['return']]
-                                    for item in to_remove if item in data])
-    # delete files from disk
-    for f in files_to_remove:
-        try:
-            os.remove(f)
-        except:
-            pass
-    env.logger.info('Force removed ``{}`` files from ``{}``.'.\
-                    format(len(files_to_remove),
-                           os.path.abspath(os.path.expanduser(dsc_data['DSC']['output'][0]))))
+    args.__tracked__ = args.targets = \
+                       flatten_list([[os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
+                                      for x in data[item]['return']]
+                                     for item in to_remove if item in data])
+    cmd_remove(args, argv)
 
 def query(args, argv):
     def get_id(query, target = None):

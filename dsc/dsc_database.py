@@ -293,15 +293,6 @@ class ConfigDB:
                     os.remove('{}/{}.file_info'.format(runtime_dir, x))
                 except:
                     pass
-        # # Remove irrelevant files in the output file folder as well as their signature
-        # output_files = glob.glob('{}/*'.format(self.name))
-        # to_remove = [x for x in output_files if not os.path.basename(x) in self.maps.values()]
-        # for x in to_remove:
-        #     os.remove(x)
-        #     try:
-        #         os.remove('{}/{}.file_info'.format(runtime_dir, x))
-        #     except:
-        #         pass
 
     def WriteMap(self):
         '''Update maps and write to disk'''
