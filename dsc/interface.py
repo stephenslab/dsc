@@ -30,7 +30,9 @@ def main():
     p_execute = p.add_argument_group("Execute DSC")
     p_execute.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
     p_execute.add_argument('-f', action='store_true', dest='__rerun__',
-                   help='''Force executing DSC afresh regardless of already created results.''')
+                   help='''Force executing DSC ignoring existing results.''')
+    p_execute.add_argument('--recover', action='store_true', dest='__construct__',
+                   help='''Recover DSC based on names (not contents) of existing files.''')
     p_execute.add_argument('-j', type=int, metavar='N', default=1, dest='__max_jobs__',
                    help='''Number of concurrent processes allowed.''')
     p_execute.add_argument('--host', metavar='str',

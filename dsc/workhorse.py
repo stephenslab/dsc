@@ -38,10 +38,10 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None,
             executor = MP_Executor(workflow, args=workflow_args, config_file=args.__config__)
         else:
             executor = RQ_Executor(workflow, args=workflow_args, config_file=args.__config__)
-        if run_mode == 'run':
-            executor.run()
-        else:
+        if run_mode == 'dryrun':
             executor.dryrun()
+        else:
+            executor.run()
     except Exception as e:
         if verbosity and verbosity > 2:
             sys.stderr.write(get_traceback())
@@ -132,7 +132,7 @@ def execute(args, argv):
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     dsc_run(args, argv, run_jobs.job_str,
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
-            queue = queue)
+            queue = queue, run_mode = 'run' if not args.__construct__ else 'construct')
     # Extracting information as much as possible
     # For RDS files if the values are trivial (single numbers) I'll just write them here
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
