@@ -557,9 +557,8 @@ class DSC2SoS:
             res.append("input: {}".format(input_vars))
             loop_string += ' for __i in chunks(input, {})'.format(len(depend_steps))
             format_string = '.format({})'.\
-                            format(', '.join(['_{}'.format(s) for s in reversed(params)] + \
-                                             ['"_".join(__i)', 'output_suffix']))
-            out_string = '[sos_hash_output("{0} {{}}.{{}}"{1}, prefix = "{3}") {2}]'.\
+                            format(', '.join(['_{}'.format(s) for s in reversed(params)]
+            out_string = '[sos_hash_output("{0}"{1}, prefix = "{3}") {2}]'.\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
                                 format_string, loop_string, step_data['exe'])

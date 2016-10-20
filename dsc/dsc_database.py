@@ -272,7 +272,7 @@ class ConfigDB:
             for x, y in enumerate(names):
                 names[x].append([lookup[xx].index(yy) + 1 for xx, yy in zip(y[0], y[1])])
             # 3. construct names
-            return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
+            return sorted(set([('_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[1])]),
                                 '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])])) for x in names]))
         #
         self.name = db_name
