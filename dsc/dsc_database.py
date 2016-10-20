@@ -254,14 +254,26 @@ class ConfigDB:
         '''
         def get_names():
             names = []
+            lookup = {}
+            # 1. collect exec names and ID
             for k in self.data:
                 for k1 in self.data[k]:
                     if k1 != "DSC_IO_":
                         prefix = [x.split(':')[0] for x in k1.split()]
                         prefix.append(prefix.pop(0))
-                        prefix = '_'.join(prefix)
-                        names.append((prefix, k1.split()[0]))
-            return sorted(set(names))
+                        suffix = [x.split(':')[1] for x in k1.split()]
+                        suffix.append(suffix.pop(0))
+                        names.append([prefix, suffix])
+                        for x, y in zip(prefix, suffix):
+                            if x not in lookup:
+                                lookup[x] = []
+                            lookup[x].append(y)
+            # 2. append index to the [prefix, suffix] list
+            for x, y in enumerate(names):
+                names[x].append([lookup[xx].index(yy) + 1 for xx, yy in zip(y[0], y[1])])
+            # 3. construct names
+            return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
+                                '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])])) for x in names]))
         #
         self.name = db_name
         self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
@@ -284,11 +296,6 @@ class ConfigDB:
                       if os.path.isabs(os.path.expanduser(self.name)) \
                       else '.sos/.runtime'
         for k, x in self.maps.items():
-            if k == 'NEXT_ID':
-                continue
-            # # Remove obsolete output from map
-            # if k not in self.files:
-            #     del self.maps[k]
             x = os.path.join(self.name, x)
             if not os.path.isfile(x):
                 try:
@@ -298,12 +305,9 @@ class ConfigDB:
 
     def WriteMap(self):
         '''Update maps and write to disk'''
-        start_id = self.maps['NEXT_ID'] if 'NEXT_ID' in self.maps else 1
         for item in self.files:
-            if item[1] not in self.maps:
-                self.maps[item[1]] = '{}_{}{}'.format(item[0], start_id, os.path.splitext(item[1])[1])
-                start_id += 1
-        self.maps['NEXT_ID'] = start_id
+            if item[0] not in self.maps:
+                self.maps[item[0]] = '{}{}'.format(item[1], os.path.splitext(item[0])[1])
         open(self.dat_prefix + ".map.mpk", "wb").write(msgpack.packb(self.maps))
 
     def Build(self):
