@@ -7,6 +7,7 @@ import os, msgpack, json
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
+from pysos.signature import textMD5
 from pysos.utils import Error
 from .utils import load_rds, save_rds, \
      flatten_list, flatten_dict, is_null
@@ -259,20 +260,20 @@ class ConfigDB:
             for k in self.data:
                 for k1 in self.data[k]:
                     if k1 != "DSC_IO_":
-                        prefix = [x.split(':')[0] for x in k1.split()]
+                        prefix = [x.split(':', 1)[0] for x in k1.split()]
                         prefix.append(prefix.pop(0))
-                        suffix = [x.split(':')[1] for x in k1.split()]
+                        suffix = [x.split(':', 1)[1] for x in k1.split()]
                         suffix.append(suffix.pop(0))
                         names.append([prefix, suffix])
                         for x, y in zip(prefix, suffix):
                             if x not in lookup:
                                 lookup[x] = []
-                            lookup[x].append(y)
+                            lookup[x].append(y.split(':', 1)[0])
             # 2. append index to the [prefix, suffix] list
             for x, y in enumerate(names):
-                names[x].append([lookup[xx].index(yy) + 1 for xx, yy in zip(y[0], y[1])])
+                names[x].append([lookup[xx].index(yy.split(':', 1)[0]) + 1 for xx, yy in zip(y[0], y[1])])
             # 3. construct names
-            return sorted(set([('_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[1])]),
+            return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
                                 '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])])) for x in names]))
         #
         self.name = db_name
@@ -299,9 +300,10 @@ class ConfigDB:
             x = os.path.join(self.name, x)
             if not os.path.isfile(x):
                 try:
-                    os.remove('{}/{}.file_info'.format(runtime_dir, x))
+                    os.remove('{}/{}.file_info'.\
+                              format(runtime_dir, textMD5(os.path.abspath(os.path.expanduser(x)))))
                 except:
-                    pass
+                    sys.stderr.write('Obsolete file {} has already been purged\n!'.format(x))
 
     def WriteMap(self):
         '''Update maps and write to disk'''

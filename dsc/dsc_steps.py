@@ -544,6 +544,8 @@ class DSC2SoS:
             loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(params)])
         else:
             loop_string = ''
+        format_string = '.format({})'.\
+                        format(', '.join(['_{}'.format(s) for s in reversed(params)] + ['output_suffix']))
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
@@ -556,15 +558,11 @@ class DSC2SoS:
                 input_vars = "{}_output".format(depend_steps[0])
             res.append("input: {}".format(input_vars))
             loop_string += ' for __i in chunks(input, {})'.format(len(depend_steps))
-            format_string = '.format({})'.\
-                            format(', '.join(['_{}'.format(s) for s in reversed(params)]
-            out_string = '[sos_hash_output("{0}"{1}, prefix = "{3}") {2}]'.\
+            out_string = '[sos_hash_output("{0}.{{}}"{1}, prefix = "{3}", suffix = "{{}}".format({4})) {2}]'.\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
-                                format_string, loop_string, step_data['exe'])
+                                format_string, loop_string, step_data['exe'], '":".join(__i)')
         else:
-            format_string = '.format({})'.\
-                            format(', '.join(['_{}'.format(s) for s in reversed(params)] + ['output_suffix']))
             out_string = '[sos_hash_output("{0}.{{}}"{1}, prefix = "{3}") {2}]'.\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),

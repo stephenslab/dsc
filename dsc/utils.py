@@ -273,23 +273,28 @@ class dotdict(dict):
     def __deepcopy__(self, memo):
         return dotdict(copy.deepcopy(dict(self)))
 
-def sos_hash_output(values, db_name = '', prefix = None):
+def sos_hash_output(values, db_name = '', prefix = None, suffix = None):
      if not isinstance(values, list):
           base, ext = values.rsplit('.', 1)
-          md5 = '{}.{}'.format(textMD5(base), ext)
-          res = os.path.join(db_name, md5)
+          md5 = textMD5(base)
           if isinstance(prefix, str):
-               res = ':'.join((prefix, res))
+               md5 = '{}:{}'.format(prefix, md5)
+          if isinstance(suffix, str):
+               md5 = '{}:{}'.format(md5, suffix)
+          md5 = '{}.{}'.format(md5, ext)
+          res = os.path.join(db_name, md5)
           return res
      else:
           res = []
           for value in values:
                base, ext = value.rsplit('.', 1)
-               md5 = '{}.{}'.format(textMD5(base), ext)
-               res_i = os.path.join(db_name, md5)
+               md5 = textMD5(base)
                if isinstance(prefix, str):
-                    res_i = ':'.join((prefix, res))
-               res.append(res_i)
+                    md5 = '{}:{}'.format(prefix, md5)
+               if isinstance(suffix, str):
+                    md5 = '{}:{}'.format(md5, suffix)
+               md5 = '{}.{}'.format(md5, ext)
+               res.append(os.path.join(db_name, md5))
           return res
 
 def chunks(l, n):
