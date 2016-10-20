@@ -275,25 +275,21 @@ class dotdict(dict):
 
 def sos_hash_output(values, db_name = '', prefix = None, suffix = None):
      if not isinstance(values, list):
-          base, ext = values.rsplit('.', 1)
-          md5 = textMD5(base)
+          md5 = textMD5(values)
           if isinstance(prefix, str):
                md5 = '{}:{}'.format(prefix, md5)
           if isinstance(suffix, str):
                md5 = '{}:{}'.format(md5, suffix)
-          md5 = '{}.{}'.format(md5, ext)
           res = os.path.join(db_name, md5)
           return res
      else:
           res = []
           for value in values:
-               base, ext = value.rsplit('.', 1)
-               md5 = textMD5(base)
+               md5 = textMD5(value)
                if isinstance(prefix, str):
                     md5 = '{}:{}'.format(prefix, md5)
                if isinstance(suffix, str):
                     md5 = '{}:{}'.format(md5, suffix)
-               md5 = '{}.{}'.format(md5, ext)
                res.append(os.path.join(db_name, md5))
           return res
 

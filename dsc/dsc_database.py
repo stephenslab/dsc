@@ -68,7 +68,7 @@ class ResultDB:
         data = OrderedDict()
         for k0 in data_all.keys():
             for k in list(data_all[k0].keys()):
-                if k == 'DSC_IO_':
+                if k == 'DSC_IO_' or k == 'DSC_EXT_':
                     continue
                 if not k in seen:
                     data[k] = data_all[k0][k]
@@ -259,22 +259,24 @@ class ConfigDB:
             # 1. collect exec names and ID
             for k in self.data:
                 for k1 in self.data[k]:
-                    if k1 != "DSC_IO_":
-                        prefix = [x.split(':', 1)[0] for x in k1.split()]
-                        prefix.append(prefix.pop(0))
-                        suffix = [x.split(':', 1)[1] for x in k1.split()]
-                        suffix.append(suffix.pop(0))
-                        names.append([prefix, suffix])
-                        for x, y in zip(prefix, suffix):
-                            if x not in lookup:
-                                lookup[x] = []
-                            lookup[x].append(y.split(':', 1)[0])
-            # 2. append index to the [prefix, suffix] list
+                    if k1 == "DSC_IO_" or k1 == "DSC_EXT_":
+                        continue
+                    prefix = [x.split(':', 1)[0] for x in k1.split()]
+                    prefix.append(prefix.pop(0))
+                    suffix = [x.split(':', 1)[1] for x in k1.split()]
+                    suffix.append(suffix.pop(0))
+                    names.append([prefix, suffix])
+                    for x, y in zip(prefix, suffix):
+                        if x not in lookup:
+                            lookup[x] = []
+                        lookup[x].append(y.split(':', 1)[0])
+            # 2. append index to the [prefix, suffix] list so it becomes list of [prefix, suffix, index]
             for x, y in enumerate(names):
                 names[x].append([lookup[xx].index(yy.split(':', 1)[0]) + 1 for xx, yy in zip(y[0], y[1])])
             # 3. construct names
             return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
-                                '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])])) for x in names]))
+                                '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
+                                '.{}'.format(self.data[k]["DSC_EXT_"])) for x in names]))
         #
         self.name = db_name
         self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
@@ -309,7 +311,7 @@ class ConfigDB:
         '''Update maps and write to disk'''
         for item in self.files:
             if item[0] not in self.maps:
-                self.maps[item[0]] = '{}{}'.format(item[1], os.path.splitext(item[0])[1])
+                self.maps[item[0]] = item[1]
         open(self.dat_prefix + ".map.mpk", "wb").write(msgpack.packb(self.maps))
 
     def Build(self):

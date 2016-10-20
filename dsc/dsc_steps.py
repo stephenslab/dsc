@@ -534,7 +534,6 @@ class DSC2SoS:
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
-        res.append('output_suffix = {}'.format(step_data['output_ext']))
         input_vars = ''
         depend_steps = []
         cmds_md5 = ''.join([fileMD5(item.split()[0], partial = False) + \
@@ -545,7 +544,7 @@ class DSC2SoS:
         else:
             loop_string = ''
         format_string = '.format({})'.\
-                        format(', '.join(['_{}'.format(s) for s in reversed(params)] + ['output_suffix']))
+                        format(', '.join(['_{}'.format(s) for s in reversed(params)]))
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
@@ -558,12 +557,12 @@ class DSC2SoS:
                 input_vars = "{}_output".format(depend_steps[0])
             res.append("input: {}".format(input_vars))
             loop_string += ' for __i in chunks(input, {})'.format(len(depend_steps))
-            out_string = '[sos_hash_output("{0}.{{}}"{1}, prefix = "{3}", suffix = "{{}}".format({4})) {2}]'.\
+            out_string = '[sos_hash_output("{0}"{1}, prefix = "{3}", suffix = "{{}}".format({4})) {2}]'.\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
                                 format_string, loop_string, step_data['exe'], '":".join(__i)')
         else:
-            out_string = '[sos_hash_output("{0}.{{}}"{1}, prefix = "{3}") {2}]'.\
+            out_string = '[sos_hash_output("{0}"{1}, prefix = "{3}") {2}]'.\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
                                 format_string, loop_string, step_data['exe'])
@@ -585,6 +584,7 @@ class DSC2SoS:
                           " = OrderedDict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
         run_string += '{0}["DSC_IO_"] = (input if input is not None else [], output)\n'.format(key)
+        run_string += '{0}["DSC_EXT_"] = {1}\n'.format(key, step_data['output_ext'])
         run_string += 'open({0}, "wb").write(msgpack.packb(DSC_UPDATES_))\n'\
                       'open("{1}", "a").write("_".join((sequence_id, step_name)) + "\\n")\n'.\
                       format(self.confdb, self.confdb_list)
