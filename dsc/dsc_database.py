@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, msgpack, json
+import sys, os, msgpack, json
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
@@ -305,7 +305,7 @@ class ConfigDB:
                     os.remove('{}/{}.file_info'.\
                               format(runtime_dir, textMD5(os.path.abspath(os.path.expanduser(x)))))
                 except:
-                    sys.stderr.write('Obsolete file {} has already been purged\n!'.format(x))
+                    sys.stderr.write('Obsolete file {} has already been purged!\n'.format(x))
 
     def WriteMap(self):
         '''Update maps and write to disk'''
