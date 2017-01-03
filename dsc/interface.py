@@ -7,7 +7,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 import sys, argparse
 from dsc import PACKAGE, VERSION
-from pysos.utils import logger, get_traceback
+from sos.utils import logger, get_traceback
 from .workhorse import execute, query
 from .utils import Timer
 
@@ -31,14 +31,14 @@ def main():
     p_execute.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
     p_execute.add_argument('-f', action='store_true', dest='__rerun__',
                    help='''Force executing DSC ignoring existing results.''')
-    p_execute.add_argument('--recover', action='store_true', dest='__construct__',
+    p_execute.add_argument('-r', action='store_true', dest='__construct__',
                    help='''Recover DSC based on names (not contents) of existing files.''')
-    p_execute.add_argument('-j', type=int, metavar='N', default=1, dest='__max_jobs__',
+    p_execute.add_argument('-j', type=int, metavar='N', default=2, dest='__max_jobs__',
                    help='''Number of concurrent processes allowed.''')
     p_execute.add_argument('--host', metavar='str',
                    help='''URL of Redis server for distributed computation.''')
     p_remove = p.add_argument_group("Remove DSC")
-    p_remove.add_argument('-r', '--to_remove', metavar = "str", nargs = '+',
+    p_remove.add_argument('--remove', dest = 'to_remove', metavar = "str", nargs = '+',
                    help = '''DSC steps whose output are to be removed. Multiple steps are allowed.
                    Each step should be a quoted string defining a valid DSC step, in the format of
                    "block_name[step_index]". Multiple such steps should be separated by space.''')

@@ -7,8 +7,8 @@ import sys, os, msgpack, json
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
-from pysos.signature import textMD5
-from pysos.utils import Error
+from sos.target import textMD5
+from sos.utils import Error
 from .utils import load_rds, save_rds, \
      flatten_list, flatten_dict, is_null
 import readline
@@ -244,62 +244,47 @@ class ResultDB:
             self.data['.dscsrc'] = repr(script)
         save_rds(self.data, self.name + '.rds')
 
-class ConfigDB:
-    def __init__(self, db_name, vanilla = False):
-        '''
-        - collect all output file names in md5 style
-        - check if map file should be loaded, and load it
-        - based on map file and file names in md5 style, remove irrelevant files from output folder
-        - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
-        - create conf file based on map file and io file
-        '''
-        def get_names():
-            names = []
-            lookup = {}
-            # 1. collect exec names and ID
-            for k in self.data:
-                for k1 in self.data[k]:
-                    if k1 == "DSC_IO_" or k1 == "DSC_EXT_":
-                        continue
-                    prefix = [x.split(':', 1)[0] for x in k1.split()]
-                    prefix.append(prefix.pop(0))
-                    suffix = [x.split(':', 1)[1] for x in k1.split()]
-                    suffix.append(suffix.pop(0))
-                    names.append([prefix, suffix])
-                    for x, y in zip(prefix, suffix):
-                        if x not in lookup:
-                            lookup[x] = []
-                        lookup[x].append(y.split(':', 1)[0])
-            # 2. append index to the [prefix, suffix] list so it becomes list of [prefix, suffix, index]
-            for x, y in enumerate(names):
-                names[x].append([lookup[xx].index(yy.split(':', 1)[0]) + 1 for xx, yy in zip(y[0], y[1])])
-            # 3. construct names
-            return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
-                                '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
-                                '.{}'.format(self.data[k]["DSC_EXT_"])) for x in names]))
-        #
-        self.name = db_name
-        self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
-        if os.path.isfile(self.dat_prefix + '.map.mpk') and not vanilla:
-            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.mpk', 'rb').read(),
-                                        encoding = 'utf-8')
-        else:
-            self.maps = {}
-        self.data = OrderedDict()
-        for item in [x.strip() for x in open(self.dat_prefix + ".io").readlines()]:
-            self.data.update(msgpack.unpackb(open("{}.{}.mpk".format(self.dat_prefix, item), "rb").read(),
-                                             encoding = 'utf-8', object_pairs_hook = OrderedDict))
-            os.remove("{}.{}.mpk".format(self.dat_prefix, item))
-        open("{}.io.mpk".format(self.dat_prefix), "wb").write(msgpack.packb(self.data))
-        self.files = get_names()
 
-    def RemoveObsoleteOutput(self):
+def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
+    '''
+    - collect all output file names in md5 style
+    - check if map file should be loaded, and load it
+    - based on map file and file names in md5 style, remove irrelevant files from output folder
+    - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
+    - create conf file based on map file and io file
+    '''
+    def get_names(data):
+        names = []
+        lookup = {}
+        # 1. collect exec names and ID
+        for k in data:
+            for k1 in data[k]:
+                if k1 == "DSC_IO_" or k1 == "DSC_EXT_":
+                    continue
+                prefix = [x.split(':', 1)[0] for x in k1.split()]
+                prefix.append(prefix.pop(0))
+                suffix = [x.split(':', 1)[1] for x in k1.split()]
+                suffix.append(suffix.pop(0))
+                names.append([prefix, suffix])
+                for x, y in zip(prefix, suffix):
+                    if x not in lookup:
+                        lookup[x] = []
+                    lookup[x].append(y.split(':', 1)[0])
+        # 2. append index to the [prefix, suffix] list so it becomes list of [prefix, suffix, index]
+        for x, y in enumerate(names):
+            names[x].append([lookup[xx].index(yy.split(':', 1)[0]) + 1 for xx, yy in zip(y[0], y[1])])
+        # 3. construct names
+        return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
+                            '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
+                            '.{}'.format(data[k]["DSC_EXT_"])) for x in names]))
+
+    def remove_obsolete_output(fid):
         # Remove file signature when files are deleted
         runtime_dir = os.path.expanduser('~/.sos/.runtime') \
-                      if os.path.isabs(os.path.expanduser(self.name)) \
+                      if os.path.isabs(os.path.expanduser(fid)) \
                       else '.sos/.runtime'
-        for k, x in self.maps.items():
-            x = os.path.join(self.name, x)
+        for k, x in map_data.items():
+            x = os.path.join(fid, x)
             if not os.path.isfile(x):
                 try:
                     os.remove('{}/{}.file_info'.\
@@ -307,27 +292,37 @@ class ConfigDB:
                 except:
                     sys.stderr.write('Obsolete file {} has already been purged!\n'.format(x))
 
-    def WriteMap(self):
+    def update_map(files):
         '''Update maps and write to disk'''
-        for item in self.files:
-            if item[0] not in self.maps:
-                self.maps[item[0]] = item[1]
-        open(self.dat_prefix + ".map.mpk", "wb").write(msgpack.packb(self.maps))
+        for item in files:
+            if item[0] not in map_data:
+                map_data[item[0]] = item[1]
+        open(map_db, "wb").write(msgpack.packb(map_data))
 
-    def Build(self):
-        self.RemoveObsoleteOutput()
-        self.WriteMap()
-        data = {}
-        for k in self.data:
-            sid, name = k.split(':')
-            if sid not in data:
-                data[sid] = {}
-            if name not in data[sid]:
-                data[sid][name] = {}
-            data[sid][name]['input'] = [os.path.join(self.name, self.maps[item]) \
-                                        for item in self.data[k]['DSC_IO_'][0]]
-            data[sid][name]['output'] = [os.path.join(self.name, self.maps[item]) \
-                                         for item in self.data[k]['DSC_IO_'][1]]
-        #
-        with open('.sos/.dsc/{}.conf'.format(os.path.basename(self.name)), 'w') as f:
-            f.write(json.dumps(data))
+    #
+    fid = os.path.splitext(os.path.basename(conf_db))[0]
+    if os.path.isfile(map_db) and not vanilla:
+        map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8')
+    else:
+        map_data = {}
+    data = OrderedDict()
+    for item in input_files:
+        data.update(msgpack.unpackb(open(item, "rb").read(), encoding = 'utf-8',
+                                    object_pairs_hook = OrderedDict))
+    open(io_db, "wb").write(msgpack.packb(data))
+    remove_obsolete_output(fid)
+    update_map(get_names(data))
+    conf = {}
+    for k in data:
+        sid, name = k.split(':')
+        if sid not in conf:
+            conf[sid] = {}
+        if name not in conf[sid]:
+            conf[sid][name] = {}
+        conf[sid][name]['input'] = [os.path.join(fid, map_data[item]) \
+                                    for item in data[k]['DSC_IO_'][0]]
+        conf[sid][name]['output'] = [os.path.join(fid, map_data[item]) \
+                                     for item in data[k]['DSC_IO_'][1]]
+    #
+    with open(conf_db, 'w') as f:
+        f.write(json.dumps(conf))

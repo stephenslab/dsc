@@ -8,9 +8,8 @@ This file defines DSCJobs and DSC2SoS classes
 to convert DSC configuration to SoS codes
 '''
 import copy, re, os
-from pysos.target import executable
-from pysos.utils import Error
-from pysos.signature import fileMD5, textMD5
+from sos.target import executable, fileMD5, textMD5
+from sos.utils import Error
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list, merge_lists, uniq_list, flatten_list
 from .plugin import Plugin
@@ -463,15 +462,21 @@ class DSC2SoS:
       * Each DSC sequence is a separate SoS code piece. These pieces have to be executed sequentially
         to reuse some runtime signature although -j N is allowed in each script
     '''
-    def __init__(self, data):
+    def __init__(self, data, dsc_file, rerun = False):
+        def replace_right(source, target, replacement, replacements=None):
+            return replacement.join(source.rsplit(target, replacements))
+        #
+        self.dsc_file = dsc_file
         self.output_prefix = data.output_prefix
         self.libpath = data.libpath
-        self.confdb =  '".sos/.dsc/{}.{{}}.mpk".format("_".join((sequence_id, step_name)))'.\
+        self.confdb =  "'.sos/.dsc/{}.{{}}.mpk'.format('_'.join((sequence_id, step_name)))".\
                        format(os.path.basename(data.output_prefix))
         self.confdb_list = '.sos/.dsc/{}.io'.format(os.path.basename(data.output_prefix))
-        if os.path.isfile(self.confdb_list): os.remove(self.confdb_list)
+        if os.path.isfile(self.confdb_list) and rerun:
+            os.remove(self.confdb_list)
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
-                      'from dsc.utils import sos_hash_output, sos_group_input, chunks\n\n\n'
+                      'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
+                      'from dsc.dsc_database import build_config_db\n\n\n'
         processed_steps = {}
         conf_str = []
         job_str = []
@@ -502,18 +507,26 @@ class DSC2SoS:
         for idx, sequence in enumerate(data.sequences):
             seq, indices = sequence
             for index in indices:
-                item = '+'.join(['{}_{}'.format(x, y + 1)
-                                 if '{}_{}'.format(x, y + 1) not in self.step_map[idx]
-                                 else self.step_map[idx]['{}_{}'.format(x, y + 1)]
-                                 for x, y in zip(seq, index)])
+                rsqn = ['{}_{}'.format(x, y + 1)
+                        if '{}_{}'.format(x, y + 1) not in self.step_map[idx]
+                        else self.step_map[idx]['{}_{}'.format(x, y + 1)]
+                        for x, y in zip(seq, index)]
+                sqn = '+'.join([replace_right(x, '_', ':', 1) for x in rsqn])
                 conf_str.append("[DSC_{0}]\nsos_run('{2}', {1})".\
-                              format(i, 'sequence_id = "{}", sequence_name = "{}"'.format(i, item),
-                                     item))
+                              format(i, "sequence_id = '{}', sequence_name = '{}'".format(i, '+'.join(rsqn)),
+                                     sqn))
                 job_str.append("[DSC_{0} ({3})]\nsos_run('{2}', {1})".\
-                              format(i, 'sequence_id = "{}"'.format(i), item, "DSC sequence {}".format(i)))
+                              format(i, "sequence_id = '{}'".format(i), sqn, "DSC sequence {}".format(i)))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = '\n'.join(job_str)
+        self.conf_str += '''
+[DSC_{2}]
+vanilla = {1}
+input: dynamic(sorted(set(['.sos/.dsc/{0}.%s.mpk' % item.strip() for item in open('.sos/.dsc/{0}.io').readlines()])))
+output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf'
+build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
+        '''.format(os.path.basename(data.output_prefix), rerun, i)
 
     def __call__(self):
         pass
@@ -529,12 +542,13 @@ class DSC2SoS:
         with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
             (name of indexed DSC block corresponding to a computational routine).
         '''
-        res = ['[{0}_{1}: shared = {{"{0}_output": "output"}}]'.format(step_data['name'], step_data['exe_id'])]
+        res = ["[{0}_{1}: shared = '{0}_output']".format(step_data['name'], step_data['exe_id'])]
+        res.append("input: '{}'\noutput: {}".format(self.dsc_file, self.confdb))
         # Set params, make sure each time the ordering is the same
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
-        input_vars = ''
+        input_vars = None
         depend_steps = []
         cmds_md5 = ''.join([fileMD5(item.split()[0], partial = False) + \
                             (item.split()[1] if len(item.split()) > 1 else '')
@@ -550,44 +564,52 @@ class DSC2SoS:
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
             if len(depend_steps) >= 2:
                 # Generate combinations of input files
+                input_vars = "input_files"
+                res.append("depends: {}".\
+                           format(', '.join(['sos_variable(\'{}_output\')'.format(x) for x in depend_steps])))
                 res.append('input_files = sos_group_input([{}])'.\
                            format(', '.join(['{}_output'.format(x) for x in depend_steps])))
-                input_vars = "input_files"
             else:
                 input_vars = "{}_output".format(depend_steps[0])
-            res.append("input: {}".format(input_vars))
-            loop_string += ' for __i in chunks(input, {})'.format(len(depend_steps))
-            out_string = '[sos_hash_output("{0}"{1}, prefix = "{3}", suffix = "{{}}".format({4})) {2}]'.\
+                res.append("depends: sos_variable('{}')".format(input_vars))
+            loop_string += ' for __i in chunks({}, {})'.format(input_vars, len(depend_steps))
+            out_string = "[sos_hash_output('{0}'{1}, prefix = '{3}', suffix = '{{}}'.format({4})) {2}]".\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
-                                format_string, loop_string, step_data['exe'], '":".join(__i)')
+                                format_string, loop_string, step_data['exe'], "':'.join(__i)")
         else:
-            out_string = '[sos_hash_output("{0}"{1}, prefix = "{3}") {2}]'.\
+            out_string = "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
                          format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
                                 format_string, loop_string, step_data['exe'])
-        res.append("output: {}".format(out_string))
+        res.append("{}_output = {}".format(step_data['name'], out_string))
         param_string = '[([{0}], {1}) {2}]'.\
-                       format(', '.join(['("exec", "{}")'.format(step_data['exe'])] \
-                                          + ['("{0}", _{0})'.format(x) for x in reversed(params)]),
-                              None if '__i' not in loop_string else '\'{}\'.format(" ".join(__i))',
+                       format(', '.join(["('exec', '{}')".format(step_data['exe'])] \
+                                          + ["('{0}', _{0})".format(x) for x in reversed(params)]),
+                              None if '__i' not in loop_string else "'{}'.format(' '.join(__i))",
                               loop_string)
-        key = 'DSC_UPDATES_[":".join((sequence_id, step_name))]'
+        key = "DSC_UPDATES_[':'.join((sequence_id, step_name))]"
         run_string = "DSC_PARAMS_ = {}\nDSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".\
                      format(param_string, key)
         if step_data['depends']:
-            run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s[' '.join((y, x[1]))]"\
+            run_string += "for x, y in zip(DSC_PARAMS_, %s_output):\n\t %s[' '.join((y, x[1]))]"\
                           " = OrderedDict([('sequence_id', sequence_id), "\
-                          "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
+                          "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % \
+                          (step_data['name'], key)
         else:
-            run_string += "for x, y in zip(DSC_PARAMS_, output):\n\t %s[y]"\
+            run_string += "for x, y in zip(DSC_PARAMS_, %s_output):\n\t %s[y]"\
                           " = OrderedDict([('sequence_id', sequence_id), "\
-                          "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % key
-        run_string += '{0}["DSC_IO_"] = (input if input is not None else [], output)\n'.format(key)
-        run_string += '{0}["DSC_EXT_"] = {1}\n'.format(key, step_data['output_ext'])
-        run_string += 'open({0}, "wb").write(msgpack.packb(DSC_UPDATES_))\n'\
-                      'open("{1}", "a").write("_".join((sequence_id, step_name)) + "\\n")\n'.\
-                      format(self.confdb, self.confdb_list)
+                          "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % \
+                          (step_data['name'], key)
+        run_string += "{0}['DSC_IO_'] = ({1}, {2})\n".\
+                      format(key,
+                             '[]' if input_vars is None else '{0} if {0} is not None else []'.\
+                             format(input_vars),
+                             "{}_output".format(step_data['name']))
+        run_string += "{0}['DSC_EXT_'] = {1}\n".format(key, step_data['output_ext'])
+        run_string += "open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))\n"\
+                      "open('{}', 'a').write('_'.join((sequence_id, step_name)) + '\\n')\n".\
+                      format(self.confdb_list)
         res.append(run_string)
         return '\n'.join(res) + '\n'
 

@@ -12,8 +12,8 @@ import os, yaml, re, subprocess, itertools, copy, \
 import readline
 import rpy2.robjects as RO
 from io import StringIO
-from pysos.utils import logger, Error
-from pysos.signature import textMD5
+from sos.utils import logger, Error
+from sos.target import textMD5
 from .utils import dotdict, is_null, str2num, non_commutative_symexpand, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_dict, \
      try_get_value, dict2str, update_nested_dict, set_nested_value, \

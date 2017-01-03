@@ -19,10 +19,10 @@ from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 import numpy as np
 import pandas as pd
-from pysos.sos_script import SoS_Script
-from pysos.sos_executor import Base_Executor
-from pysos.utils import env
-from pysos.signature import textMD5
+from sos.sos_script import SoS_Script
+from sos.sos_executor import Base_Executor
+from sos.utils import env
+from sos.target import textMD5
 
 from dsc import HTML_CSS, HTML_JS
 
@@ -473,7 +473,7 @@ def install_r_libs(libs):
             versions = None
         env.logger.info("Checking R library ``{}`` ...".format(value))
         env.verbosity = 0
-        script = SoS_Script('[0]\ncheck_R_library({}, {})'.format(repr(value), repr(versions)))
+        script = SoS_Script('[0]\ndepends: R_library({}, {})'.format(repr(value), repr(versions)))
         Base_Executor(script.workflow()).prepare()
         env.verbosity = verbosity
 
