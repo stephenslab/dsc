@@ -19,10 +19,9 @@ from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 import numpy as np
 import pandas as pd
-from sos.sos_script import SoS_Script
-from sos.sos_executor import Base_Executor
 from sos.utils import env
 from sos.target import textMD5
+from sos.R.target import R_library
 
 from dsc import HTML_CSS, HTML_JS
 
@@ -463,7 +462,6 @@ def round_print(text, sep, pc = None):
 def install_r_libs(libs):
     if libs is None:
         return
-    verbosity = env.verbosity
     for value in libs:
         groups = re.search('(.*?)\((.*?)\)', value)
         if groups is not None:
@@ -472,10 +470,7 @@ def install_r_libs(libs):
         else:
             versions = None
         env.logger.info("Checking R library ``{}`` ...".format(value))
-        env.verbosity = 0
-        script = SoS_Script('[0]\ndepends: R_library({}, {})'.format(repr(value), repr(versions)))
-        Base_Executor(script.workflow()).prepare()
-        env.verbosity = verbosity
+        R_library(value, versions).exists()
 
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     # ordered_load(stream, yaml.SafeLoader)
