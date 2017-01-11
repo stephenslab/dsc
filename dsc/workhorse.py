@@ -144,3 +144,6 @@ def execute(args, argv):
 
 def annotate(args, argv):
     ann = ResultAnnotation(args.dsc_annotation, args.master, args.db)
+    ann.ConvertAnnToQuery()
+    ann.ApplyAnotation()
+    env.logger.info(ann.ShowQueries())

@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import sys, os, msgpack, json, yaml
+import sys, os, msgpack, json, yaml, re
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
@@ -12,7 +12,7 @@ from sos.utils import Error
 from .dsc_file import DSCData
 from .utils import load_rds, save_rds, \
      flatten_list, flatten_dict, is_null, \
-     no_duplicates_constructor
+     no_duplicates_constructor, cartesian_list
 import readline
 import rpy2.robjects.vectors as RV
 import rpy2.rinterface as RI
@@ -336,7 +336,7 @@ class ResultAnnotation:
         '''Load master table to be annotated and annotation contents'''
         data = load_rds(ann_db)
         self.data = {k : pd.DataFrame(v) for k, v in data.items() if k != '.dscsrc'}
-        self.dsc = DSCData(''.join(data['.dscsrc']).replace('\\n', '\n')[1:-1])
+        self.dsc = DSCData(''.join(data['.dscsrc']).replace('\\n', '\n')[1:-1], check_rlibs = False)
         if ann_table is not None:
             self.master = ann_table if ann_table.startswith('master_') else 'master_{}'.format(ann_table)
         else:
@@ -347,46 +347,74 @@ class ResultAnnotation:
             else:
                 self.master = self.master[0]
         self.ann = yaml.load(open(ann_file))
+        self.msg = []
 
     def ConvertAnnToQuery(self):
         '''
         Parse annotations to make pytable syntax
-        1. for simple numbers / strings use '=' logic
+        1. for simple numbers / strings use '==' logic
         2. for list / tuples use "or" logic
         3. for raw queries use a special function ... maybe starting with % sign?
         4. non-master table queries: if `exec` presents use the tables specified and double check the table names; otherwise do it for all the tables in the given block.
         '''
-        self.queries = []
+        def get_query(obj, text):
+            if isinstance(text, str) and text.startswith('%'):
+                return text.lstrip('%')
+            else:
+                if isinstance(text, list) or isinstance(text, tuple):
+                    return ' OR '.join(['{} == {}'.format(obj, str(x) if not isinstance(x, str) else repr(x)) for x in text])
+                else:
+                    return '{} == {}'.format(obj, str(text) if not isinstance(text, str) else repr(text))
+
+        self.queries = {}
         for tag in self.ann:
+            self.queries[tag] = []
             # for each tag we need a query
-            for block in tag:
-                if 'exec' in block:
+            for block in self.ann[tag]:
+                # get subtables
+                if 'exec' in self.ann[tag][block]:
                     # we potentially found the sub table to query from
-                    pass
+                    subtables = self.ann[tag][block]['exec'].split(',')
                 else:
                     # we take that all sub tables in this block is involved
                     # and we look for these tables in DSC data
-                    pass
-        
+                    subtables = [x[0] for x in self.dsc[block]['meta']['exec']]
+                # get query
+                block_query = []
+                for k1 in self.ann[tag][block]:
+                    if k1 == 'params':
+                        for k2 in self.ann[tag][block][k1]:
+                            block_query.append(get_query(k2, self.ann[tag][block][k1][k2]))
+                    elif k1 == 'exec':
+                        continue
+                    else:
+                        block_query.append(get_query(k1, self.ann[tag][block][k1]))
+                # OR logic for multiple subtables
+                self.queries[tag].append(['[{}] {}'.format(table, ' AND '.join(['({})'.format(x) for x in block_query]) if len(block_query) else 'ALL') for table in subtables])
+        for tag in self.queries:
+            self.queries[tag] = cartesian_list(*self.queries[tag])
 
     def ApplyAnotation(self):
         '''Run query on result table and make a tag column'''
 
         def get_id(query, target = None):
-            name = master[7:] if master.startswith('master_') else master
+            name = self.master[7:] if self.master.startswith('master_') else self.master
+            query = query.strip()
             if target is None:
-                col_id = data[master].query(query)[name + '_id'].tolist()
+                col_id = self.data[self.master].query(query)[name + '_id'] if query != 'ALL' else self.data[self.master][name + '_id']
+                col_id = col_id.tolist()
             else:
-                col_id = [x for x, y in zip(data[master][name + '_id'].tolist(),
-                                            data[master][target[1][:-5] + '_id'].\
-                                            isin(data[target[0]].query(query)['step_id']).tolist()) if y]
+                col_id = self.data[target[0]].query(query)['step_id'] if query != 'ALL' else self.data[target[0]]['step_id']
+                col_id = [x for x, y in zip(self.data[self.master][name + '_id'].tolist(),
+                                            self.data[self.master][target[1][:-5] + '_id'].\
+                                            isin(col_id).tolist()) if y]
             return col_id
         #
-        def get_output(col_id):
-            name = master[7:] if master.startswith('master_') else master
+        def get_output(col_id, output = None):
+            name = self.master[7:] if self.master.startswith('master_') else self.master
             # Get list of files
             lookup = {}
-            for x, y in zip(data[master].query('{}_id == @col_id'.format(name))[name + '_name'].tolist(), col_id):
+            for x, y in zip(self.data[self.master].query('{}_id == @col_id'.format(name))[name + '_name'].tolist(), col_id):
                 if x not in lookup:
                     lookup[x] = []
                 lookup[x].append(y)
@@ -396,13 +424,13 @@ class ResultAnnotation:
                 # Get output columns
                 if output:
                     tmp = ['{}_id'.format(name)]
-                    tmp.extend(flatten_list([[x for x in fnmatch.filter(data[master].columns.values, o)]
+                    tmp.extend(flatten_list([[x for x in fnmatch.filter(self.data[self.master].columns.values, o)]
                                              for o in output]))
-                    results.append(data[master].query('{}_id == @value'.format(name))[tmp])
+                    results.append(self.data[self.master].query('{}_id == @value'.format(name))[tmp])
                 else:
                     results.append(pd.DataFrame())
                 # Get output files
-                files.append(data[k].query('step_id == @value')[['step_id', 'return']])
+                files.append(self.data[k].query('step_id == @value')[['step_id', 'return']])
             res = []
             for dff, dfr in zip(files, results):
                 if len(dfr.columns.values) > 2:
@@ -415,33 +443,48 @@ class ResultAnnotation:
                     res.drop(item, axis = 1, inplace = True)
             return res
         #
-        queries = args.queries
-        output = args.output
-        #
-        return_id = None
-        for item in queries:
-            pattern = re.search(r'^\[(.*)\](.*)', item)
-            if pattern:
-                # query from sub-table
-                for k in data[master]:
-                    if pattern.group(1) in data[master][k].tolist():
-                        if return_id is None:
-                            return_id = get_id(pattern.group(2).strip(), (pattern.group(1).strip(), k))
+        def run_query(text):
+            return_id = None
+            for item in text:
+                pattern = re.search(r'^\[(.*)\](.*)', item)
+                if pattern:
+                    # query from sub-table
+                    for k in self.data[self.master]:
+                        if pattern.group(1) in self.data[self.master][k].tolist():
+                            if return_id is None:
+                                return_id = get_id(pattern.group(2).strip(), (pattern.group(1).strip(), k))
+                            else:
+                                return_id = [x for x in get_id(pattern.group(2).strip(),
+                                                               (pattern.group(1).strip(), k))
+                                             if x in return_id]
+                            break
                         else:
-                            return_id = [x for x in get_id(pattern.group(2).strip(),
-                                                           (pattern.group(1).strip(), k))
-                                         if x in return_id]
-                        break
-                    else:
-                        continue
-            else:
-                # query from master table
-                if return_id is None:
-                    return_id = get_id(item)
+                            continue
                 else:
-                    return_id = [x for x in get_id(item) if x in return_id]
-        if len(return_id) == 0:
-            env.logger.warning("Cannot find matching entries based on query ``{}``".format(repr(args.queries)))
-        else:
-            res = get_output(return_id)
-            res.to_csv(sys.stdout, index = False, header = not args.no_header)
+                    # query from master table
+                    if return_id is None:
+                        return_id = get_id(item)
+                    else:
+                        return_id = [x for x in get_id(item) if x in return_id]
+            if len(return_id) == 0:
+                self.msg.append("Cannot find matching entries based on query ``{}``".format(repr(text)))
+                res = []
+            else:
+                res = get_output(return_id)['return']
+            return res
+        #
+        self.result = {}
+        for tag in self.queries:
+            self.result[tag] = []
+            for queries in self.queries[tag]:
+                self.result[tag].extend(run_query(queries))
+        open(self.dsc['DSC']['output'][0] + '.tags', "wb").write(msgpack.packb(self.result))
+
+    def ShowQueries(self):
+        res = 'DSC result annotation summary:\n'
+        for tag in self.queries:
+            res += '\tTag ``{}`` created via:\n'.format(tag)
+            for item in self.queries[tag]:
+                res += "\t{}\n".format(' & '.join(item))
+            res += '\n'
+        return res.strip()
