@@ -144,7 +144,7 @@ def execute(args, argv):
 
 
 def annotate(args, argv):
-    dsc_data = DSCData(args.dsc_file, check_rlibs = False)
+    dsc_data = DSCData(args.dsc_file, check_rlibs = False, output = args.output)
     ann = ResultAnnotator(args.annotation, args.master, dsc_data)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()
@@ -153,7 +153,7 @@ def annotate(args, argv):
         env.logger.warning('\n' + '\n'.join(ann.msg))
 
 def extract(args, argv):
-    dsc_data = DSCData(args.dsc_file, check_rlibs = False)
+    dsc_data = DSCData(args.dsc_file, check_rlibs = False, output = args.output)
     ext = ResultExtractor(args.tags, args.master, dsc_data['DSC']['output'][0], args.dest, args.__rerun__)
     ext.Extract(args.extract)
     env.logger.info('``{}`` data saved to ``{}`` for {} from DSC block ``{}``.'.\

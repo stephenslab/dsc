@@ -412,13 +412,12 @@ def save_rds(data, filename):
     def assign(name, value):
         name = re.sub(r'[^\w' + '_.' + ']', '_', name)
         if isinstance(value, (tuple, list)):
-            try:
-                value = np.asarray(value, dtype = int)
-            except:
-                try:
-                    value = np.asarray(value, dtype = float)
-                except:
-                    value = np.asarray(value)
+             if all(isinstance(item, int) for item in value):
+                  value = np.asarray(value, dtype = int)
+             elif all(isinstance(item, float) for item in value):
+                  value = np.asarray(value, dtype = float)
+             else:
+                  value = np.asarray(value)
         if isinstance(value, np.matrix):
             value = np.asarray(value)
         if isinstance(value, (str, float, int, np.ndarray, pd.DataFrame)):
