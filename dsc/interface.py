@@ -8,7 +8,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 import sys, argparse
 from dsc import PACKAGE, VERSION
 from sos.utils import logger, get_traceback
-from .workhorse import execute, annotate
+from .workhorse import main
 from .utils import Timer
 
 def main():
@@ -42,7 +42,20 @@ def main():
                    help = '''DSC steps whose output are to be removed. Multiple steps are allowed.
                    Each step should be a quoted string defining a valid DSC step, in the format of
                    "block_name[step_index]". Multiple such steps should be separated by space.''')
-    p.set_defaults(func = execute)
+    p_ann = p.add_argument_group("Annotate DSC")
+    p_ann.add_argument('--annotation', metavar = 'str',
+                       help = '''DSC annotation configuration file.''')
+    p_ann.add_argument('--table', dest = 'master', metavar = 'str',
+                         help = '''Name of table to annotate, applicable
+                         when there are multiple master tables in the DSC database.''')
+    p_ext = p.add_argument_group("Extract DSC results")
+    p_ext.add_argument('--extract', metavar = 'str', nargs = '+', help = '''Tags to extract.''')
+    p_ext.add_argument('--table', dest = 'master', metavar = 'str',
+                         help = '''Name of table to extract from, applicable
+                         when there are multiple master tables in the DSC database.''')
+    p_ext.add_argument('--to', dest = 'dest', metavar = 'str',
+                         help = '''Prefix of file name to which extracted data is written.''')
+    p.set_defaults(func = main)
     args, argv = p.parse_known_args()
     try:
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
@@ -53,18 +66,3 @@ def main():
         else:
             logger.error(e)
         sys.exit(1)
-
-def main_ann():
-    p = argparse.ArgumentParser(description = __doc__ + " (the annotation module)")
-    p.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
-    p.add_argument('dsc_annotation', metavar = 'DSC annotation file', help = '')
-    p.add_argument('--db', metavar = 'str',
-                   help = 'Name of DSC result database. Default to the same file prefix as the DSC annotation file.')
-    p.add_argument('-t', dest = 'master', metavar = 'str',
-                         help = 'Name of table to annotate, when there is multiple master tables in the DSC database.')
-    p.set_defaults(func = annotate)
-    args, argv = p.parse_known_args()
-    try:
-        args.func(args, argv)
-    except Exception as e:
-        sys.exit(e)

@@ -117,6 +117,7 @@ def execute(args, argv):
     run_jobs, dsc_jobs, dsc_data, section_content, db, master = setup()
     if args.to_remove:
         remove(dsc_jobs, dsc_data, args.to_remove, db)
+        return
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
     dsc2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',
@@ -143,7 +144,18 @@ def execute(args, argv):
 
 
 def annotate(args, argv):
-    ann = ResultAnnotation(args.dsc_annotation, args.master, args.db)
+    ann = ResultAnnotator(args.annotation, args.master)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()
     env.logger.info(ann.ShowQueries())
+
+def extract(args, argv):
+    ext = ResultExtrator(args.extract, args.master, args.dest)
+
+def main(args, argv):
+    if args.annotation is not None:
+        annotate(args, argv)
+    elif: args.extract is not None:
+        extract(args, argv)
+    else:
+        execute(args, argv)

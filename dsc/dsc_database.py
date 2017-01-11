@@ -176,69 +176,10 @@ class ResultDB:
         return pd.concat([data[key] for key in data], ignore_index = True)
 
 
-    def cbind_output(self, name, table):
-        '''
-        For output from the last step of sequence (the output we ultimately care),
-        if output.rds exists, then try to read that RDS file and
-        dump its values to parameter space if it is "simple" enough (i.e., 1D vector at the most)
-        load those values to the master table directly. Keep the parameters
-        of those steps separate.
-        '''
-        data = []
-        colnames = None
-        previous_rds = None
-        previous_step = None
-        for step, idx in zip(table['{}_name'.format(name)], table['{}_id'.format(name)]):
-            rds = '{}/{}.rds'.format(self.name,
-                                     self.data[step]['return'][self.data[step]['step_id'].index(idx)])
-            if previous_rds is None:
-                previous_rds = rds
-            if previous_step is None:
-                previous_step = step
-            if not os.path.isfile(rds):
-                continue
-            rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
-                                                        RV.BoolVector, RV.FloatVector, RV.StrVector,
-                                                        RI.RNULLType)))
-            tmp_colnames = []
-            values = []
-            for k in sorted(rdata.keys()):
-                if is_null(rdata[k]) or len(rdata[k]) == 0:
-                    continue
-                elif len(rdata[k].shape) > 1:
-                    continue
-                elif len(rdata[k]) == 1:
-                    tmp_colnames.append(k)
-                    values.append(rdata[k][0])
-                else:
-                    tmp_colnames.extend(['{}_{}'.format(k, idx + 1) for idx in range(len(rdata[k]))])
-                    values.extend(rdata[k])
-            if len(values) == 0:
-                return table
-            if colnames is None:
-                colnames = tmp_colnames
-            else:
-                if colnames != tmp_colnames:
-                    raise ResultDBError('``{0}`` from ``{1}`` (in file ``{2}``, len({0}) = {3}) and '\
-                                        '``{4}`` (in file ``{5}``, len({0}) = {6}) are inconsistent!'.\
-                                        format(colnames[0].split("_")[0], step, rds, len(tmp_colnames),
-                                               previous_step, previous_rds, len(colnames)))
-            data.append([idx] + values)
-            previous_rds = rds
-            previous_step = step
-        # Now bind data to table, by '{}_id'.format(name)
-        if data:
-            return pd.merge(table, pd.DataFrame(data, columns = ['{}_id'.format(name)] + colnames),
-                            on = '{}_id'.format(name), how = 'outer')
-        else:
-            return table
-
     def Build(self, script = None):
         self.load_parameters()
         for block in self.last_block:
             self.master['master_{}'.format(block)] = self.write_master_table(block)
-        for item in self.master:
-            self.master[item] = self.cbind_output(item.split('_', 1)[1], self.master[item])
         tmp = ['step_id', 'depends', 'return']
         for table in self.data:
             cols = tmp + [x for x in self.data[table].keys() if x not in tmp]
@@ -331,7 +272,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
     with open(conf_db, 'w') as f:
         f.write(json.dumps(conf))
 
-class ResultAnnotation:
+class ResultAnnotator:
     def __init__(self, ann_file, ann_table, ann_db):
         '''Load master table to be annotated and annotation contents'''
         data = load_rds(ann_db)
@@ -488,3 +429,66 @@ class ResultAnnotation:
                 res += "\t{}\n".format(' & '.join(item))
             res += '\n'
         return res.strip()
+
+class ResultExtractor:
+    def __init__(self, tags, master, output):
+        self.tags = tags
+        self.master = master
+        self.output = output
+
+    def _extract_rds_array(self, name, table):
+        '''
+        For output from the last step of sequence (the output we ultimately care),
+        if output.rds exists, then try to read that RDS file and
+        dump its values to parameter space if it is "simple" enough (i.e., 1D vector at the most)
+        load those values to the master table directly. Keep the parameters
+        of those steps separate.
+        '''
+        data = []
+        colnames = None
+        previous_rds = None
+        previous_step = None
+        for step, idx in zip(table['{}_name'.format(name)], table['{}_id'.format(name)]):
+            rds = '{}/{}.rds'.format(self.name,
+                                     self.data[step]['return'][self.data[step]['step_id'].index(idx)])
+            if previous_rds is None:
+                previous_rds = rds
+            if previous_step is None:
+                previous_step = step
+            if not os.path.isfile(rds):
+                continue
+            rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
+                                                        RV.BoolVector, RV.FloatVector, RV.StrVector,
+                                                        RI.RNULLType)))
+            tmp_colnames = []
+            values = []
+            for k in sorted(rdata.keys()):
+                if is_null(rdata[k]) or len(rdata[k]) == 0:
+                    continue
+                elif len(rdata[k].shape) > 1:
+                    continue
+                elif len(rdata[k]) == 1:
+                    tmp_colnames.append(k)
+                    values.append(rdata[k][0])
+                else:
+                    tmp_colnames.extend(['{}_{}'.format(k, idx + 1) for idx in range(len(rdata[k]))])
+                    values.extend(rdata[k])
+            if len(values) == 0:
+                return table
+            if colnames is None:
+                colnames = tmp_colnames
+            else:
+                if colnames != tmp_colnames:
+                    raise ResultDBError('``{0}`` from ``{1}`` (in file ``{2}``, len({0}) = {3}) and '\
+                                        '``{4}`` (in file ``{5}``, len({0}) = {6}) are inconsistent!'.\
+                                        format(colnames[0].split("_")[0], step, rds, len(tmp_colnames),
+                                               previous_step, previous_rds, len(colnames)))
+            data.append([idx] + values)
+            previous_rds = rds
+            previous_step = step
+        # Now bind data to table, by '{}_id'.format(name)
+        if data:
+            return pd.merge(table, pd.DataFrame(data, columns = ['{}_id'.format(name)] + colnames),
+                            on = '{}_id'.format(name), how = 'outer')
+        else:
+            return table
