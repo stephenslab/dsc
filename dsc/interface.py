@@ -55,8 +55,9 @@ def main():
                          when there are multiple DSC sequences executed.''')
     p_ext.add_argument('--extract_to', dest = 'dest', metavar = 'str',
                          help = '''Prefix of file name to which extracted data is written.''')
-    p_ext.add_argument('--tags', metavar = 'str', nargs = '+', 
-                       help = '''Tags to extract for. Default to all tags.''')
+    p_ext.add_argument('--tags', metavar = 'str', nargs = '+',
+                       help = '''Tags to extract. The "&&" symbol can be used to specify intersect
+                       of multiple tags. Default to extracting for all tags.''')
 
     p.set_defaults(func = run)
     args, argv = p.parse_known_args()

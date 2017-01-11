@@ -492,5 +492,11 @@ class ResultExtractor:
     def Extract(self, var):
         result = {}
         for ann in self.tags:
-            result[ann] = self._extract_rds_array(self.ann[ann], var)
+            if not "&&" in ann:
+                result[ann] = self._extract_rds_array(self.ann[ann], var)
+            else:
+                ann = [x.strip() for x in ann.split('&&')]
+                arrays = [self.ann[x] for x in ann]
+                ann = '_'.join(ann)
+                result[ann] = self._extract_rds_array(set.intersection(*map(set, arrays)), var)
         save_rds(result, self.output)
