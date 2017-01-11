@@ -143,7 +143,7 @@ def execute(args, argv):
     env.logger.info("DSC complete!")
 
 
-def query(args, argv):
+def annotate(args, argv):
     def get_id(query, target = None):
         name = master[7:] if master.startswith('master_') else master
         if target is None:

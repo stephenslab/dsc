@@ -8,7 +8,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 import sys, argparse
 from dsc import PACKAGE, VERSION
 from sos.utils import logger, get_traceback
-from .workhorse import execute, query
+from .workhorse import execute, annotate
 from .utils import Timer
 
 def main():
@@ -54,20 +54,15 @@ def main():
             logger.error(e)
         sys.exit(1)
 
-def main_viz():
-    p = argparse.ArgumentParser(description = __doc__ + " (the visualization module)")
+def main_ann():
+    p = argparse.ArgumentParser(description = __doc__ + " (the annotation module)")
     p.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
-    p.add_argument('dsc_db', metavar = 'DSC output database', help = '')
-    p_query = p.add_argument_group("Output query")
-    p_query.add_argument('-t', dest = 'master', metavar = 'str', required = True,
-                   help = 'Name of master table to query from.')
-    p_query.add_argument('-q', dest = 'queries', metavar = 'str', nargs = '+', required = True,
-                   help = 'Queries to run. Please see DSC2 documentation for details.')
-    p_query.add_argument('-o', dest = 'output', metavar = 'str',
-                   help = 'Patterns of desired output columns. Please see DSC2 documentation for details.')
-    p_query.add_argument('--no-header', dest = 'no_header', action='store_true',
-                   help = 'Do not display header in output')
-    p_query.set_defaults(func = query)
+    p.add_argument('dsc_annotation', metavar = 'DSC annotation file', help = '')
+    p.add_argument('--db', metavar = 'str',
+                   help = 'Name of DSC result database. Default to the same file prefix as the DSC annotation file.')
+    p.add_argument('-t', dest = 'master', metavar = 'str',
+                         help = 'Name of table to annotate, when there is multiple master tables in the DSC database.')
+    p.set_defaults(func = annotate)
     args, argv = p.parse_known_args()
     try:
         args.func(args, argv)
