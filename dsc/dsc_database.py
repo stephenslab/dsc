@@ -9,7 +9,6 @@ import pandas as pd
 import numpy as np
 from sos.target import textMD5
 from sos.utils import Error
-from .dsc_file import DSCData
 from .utils import load_rds, save_rds, \
      flatten_list, flatten_dict, is_null, \
      no_duplicates_constructor, cartesian_list
@@ -273,11 +272,10 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
         f.write(json.dumps(conf))
 
 class ResultAnnotator:
-    def __init__(self, ann_file, ann_table, ann_db):
+    def __init__(self, ann_file, ann_table, dsc_data):
         '''Load master table to be annotated and annotation contents'''
-        data = load_rds(ann_db)
+        data = load_rds(dsc_data['DSC']['output'][0] + '.rds')
         self.data = {k : pd.DataFrame(v) for k, v in data.items() if k != '.dscsrc'}
-        self.dsc = DSCData(''.join(data['.dscsrc']).replace('\\n', '\n')[1:-1], check_rlibs = False)
         if ann_table is not None:
             self.master = ann_table if ann_table.startswith('master_') else 'master_{}'.format(ann_table)
         else:
@@ -288,6 +286,7 @@ class ResultAnnotator:
             else:
                 self.master = self.master[0]
         self.ann = yaml.load(open(ann_file))
+        self.dsc = dsc_data
         self.msg = []
 
     def ConvertAnnToQuery(self):
@@ -419,7 +418,8 @@ class ResultAnnotator:
             self.result[tag] = []
             for queries in self.queries[tag]:
                 self.result[tag].extend(run_query(queries))
-        open(self.dsc['DSC']['output'][0] + '.tags', "wb").write(msgpack.packb(self.result))
+        open(os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.tags'.format(self.master)), "wb").\
+            write(msgpack.packb(self.result))
 
     def ShowQueries(self):
         res = 'DSC result annotation summary:\n'
@@ -431,64 +431,58 @@ class ResultAnnotator:
         return res.strip()
 
 class ResultExtractor:
-    def __init__(self, tags, master, output):
-        self.tags = tags
-        self.master = master
-        self.output = output
+    def __init__(self, tags, from_table, from_file, to_file, force = False):
+        data = load_rds(from_file + '.rds')
+        if from_table is not None:
+            self.master = from_table if from_table.startswith('master_') else 'master_{}'.format(from_table)
+        else:
+            self.master = [k for k in data if k.startswith('master_')]
+            if len(self.master) > 1:
+                raise ValueError("Please specify the master table to annotate.\nChoices are ``{}``".\
+                                 format(repr(self.master)))
+            else:
+                self.master = self.master[0]
+        tag_file = os.path.join('.sos/.dsc', from_file + '.{}.tags'.format(self.master))
+        if not os.path.isfile(tag_file):
+            raise ValueError("DSC result for ``{}`` has not been annotated. Please use '--annotation' option to annotate the results before running '--extract'.".format(self.master[7:]))
+        self.ann = msgpack.unpackb(open(tag_file, 'rb').read(), encoding = 'utf-8')
+        if tags is None:
+            self.tags = list(self.ann.keys())
+        else:
+            self.tags = tags
+        if to_file is None:
+            to_file = from_file + '.extracted.rds'
+        if os.path.isfile(to_file):
+            if not force:
+                raise RuntimeError('File ``{}`` already exists. Please use \'--to\' option to set another file name, or use \'-f\' to force overwrite.'.format(to_file))
+        self.output = to_file
+        self.name = from_file
 
-    def _extract_rds_array(self, name, table):
+    def _extract_rds_array(self, files, k):
         '''
-        For output from the last step of sequence (the output we ultimately care),
-        if output.rds exists, then try to read that RDS file and
-        dump its values to parameter space if it is "simple" enough (i.e., 1D vector at the most)
-        load those values to the master table directly. Keep the parameters
-        of those steps separate.
+        Given an array of RDS file names, extract given variable from these RDS files
         '''
-        data = []
-        colnames = None
-        previous_rds = None
-        previous_step = None
-        for step, idx in zip(table['{}_name'.format(name)], table['{}_id'.format(name)]):
-            rds = '{}/{}.rds'.format(self.name,
-                                     self.data[step]['return'][self.data[step]['step_id'].index(idx)])
-            if previous_rds is None:
-                previous_rds = rds
-            if previous_step is None:
-                previous_step = step
+        result = []
+        for f in files:
+            rds = '{}/{}.rds'.format(self.name, f)
             if not os.path.isfile(rds):
                 continue
             rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
                                                         RV.BoolVector, RV.FloatVector, RV.StrVector,
                                                         RI.RNULLType)))
-            tmp_colnames = []
-            values = []
-            for k in sorted(rdata.keys()):
-                if is_null(rdata[k]) or len(rdata[k]) == 0:
-                    continue
-                elif len(rdata[k].shape) > 1:
-                    continue
-                elif len(rdata[k]) == 1:
-                    tmp_colnames.append(k)
-                    values.append(rdata[k][0])
-                else:
-                    tmp_colnames.extend(['{}_{}'.format(k, idx + 1) for idx in range(len(rdata[k]))])
-                    values.extend(rdata[k])
-            if len(values) == 0:
-                return table
-            if colnames is None:
-                colnames = tmp_colnames
+            if is_null(rdata[k]) or len(rdata[k]) == 0:
+                continue
+            elif len(rdata[k].shape) > 2:
+                # too large. will just give the name of the file
+                result.append(rds)
+            elif len(rdata[k]) == 1:
+                result.append(rdata[k][0])
             else:
-                if colnames != tmp_colnames:
-                    raise ResultDBError('``{0}`` from ``{1}`` (in file ``{2}``, len({0}) = {3}) and '\
-                                        '``{4}`` (in file ``{5}``, len({0}) = {6}) are inconsistent!'.\
-                                        format(colnames[0].split("_")[0], step, rds, len(tmp_colnames),
-                                               previous_step, previous_rds, len(colnames)))
-            data.append([idx] + values)
-            previous_rds = rds
-            previous_step = step
-        # Now bind data to table, by '{}_id'.format(name)
-        if data:
-            return pd.merge(table, pd.DataFrame(data, columns = ['{}_id'.format(name)] + colnames),
-                            on = '{}_id'.format(name), how = 'outer')
-        else:
-            return table
+                result.append(rdata[k])
+        return result
+
+    def Extract(self, var):
+        result = {}
+        for ann in self.tags:
+            result[ann] = self._extract_rds_array(self.ann[ann], var)
+        save_rds(result, self.output)

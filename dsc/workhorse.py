@@ -10,7 +10,7 @@ from sos.utils import env, get_traceback
 from sos.__main__ import cmd_remove
 from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
-from .dsc_database import ResultDB, ResultAnnotation
+from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
 from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html, dotdict
 
 def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None, queue = None, is_prepare = False):
@@ -144,18 +144,27 @@ def execute(args, argv):
 
 
 def annotate(args, argv):
-    ann = ResultAnnotator(args.annotation, args.master)
+    dsc_data = DSCData(args.dsc_file, check_rlibs = False)
+    ann = ResultAnnotator(args.annotation, args.master, dsc_data)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()
     env.logger.info(ann.ShowQueries())
+    if len(ann.msg):
+        env.logger.warning('\n' + '\n'.join(ann.msg))
 
 def extract(args, argv):
-    ext = ResultExtrator(args.extract, args.master, args.dest)
+    dsc_data = DSCData(args.dsc_file, check_rlibs = False)
+    ext = ResultExtractor(args.tags, args.master, dsc_data['DSC']['output'][0], args.dest, args.__rerun__)
+    ext.Extract(args.extract)
+    env.logger.info('``{}`` data saved to ``{}`` for {} from DSC block ``{}``.'.\
+                    format(args.extract, ext.output,
+                           'annotations {}'.format(', '.join(args.tags)) if args.tags else "all annotations",
+                           ext.master[7:]))
 
-def main(args, argv):
+def run(args, argv):
     if args.annotation is not None:
         annotate(args, argv)
-    elif: args.extract is not None:
+    elif args.extract is not None:
         extract(args, argv)
     else:
         execute(args, argv)

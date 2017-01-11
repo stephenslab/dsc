@@ -8,7 +8,7 @@ __doc__ = "Implementation of Dynamic Statistical Comparisons"
 import sys, argparse
 from dsc import PACKAGE, VERSION
 from sos.utils import logger, get_traceback
-from .workhorse import main
+from .workhorse import run
 from .utils import Timer
 
 def main():
@@ -45,17 +45,20 @@ def main():
     p_ann = p.add_argument_group("Annotate DSC")
     p_ann.add_argument('--annotation', metavar = 'str',
                        help = '''DSC annotation configuration file.''')
-    p_ann.add_argument('--table', dest = 'master', metavar = 'str',
-                         help = '''Name of table to annotate, applicable
-                         when there are multiple master tables in the DSC database.''')
+    p_ann.add_argument('--target', dest = 'master', metavar = 'str',
+                         help = '''Name of last block in DSC to annotate, applicable
+                         when there are multiple DSC sequences executed.''')
     p_ext = p.add_argument_group("Extract DSC results")
-    p_ext.add_argument('--extract', metavar = 'str', nargs = '+', help = '''Tags to extract.''')
-    p_ext.add_argument('--table', dest = 'master', metavar = 'str',
-                         help = '''Name of table to extract from, applicable
-                         when there are multiple master tables in the DSC database.''')
+    p_ext.add_argument('--extract', metavar = 'str', help = '''Variable name to extract.''')
+    p_ext.add_argument('--from', dest = 'master', metavar = 'str',
+                         help = '''Name of last block in DSC to extract data from, applicable
+                         when there are multiple DSC sequences executed.''')
     p_ext.add_argument('--to', dest = 'dest', metavar = 'str',
                          help = '''Prefix of file name to which extracted data is written.''')
-    p.set_defaults(func = main)
+    p_ext.add_argument('--tags', metavar = 'str', nargs = '+', 
+                       help = '''Tags to extract for. Default to all tags.''')
+
+    p.set_defaults(func = run)
     args, argv = p.parse_known_args()
     try:
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
