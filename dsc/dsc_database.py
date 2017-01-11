@@ -298,13 +298,21 @@ class ResultAnnotator:
         4. non-master table queries: if `exec` presents use the tables specified and double check the table names; otherwise do it for all the tables in the given block.
         '''
         def get_query(obj, text):
+            def to_str(p1):
+                p1 = p1.strip()
+                try:
+                    res = re.search(r'^Asis\((.*?)\)$', p1).group(1)
+                    return repr(res)
+                except:
+                    return repr(repr(p1))
+
             if isinstance(text, str) and text.startswith('%'):
                 return text.lstrip('%')
             else:
                 if isinstance(text, list) or isinstance(text, tuple):
-                    return ' OR '.join(['{} == {}'.format(obj, str(x) if not isinstance(x, str) else repr(x)) for x in text])
+                    return ' OR '.join(['{} == {}'.format(obj, x if not isinstance(x, str) else to_str(x)) for x in text])
                 else:
-                    return '{} == {}'.format(obj, str(text) if not isinstance(text, str) else repr(text))
+                    return '{} == {}'.format(obj, text if not isinstance(text, str) else to_str(text))
 
         self.queries = {}
         for tag in self.ann:
@@ -422,7 +430,7 @@ class ResultAnnotator:
             write(msgpack.packb(self.result))
 
     def ShowQueries(self):
-        res = 'DSC result annotation summary:\n'
+        res = 'DSC result ``{}`` has been annotated.\n'.format(self.master[7:])
         for tag in self.queries:
             res += '\tTag ``{}`` created via:\n'.format(tag)
             for item in self.queries[tag]:

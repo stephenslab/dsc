@@ -543,6 +543,7 @@ build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
             (name of indexed DSC block corresponding to a computational routine).
         '''
         res = ["[{0}_{1}: shared = '{0}_output']".format(step_data['name'], step_data['exe_id'])]
+        res.extend(["parameter: sequence_id = None", "parameter: sequence_name = None"])
         res.append("input: '{}'\noutput: {}".format(self.dsc_file, self.confdb))
         # Set params, make sure each time the ordering is the same
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
@@ -615,6 +616,7 @@ build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
 
     def __get_run_step(self, step_data):
         res = ["[{0}_{1} ({2})]".format(step_data['name'], step_data['exe_id'], step_data['exe'])]
+        res.append("parameter: sequence_id = None")
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
