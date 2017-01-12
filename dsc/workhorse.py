@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, re, fnmatch
+import os, sys, atexit, re
 from collections import OrderedDict
 from sos.utils import env, get_traceback
 from sos.__main__ import cmd_remove
