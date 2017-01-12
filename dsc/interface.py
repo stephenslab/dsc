@@ -6,14 +6,14 @@ __license__ = "MIT"
 __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 import sys, argparse
-from dsc import PACKAGE, VERSION
+from dsc import VERSION
 from sos.utils import logger, get_traceback
-from .workhorse import execute, query
+from .workhorse import run
 from .utils import Timer
 
 def main():
     p = argparse.ArgumentParser(description = __doc__)
-    p.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
+    p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
@@ -42,7 +42,24 @@ def main():
                    help = '''DSC steps whose output are to be removed. Multiple steps are allowed.
                    Each step should be a quoted string defining a valid DSC step, in the format of
                    "block_name[step_index]". Multiple such steps should be separated by space.''')
-    p.set_defaults(func = execute)
+    p_ann = p.add_argument_group("Annotate DSC")
+    p_ann.add_argument('--annotation', metavar = 'str',
+                       help = '''DSC annotation configuration file.''')
+    p_ann.add_argument('--annotate_to', dest = 'master', metavar = 'str',
+                         help = '''Name of last block in DSC to annotate, applicable
+                         when there are multiple DSC sequences executed.''')
+    p_ext = p.add_argument_group("Extract DSC results")
+    p_ext.add_argument('--extract', metavar = 'str', help = '''Variable name to extract.''')
+    p_ext.add_argument('--extract_from', dest = 'master', metavar = 'str',
+                         help = '''Name of last block in DSC to extract data from, applicable
+                         when there are multiple DSC sequences executed.''')
+    p_ext.add_argument('--extract_to', dest = 'dest', metavar = 'str',
+                         help = '''Prefix of file name to which extracted data is written.''')
+    p_ext.add_argument('--tags', metavar = 'str', nargs = '+',
+                       help = '''Tags to extract. The "&&" symbol can be used to specify intersect
+                       of multiple tags. Default to extracting for all tags.''')
+
+    p.set_defaults(func = run)
     args, argv = p.parse_known_args()
     try:
         with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
@@ -53,23 +70,3 @@ def main():
         else:
             logger.error(e)
         sys.exit(1)
-
-def main_viz():
-    p = argparse.ArgumentParser(description = __doc__ + " (the visualization module)")
-    p.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
-    p.add_argument('dsc_db', metavar = 'DSC output database', help = '')
-    p_query = p.add_argument_group("Output query")
-    p_query.add_argument('-t', dest = 'master', metavar = 'str', required = True,
-                   help = 'Name of master table to query from.')
-    p_query.add_argument('-q', dest = 'queries', metavar = 'str', nargs = '+', required = True,
-                   help = 'Queries to run. Please see DSC2 documentation for details.')
-    p_query.add_argument('-o', dest = 'output', metavar = 'str',
-                   help = 'Patterns of desired output columns. Please see DSC2 documentation for details.')
-    p_query.add_argument('--no-header', dest = 'no_header', action='store_true',
-                   help = 'Do not display header in output')
-    p_query.set_defaults(func = query)
-    args, argv = p.parse_known_args()
-    try:
-        args.func(args, argv)
-    except Exception as e:
-        sys.exit(e)

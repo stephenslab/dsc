@@ -3,17 +3,20 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import sys, os, msgpack, json
+import sys, os, msgpack, json, yaml, re, fnmatch
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
 from sos.target import textMD5
 from sos.utils import Error
 from .utils import load_rds, save_rds, \
-     flatten_list, flatten_dict, is_null
+     flatten_list, flatten_dict, is_null, \
+     no_duplicates_constructor, cartesian_list
 import readline
 import rpy2.robjects.vectors as RV
 import rpy2.rinterface as RI
+
+yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
 class ResultDBError(Error):
     """Raised when there is a problem building the database."""
@@ -172,69 +175,10 @@ class ResultDB:
         return pd.concat([data[key] for key in data], ignore_index = True)
 
 
-    def cbind_output(self, name, table):
-        '''
-        For output from the last step of sequence (the output we ultimately care),
-        if output.rds exists, then try to read that RDS file and
-        dump its values to parameter space if it is "simple" enough (i.e., 1D vector at the most)
-        load those values to the master table directly. Keep the parameters
-        of those steps separate.
-        '''
-        data = []
-        colnames = None
-        previous_rds = None
-        previous_step = None
-        for step, idx in zip(table['{}_name'.format(name)], table['{}_id'.format(name)]):
-            rds = '{}/{}.rds'.format(self.name,
-                                     self.data[step]['return'][self.data[step]['step_id'].index(idx)])
-            if previous_rds is None:
-                previous_rds = rds
-            if previous_step is None:
-                previous_step = step
-            if not os.path.isfile(rds):
-                continue
-            rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
-                                                        RV.BoolVector, RV.FloatVector, RV.StrVector,
-                                                        RI.RNULLType)))
-            tmp_colnames = []
-            values = []
-            for k in sorted(rdata.keys()):
-                if is_null(rdata[k]) or len(rdata[k]) == 0:
-                    continue
-                elif len(rdata[k].shape) > 1:
-                    continue
-                elif len(rdata[k]) == 1:
-                    tmp_colnames.append(k)
-                    values.append(rdata[k][0])
-                else:
-                    tmp_colnames.extend(['{}_{}'.format(k, idx + 1) for idx in range(len(rdata[k]))])
-                    values.extend(rdata[k])
-            if len(values) == 0:
-                return table
-            if colnames is None:
-                colnames = tmp_colnames
-            else:
-                if colnames != tmp_colnames:
-                    raise ResultDBError('``{0}`` from ``{1}`` (in file ``{2}``, len({0}) = {3}) and '\
-                                        '``{4}`` (in file ``{5}``, len({0}) = {6}) are inconsistent!'.\
-                                        format(colnames[0].split("_")[0], step, rds, len(tmp_colnames),
-                                               previous_step, previous_rds, len(colnames)))
-            data.append([idx] + values)
-            previous_rds = rds
-            previous_step = step
-        # Now bind data to table, by '{}_id'.format(name)
-        if data:
-            return pd.merge(table, pd.DataFrame(data, columns = ['{}_id'.format(name)] + colnames),
-                            on = '{}_id'.format(name), how = 'outer')
-        else:
-            return table
-
     def Build(self, script = None):
         self.load_parameters()
         for block in self.last_block:
             self.master['master_{}'.format(block)] = self.write_master_table(block)
-        for item in self.master:
-            self.master[item] = self.cbind_output(item.split('_', 1)[1], self.master[item])
         tmp = ['step_id', 'depends', 'return']
         for table in self.data:
             cols = tmp + [x for x in self.data[table].keys() if x not in tmp]
@@ -326,3 +270,233 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
     #
     with open(conf_db, 'w') as f:
         f.write(json.dumps(conf))
+
+class ResultAnnotator:
+    def __init__(self, ann_file, ann_table, dsc_data):
+        '''Load master table to be annotated and annotation contents'''
+        data = load_rds(dsc_data['DSC']['output'][0] + '.rds')
+        self.data = {k : pd.DataFrame(v) for k, v in data.items() if k != '.dscsrc'}
+        if ann_table is not None:
+            self.master = ann_table if ann_table.startswith('master_') else 'master_{}'.format(ann_table)
+        else:
+            self.master = [k for k in self.data if k.startswith('master_')]
+            if len(self.master) > 1:
+                raise ValueError("Please specify the master table to annotate.\nChoices are ``{}``".\
+                                 format(repr(self.master)))
+            else:
+                self.master = self.master[0]
+        self.ann = yaml.load(open(ann_file))
+        self.dsc = dsc_data
+        self.msg = []
+
+    def ConvertAnnToQuery(self):
+        '''
+        Parse annotations to make pytable syntax
+        1. for simple numbers / strings use '==' logic
+        2. for list / tuples use "or" logic
+        3. for raw queries use a special function ... maybe starting with % sign?
+        4. non-master table queries: if `exec` presents use the tables specified and double check the table names; otherwise do it for all the tables in the given block.
+        '''
+        def get_query(obj, text):
+            def to_str(p1):
+                p1 = p1.strip()
+                try:
+                    res = re.search(r'^Asis\((.*?)\)$', p1).group(1)
+                    return repr(res)
+                except:
+                    return repr(repr(p1))
+
+            if isinstance(text, str) and text.startswith('%'):
+                return text.lstrip('%')
+            else:
+                if isinstance(text, list) or isinstance(text, tuple):
+                    return ' OR '.join(['{} == {}'.format(obj, x if not isinstance(x, str) else to_str(x)) for x in text])
+                else:
+                    return '{} == {}'.format(obj, text if not isinstance(text, str) else to_str(text))
+
+        self.queries = {}
+        for tag in self.ann:
+            self.queries[tag] = []
+            # for each tag we need a query
+            for block in self.ann[tag]:
+                # get subtables
+                if 'exec' in self.ann[tag][block]:
+                    # we potentially found the sub table to query from
+                    subtables = self.ann[tag][block]['exec'].split(',')
+                else:
+                    # we take that all sub tables in this block is involved
+                    # and we look for these tables in DSC data
+                    subtables = [x[0] for x in self.dsc[block]['meta']['exec']]
+                # get query
+                block_query = []
+                for k1 in self.ann[tag][block]:
+                    if k1 == 'params':
+                        for k2 in self.ann[tag][block][k1]:
+                            block_query.append(get_query(k2, self.ann[tag][block][k1][k2]))
+                    elif k1 == 'exec':
+                        continue
+                    else:
+                        block_query.append(get_query(k1, self.ann[tag][block][k1]))
+                # OR logic for multiple subtables
+                self.queries[tag].append(['[{}] {}'.format(table, ' AND '.join(['({})'.format(x) for x in block_query]) if len(block_query) else 'ALL') for table in subtables])
+        for tag in self.queries:
+            self.queries[tag] = cartesian_list(*self.queries[tag])
+
+    def ApplyAnotation(self):
+        '''Run query on result table and make a tag column'''
+
+        def get_id(query, target = None):
+            name = self.master[7:] if self.master.startswith('master_') else self.master
+            query = query.strip()
+            if target is None:
+                col_id = self.data[self.master].query(query)[name + '_id'] if query != 'ALL' else self.data[self.master][name + '_id']
+                col_id = col_id.tolist()
+            else:
+                col_id = self.data[target[0]].query(query)['step_id'] if query != 'ALL' else self.data[target[0]]['step_id']
+                col_id = [x for x, y in zip(self.data[self.master][name + '_id'].tolist(),
+                                            self.data[self.master][target[1][:-5] + '_id'].\
+                                            isin(col_id).tolist()) if y]
+            return col_id
+        #
+        def get_output(col_id, output = None):
+            name = self.master[7:] if self.master.startswith('master_') else self.master
+            # Get list of files
+            lookup = {}
+            for x, y in zip(self.data[self.master].query('{}_id == @col_id'.format(name))[name + '_name'].tolist(), col_id):
+                if x not in lookup:
+                    lookup[x] = []
+                lookup[x].append(y)
+            results = []
+            files = []
+            for k, value in lookup.items():
+                # Get output columns
+                if output:
+                    tmp = ['{}_id'.format(name)]
+                    tmp.extend(flatten_list([[x for x in fnmatch.filter(self.data[self.master].columns.values, o)]
+                                             for o in output]))
+                    results.append(self.data[self.master].query('{}_id == @value'.format(name))[tmp])
+                else:
+                    results.append(pd.DataFrame())
+                # Get output files
+                files.append(self.data[k].query('step_id == @value')[['step_id', 'return']])
+            res = []
+            for dff, dfr in zip(files, results):
+                if len(dfr.columns.values) > 2:
+                    res.append(pd.merge(dff, dfr, left_on = '{}_id'.format(name), right_on = 'step_id'))
+                else:
+                    res.append(dff.drop('step_id', axis = 1))
+            res = pd.concat(res)
+            for item in ['{}_id'.format(name), 'step_id']:
+                if item in res.columns.values:
+                    res.drop(item, axis = 1, inplace = True)
+            return res
+        #
+        def run_query(text):
+            return_id = None
+            for item in text:
+                pattern = re.search(r'^\[(.*)\](.*)', item)
+                if pattern:
+                    # query from sub-table
+                    for k in self.data[self.master]:
+                        if pattern.group(1) in self.data[self.master][k].tolist():
+                            if return_id is None:
+                                return_id = get_id(pattern.group(2).strip(), (pattern.group(1).strip(), k))
+                            else:
+                                return_id = [x for x in get_id(pattern.group(2).strip(),
+                                                               (pattern.group(1).strip(), k))
+                                             if x in return_id]
+                            break
+                        else:
+                            continue
+                else:
+                    # query from master table
+                    if return_id is None:
+                        return_id = get_id(item)
+                    else:
+                        return_id = [x for x in get_id(item) if x in return_id]
+            if len(return_id) == 0:
+                self.msg.append("Cannot find matching entries based on query ``{}``".format(repr(text)))
+                res = []
+            else:
+                res = get_output(return_id)['return']
+            return res
+        #
+        self.result = {}
+        for tag in self.queries:
+            self.result[tag] = []
+            for queries in self.queries[tag]:
+                self.result[tag].extend(run_query(queries))
+        open(os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.tags'.format(self.master)), "wb").\
+            write(msgpack.packb(self.result))
+
+    def ShowQueries(self):
+        res = 'DSC result ``{}`` has been annotated.\n'.format(self.master[7:])
+        for tag in self.queries:
+            res += '\tTag ``{}`` created via:\n'.format(tag)
+            for item in self.queries[tag]:
+                res += "\t{}\n".format(' & '.join(item))
+            res += '\n'
+        return res.strip()
+
+class ResultExtractor:
+    def __init__(self, tags, from_table, from_file, to_file, force = False):
+        data = load_rds(from_file + '.rds')
+        if from_table is not None:
+            self.master = from_table if from_table.startswith('master_') else 'master_{}'.format(from_table)
+        else:
+            self.master = [k for k in data if k.startswith('master_')]
+            if len(self.master) > 1:
+                raise ValueError("Please specify the master table to annotate.\nChoices are ``{}``".\
+                                 format(repr(self.master)))
+            else:
+                self.master = self.master[0]
+        tag_file = os.path.join('.sos/.dsc', from_file + '.{}.tags'.format(self.master))
+        if not os.path.isfile(tag_file):
+            raise ValueError("DSC result for ``{}`` has not been annotated. Please use '--annotation' option to annotate the results before running '--extract'.".format(self.master[7:]))
+        self.ann = msgpack.unpackb(open(tag_file, 'rb').read(), encoding = 'utf-8')
+        if tags is None:
+            self.tags = list(self.ann.keys())
+        else:
+            self.tags = tags
+        if to_file is None:
+            to_file = from_file + '.extracted.rds'
+        if os.path.isfile(to_file):
+            if not force:
+                raise RuntimeError('File ``{}`` already exists. Please use \'--to\' option to set another file name, or use \'-f\' to force overwrite.'.format(to_file))
+        self.output = to_file
+        self.name = from_file
+
+    def _extract_rds_array(self, files, k):
+        '''
+        Given an array of RDS file names, extract given variable from these RDS files
+        '''
+        result = []
+        for f in files:
+            rds = '{}/{}.rds'.format(self.name, f)
+            if not os.path.isfile(rds):
+                continue
+            rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
+                                                        RV.BoolVector, RV.FloatVector, RV.StrVector,
+                                                        RI.RNULLType)))
+            if is_null(rdata[k]) or len(rdata[k]) == 0:
+                continue
+            elif len(rdata[k].shape) > 2:
+                # too large. will just give the name of the file
+                result.append(rds)
+            elif len(rdata[k]) == 1:
+                result.append(rdata[k][0])
+            else:
+                result.append(rdata[k])
+        return result
+
+    def Extract(self, var):
+        result = {}
+        for ann in self.tags:
+            if not "&&" in ann:
+                result[ann] = self._extract_rds_array(self.ann[ann], var)
+            else:
+                ann = [x.strip() for x in ann.split('&&')]
+                arrays = [self.ann[x] for x in ann]
+                ann = '_'.join(ann)
+                result[ann] = self._extract_rds_array(set.intersection(*map(set, arrays)), var)
+        save_rds(result, self.output)

@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 import sys
 _py_ver = sys.version_info
 if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) < (5, 0)):
@@ -42,7 +42,7 @@ setup(name        = "dsc",
       url         = 'https://github.com/stephenslab/dsc2',
       download_url= 'https://github.com/stephenslab/dsc2/archive/v{}.tar.gz'.format(__version__),
       version     = __version__,
-      scripts     = ["dsc/dsc", "dsc/dsc-viz"],
+      scripts     = ["dsc/dsc"],
       package_dir = {"dsc": "dsc"},
       license     = 'MIT',
       classifiers = [
@@ -55,7 +55,7 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
-      install_requires = ['sos>=0.6.4', 'msgpack-python', 'pyyaml',
+      install_requires = ['sos>=0.8.7', 'msgpack-python', 'pyyaml',
                           'pandas>=0.18.0', 'rpy2>=2.7.8',
                           'sympy', 'numexpr', 'numpy']
       )

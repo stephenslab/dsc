@@ -599,7 +599,7 @@ class DSCData(dotdict):
     Structure of self:
       self.block_name.block_param_name = dict()
     '''
-    def __init__(self, content, sequence = None, output = None):
+    def __init__(self, content, sequence = None, output = None, check_rlibs = True):
         actions = [DSCFileLoader(content, sequence, output), DSCEntryFormatter()]
         for a in actions:
             a(self)
@@ -623,7 +623,7 @@ class DSCData(dotdict):
                         raise FormatError('Index for exec out of range: ``exec[{}]``.'.format(max_exec))
         #
         rlibs = try_get_value(self['DSC'], ('R_libs'))
-        if rlibs:
+        if rlibs and check_rlibs:
             rlibs_md5 = textMD5(repr(rlibs) + str(datetime.date.today()))
             if not os.path.exists('.sos/.dsc/RLib.{}.info'.format(rlibs_md5)):
                 install_r_libs(rlibs)

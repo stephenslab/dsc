@@ -1,0 +1,13 @@
+mean_t:
+    simulate: 
+        exec: rt.R
+        true_mean: 0
+    estimate:
+        exec: mean.R
+
+median_t:
+    simulate: 
+        exec: rt.R
+        true_mean: 0
+    estimate:
+        exec: median.R
