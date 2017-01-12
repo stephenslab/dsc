@@ -6,14 +6,14 @@ __license__ = "MIT"
 __doc__ = "Implementation of Dynamic Statistical Comparisons"
 
 import sys, argparse
-from dsc import PACKAGE, VERSION
+from dsc import VERSION
 from sos.utils import logger, get_traceback
 from .workhorse import run
 from .utils import Timer
 
 def main():
     p = argparse.ArgumentParser(description = __doc__)
-    p.add_argument('--version', action = 'version', version = '{} {}'.format(PACKAGE, VERSION))
+    p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')

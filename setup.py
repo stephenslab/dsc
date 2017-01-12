@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 import sys
 _py_ver = sys.version_info
 if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) < (5, 0)):
