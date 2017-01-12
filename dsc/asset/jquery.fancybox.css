@@ -76,7 +76,7 @@
 }
 
 #fancybox-loading, .fancybox-close, .fancybox-prev span, .fancybox-next span {
-	background-image: url('http://shiny.stephenslab.uchicago.edu/fancybox_sprite.png');
+	background-image: url('http://stephenslab.github.com/dsc-wiki/img/fancybox_sprite.png');
 }
 
 #fancybox-loading {
