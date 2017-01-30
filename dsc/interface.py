@@ -16,7 +16,7 @@ def main():
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
-                   information.''')
+                   information. Default to 2.''')
     p.add_argument('--debug', action='store_true', help = argparse.SUPPRESS)
     p.add_argument('dsc_file', metavar = "DSC file", help = '')
     p.add_argument('-s', '--sequence', metavar = "str", nargs = '+',
