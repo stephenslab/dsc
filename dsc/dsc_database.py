@@ -462,7 +462,7 @@ class ResultExtractor:
             to_file = from_file + '.extracted.rds'
         if os.path.isfile(to_file):
             if not force:
-                raise RuntimeError('File ``{}`` already exists. Please use \'--to\' option to set another file name, or use \'-f\' to force overwrite.'.format(to_file))
+                raise RuntimeError('File ``{}`` already exists. Please use \'--extract_to\' option to set another file name, or use \'-f\' to force overwrite.'.format(to_file))
         self.output = to_file
         self.name = from_file
 
