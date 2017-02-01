@@ -426,6 +426,7 @@ class DSCFileLoader(DSCFileParser):
                     raise FormatError('Missing required ``DSC::run``.')
                 if self.sequence is not None:
                     data.DSC['run'] = ', '.join(self.sequence)
+                data.DSC['run'] = self.__expand_slice(data.DSC['run'])
                 data.DSC['run'] = [(x,) if isinstance(x, str) else x for x in self.op(data.DSC['run'])]
                 if self.output is not None:
                     data.DSC['output'] = self.output
@@ -554,6 +555,20 @@ class DSCFileLoader(DSCFileParser):
                     res.params_alias[key] = res.params[key]['.alias']
                     del res.params[key]['.alias']
         return dotdict(strip_dict(res))
+
+    def __expand_slice(self, line):
+        '''
+        input: .... xxx[1,2,3] ....
+        output: .... (xxx[1], xxx[2], xxx[3]) ....
+        '''
+        pattern = re.compile(r'\w+\[(?P<b>.+?)\](,|\s*|\*|\+)')
+        for m in re.finditer(pattern, line):
+            sliced_text = get_slice(m.group(0))
+            if len(sliced_text[1]) == 1:
+                continue
+            text = '({})'.format(','.join(['{}[{}]'.format(sliced_text[0], x + 1) for x in sliced_text[1]]))
+            line = line.replace(m.group(0), text, 1)
+        return line
 
 class DSCEntryFormatter(DSCFileParser):
     '''

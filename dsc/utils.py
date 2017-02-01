@@ -178,27 +178,31 @@ def get_slice(value, all_tuple = True, mismatch_quit = True):
     exe[1:9:2] ==> (exe, (0,2,4,6,8))
     '''
     try:
-        slicearg = re.search('\[(.*?)\]', value).group(1)
+         slicearg = re.search('\[(.*?)\]', value).group(1)
     except:
-        if mismatch_quit:
-            raise AttributeError('Cannot obtain slice from input string {}'.format(value))
-        else:
-            return value, None
+         if mismatch_quit:
+              raise AttributeError('Cannot obtain slice from input string {}'.format(value))
+         else:
+              return value, None
     name = value.split('[')[0]
-    if ',' in slicearg:
-        return name, tuple(int(n.strip()) - 1 for n in slicearg.split(',') if n.strip())
-    elif ':' in slicearg:
-        slice_ints = [ int(n) for n in slicearg.split(':') ]
-        if len(slice_ints) == 1:
-            raise ValueError('Wrong syntax for slice {}.'.format(value))
-        slice_ints[1] += 1
-        slice_obj = slice(*tuple(slice_ints))
-        return name, tuple(x - 1 for x in range(slice_obj.start or 0, slice_obj.stop or -1, slice_obj.step or 1))
+    idxs = []
+    for item in slicearg.split(','):
+         item = item.strip()
+         if not item:
+              continue
+         if ':' in item:
+              slice_ints = [ int(n) for n in item.split(':') ]
+              if len(slice_ints) == 1:
+                   raise ValueError('Wrong syntax for slice {}.'.format(value))
+              slice_ints[1] += 1
+              slice_obj = slice(*tuple(slice_ints))
+              idxs.extend([x - 1 for x in range(slice_obj.start or 0, slice_obj.stop or -1, slice_obj.step or 1)])
+         else:
+              idxs.append(int(item) - 1)
+    if len(idxs) == 1 and not all_tuple:
+         return name, idxs[0]
     else:
-        if all_tuple:
-            return name, tuple([int(slicearg.strip()) - 1])
-        else:
-            return name, int(slicearg.strip()) - 1
+         return name, tuple(idxs)
 
 def try_get_value(value, keys):
     '''
