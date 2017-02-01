@@ -177,30 +177,35 @@ class DSCJobs(dotdict):
             # parameter value slicing
             pass
 
-        def process_return(out):
+        def process_return(out, idx):
+            if isinstance(out, dict):
+                # exec specific return alias involved
+                # need to extract the one that matches
+                # and discard others
+                try:
+                    out = out['exec[{}]'.format(idx)]
+                except KeyError:
+                    raise StepError("Invalid return alias ``{}``".format(out))
             for item in out:
                 lhs = ''
                 if '=' in item:
                     # return alias exists
                     lhs, rhs = (x.strip() for x in item.split('='))
                     groups = re.search(r'^(R|Python)\((.*?)\)$', rhs)
-                    if not groups:
-                        # alias is not for value inside other return objects
-                        # which implies that the alias comes from parameter list
-                        # FIXME: Just copy it over here. I should instead do it
-                        # at the saveRDS step to avoid copying
-                        try:
-                            params[lhs] = params[rhs]
-                        except KeyError:
-                            raise StepError("Parameter ``{}`` not found for block ``{}``.".\
-                                            format(rhs, name))
-                    else:
+                    if groups:
                         # alias is within plugin
                         data.plugin.add_return(lhs, groups.group(2))
                         data.to_plugin = True
+                    else:
+                        # alias is not for value inside other return objects
+                        # It may be a parameter specified by DSC2
+                        # Or be name of a variable inside the plugin
+                        if rhs not in params:
+                            data.to_plugin = True
+                        lhs = (lhs, rhs)
                 else:
                     lhs = item.strip()
-                if lhs not in params:
+                if lhs not in params and not isinstance(lhs, tuple):
                     data.to_plugin = True
                 data.output_vars.append(lhs)
             if data.to_plugin:
@@ -226,7 +231,7 @@ class DSCJobs(dotdict):
             # if return is not in parameter then
             # to_plugin will be True.
             # After this function, to_plugin is either True or None
-            process_return(block.out)
+            process_return(block.out, idx + 1)
             # assign parameters
             data.parameters = params
             self.master_data[name].append(dict(data))
@@ -281,9 +286,9 @@ class DSCJobs(dotdict):
             dependence = None
             to_plugin = None
             while curr_idx >= 0:
+                output_vars = [x[0] if isinstance(x, tuple) else x for x in res[curr_idx][0]['output_vars']]
                 try:
-                    dependence = (res[curr_idx][0]['name'], value,
-                                  res[curr_idx][0]['output_vars'].index(value))
+                    dependence = (res[curr_idx][0]['name'], value, output_vars.index(value))
                     to_plugin = res[curr_idx][0]['to_plugin']
                 except ValueError:
                     pass
@@ -308,6 +313,7 @@ class DSCJobs(dotdict):
         for idx, item in enumerate(sequence):
             # for each step
             for step_idx, step in enumerate(master_data[item]):
+                output_vars = [x[0] if isinstance(x, tuple) else x for x in master_data[item][step_idx]['output_vars']]
                 # for each exec
                 for k, p in list(step['parameters'].items()):
                     values = []
@@ -327,7 +333,7 @@ class DSCJobs(dotdict):
                                 # (this is because we'll not allow returning a file if it is already
                                 # plugin mode! It is possible to use File() though but I'll not monitor
                                 # the resulting product [in terms of signature])
-                                if k in master_data[item][step_idx]['output_vars']:
+                                if k in output_vars:
                                     if master_data[item][step_idx]['to_plugin'] is True:
                                         raise StepError("Cannot return to additional file with ``{}`` "\
                                                         " in plugin mode!".format(k))

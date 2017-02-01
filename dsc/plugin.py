@@ -128,7 +128,7 @@ class RPlug(BasePlug):
     def get_return(self, output_vars):
         res = '\n'.join(self.return_alias)
         res += '\nsaveRDS(list({}), ${{_output!r}})'.\
-          format(', '.join(['{0}={0}'.format(x) for x in output_vars]))
+          format(', '.join(['{0}={0}'.format(x) if not isinstance(x, tuple) else '{0}={1}'.format(x[0], x[1]) for x in output_vars]))
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -210,7 +210,7 @@ class PyPlug(BasePlug):
     def get_return(self, output_vars):
         res = '\n'.join(self.return_alias)
         res += '\nsave_rds({{{}}}, ${{_output!r}})'.\
-          format(', '.join(['"{0}": {0}'.format(x) for x in output_vars]))
+          format(', '.join(['"{0}": {0}'.format(x) if not isinstance(x, tuple) else '"{0}": {1}'.format(x[0], x[1]) for x in output_vars]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 
