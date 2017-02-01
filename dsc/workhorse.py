@@ -33,7 +33,7 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None, queue = No
             # Do not use progressbar for single CPU job
             # For better debugging
             env.verbosity = 2
-        if queue is None or env.max_jobs == 1:
+        if queue is None and env.max_jobs == 1:
             # single process executor
             executor_class = Base_Executor
         elif queue is None:
