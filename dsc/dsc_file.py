@@ -542,8 +542,9 @@ class DSCFileLoader(DSCFileParser):
                         if idx == 0:
                             raise FormatError('Invalid entry: exec[0]. Index must start from 1.')
                         if idx in res.params:
-                            raise FormatError('Duplicate parameter entry: {}.'.format(key))
-                        res.params[idx] = flatten_dict(value)
+                            res.params[idx].update(flatten_dict(value))
+                        else:
+                            res.params[idx] = flatten_dict(value)
                 except AttributeError:
                     res.params[0][key] = flatten_dict(value)
             # Parse rules and params_alias
