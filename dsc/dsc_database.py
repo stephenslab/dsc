@@ -284,7 +284,7 @@ class ResultAnnotator:
             self.master = [k for k in self.data if k.startswith('master_')]
             if len(self.master) > 1:
                 raise ValueError("Please specify the master table to annotate.\nChoices are ``{}``".\
-                                 format(repr(self.master)))
+                                 format(repr([x[7:] for x in self.master])))
             else:
                 self.master = self.master[0]
         self.ann = yaml.load(open(ann_file))
@@ -445,7 +445,8 @@ class ResultAnnotator:
 
 
 class ResultExtractor:
-    def __init__(self, tags, from_table, from_file, to_file, force = False):
+    def __init__(self, tags, from_table, to_file, dsc_data, force = False):
+        from_file = dsc_data['DSC']['output'][0]
         data = load_rds(from_file + '.rds')
         if from_table is not None:
             self.master = from_table if from_table.startswith('master_') else 'master_{}'.format(from_table)
@@ -495,7 +496,10 @@ class ResultExtractor:
                 result.append(rdata[k])
         return result
 
-    def Extract(self, var):
+    def Extract(self, target):
+        block, var = target.split(":")
+        # FIXME: reimplement this in R with file signatures tracked.
+        # To avoid rebuild
         result = {}
         for ann in self.tags:
             if not "&&" in ann:

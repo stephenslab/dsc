@@ -47,12 +47,16 @@ def main():
                        help = '''DSC annotation configuration file.''')
     p_ann.add_argument('--annotate_to', dest = 'master', metavar = 'str',
                          help = '''Name of last block in DSC to annotate, applicable
-                         when there are multiple DSC sequences executed.''')
+                         when multiple DSC sequences with different last block are executed.''')
     p_ext = p.add_argument_group("Extract DSC results")
-    p_ext.add_argument('--extract', metavar = 'str', help = '''Variable name to extract.''')
+    p_ext.add_argument('--extract', metavar = 'str', nargs = '+',
+                       help = '''Variable(s) to extract.
+                       Variable(s) should be specified by "block_name:variable_name".
+                       Valid `variable_name` are variables found in `return` of the corresponding
+                       DSC block.''')
     p_ext.add_argument('--extract_from', dest = 'master', metavar = 'str',
                          help = '''Name of last block in DSC to extract data from, applicable
-                         when there are multiple DSC sequences executed.''')
+                         when multiple DSC sequences with different last block are executed.''')
     p_ext.add_argument('--extract_to', dest = 'dest', metavar = 'str',
                          help = '''Prefix of file name to which extracted data is written.''')
     p_ext.add_argument('--tags', metavar = 'str', nargs = '+',

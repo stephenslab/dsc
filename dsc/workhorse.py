@@ -154,7 +154,7 @@ def annotate(args, argv):
 
 def extract(args, argv):
     dsc_data = DSCData(args.dsc_file, check_rlibs = False, output = args.output)
-    ext = ResultExtractor(args.tags, args.master, dsc_data['DSC']['output'][0], args.dest, args.__rerun__)
+    ext = ResultExtractor(args.tags, args.master, dsc_data, args.dest, args.__rerun__)
     ext.Extract(args.extract)
     env.logger.info('``{}`` data saved to ``{}`` for {} from DSC block ``{}``.'.\
                     format(args.extract, ext.output,
