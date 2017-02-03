@@ -149,6 +149,7 @@ def annotate(args, argv):
     ann = ResultAnnotator(args.annotation, args.master, dsc_data)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()
+    ann.SaveShinyMeta()
     env.logger.info('\n'+ ann.ShowQueries(args.verbosity))
     if len(ann.msg):
         env.logger.warning('\n' + '\n'.join(ann.msg))

@@ -279,7 +279,9 @@ class ResultAnnotator:
         else:
             self.master = [k for k in self.data if k.startswith('master_')]
             if len(self.master) > 1:
-                raise ValueError("Please specify the master table to annotate.\nChoices are ``{}``".\
+
+                raise ValueError("Please specify the last DSC block to annotate, via ``--annotate_to``."\
+                                 "\nChoices are ``{}``".\
                                  format(repr([x[7:] for x in self.master])))
             else:
                 self.master = self.master[0]
@@ -423,7 +425,7 @@ class ResultAnnotator:
             self.result[tag] = {}
             for queries in self.queries[tag]:
                 self.result[tag] = extend_dict(self.result[tag], run_query(queries))
-        open(os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.tags'.format(self.master)), "wb").\
+        open(os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.tags'.format(self.master[7:])), "wb").\
             write(msgpack.packb(self.result))
 
     def ShowQueries(self, verbosity):
@@ -439,6 +441,22 @@ class ResultAnnotator:
                 res.add_row(["``{}``".format(tag), ' & '.join(counts)])
         res.align = "l"
         return res.get_string(padding_width = 2)
+
+    def SaveShinyMeta(self):
+        '''Save some meta info for shinydsc to load'''
+        # Get available var menu
+        var_menu = []
+        lask_blocks = [k[7:] for k in self.data if k.startswith('master_')]
+        for block in self.dsc:
+            if block == 'DSC' or (block in lask_blocks and block != self.master[7:]):
+                continue
+            if isinstance(self.dsc[block]['out'], dict):
+                self.dsc[block]['out'] = [y for x, y in self.dsc[block]['out'].items()]
+            for item in self.dsc[block]['out']:
+                var_menu.append('{}:{}'.format(block, item.split('=')[0].strip()))
+        res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu)}
+        save_rds(res, os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.shinymeta.rds'.format(self.master[7:])))
+
 
 EXTRACT_RDS_R = '''
 res = list()
@@ -465,11 +483,12 @@ class ResultExtractor:
         else:
             self.master = [k for k in data if k.startswith('master_')]
             if len(self.master) > 1:
-                raise ValueError("Please specify the master table to annotate.\nChoices are ``{}``".\
+                raise ValueError("Please specify the last DSC block to extract, via ``--extract_from``."\
+                                 "\nChoices are ``{}``".\
                                  format(repr([x[7:] for x in self.master])))
             else:
                 self.master = self.master[0]
-        tag_file = os.path.join('.sos/.dsc', from_file + '.{}.tags'.format(self.master))
+        tag_file = os.path.join('.sos/.dsc', from_file + '.{}.tags'.format(self.master[7:]))
         if not os.path.isfile(tag_file):
             raise ValueError("DSC result for ``{}`` has not been annotated. Please use '--annotation' option to annotate the results before running '--extract'.".format(self.master[7:]))
         self.ann = msgpack.unpackb(open(tag_file, 'rb').read(), encoding = 'utf-8')
@@ -481,9 +500,9 @@ class ResultExtractor:
             to_file = from_file + '.extracted.rds'
         self.output = to_file
         self.name = from_file
-        # Compose executable job file
         self.ann_cache = []
         self.script = []
+        # Compose executable job file
         idx = 1
         for item in targets:
             target = item.split(":")
