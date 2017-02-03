@@ -430,14 +430,18 @@ class ResultAnnotator:
         open(os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.tags'.format(self.master)), "wb").\
             write(msgpack.packb(self.result))
 
-    def ShowQueries(self):
-        res = 'DSC result ``{}`` has been annotated.\n'.format(self.master[7:])
-        for tag in self.queries:
-            res += '\tTag ``{}`` created via:\n'.format(tag)
-            for item in self.queries[tag]:
-                res += "\t{}\n".format(' & '.join(item))
-            res += '\n'
-        return res.strip()
+    def ShowQueries(self, verbosity):
+        '''Make a table summary of what has been performed'''
+        from prettytable import PrettyTable
+        res = PrettyTable()
+        res.field_names = ["Tag", "No. unique obj.", "Logic"] if verbosity > 2 else ["Tag", "No. unique obj."]
+        for tag in sorted(self.queries):
+            counts = ['``{}`` {}'.format(len(set(self.result[tag][block])), block) for block in sorted(self.result[tag])]
+            if verbosity > 2:
+                res.add_row(["``{}``".format(tag), ' & '.join(counts), '\n'.join([' & '.join(item) for item in self.queries[tag]])])
+            else:
+                res.add_row(["``{}``".format(tag), ' & '.join(counts)])
+        return res.get_string(padding_width = 2)
 
 
 class ResultExtractor:

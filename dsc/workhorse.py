@@ -148,7 +148,7 @@ def annotate(args, argv):
     ann = ResultAnnotator(args.annotation, args.master, dsc_data)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()
-    env.logger.info(ann.ShowQueries())
+    env.logger.info('\n'+ ann.ShowQueries(args.verbosity))
     if len(ann.msg):
         env.logger.warning('\n' + '\n'.join(ann.msg))
 
