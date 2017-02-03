@@ -1,4 +1,3 @@
-dsc/__init__.py
 *.egg-info 
 build 
 dist
