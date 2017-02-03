@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import sys, os, msgpack, json, yaml, re
+import sys, os, msgpack, json, yaml, re, glob
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
@@ -280,11 +280,13 @@ class ResultAnnotator:
             self.master = [k for k in self.data if k.startswith('master_')]
             if len(self.master) > 1:
 
-                raise ValueError("Please specify the last DSC block to annotate, via ``--annotate_to``."\
+                raise ValueError("Please specify the DSC block to target, via ``--target``."\
                                  "\nChoices are ``{}``".\
                                  format(repr([x[7:] for x in self.master])))
             else:
                 self.master = self.master[0]
+        if self.master not in data:
+            raise ValueError('Cannot find target block ``{}``.'.format(self.master[7:]))
         self.ann = yaml.load(open(ann_file))
         self.dsc = dsc_data
         self.msg = []
@@ -475,39 +477,43 @@ saveRDS(res, ${output!r})
 
 
 class ResultExtractor:
-    def __init__(self, tags, from_table, to_file, dsc_data, targets):
-        from_file = dsc_data['DSC']['output'][0]
-        data = load_rds(from_file + '.rds')
-        if from_table is not None:
-            self.master = from_table if from_table.startswith('master_') else 'master_{}'.format(from_table)
+    def __init__(self, tags, from_table, to_file, targets):
+        tag_file = glob.glob('.sos/.dsc/*.tags')
+        tables = [x.split('.')[-2] for x in tag_file]
+        if len(tag_file) == 0:
+                raise ValueError("DSC result has not been annotated. Please use ``-a`` option to annotate the results before running ``-e``.")
+        if from_table is not None and not from_table in tables:
+                raise ValueError("DSC result for ``{}`` has not been annotated. Please use ``-a`` option to annotate the results before running ``-e``.".format(from_table))
+        if len(tag_file) == 1:
+            # we have a unique table to extract from
+            self.master = tag_file[0].split('.')[-2]
         else:
-            self.master = [k for k in data if k.startswith('master_')]
-            if len(self.master) > 1:
-                raise ValueError("Please specify the last DSC block to extract, via ``--extract_from``."\
-                                 "\nChoices are ``{}``".\
-                                 format(repr([x[7:] for x in self.master])))
+            if from_table:
+                self.master = from_table
             else:
-                self.master = self.master[0]
-        tag_file = os.path.join('.sos/.dsc', from_file + '.{}.tags'.format(self.master[7:]))
-        if not os.path.isfile(tag_file):
-            raise ValueError("DSC result for ``{}`` has not been annotated. Please use '--annotation' option to annotate the results before running '--extract'.".format(self.master[7:]))
+                raise ValueError("Please specify the DSC block to target, via ``--target``."\
+                                 "\nChoices are ``{}``".\
+                                 format(repr([x.split('.')[-2] for x in tag_file])))
+        tag_file = tag_file[tables.index(self.master)]
         self.ann = msgpack.unpackb(open(tag_file, 'rb').read(), encoding = 'utf-8')
+        valid_vars = load_rds(tag_file[:-4] + 'shinymeta.rds')['variables'].tolist()
         if tags is None:
             self.tags = list(self.ann.keys())
         else:
             self.tags = tags
+        self.name = os.path.split(tag_file)[1].rsplit('.', 2)[0]
         if to_file is None:
-            to_file = from_file + '.extracted.rds'
+            to_file = self.name + '.{}.rds'.format(self.master)
         self.output = to_file
-        self.name = from_file
         self.ann_cache = []
         self.script = []
         # Compose executable job file
         idx = 1
         for item in targets:
+            if not item in valid_vars:
+                raise ValueError('Invalid input value: ``{}``. \nChoices are ``{}``.'.\
+                                 format(item, repr(valid_vars)))
             target = item.split(":")
-            if not len(target) == 2:
-                raise ValueError('Invalid input value: ``{}`` (should be ``block:variable``).'.format(item))
             for ann in self.tags:
                 # Handle union logic
                 if not '&&' in ann:

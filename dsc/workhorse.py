@@ -16,7 +16,7 @@ from sos.sos_script import SoS_Script
 from sos.sos_executor import Base_Executor, MP_Executor
 from sos.rq.sos_executor import RQ_Executor
 
-def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None, queue = None, is_prepare = False):
+def dsc_run(args, content, verbosity = 1, jobs = None, queue = None, is_prepare = False):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remaining processes when the master process is killed.
@@ -40,7 +40,7 @@ def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None, queue = No
             executor_class = MP_Executor
         else:
             executor_class = RQ_Executor
-        executor = executor_class(workflow, args = workflow_args,
+        executor = executor_class(workflow, args = None,
                                   config = {'config_file': args.__config__,
                                             'output_dag': args.__dag__})
         executor.run()
@@ -79,7 +79,7 @@ def remove(dsc_jobs, dsc_data, steps, db):
     cmd_remove(dotdict({"__tracked__": to_remove, "targets": to_remove}), [])
 
 
-def execute(args, argv):
+def execute(args):
     def setup():
         args.workflow = 'DSC'
         args.__config__ = None
@@ -115,7 +115,7 @@ def execute(args, argv):
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.sequence).split())))
     run_jobs, dsc_jobs, dsc_data, section_content, db, master = setup()
-    if args.to_remove:
+    if args.to_remove is not None:
         remove(dsc_jobs, dsc_data, args.to_remove, db)
         return
     # Archive scripts
@@ -125,7 +125,7 @@ def execute(args, argv):
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, argv, run_jobs.conf_str, verbosity = 0, jobs = 1, is_prepare = True)
+    dsc_run(args, run_jobs.conf_str, verbosity = 0, jobs = 1, is_prepare = True)
     if args.__dryrun__:
         return
     # Wetrun
@@ -133,7 +133,7 @@ def execute(args, argv):
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
-    dsc_run(args, argv, run_jobs.job_str,
+    dsc_run(args, run_jobs.job_str,
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
             queue = queue)
     # Extracting information as much as possible
@@ -143,10 +143,16 @@ def execute(args, argv):
     env.logger.info("DSC complete!")
 
 
-def annotate(args, argv):
+def annotate(args):
     env.verbosity = args.verbosity
-    dsc_data = DSCData(args.dsc_file, check_rlibs = False, output = args.output)
-    ann = ResultAnnotator(args.annotation, args.master, dsc_data)
+    if len(args.annotation) > 1:
+        dsc_file = args.annotation[1]
+    else:
+        dsc_file = args.annotation[0].rsplit('.', 1)[0] + '.dsc'
+    if not os.path.isfile(dsc_file):
+        raise ValueError('DSC script ``{}`` does not exist. Please specify it via ``-a annotation_file script_file``'.format(dsc_file))
+    dsc_data = DSCData(dsc_file, check_rlibs = False, output = args.output)
+    ann = ResultAnnotator(args.annotation[0], args.master, dsc_data)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()
     ann.SaveShinyMeta()
@@ -154,7 +160,7 @@ def annotate(args, argv):
     if len(ann.msg):
         env.logger.warning('\n' + '\n'.join(ann.msg))
 
-def extract(args, argv):
+def extract(args):
     env.max_jobs = args.__max_jobs__
     env.verbosity = args.verbosity if not args.verbosity == 2 else 1
     atexit.register(env.cleanup)
@@ -162,8 +168,7 @@ def extract(args, argv):
     if args.__rerun__:
         env.sig_mode = 'force'
     #
-    dsc_data = DSCData(args.dsc_file, check_rlibs = False, output = args.output)
-    ext = ResultExtractor(args.tags, args.master, args.dest, dsc_data, args.extract)
+    ext = ResultExtractor(args.tags, args.master, args.output, args.extract)
     try:
         script = SoS_Script(content = ext.script, transcript = None)
         workflow = script.workflow("Extracting")
@@ -183,12 +188,12 @@ def extract(args, argv):
     env.logger.info('Data extracted to ``{}`` for {} for DSC result ``{}``.'.\
                     format(ext.output,
                            'annotations ``{}``'.format(', '.join(args.tags)) if args.tags else "all annotations",
-                           ext.master[7:]))
+                           ext.master))
 
-def run(args, argv):
+def run(args):
+    if args.dsc_file is not None:
+        execute(args)
     if args.annotation is not None:
-        annotate(args, argv)
-    elif args.extract is not None:
-        extract(args, argv)
-    else:
-        execute(args, argv)
+        annotate(args)
+    if args.extract is not None:
+        extract(args)
