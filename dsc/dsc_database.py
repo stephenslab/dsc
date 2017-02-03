@@ -441,6 +441,7 @@ class ResultAnnotator:
                 res.add_row(["``{}``".format(tag), ' & '.join(counts), '\n'.join([' & '.join(item) for item in self.queries[tag]])])
             else:
                 res.add_row(["``{}``".format(tag), ' & '.join(counts)])
+        res.align = "l"
         return res.get_string(padding_width = 2)
 
 
