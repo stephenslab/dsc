@@ -3,19 +3,15 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import sys, os, msgpack, json, yaml, re, fnmatch
+import sys, os, msgpack, json, yaml, re
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
 from sos.target import textMD5
 from sos.utils import Error
 from .utils import load_rds, save_rds, \
-     flatten_list, flatten_dict, is_null, \
-     no_duplicates_constructor, cartesian_list, \
-     extend_dict
-import readline
-import rpy2.robjects.vectors as RV
-import rpy2.rinterface as RI
+     flatten_list, no_duplicates_constructor, \
+     cartesian_list, extend_dict
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
