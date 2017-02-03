@@ -444,9 +444,24 @@ class ResultAnnotator:
         res.align = "l"
         return res.get_string(padding_width = 2)
 
+EXTRACT_RDS_R = '''
+res = list()
+idx = 1
+for (item in c(${input!r,})) {
+  res[[idx]] = readRDS(item)$${target}
+  idx = idx + 1
+}
+saveRDS(list(${key} = res), ${output!r})
+'''
+
+CONCAT_RDS_R = '''
+res = do.call(c, lapply(c(${input!r,}), readRDS))
+saveRDS(res, ${output!r})
+'''
+
 
 class ResultExtractor:
-    def __init__(self, tags, from_table, to_file, dsc_data, force = False):
+    def __init__(self, tags, from_table, to_file, dsc_data, targets):
         from_file = dsc_data['DSC']['output'][0]
         data = load_rds(from_file + '.rds')
         if from_table is not None:
@@ -455,7 +470,7 @@ class ResultExtractor:
             self.master = [k for k in data if k.startswith('master_')]
             if len(self.master) > 1:
                 raise ValueError("Please specify the master table to annotate.\nChoices are ``{}``".\
-                                 format(repr(self.master)))
+                                 format(repr([x[7:] for x in self.master])))
             else:
                 self.master = self.master[0]
         tag_file = os.path.join('.sos/.dsc', from_file + '.{}.tags'.format(self.master))
@@ -468,46 +483,37 @@ class ResultExtractor:
             self.tags = tags
         if to_file is None:
             to_file = from_file + '.extracted.rds'
-        if os.path.isfile(to_file):
-            if not force:
-                raise RuntimeError('File ``{}`` already exists. Please use \'--extract_to\' option to set another file name, or use \'-f\' to force overwrite.'.format(to_file))
         self.output = to_file
         self.name = from_file
-
-    def _extract_rds_array(self, files, k):
-        '''
-        Given an array of RDS file names, extract given variable from these RDS files
-        '''
-        result = []
-        for f in files:
-            rds = '{}/{}.rds'.format(self.name, f)
-            if not os.path.isfile(rds):
-                continue
-            rdata = flatten_dict(load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
-                                                        RV.BoolVector, RV.FloatVector, RV.StrVector,
-                                                        RI.RNULLType)))
-            if is_null(rdata[k]) or len(rdata[k]) == 0:
-                continue
-            elif len(rdata[k].shape) > 2:
-                # too large. will just give the name of the file
-                result.append(rds)
-            elif len(rdata[k]) == 1:
-                result.append(rdata[k][0])
-            else:
-                result.append(rdata[k])
-        return result
-
-    def Extract(self, target):
-        block, var = target.split(":")
-        # FIXME: reimplement this in R with file signatures tracked.
-        # To avoid rebuild
-        result = {}
-        for ann in self.tags:
-            if not "&&" in ann:
-                result[ann] = self._extract_rds_array(self.ann[ann], var)
-            else:
-                ann = [x.strip() for x in ann.split('&&')]
-                arrays = [self.ann[x] for x in ann]
-                ann = '_'.join(ann)
-                result[ann] = self._extract_rds_array(set.intersection(*map(set, arrays)), var)
-        save_rds(result, self.output)
+        # Compose executable job file
+        self.ann_cache = []
+        self.script = []
+        idx = 1
+        for item in targets:
+            target = item.split(":")
+            if not len(target) == 2:
+                raise ValueError('Invalid input value: ``{}`` (should be ``block:variable``).'.format(item))
+            for ann in self.tags:
+                # Handle union logic
+                if not '&&' in ann:
+                    input_files = sorted(self.ann[ann][target[0]])
+                else:
+                    ann = [x.strip() for x in ann.split('&&')]
+                    arrays = [self.ann[x][target[0]] for x in ann]
+                    ann = '_'.join(ann)
+                    input_files = sorted(set.intersection(*map(set, arrays)))
+                output_prefix = '_'.join([ann, target[0], target[1]])
+                # Compose execution step
+                self.ann_cache.append('{}_output'.format(output_prefix))
+                self.script.append("[Extracting_{0} ({1}): shared = {{'{1}_output' : 'output'}}]".format(idx, output_prefix))
+                self.script.append('parameter: target = {}'.format(repr(target[1])))
+                self.script.append('parameter: key = {}'.format(repr(output_prefix)))
+                self.script.append('input: {}'.format(','.join([repr("{}/{}.rds".format(self.name, x)) for x in input_files])))
+                self.script.append('output: \'{}/ann_cache/{}.rds\''.format(self.name, output_prefix))
+                self.script.extend(['R:', EXTRACT_RDS_R])
+                idx += 1
+        self.script.append("[Extracting_{} (concate RDS)]".format(idx))
+        self.script.append('input: {}'.format('+'.join(sorted(self.ann_cache))))
+        self.script.append('output: {}'.format(repr(self.output)))
+        self.script.extend(['R:', CONCAT_RDS_R])
+        self.script = '\n'.join(self.script)

@@ -12,11 +12,11 @@ from .dsc_file import DSCData
 from .dsc_steps import DSCJobs, DSC2SoS
 from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
 from .utils import get_slice, load_rds, flatten_list, yaml2html, dsc2html, dotdict
+from sos.sos_script import SoS_Script
+from sos.sos_executor import Base_Executor, MP_Executor
+from sos.rq.sos_executor import RQ_Executor
 
 def dsc_run(args, workflow_args, content, verbosity = 1, jobs = None, queue = None, is_prepare = False):
-    from sos.sos_script import SoS_Script
-    from sos.sos_executor import Base_Executor, MP_Executor
-    from sos.rq.sos_executor import RQ_Executor
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remaining processes when the master process is killed.
@@ -144,6 +144,7 @@ def execute(args, argv):
 
 
 def annotate(args, argv):
+    env.verbosity = args.verbosity
     dsc_data = DSCData(args.dsc_file, check_rlibs = False, output = args.output)
     ann = ResultAnnotator(args.annotation, args.master, dsc_data)
     ann.ConvertAnnToQuery()
@@ -153,12 +154,34 @@ def annotate(args, argv):
         env.logger.warning('\n' + '\n'.join(ann.msg))
 
 def extract(args, argv):
+    env.max_jobs = args.__max_jobs__
+    env.verbosity = args.verbosity if not args.verbosity == 2 else 1
+    atexit.register(env.cleanup)
+    env.sig_mode = 'default'
+    if args.__rerun__:
+        env.sig_mode = 'force'
+    #
     dsc_data = DSCData(args.dsc_file, check_rlibs = False, output = args.output)
-    ext = ResultExtractor(args.tags, args.master, dsc_data, args.dest, args.__rerun__)
-    ext.Extract(args.extract)
-    env.logger.info('``{}`` data saved to ``{}`` for {} from DSC block ``{}``.'.\
-                    format(args.extract, ext.output,
-                           'annotations {}'.format(', '.join(args.tags)) if args.tags else "all annotations",
+    ext = ResultExtractor(args.tags, args.master, args.dest, dsc_data, args.extract)
+    try:
+        script = SoS_Script(content = ext.script, transcript = None)
+        workflow = script.workflow("Extracting")
+        if env.max_jobs == 1:
+            # single process executor
+            executor_class = Base_Executor
+        else:
+            executor_class = MP_Executor
+        executor = executor_class(workflow)
+        executor.run()
+    except Exception as e:
+        if env.verbosity and env.verbosity > 2:
+            sys.stderr.write(get_traceback())
+        env.logger.error(e)
+        sys.exit(1)
+    env.verbosity = args.verbosity
+    env.logger.info('Data extracted to ``{}`` for {} for DSC result ``{}``.'.\
+                    format(ext.output,
+                           'annotations ``{}``'.format(', '.join(args.tags)) if args.tags else "all annotations",
                            ext.master[7:]))
 
 def run(args, argv):
