@@ -267,6 +267,11 @@ def strip_dict(data, mapping = dict, into_list = False):
             new_data[k] = v
     return new_data
 
+def extend_dict(dict1, dict2):
+     for key, value in dict2.items():
+          dict1.setdefault(key, []).extend(value)
+     return dict1
+
 class dotdict(dict):
     """dot.notation access to dictionary attributes"""
     __setattr__ = dict.__setitem__

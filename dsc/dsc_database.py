@@ -11,12 +11,96 @@ from sos.target import textMD5
 from sos.utils import Error
 from .utils import load_rds, save_rds, \
      flatten_list, flatten_dict, is_null, \
-     no_duplicates_constructor, cartesian_list
+     no_duplicates_constructor, cartesian_list, \
+     extend_dict
 import readline
 import rpy2.robjects.vectors as RV
 import rpy2.rinterface as RI
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
+
+def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
+    '''
+    - collect all output file names in md5 style
+    - check if map file should be loaded, and load it
+    - based on map file and file names in md5 style, remove irrelevant files from output folder
+    - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
+    - create conf file based on map file and io file
+    '''
+    def get_names(data):
+        names = []
+        lookup = {}
+        # 1. collect exec names and ID
+        for k in data:
+            for k1 in data[k]:
+                if k1 == "DSC_IO_" or k1 == "DSC_EXT_":
+                    continue
+                prefix = [x.split(':', 1)[0] for x in k1.split()]
+                prefix.append(prefix.pop(0))
+                suffix = [x.split(':', 1)[1] for x in k1.split()]
+                suffix.append(suffix.pop(0))
+                names.append([prefix, suffix])
+                for x, y in zip(prefix, suffix):
+                    if x not in lookup:
+                        lookup[x] = []
+                    lookup[x].append(y.split(':', 1)[0])
+        # 2. append index to the [prefix, suffix] list so it becomes list of [prefix, suffix, index]
+        for x, y in enumerate(names):
+            names[x].append([lookup[xx].index(yy.split(':', 1)[0]) + 1 for xx, yy in zip(y[0], y[1])])
+        # 3. construct names
+        return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
+                            '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
+                            '.{}'.format(data[k]["DSC_EXT_"])) for x in names]))
+
+    def remove_obsolete_output(fid):
+        # Remove file signature when files are deleted
+        runtime_dir = os.path.expanduser('~/.sos/.runtime') \
+                      if os.path.isabs(os.path.expanduser(fid)) \
+                      else '.sos/.runtime'
+        for k, x in map_data.items():
+            x = os.path.join(fid, x)
+            if not os.path.isfile(x):
+                try:
+                    os.remove('{}/{}.file_info'.\
+                              format(runtime_dir, textMD5(os.path.abspath(os.path.expanduser(x)))))
+                except:
+                    sys.stderr.write('Obsolete file {} has already been purged!\n'.format(x))
+
+    def update_map(files):
+        '''Update maps and write to disk'''
+        for item in files:
+            if item[0] not in map_data:
+                map_data[item[0]] = item[1]
+        open(map_db, "wb").write(msgpack.packb(map_data))
+
+    #
+    fid = os.path.splitext(os.path.basename(conf_db))[0]
+    if os.path.isfile(map_db) and not vanilla:
+        map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8')
+    else:
+        map_data = {}
+    data = OrderedDict()
+    for item in input_files:
+        data.update(msgpack.unpackb(open(item, "rb").read(), encoding = 'utf-8',
+                                    object_pairs_hook = OrderedDict))
+    open(io_db, "wb").write(msgpack.packb(data))
+    remove_obsolete_output(fid)
+    update_map(get_names(data))
+    conf = {}
+    for k in data:
+        sid, name = k.split(':')
+        if sid not in conf:
+            conf[sid] = {}
+        if name not in conf[sid]:
+            conf[sid][name] = {}
+        conf[sid][name]['input'] = [os.path.join(fid, map_data[item]) \
+                                    for item in data[k]['DSC_IO_'][0]]
+        conf[sid][name]['output'] = [os.path.join(fid, map_data[item]) \
+                                     for item in data[k]['DSC_IO_'][1]]
+    #
+    with open(conf_db, 'w') as f:
+        f.write(json.dumps(conf))
+
 
 class ResultDBError(Error):
     """Raised when there is a problem building the database."""
@@ -189,88 +273,6 @@ class ResultDB:
         save_rds(self.data, self.name + '.rds')
 
 
-def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
-    '''
-    - collect all output file names in md5 style
-    - check if map file should be loaded, and load it
-    - based on map file and file names in md5 style, remove irrelevant files from output folder
-    - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
-    - create conf file based on map file and io file
-    '''
-    def get_names(data):
-        names = []
-        lookup = {}
-        # 1. collect exec names and ID
-        for k in data:
-            for k1 in data[k]:
-                if k1 == "DSC_IO_" or k1 == "DSC_EXT_":
-                    continue
-                prefix = [x.split(':', 1)[0] for x in k1.split()]
-                prefix.append(prefix.pop(0))
-                suffix = [x.split(':', 1)[1] for x in k1.split()]
-                suffix.append(suffix.pop(0))
-                names.append([prefix, suffix])
-                for x, y in zip(prefix, suffix):
-                    if x not in lookup:
-                        lookup[x] = []
-                    lookup[x].append(y.split(':', 1)[0])
-        # 2. append index to the [prefix, suffix] list so it becomes list of [prefix, suffix, index]
-        for x, y in enumerate(names):
-            names[x].append([lookup[xx].index(yy.split(':', 1)[0]) + 1 for xx, yy in zip(y[0], y[1])])
-        # 3. construct names
-        return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
-                            '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
-                            '.{}'.format(data[k]["DSC_EXT_"])) for x in names]))
-
-    def remove_obsolete_output(fid):
-        # Remove file signature when files are deleted
-        runtime_dir = os.path.expanduser('~/.sos/.runtime') \
-                      if os.path.isabs(os.path.expanduser(fid)) \
-                      else '.sos/.runtime'
-        for k, x in map_data.items():
-            x = os.path.join(fid, x)
-            if not os.path.isfile(x):
-                try:
-                    os.remove('{}/{}.file_info'.\
-                              format(runtime_dir, textMD5(os.path.abspath(os.path.expanduser(x)))))
-                except:
-                    sys.stderr.write('Obsolete file {} has already been purged!\n'.format(x))
-
-    def update_map(files):
-        '''Update maps and write to disk'''
-        for item in files:
-            if item[0] not in map_data:
-                map_data[item[0]] = item[1]
-        open(map_db, "wb").write(msgpack.packb(map_data))
-
-    #
-    fid = os.path.splitext(os.path.basename(conf_db))[0]
-    if os.path.isfile(map_db) and not vanilla:
-        map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8')
-    else:
-        map_data = {}
-    data = OrderedDict()
-    for item in input_files:
-        data.update(msgpack.unpackb(open(item, "rb").read(), encoding = 'utf-8',
-                                    object_pairs_hook = OrderedDict))
-    open(io_db, "wb").write(msgpack.packb(data))
-    remove_obsolete_output(fid)
-    update_map(get_names(data))
-    conf = {}
-    for k in data:
-        sid, name = k.split(':')
-        if sid not in conf:
-            conf[sid] = {}
-        if name not in conf[sid]:
-            conf[sid][name] = {}
-        conf[sid][name]['input'] = [os.path.join(fid, map_data[item]) \
-                                    for item in data[k]['DSC_IO_'][0]]
-        conf[sid][name]['output'] = [os.path.join(fid, map_data[item]) \
-                                     for item in data[k]['DSC_IO_'][1]]
-    #
-    with open(conf_db, 'w') as f:
-        f.write(json.dumps(conf))
-
 class ResultAnnotator:
     def __init__(self, ann_file, ann_table, dsc_data):
         '''Load master table to be annotated and annotation contents'''
@@ -358,33 +360,24 @@ class ResultAnnotator:
                                             isin(col_id).tolist()) if y]
             return col_id
         #
-        def get_output(col_id, output = None):
-            name = self.master[7:] if self.master.startswith('master_') else self.master
-            # Get list of files
+        def get_output(name, col_id):
+            # Get list of file names
+            # given name of column and target col_id's
             lookup = {}
             for x, y in zip(self.data[self.master].query('{}_id == @col_id'.format(name))[name + '_name'].tolist(), col_id):
                 if x not in lookup:
                     lookup[x] = []
                 lookup[x].append(y)
-            results = []
-            files = []
-            for k, value in lookup.items():
-                # Get output columns
-                if output:
-                    tmp = ['{}_id'.format(name)]
-                    tmp.extend(flatten_list([[x for x in fnmatch.filter(self.data[self.master].columns.values, o)]
-                                             for o in output]))
-                    results.append(self.data[self.master].query('{}_id == @value'.format(name))[tmp])
-                else:
-                    results.append(pd.DataFrame())
-                # Get output files
-                files.append(self.data[k].query('step_id == @value')[['step_id', 'return']])
             res = []
-            for dff, dfr in zip(files, results):
-                if len(dfr.columns.values) > 2:
-                    res.append(pd.merge(dff, dfr, left_on = '{}_id'.format(name), right_on = 'step_id'))
-                else:
-                    res.append(dff.drop('step_id', axis = 1))
+            for k, value in lookup.items():
+                # FIXME: cannot use `.query('step_id == @value')`
+                # because it cannot propagate duplicate values
+                # which is what we want to do here
+                # implementation below maybe inefficient
+                # can be improved in the future
+                step_id_list = self.data[k]['step_id'].tolist()
+                rows = [step_id_list.index(x) for x in value]
+                res.append(self.data[k].iloc[rows][['return']])
             res = pd.concat(res)
             for item in ['{}_id'.format(name), 'step_id']:
                 if item in res.columns.values:
@@ -393,6 +386,7 @@ class ResultAnnotator:
         #
         def run_query(text):
             return_id = None
+            # Get ID for the last step as result of the query
             for item in text:
                 pattern = re.search(r'^\[(.*)\](.*)', item)
                 if pattern:
@@ -416,16 +410,23 @@ class ResultAnnotator:
                         return_id = [x for x in get_id(item) if x in return_id]
             if len(return_id) == 0:
                 self.msg.append("Cannot find matching entries based on query ``{}``".format(repr(text)))
-                res = []
+                res = {}
             else:
-                res = get_output(return_id)['return']
+                res = {k: [] for k in [x[:-3] for x in self.data[self.master].keys() if x.endswith('_id')]}
+                for k in res:
+                    if k == self.master[7:]:
+                        res[k] = get_output(k, return_id)['return'].tolist()
+                    else:
+                        target_id = self.data[self.master].loc[
+                            self.data[self.master]['{}_id'.format(self.master[7:])].isin(return_id)]['{}_id'.format(k)]
+                        res[k] = get_output(k, target_id)['return'].tolist()
             return res
         #
         self.result = {}
         for tag in self.queries:
-            self.result[tag] = []
+            self.result[tag] = {}
             for queries in self.queries[tag]:
-                self.result[tag].extend(run_query(queries))
+                self.result[tag] = extend_dict(self.result[tag], run_query(queries))
         open(os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.tags'.format(self.master)), "wb").\
             write(msgpack.packb(self.result))
 
@@ -437,6 +438,7 @@ class ResultAnnotator:
                 res += "\t{}\n".format(' & '.join(item))
             res += '\n'
         return res.strip()
+
 
 class ResultExtractor:
     def __init__(self, tags, from_table, from_file, to_file, force = False):
