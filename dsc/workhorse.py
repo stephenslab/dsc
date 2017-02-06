@@ -16,7 +16,7 @@ from sos.sos_script import SoS_Script
 from sos.sos_executor import Base_Executor, MP_Executor
 from sos.rq.sos_executor import RQ_Executor
 
-def dsc_run(args, content, workflow, verbosity = 1, jobs = None, queue = None, is_prepare = False):
+def dsc_run(args, content, workflow = 'DSC', verbosity = 1, jobs = None, queue = None, is_prepare = False):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remaining processes when the master process is killed.
@@ -143,11 +143,7 @@ def execute(args):
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, run_jobs.conf_str, 'DSC', verbosity = 0, jobs = 1, is_prepare = True)
-    sig_mode = env.sig_mode
-    env.sig_mode = 'force'
-    dsc_run(args, run_jobs.conf_str, 'Build_CONFIG', verbosity = 0, jobs = 1, is_prepare = True)
-    env.sig_mode = sig_mode
+    dsc_run(args, run_jobs.conf_str, verbosity = 0, jobs = 1, is_prepare = True)
     if args.__dryrun__:
         return
     # Wetrun
@@ -155,7 +151,7 @@ def execute(args):
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
-    dsc_run(args, run_jobs.job_str, 'DSC',
+    dsc_run(args, run_jobs.job_str,
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
             queue = queue)
     # Extracting information as much as possible

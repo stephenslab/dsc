@@ -48,13 +48,14 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
                             '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
                             '.{}'.format(data[k]["DSC_EXT_"])) for x in names]))
 
-    def remove_obsolete_output(fid):
+    def remove_obsolete_output(fid, additional_files = []):
         # Remove file signature when files are deleted
         to_remove = []
         for k, x in map_data.items():
             x = os.path.join(fid, x)
             if not os.path.isfile(x):
                 to_remove.append(x)
+        to_remove.extend(additional_files)
         if len(to_remove):
             cmd_remove(dotdict({"tracked": False, "untracked": False,
                                 "targets": to_remove, "__dryrun__": False,
@@ -68,17 +69,17 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
         open(map_db, "wb").write(msgpack.packb(map_data))
 
     #
-    fid = os.path.splitext(os.path.basename(conf_db))[0]
     if os.path.isfile(map_db) and not vanilla:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8')
     else:
         map_data = {}
+    fid = os.path.splitext(os.path.basename(conf_db))[0]
+    remove_obsolete_output(fid)
     data = OrderedDict()
     for item in input_files:
         data.update(msgpack.unpackb(open(item, "rb").read(), encoding = 'utf-8',
                                     object_pairs_hook = OrderedDict))
     open(io_db, "wb").write(msgpack.packb(data))
-    remove_obsolete_output(fid)
     update_map(get_names(data))
     conf = {}
     for k in data:
