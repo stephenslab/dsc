@@ -16,7 +16,7 @@ from sos.sos_script import SoS_Script
 from sos.sos_executor import Base_Executor, MP_Executor
 from sos.rq.sos_executor import RQ_Executor
 
-def dsc_run(args, content, verbosity = 1, jobs = None, queue = None, is_prepare = False):
+def dsc_run(args, content, workflow, verbosity = 1, jobs = None, queue = None, is_prepare = False):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__ if jobs is None else jobs
     # kill all remaining processes when the master process is killed.
@@ -28,7 +28,7 @@ def dsc_run(args, content, verbosity = 1, jobs = None, queue = None, is_prepare 
         env.sig_mode = 'force'
     try:
         script = SoS_Script(content=content, transcript = None)
-        workflow = script.workflow(args.workflow)
+        workflow = script.workflow(workflow)
         if env.max_jobs == 1 and env.verbosity == 1:
             # Do not use progressbar for single CPU job
             # For better debugging
@@ -100,7 +100,6 @@ def remove(dsc_jobs, dsc_data, steps, db, force, debug):
 
 def execute(args):
     def setup():
-        args.workflow = 'DSC'
         args.__config__ = None
         dsc_data = DSCData(args.dsc_file, sequence = args.sequence, output = args.output)
         db_name = os.path.basename(dsc_data['DSC']['output'][0])
@@ -144,7 +143,11 @@ def execute(args):
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, run_jobs.conf_str, verbosity = 0, jobs = 1, is_prepare = True)
+    dsc_run(args, run_jobs.conf_str, 'DSC', verbosity = 0, jobs = 1, is_prepare = True)
+    sig_mode = env.sig_mode
+    env.sig_mode = 'force'
+    dsc_run(args, run_jobs.conf_str, 'Build_CONFIG', verbosity = 0, jobs = 1, is_prepare = True)
+    env.sig_mode = sig_mode
     if args.__dryrun__:
         return
     # Wetrun
@@ -152,7 +155,7 @@ def execute(args):
     if os.path.isfile(env.logfile): os.remove(env.logfile)
     args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
-    dsc_run(args, run_jobs.job_str,
+    dsc_run(args, run_jobs.job_str, 'DSC',
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
             queue = queue)
     # Extracting information as much as possible

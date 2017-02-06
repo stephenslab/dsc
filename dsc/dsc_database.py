@@ -7,11 +7,11 @@ import sys, os, msgpack, json, yaml, re, glob
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
-from sos.target import textMD5
 from sos.utils import Error
+from sos.__main__ import cmd_remove
 from .utils import load_rds, save_rds, \
      flatten_list, no_duplicates_constructor, \
-     cartesian_list, extend_dict
+     cartesian_list, extend_dict, dotdict
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
@@ -50,17 +50,15 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
 
     def remove_obsolete_output(fid):
         # Remove file signature when files are deleted
-        runtime_dir = os.path.expanduser('~/.sos/.runtime') \
-                      if os.path.isabs(os.path.expanduser(fid)) \
-                      else '.sos/.runtime'
+        to_remove = []
         for k, x in map_data.items():
             x = os.path.join(fid, x)
             if not os.path.isfile(x):
-                try:
-                    os.remove('{}/{}.file_info'.\
-                              format(runtime_dir, textMD5(os.path.abspath(os.path.expanduser(x)))))
-                except:
-                    sys.stderr.write('Obsolete file {} has already been purged!\n'.format(x))
+                to_remove.append(x)
+        if len(to_remove):
+            cmd_remove(dotdict({"tracked": False, "untracked": False,
+                                "targets": to_remove, "__dryrun__": False,
+                                "__confirm__": True, "signature": True, "verbosity": 0}), [])
 
     def update_map(files):
         '''Update maps and write to disk'''

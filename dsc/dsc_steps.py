@@ -527,12 +527,12 @@ class DSC2SoS:
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = '\n'.join(job_str)
         self.conf_str += '''
-[DSC_{2}]
-vanilla = {1}
-input: dynamic(sorted(set(['.sos/.dsc/{0}.%s.mpk' % item.strip() for item in open('.sos/.dsc/{0}.io').readlines()])))
+[Build_CONFIG_1]
+parameter: vanilla = {1}
+input: sorted(set(['.sos/.dsc/{0}.%s.mpk' % item.strip() for item in open('.sos/.dsc/{0}.io').readlines()]))
 output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf'
 build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
-        '''.format(os.path.basename(data.output_prefix), rerun, i)
+        '''.format(os.path.basename(data.output_prefix), rerun)
 
     def __call__(self):
         pass
