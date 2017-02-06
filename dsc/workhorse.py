@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, re
+import os, sys, atexit, re, glob
 from collections import OrderedDict
 from sos.utils import env, get_traceback
 from sos.__main__ import cmd_remove
@@ -52,31 +52,50 @@ def dsc_run(args, content, verbosity = 1, jobs = None, queue = None, is_prepare 
     env.verbosity = args.verbosity
 
 
-def remove(dsc_jobs, dsc_data, steps, db):
+def remove(dsc_jobs, dsc_data, steps, db, force, debug):
     filename = os.path.basename(db) + '.rds'
     if not os.path.isfile(filename):
-        raise ValueError('Cannot remove output because DSC database ``{}`` is not found!'.format(filename))
-    to_remove = []
-    for item in steps:
-        block, step_idx = get_slice(item, mismatch_quit = False)
-        removed = False
-        for sequence in dsc_jobs.data:
-            for steps in sequence:
-                for step in steps:
-                    if step['name'] == block and (step_idx is None or step_idx == step['exe_index']):
-                        tmp = re.sub(r'[^\w' + '_.' + ']', '_', step['exe'])
-                        if tmp not in to_remove:
-                            to_remove.append(tmp)
-                        removed = True
-        if removed is False:
-            env.logger.warning('Cannot find step ``{}`` in DSC run sequence specified; '\
-                               'thus not processed.'.format(item))
-    #
-    data = load_rds(filename)
-    to_remove = flatten_list([[os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x))
-                               for x in data[item]['return']]
-                              for item in to_remove if item in data])
-    cmd_remove(dotdict({"__tracked__": to_remove, "targets": to_remove}), [])
+        raise ValueError('Cannot remove anything because DSC output meta data ``{}`` is not found!'.format(filename))
+    if len(steps) == 0:
+        # remove everything
+        to_remove = glob.glob('{}/*'.format(os.path.basename(db)))
+        print(to_remove)
+    else:
+        to_remove = []
+        for item in steps:
+            block, step_idx = get_slice(item, mismatch_quit = False)
+            removed = False
+            for sequence in dsc_jobs.data:
+                for steps in sequence:
+                    for step in steps:
+                        proceed = False
+                        if step['name'] == block:
+                            if step_idx is None:
+                                proceed = True
+                            else:
+                                for idx in step_idx:
+                                    if idx + 1 == step['exe_id']:
+                                        proceed = True
+                                        break
+                        if proceed:
+                            tmp = re.sub(r'[^\w' + '_.' + ']', '_', step['exe'])
+                            if tmp not in to_remove:
+                                to_remove.append(tmp)
+                            removed = True
+            if removed is False:
+                env.logger.warning('Cannot find step ``{}`` in DSC run sequence specified; '\
+                                   'thus not processed.'.format(item))
+        #
+        data = load_rds(filename)
+        to_remove = flatten_list([[glob.glob(os.path.join(dsc_data['DSC']['output'][0], '{}.*'.format(x)))
+                                   for x in data[item]['return']]
+                                  for item in to_remove if item in data])
+    if debug:
+        env.logger.info(to_remove)
+    else:
+        cmd_remove(dotdict({"tracked": False, "untracked": False if not force else true,
+                            "targets": to_remove, "__dryrun__": False,
+                            "__confirm__": True, "signature": True, "verbosity": env.verbosity}), [])
 
 
 def execute(args):
@@ -116,7 +135,7 @@ def execute(args):
                         format(' '.join(', '.join(args.sequence).split())))
     run_jobs, dsc_jobs, dsc_data, section_content, db, master = setup()
     if args.to_remove is not None:
-        remove(dsc_jobs, dsc_data, args.to_remove, db)
+        remove(dsc_jobs, dsc_data, args.to_remove, db, args.__rerun__, args.debug)
         return
     # Archive scripts
     dsc_script = open(args.dsc_file).read()

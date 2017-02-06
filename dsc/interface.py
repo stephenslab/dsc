@@ -42,7 +42,9 @@ def main():
     p_execute.add_argument('--clean', dest = 'to_remove', metavar = "str", nargs = '*',
                    help = '''Instead of running DSC, output for one or multiple steps from previous DSC
                    runs are to be cleaned. Each step should be a valid DSC step in the format of
-                   "block[index]". Multiple steps should be separated by space.''')
+                   "block[index]", or "block" for all steps in the block.
+                   Multiple steps should be separated by space. When "--clean" is used with "-f",
+                   all specified files will be removed regardless of their step execution status.''')
     p_execute.add_argument('--host', metavar='str',
                    help='''URL of Redis server for distributed computation.''')
     p_ann = p.add_argument_group("Annotate DSC")
