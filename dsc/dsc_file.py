@@ -562,13 +562,13 @@ class DSCFileLoader(DSCFileParser):
         input: .... xxx[1,2,3] ....
         output: .... (xxx[1], xxx[2], xxx[3]) ....
         '''
-        pattern = re.compile(r'\w+\[(?P<b>.+?)\](,|\s*|\*|\+)')
+        pattern = re.compile(r'\w+\[(?P<b>.+?)\](?P<a>,|\s*|\*|\+)')
         for m in re.finditer(pattern, line):
             sliced_text = get_slice(m.group(0))
             if len(sliced_text[1]) == 1:
                 continue
             text = '({})'.format(','.join(['{}[{}]'.format(sliced_text[0], x + 1) for x in sliced_text[1]]))
-            line = line.replace(m.group(0), text, 1)
+            line = line.replace(m.group(0), text + m.group('a'), 1)
         return line
 
 class DSCEntryFormatter(DSCFileParser):
