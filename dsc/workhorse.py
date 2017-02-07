@@ -107,6 +107,9 @@ def execute(args):
         args.__dag__ = '.sos/.dsc/{}.dag'.format(db_name)
         if db_dir:
             os.makedirs(db_dir, exist_ok = True)
+        # Force rerun if trace of existing project cannot be found and not in recover mode
+        if not os.path.isdir('.sos/.dsc') and not args.__construct__:
+            args.__rerun__ = True
         os.makedirs('.sos/.dsc', exist_ok = True)
         dsc_jobs = DSCJobs(dsc_data)
         if args.verbosity > 3:

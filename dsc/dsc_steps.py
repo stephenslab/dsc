@@ -533,10 +533,10 @@ parameter: vanilla = {1}
 input: dynamic(sorted(set({4})))
 output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf'
 build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
-[INIT_{5}]
+[INIT_0]
 remove_obsolete_db('{3}')
         '''.format(os.path.basename(data.output_prefix), rerun, i,
-                   data.output_prefix, repr(io_info_files), i + 1)
+                   data.output_prefix, repr(io_info_files))
 
     def __call__(self):
         pass
