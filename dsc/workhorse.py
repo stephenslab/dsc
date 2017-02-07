@@ -141,8 +141,11 @@ def execute(args):
         return
     # Archive scripts
     dsc_script = open(args.dsc_file).read()
-    dsc2html(dsc_script, os.path.splitext(args.dsc_file)[0] + '.html',
-             title = args.dsc_file, section_content = section_content)
+    try:
+        dsc_ann = open('.'.join(args.dsc_file.rsplit('.', 1)[:-1]) + '.ann').read()
+    except:
+        dsc_ann = None
+    dsc2html(dsc_script, dsc_ann, os.path.splitext(args.dsc_file)[0], section_content = section_content)
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files

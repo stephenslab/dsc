@@ -523,30 +523,37 @@ def yaml2html(content, to_file, title = ''):
         f.write(content)
         f.write('\n</code></pre></body></html>')
 
-def dsc2html(content, to_file, title, section_content = {}):
+def dsc2html(dsc_conf, dsc_ann, output, section_content = {}):
     '''
     section_content: ordered dictionary of lists,
     {'section 1': ['exec1.R', 'exec2.py']}
     '''
     languages = {'py': 'python', 'sh': 'bash', 'rb': 'ruby', 'r': 'r', 'm': 'matlab', 'pl': 'perl'}
-    if os.path.isfile(content):
-        content = open(content).read()
-    if not os.path.splitext(to_file)[1] == '.html':
-        to_file += '.html'
-    with open(to_file, 'w') as f:
+    if os.path.isfile(dsc_conf):
+        dsc_conf = open(dsc_conf).read()
+    if not os.path.splitext(output)[1] == '.html':
+        output += '.html'
+    with open(output, 'w') as f:
         # header and style/scripts
-        f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(title))
+        f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(os.path.basename(output)[:-5]))
         f.write('<style type="text/css">\n')
         f.write(HTML_CSS)
         f.write('\n</style>\n<script type="text/javascript">\n')
         f.write(HTML_JS)
         # DSC script file
-        f.write('</script></head><body><h3>DSC script <a class="various" href="#dsc">{}</a></h3>\n'.\
-            format(os.path.basename(title) if title else os.path.basename(to_file)))
-        f.write('<div style="display:none"><div id="dsc"><pre><code class="language-yaml; '
+        f.write('</script></head><body><h3>DSC <a class="various" href="#dsc_conf">configuration script</a>{}</h3>\n'.\
+                format('' if dsc_ann is None else ' and <a class="various" href="#dsc_ann">annotation</a>'))
+        f.write('<div style="display:none"><div id="dsc_conf"><pre><code class="language-yaml; '
                 'line-numbers; left-trim; right-trim;">\n')
-        f.write(content)
+        f.write(dsc_conf)
         f.write('\n</code></pre></div></div><div class="accordion">\n')
+        if dsc_ann is not None:
+          if os.path.isfile(dsc_ann):
+               dsc_ann = open(dsc_ann).read()
+          f.write('<div style="display:none"><div id="dsc_ann"><pre><code class="language-yaml; '
+                  'line-numbers; left-trim; right-trim;">\n')
+          f.write(dsc_ann)
+          f.write('\n</code></pre></div></div><div class="accordion">\n')
         # DSC sections with executable scripts
         for name, section in section_content.items():
             # get section scripts
