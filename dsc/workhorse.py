@@ -143,7 +143,7 @@ def execute(args):
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, run_jobs.conf_str, verbosity = 0, jobs = 1, is_prepare = True)
+    dsc_run(args, run_jobs.conf_str, workflow = 'INIT', verbosity = 0, jobs = 1, is_prepare = True)
     if args.__dryrun__:
         return
     # Wetrun

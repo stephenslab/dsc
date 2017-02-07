@@ -15,11 +15,32 @@ from .utils import load_rds, save_rds, \
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
+def remove_obsolete_db(fid, additional_files = []):
+    map_db = '.sos/.dsc/{}.map.mpk'.format(fid)
+    if os.path.isfile(map_db):
+        map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8')
+    else:
+        map_data = {}
+    # Remove file signature when files are deleted
+    to_remove = []
+    for k, x in map_data.items():
+        x = os.path.join(fid, x)
+        if not os.path.isfile(x):
+            to_remove.append(x)
+    # Additional files to remove
+    for x in additional_files:
+        if not os.path.isfile(x):
+            to_remove.append(x)
+    if len(to_remove):
+        cmd_remove(dotdict({"tracked": False, "untracked": False,
+                            "targets": to_remove, "__dryrun__": False,
+                            "__confirm__": True, "signature": True, "verbosity": 0}), [])
+
+
 def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
     '''
     - collect all output file names in md5 style
     - check if map file should be loaded, and load it
-    - based on map file and file names in md5 style, remove irrelevant files from output folder
     - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
     - create conf file based on map file and io file
     '''
@@ -48,18 +69,6 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
                             '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
                             '.{}'.format(data[k]["DSC_EXT_"])) for x in names]))
 
-    def remove_obsolete_output(fid, additional_files = []):
-        # Remove file signature when files are deleted
-        to_remove = []
-        for k, x in map_data.items():
-            x = os.path.join(fid, x)
-            if not os.path.isfile(x):
-                to_remove.append(x)
-        to_remove.extend(additional_files)
-        if len(to_remove):
-            cmd_remove(dotdict({"tracked": False, "untracked": False,
-                                "targets": to_remove, "__dryrun__": False,
-                                "__confirm__": True, "signature": True, "verbosity": 0}), [])
 
     def update_map(files):
         '''Update maps and write to disk'''
@@ -73,14 +82,13 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8')
     else:
         map_data = {}
-    fid = os.path.splitext(os.path.basename(conf_db))[0]
-    remove_obsolete_output(fid)
     data = OrderedDict()
     for item in input_files:
         data.update(msgpack.unpackb(open(item, "rb").read(), encoding = 'utf-8',
                                     object_pairs_hook = OrderedDict))
     open(io_db, "wb").write(msgpack.packb(data))
     update_map(get_names(data))
+    fid = os.path.splitext(os.path.basename(conf_db))[0]
     conf = {}
     for k in data:
         sid, name = k.split(':')

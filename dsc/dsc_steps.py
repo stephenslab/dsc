@@ -477,12 +477,9 @@ class DSC2SoS:
         self.libpath = data.libpath
         self.confdb =  "'.sos/.dsc/{}.{{}}.mpk'.format('_'.join((sequence_id, step_name)))".\
                        format(os.path.basename(data.output_prefix))
-        self.confdb_list = '.sos/.dsc/{}.io'.format(os.path.basename(data.output_prefix))
-        if os.path.isfile(self.confdb_list) and rerun:
-            os.remove(self.confdb_list)
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
-                      'from dsc.dsc_database import build_config_db\n\n\n'
+                      'from dsc.dsc_database import remove_obsolete_db, build_config_db\n\n\n'
         processed_steps = {}
         conf_str = []
         job_str = []
@@ -510,6 +507,7 @@ class DSC2SoS:
                     self.step_map[idx]["{}_{}".format(step['name'], exe_id)] = processed_steps[name]
         # Get workflows
         i = 1
+        io_info_files = []
         for idx, sequence in enumerate(data.sequences):
             seq, indices = sequence
             for index in indices:
@@ -518,21 +516,27 @@ class DSC2SoS:
                         else self.step_map[idx]['{}_{}'.format(x, y + 1)]
                         for x, y in zip(seq, index)]
                 sqn = '+'.join([replace_right(x, '_', ':', 1) for x in rsqn])
-                conf_str.append("[DSC_{0}]\nsos_run('{2}', {1})".\
-                              format(i, "sequence_id = '{}', sequence_name = '{}'".format(i, '+'.join(rsqn)),
-                                     sqn))
+                provides_files = ['.sos/.dsc/{}.{}.mpk'.\
+                                  format(data.output_prefix, '_'.join((str(i), x))) for x in rsqn]
+                conf_str.append("[INIT_{0}: provides = {3}]\nsos_run('{2}', {1})".\
+                              format(i, "sequence_id = '{}', sequence_name = '{}'".\
+                                     format(i, '+'.join(rsqn)), sqn, repr(provides_files)))
+                io_info_files.extend(provides_files)
                 job_str.append("[DSC_{0} ({3})]\nsos_run('{2}', {1})".\
                               format(i, "sequence_id = '{}'".format(i), sqn, "DSC sequence {}".format(i)))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = '\n'.join(job_str)
         self.conf_str += '''
-[DSC_{2}]
-vanilla = {1}
-input: dynamic(sorted(set(['.sos/.dsc/{0}.%s.mpk' % item.strip() for item in open('.sos/.dsc/{0}.io').readlines()])))
+[INIT_{2}]
+parameter: vanilla = {1}
+input: dynamic(sorted(set({4})))
 output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf'
 build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
-        '''.format(os.path.basename(data.output_prefix), rerun, i)
+[INIT_{5}]
+remove_obsolete_db('{3}')
+        '''.format(os.path.basename(data.output_prefix), rerun, i,
+                   data.output_prefix, repr(io_info_files), i + 1)
 
     def __call__(self):
         pass
@@ -614,9 +618,7 @@ build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
                              format(input_vars),
                              "{}_output".format(step_data['name']))
         run_string += "{0}['DSC_EXT_'] = {1}\n".format(key, step_data['output_ext'])
-        run_string += "open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))\n"\
-                      "open('{}', 'a').write('_'.join((sequence_id, step_name)) + '\\n')\n".\
-                      format(self.confdb_list)
+        run_string += "open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))\n"
         res.append(run_string)
         return '\n'.join(res) + '\n'
 
