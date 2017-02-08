@@ -295,6 +295,8 @@ class ResultAnnotator:
         if self.master not in data:
             raise ValueError('Cannot find target block ``{}``.'.format(self.master[7:]))
         self.ann = yaml.load(open(ann_file))
+        if self.ann is None:
+            raise ValueError("Annotation file ``{}`` does not contain proper annotation information!".format(ann_file))
         self.dsc = dsc_data
         self.msg = []
 
@@ -460,7 +462,8 @@ class ResultAnnotator:
             if block == 'DSC' or (block in lask_blocks and block != self.master[7:]):
                 continue
             if isinstance(self.dsc[block]['out'], dict):
-                self.dsc[block]['out'] = [y for x, y in self.dsc[block]['out'].items()]
+                # must be alias. need to handle here
+                self.dsc[block]['out'] = list(set([x.split('=')[0].strip() for x in flatten_list([y for x, y in self.dsc[block]['out'].items()])]))
             for item in self.dsc[block]['out']:
                 var_menu.append('{}:{}'.format(block, item.split('=')[0].strip()))
         res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu)}
