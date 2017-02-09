@@ -480,6 +480,9 @@ class DSC2SoS:
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
                       'from dsc.dsc_database import remove_obsolete_db, build_config_db\n\n\n'
+        job_header = "import msgpack\nparameter: IO_DB =  msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
+                     ", 'rb').read(), encoding = 'utf-8')\n\n".\
+                     format(os.path.basename(data.output_prefix))
         processed_steps = {}
         conf_str = []
         job_str = []
@@ -526,12 +529,12 @@ class DSC2SoS:
                               format(i, "sequence_id = '{}'".format(i), sqn, "DSC sequence {}".format(i)))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
-        self.job_str = '\n'.join(job_str)
+        self.job_str = job_header + '\n'.join(job_str)
         self.conf_str += '''
 [INIT_{2}]
 parameter: vanilla = {1}
 input: dynamic(sorted(set({4})))
-output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf'
+output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'
 build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
 [INIT_0]
 remove_obsolete_db('{3}')
@@ -632,14 +635,14 @@ remove_obsolete_db('{3}')
         depend_steps = []
         for_each = 'for_each = %s' % repr(params) if len(params) else ''
         group_by = ''
-        input_var = 'input: dynamic(CONFIG[sequence_id][step_name]["input"]), '
+        input_var = 'input: dynamic(IO_DB[sequence_id][step_name]["input"]), '
         if step_data['depends']:
             # A step can depend on maximum of other 2 steps, by DSC design
             depend_steps = uniq_list([x[0] for x in step_data['depends']])
             group_by = "group_by = {}".format(len(depend_steps))
         else:
             input_var = 'input:'
-        res.append('output_files = CONFIG[sequence_id][step_name]["output"]')
+        res.append('output_files = IO_DB[sequence_id][step_name]["output"]')
         if not (not for_each and input_var == 'input:'):
             res.append('{} {}'.format(input_var, ', '.join([group_by, for_each]).strip().strip(',')))
         res.append('output: output_files[_index]')

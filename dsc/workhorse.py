@@ -41,8 +41,7 @@ def dsc_run(args, content, workflow = 'DSC', verbosity = 1, jobs = None, queue =
         else:
             executor_class = RQ_Executor
         executor = executor_class(workflow, args = None,
-                                  config = {'config_file': args.__config__,
-                                            'output_dag': args.__dag__})
+                                  config = {'output_dag': args.__dag__})
         executor.run()
     except Exception as e:
         if verbosity and verbosity > 2:
@@ -100,7 +99,6 @@ def remove(dsc_jobs, dsc_data, steps, db, force, debug):
 
 def execute(args):
     def setup():
-        args.__config__ = None
         dsc_data = DSCData(args.dsc_file, sequence = args.sequence, output = args.output)
         db_name = os.path.basename(dsc_data['DSC']['output'][0])
         db_dir = os.path.dirname(dsc_data['DSC']['output'][0])
@@ -155,7 +153,6 @@ def execute(args):
     # Wetrun
     env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
     if os.path.isfile(env.logfile): os.remove(env.logfile)
-    args.__config__ = '.sos/.dsc/{}.conf'.format(os.path.basename(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     dsc_run(args, run_jobs.job_str,
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),

@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import sys, os, msgpack, json, yaml, re, glob
+import sys, os, msgpack, yaml, re, glob
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
@@ -88,7 +88,8 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
                                     object_pairs_hook = OrderedDict))
     open(io_db, "wb").write(msgpack.packb(data))
     update_map(get_names(data))
-    fid = os.path.splitext(os.path.basename(conf_db))[0]
+    # remove *.conf.mpk extension
+    fid = os.path.basename(conf_db)[:-9]
     conf = {}
     for k in data:
         sid, name = k.split(':')
@@ -101,9 +102,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
         conf[sid][name]['output'] = [os.path.join(fid, map_data[item]) \
                                      for item in data[k]['DSC_IO_'][1]]
     #
-    with open(conf_db, 'w') as f:
-        f.write(json.dumps(conf))
-
+    open(conf_db, "wb").write(msgpack.packb(conf))
 
 class ResultDBError(Error):
     """Raised when there is a problem building the database."""
