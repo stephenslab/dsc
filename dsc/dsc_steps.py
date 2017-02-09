@@ -12,7 +12,7 @@ from sos.target import executable, fileMD5, textMD5
 from sos.utils import Error
 from .utils import dotdict, dict2str, try_get_value, get_slice, \
      cartesian_list, merge_lists, uniq_list, flatten_list
-from .plugin import Plugin
+from .plugin import Plugin, R_LMERGE, R_SOURCE
 
 class StepError(Error):
     """Raised when Step parameters are illegal."""
@@ -540,6 +540,8 @@ build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
 remove_obsolete_db('{3}')
         '''.format(os.path.basename(data.output_prefix), rerun, i,
                    data.output_prefix, repr(io_info_files))
+        with open('.sos/.dsc/utils.R', 'w') as f:
+            f.write(R_SOURCE + R_LMERGE)
 
     def __call__(self):
         pass

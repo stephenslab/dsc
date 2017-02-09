@@ -6,10 +6,14 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
+import os
 
 R_SOURCE = '''
 source.file <- source
 source <- function(x) {
+ if (is.null(DSC_LIBPATH)) {
+  source.file(x)
+ } else {
  found <- F
  files <- paste(DSC_LIBPATH, x, sep="/")
  for (i in 1:length(files))
@@ -19,6 +23,7 @@ source <- function(x) {
    break
    }
  if (!found) source.file(x)
+ }
 }
 '''
 
@@ -80,11 +85,12 @@ class RPlug(BasePlug):
 
     def get_input(self, params, input_num, lib, index, cmd_args):
         if lib is not None:
-            res = '\nDSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib])) + R_SOURCE
+            res = 'DSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib]))
         else:
-            res = ''
+            res = 'DSC_LIBPATH <- NULL'
+        res = 'source("{}")'.format(os.path.abspath(".sos/.dsc/utils.R"))
         # load files
-        load_multi_in = R_LMERGE + '\n{} <- list()'.format(self.identifier) + \
+        load_multi_in = '\n{} <- list()'.format(self.identifier) + \
           '\ninput.files <- c(${{_input!r,}})\nfor (i in 1:length(input.files)) ' \
           '{0} <- DSC_LMERGE({0}, readRDS(input.files[i]))'.format(self.identifier)
         load_single_in = '\n{} <- readRDS("${{_input}}")'.format(self.identifier)
