@@ -152,9 +152,9 @@ class DSCJobs(dotdict):
             alias = {}
             if 'params_alias' in block:
                 if 0 in list(block.params_alias.keys()):
-                    alias = dict([(x.strip() for x in item.split('=')) for item in block.params_alias[0]])
+                    alias = dict([(x.strip() for x in item.split('=', 1)) for item in block.params_alias[0]])
                 if (idx + 1) in list(block.params_alias.keys()):
-                    alias = dict([(x.strip() for x in item.split('=')) for item in block.params_alias[idx + 1]])
+                    alias = dict([(x.strip() for x in item.split('=', 1)) for item in block.params_alias[idx + 1]])
             return alias
 
         def process_alias():

@@ -155,10 +155,14 @@ class RPlug(BasePlug):
         keys = sorted([x for x in keys if x != 'seed'])
         res = ['{} <- list()'.format(name)]
         for k in keys:
-            if not (isinstance(params[k][0], str) and params[k][0].startswith('$')):
-                res.append('%s$%s <- ${_%s}' % (name, k, k))
+            if '=' in k:
+                j, k = (x.strip() for x in k.split('='))
             else:
-                res.append('%s$%s <- %s' % (name, k, k))
+                j = None
+            if not (isinstance(params[k][0], str) and params[k][0].startswith('$')):
+                res.append('%s$%s <- ${_%s}' % (name, j if j is not None else k, k))
+            else:
+                res.append('%s$%s <- %s' % (name, j if j is not None else k, k))
         self.container.extend(res)
         self.container_vars.extend(keys)
 
