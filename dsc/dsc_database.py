@@ -18,9 +18,10 @@ yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicat
 def remove_obsolete_db(fid, additional_files = []):
     map_db = '.sos/.dsc/{}.map.mpk'.format(fid)
     if os.path.isfile(map_db):
-        map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8')
+        map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
+                                   object_pairs_hook = OrderedDict)
     else:
-        map_data = {}
+        map_data = OrderedDict()
     # Remove file signature when files are deleted
     to_remove = []
     for k, x in map_data.items():
@@ -79,9 +80,10 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
 
     #
     if os.path.isfile(map_db) and not vanilla:
-        map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8')
+        map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
+                                   object_pairs_hook = OrderedDict)
     else:
-        map_data = {}
+        map_data = OrderedDict()
     data = OrderedDict()
     for item in input_files:
         data.update(msgpack.unpackb(open(item, "rb").read(), encoding = 'utf-8',
@@ -90,13 +92,13 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
     update_map(get_names(data))
     # remove *.conf.mpk extension
     fid = os.path.basename(conf_db)[:-9]
-    conf = {}
+    conf = OrderedDict()
     for k in data:
         sid, name = k.split(':')
         if sid not in conf:
-            conf[sid] = {}
+            conf[sid] = OrderedDict()
         if name not in conf[sid]:
-            conf[sid][name] = {}
+            conf[sid][name] = OrderedDict() 
         conf[sid][name]['input'] = [os.path.join(fid, map_data[item]) \
                                     for item in data[k]['DSC_IO_'][0]]
         conf[sid][name]['output'] = [os.path.join(fid, map_data[item]) \
@@ -126,8 +128,8 @@ class ResultDB:
         self.groups = {}
         self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
         if os.path.isfile(self.dat_prefix + '.map.mpk'):
-            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.mpk', 'rb').read(),
-                                        encoding = 'utf-8')
+            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.mpk', 'rb').read(), encoding = 'utf-8',
+                                        object_pairs_hook = OrderedDict)
         else:
             raise ResultDBError("DSC file name database is corrupted!")
 
@@ -430,9 +432,9 @@ class ResultAnnotator:
                         res[k] = get_output(k, target_id)['return'].tolist()
             return res
         #
-        self.result = {}
+        self.result = OrderedDict() 
         for tag in self.queries:
-            self.result[tag] = {}
+            self.result[tag] = OrderedDict()
             for queries in self.queries[tag]:
                 self.result[tag] = extend_dict(self.result[tag], run_query(queries))
         open(os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.tags'.format(self.master[7:])), "wb").\
@@ -504,7 +506,8 @@ class ResultExtractor:
                                  "\nChoices are ``{}``".\
                                  format(repr([x.split('.')[-2] for x in tag_file])))
         tag_file = tag_file[tables.index(self.master)]
-        self.ann = msgpack.unpackb(open(tag_file, 'rb').read(), encoding = 'utf-8')
+        self.ann = msgpack.unpackb(open(tag_file, 'rb').read(), encoding = 'utf-8',
+                                   object_pairs_hook = OrderedDict)
         valid_vars = load_rds(tag_file[:-4] + 'shinymeta.rds')['variables'].tolist()
         if tags is None:
             self.tags = list(self.ann.keys())
