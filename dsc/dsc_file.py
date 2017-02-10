@@ -175,7 +175,7 @@ class ExpandActions(DSCEntryParser):
       * R(), Python(), Shell()
       * Combo() and Pairs()
     Untouched entries are:
-      * File(), Asis(), Prefix(), Suffix()
+      * File(), Asis()
     because they'll have to be dynamically determined
     '''
     def __init__(self):

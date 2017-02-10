@@ -333,9 +333,13 @@ class DSCJobs(dotdict):
                                 # (this is because we'll not allow returning a file if it is already
                                 # plugin mode! It is possible to use File() though but I'll not monitor
                                 # the resulting product [in terms of signature])
+                                file_ext = re.search(r'^File\((.*?)\)$', p1).group(1)
                                 if k in output_vars:
+                                    if file_ext.lower() == 'tmp':
+                                        raise ValueError('Cannot return temporary file ``{}: File({})``!'.\
+                                                         format(k, file_ext))
                                     if master_data[item][step_idx]['to_plugin'] is True:
-                                        raise StepError("Cannot return to additional file with ``{}`` "\
+                                        raise StepError("Cannot return to additional file ``{}: File({})``"\
                                                         " in plugin mode!".format(k))
                                     elif master_data[item][step_idx]['to_plugin'] is False:
                                         # FIXME: multiple file output not allowed for now
@@ -343,17 +347,17 @@ class DSCJobs(dotdict):
                                                         format(item))
                                     else:
                                         master_data[item][step_idx]['to_plugin'] = False
-                                        master_data[item][step_idx]['output_ext'] \
-                                            = repr(re.search(r'^File\((.*?)\)$', p1).group(1))
+                                        master_data[item][step_idx]['output_ext'] = repr(file_ext)
                                         # continue because we do not need to have this parameter
                                         # in the parameter list
                                         for plugin in master_data[item][step_idx]['plugin']:
                                             plugin.add_input(k, '${_output!r}')
                                         continue
                                 else:
-                                    # FIXME: this file is just hitchhiking (want to use the output name)
-                                    # Need a way to properly handle it
-                                    raise StepError('Not implemented')
+                                    # this file is a tmp file
+                                    for plugin in master_data[item][step_idx]['plugin']:
+                                        plugin.add_tempfile(k, file_ext)
+                                    continue
                             else:
                                 p1 = repr(p1)
                         if isinstance(p1, tuple):
@@ -566,7 +570,8 @@ remove_obsolete_db('{3}')
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
         input_vars = None
         depend_steps = []
-        cmds_md5 = ''.join([fileMD5(item.split()[0], partial = False) + \
+        cmds_md5 = ''.join([(fileMD5(item.split()[0], partial = False) if os.path.isfile(item.split()[0])
+                             else item.split()[0]) + \
                             (item.split()[1] if len(item.split()) > 1 else '')
                             for item in step_data['command']])
         if params:

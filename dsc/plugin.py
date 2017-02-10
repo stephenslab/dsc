@@ -52,8 +52,12 @@ class BasePlug:
         self.container_vars = []
         self.return_alias = []
         self.input_alias = []
+        self.tempfile = []
 
     def add_input(self, lhs, rhs):
+        pass
+
+    def add_tempfile(self, lhs, rhs):
         pass
 
     def add_return(self, lhs, rhs):
@@ -79,6 +83,12 @@ class RPlug(BasePlug):
         self.input_alias.append('{} <- {}'.format(lhs,
                                                   rhs if (not rhs.startswith('$')) or rhs == '${_output!r}'
                                                   else '{}{}'.format(self.identifier, rhs)))
+    def add_tempfile(self, lhs, rhs):
+        self.tempfile.append('TMP_{} <- tempdir()'.format(self.identifier))
+        temp_var = ['paste0(TMP_{0}, "/", basename("${{_output}}.{1}.{2}"))'.\
+                    format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
+        self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
+
 
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} <- {}'.format(lhs, rhs))
@@ -108,7 +118,10 @@ class RPlug(BasePlug):
             pass
         if flag:
             res += load_out
-        res += '\n' + '\n'.join(sorted(self.input_alias))
+        if self.input_alias:
+            res += '\n' + '\n'.join(sorted(self.input_alias))
+        if self.tempfile:
+            res += '\n' + '\n'.join(sorted(self.tempfile))
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
         if 'seed' in keys:
@@ -161,16 +174,20 @@ class PyPlug(BasePlug):
                                                  rhs if (not rhs.startswith('$')) or rhs == '${_output!r}'
                                                  else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
 
+    def add_tempfile(self, lhs, rhs):
+        self.tempfile.append('TMP_{} = tempfile.gettempdir()'.format(self.identifier))
+        temp_var = ['os.path.join(TMP_{0}, os.path.basename("${{_output}}.{1}.{2}"))'.\
+                    format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
+        self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
+
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} = {}'.format(lhs, rhs))
 
     def get_input(self, params, input_num, lib, index, cmd_args):
+        res = 'import sys, os, tempfile'
         if lib is not None:
-            res = '\nimport sys, os'
             for item in lib:
                 res += '\nsys.path.append(os.path.abspath("{}"))'.format(item)
-        else:
-            res = ''
         # load files
         res += '\nfrom dsc.utils import save_rds, load_rds'
         load_multi_in = '\n{} = {{}}'.format(self.identifier) + \
@@ -190,7 +207,10 @@ class PyPlug(BasePlug):
             pass
         if flag:
             res += load_out
-        res += '\n' + '\n'.join(sorted(self.input_alias))
+        if self.input_alias:
+            res += '\n' + '\n'.join(sorted(self.input_alias))
+        if self.tempfile:
+            res += '\n' + '\n'.join(sorted(self.tempfile))
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
         if 'seed' in keys:
