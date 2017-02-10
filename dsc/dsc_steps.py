@@ -486,7 +486,7 @@ class DSC2SoS:
                       'from dsc.dsc_database import remove_obsolete_db, build_config_db\n\n\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      "parameter: IO_DB =  msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
-                     ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict))\n\n".\
+                     ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n".\
                      format(os.path.basename(data.output_prefix))
         processed_steps = {}
         conf_str = []
