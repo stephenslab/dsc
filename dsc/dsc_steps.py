@@ -479,7 +479,7 @@ class DSC2SoS:
         self.dsc_file = dsc_file
         self.output_prefix = data.output_prefix
         self.libpath = data.libpath
-        self.confdb =  "'.sos/.dsc/{}.{{}}.mpk'.format('_'.join((sequence_id, step_name)))".\
+        self.confdb =  "'.sos/.dsc/{}.{{}}.mpk'.format('_'.join((sequence_id, step_name[8:])))".\
                        format(os.path.basename(data.output_prefix))
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
@@ -523,15 +523,17 @@ class DSC2SoS:
                         if '{}_{}'.format(x, y + 1) not in self.step_map[idx]
                         else self.step_map[idx]['{}_{}'.format(x, y + 1)]
                         for x, y in zip(seq, index)]
-                sqn = '+'.join([replace_right(x, '_', ':', 1) for x in rsqn])
+                sqn = [replace_right(x, '_', ':', 1) for x in rsqn]
                 provides_files = ['.sos/.dsc/{}.{}.mpk'.\
                                   format(data.output_prefix, '_'.join((str(i), x))) for x in rsqn]
                 conf_str.append("[INIT_{0}: provides = {3}]\nsos_run('{2}', {1})".\
                               format(i, "sequence_id = '{}', sequence_name = '{}'".\
-                                     format(i, '+'.join(rsqn)), sqn, repr(provides_files)))
+                                     format(i, '+'.join(rsqn)),
+                                     '+'.join(['prepare_{}'.format(x) for x in sqn]),
+                                     repr(provides_files)))
                 io_info_files.extend(provides_files)
                 job_str.append("[DSC_{0} ({3})]\nsos_run('{2}', {1})".\
-                              format(i, "sequence_id = '{}'".format(i), sqn, "DSC sequence {}".format(i)))
+                              format(i, "sequence_id = '{}'".format(i), '+'.join(sqn), "DSC sequence {}".format(i)))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + '\n'.join(job_str)
@@ -562,7 +564,7 @@ remove_obsolete_db('{3}')
         with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
             (name of indexed DSC block corresponding to a computational routine).
         '''
-        res = ["[{0}_{1}: shared = '{0}_output']".format(step_data['name'], step_data['exe_id'])]
+        res = ["[prepare_{0}_{1}: shared = '{0}_output']".format(step_data['name'], step_data['exe_id'])]
         res.extend(["parameter: sequence_id = None", "parameter: sequence_name = None"])
         res.append("input: '{}'\noutput: {}".format(self.dsc_file, self.confdb))
         # Set params, make sure each time the ordering is the same
@@ -610,18 +612,18 @@ remove_obsolete_db('{3}')
                                           + ["('{0}', _{0})".format(x) for x in reversed(params)]),
                               None if '__i' not in loop_string else "'{}'.format(' '.join(__i))",
                               loop_string)
-        key = "DSC_UPDATES_[':'.join((sequence_id, step_name))]"
+        key = "DSC_UPDATES_[':'.join((sequence_id, step_name[8:]))]"
         run_string = "DSC_PARAMS_ = {}\nDSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".\
                      format(param_string, key)
         if step_data['depends']:
             run_string += "for x, y in zip(DSC_PARAMS_, %s_output):\n\t %s[' '.join((y, x[1]))]"\
                           " = OrderedDict([('sequence_id', sequence_id), "\
-                          "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % \
+                          "('sequence_name', sequence_name), ('step_name', step_name[8:])] + x[0])\n" % \
                           (step_data['name'], key)
         else:
             run_string += "for x, y in zip(DSC_PARAMS_, %s_output):\n\t %s[y]"\
                           " = OrderedDict([('sequence_id', sequence_id), "\
-                          "('sequence_name', sequence_name), ('step_name', step_name)] + x[0])\n" % \
+                          "('sequence_name', sequence_name), ('step_name', step_name[8:])] + x[0])\n" % \
                           (step_data['name'], key)
         run_string += "{0}['DSC_IO_'] = ({1}, {2})\n".\
                       format(key,
