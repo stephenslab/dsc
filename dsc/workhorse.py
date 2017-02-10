@@ -94,7 +94,7 @@ def remove(dsc_jobs, dsc_data, steps, db, force, debug):
     else:
         cmd_remove(dotdict({"tracked": False, "untracked": False if not force else true,
                             "targets": to_remove, "__dryrun__": False,
-                            "__confirm__": True, "signature": True, "verbosity": env.verbosity}), [])
+                            "__confirm__": True, "signature": False, "verbosity": env.verbosity}), [])
 
 
 def execute(args):

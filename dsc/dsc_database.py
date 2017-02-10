@@ -35,7 +35,7 @@ def remove_obsolete_db(fid, additional_files = []):
     if len(to_remove):
         cmd_remove(dotdict({"tracked": False, "untracked": False,
                             "targets": to_remove, "__dryrun__": False,
-                            "__confirm__": True, "signature": True, "verbosity": 0}), [])
+                            "__confirm__": True, "signature": False, "verbosity": 0}), [])
 
 
 def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
