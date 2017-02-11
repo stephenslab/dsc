@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-import os
+import os, re
 
 R_SOURCE = '''
 source.file <- source
@@ -84,11 +84,13 @@ class RPlug(BasePlug):
                                                   rhs if (not rhs.startswith('$')) or rhs == '${_output!r}'
                                                   else '{}{}'.format(self.identifier, rhs)))
     def add_tempfile(self, lhs, rhs):
-        self.tempfile.append('TMP_{} <- tempdir()'.format(self.identifier))
-        temp_var = ['paste0(TMP_{0}, "/", basename("${{_output}}.{1}.{2}"))'.\
-                    format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
-        self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
-
+        if rhs == '':
+            self.tempfile.append('{} <- \'TMP{}\''.format(lhs, self.identifier))
+        else:
+            self.tempfile.append('TMP_{} <- tempdir()'.format(self.identifier))
+            temp_var = ['paste0(TMP_{0}, "/", basename("${{_output}}.{1}.{2}"))'.\
+                        format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
+            self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
 
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} <- {}'.format(lhs, rhs))
@@ -159,7 +161,8 @@ class RPlug(BasePlug):
                 j, k = (x.strip() for x in k.split('='))
             else:
                 j = None
-            if not (isinstance(params[k][0], str) and params[k][0].startswith('$')):
+            if not (isinstance(params[k][0], str) and params[k][0].startswith('$')) \
+               and not (isinstance(params[k][0], str) and re.search(r'^File\((.*?)\)$', params[k][0])):
                 res.append('%s$%s <- ${_%s}' % (name, j if j is not None else k, k))
             else:
                 res.append('%s$%s <- %s' % (name, j if j is not None else k, k))
@@ -179,10 +182,13 @@ class PyPlug(BasePlug):
                                                  else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
 
     def add_tempfile(self, lhs, rhs):
-        self.tempfile.append('TMP_{} = tempfile.gettempdir()'.format(self.identifier))
-        temp_var = ['os.path.join(TMP_{0}, os.path.basename("${{_output}}.{1}.{2}"))'.\
-                    format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
-        self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
+        if rhs == '':
+            self.tempfile.append('{} = \'TMP{}\''.format(lhs, self.identifier))
+        else:
+            self.tempfile.append('TMP_{} = tempfile.gettempdir()'.format(self.identifier))
+            temp_var = ['os.path.join(TMP_{0}, os.path.basename("${{_output}}.{1}.{2}"))'.\
+                        format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
+            self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
 
     def add_return(self, lhs, rhs):
         self.return_alias.append('{} = {}'.format(lhs, rhs))
