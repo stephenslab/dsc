@@ -172,7 +172,7 @@ def annotate(args):
         dsc_file = args.annotation[0].rsplit('.', 1)[0] + '.dsc'
     if not os.path.isfile(dsc_file):
         raise ValueError('DSC script ``{}`` does not exist. Please specify it via ``-a annotation_file script_file``'.format(dsc_file))
-    dsc_data = DSCData(dsc_file, check_rlibs = False, output = args.output)
+    dsc_data = DSCData(dsc_file, check_rlibs = False, check_pymodules = False, output = args.output)
     ann = ResultAnnotator(args.annotation[0], args.master, dsc_data)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()

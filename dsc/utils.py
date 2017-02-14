@@ -22,6 +22,7 @@ import pandas as pd
 from sos.utils import env
 from sos.target import textMD5
 from sos.R.target import R_library
+from sos.Python3.target import Py_Module
 
 from dsc import HTML_CSS, HTML_JS
 
@@ -479,6 +480,13 @@ def install_r_libs(libs):
             versions = None
         env.logger.info("Checking R library ``{}`` ...".format(value))
         R_library(value, versions).exists()
+
+def install_py_modules(libs):
+    if libs is None:
+        return
+    for value in libs:
+        env.logger.info("Checking Python module ``{}`` ...".format(value))
+        Py_Module(value).exists()
 
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     # ordered_load(stream, yaml.SafeLoader)

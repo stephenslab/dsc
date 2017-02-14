@@ -17,7 +17,7 @@ from sos.target import textMD5
 from .utils import dotdict, is_null, str2num, non_commutative_symexpand, strip_dict, \
      cartesian_list, pairwise_list, get_slice, flatten_dict, \
      try_get_value, dict2str, update_nested_dict, set_nested_value, \
-     no_duplicates_constructor, install_r_libs
+     no_duplicates_constructor, install_r_libs, install_py_modules
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
@@ -615,7 +615,7 @@ class DSCData(dotdict):
     Structure of self:
       self.block_name.block_param_name = dict()
     '''
-    def __init__(self, content, sequence = None, output = None, check_rlibs = True):
+    def __init__(self, content, sequence = None, output = None, check_rlibs = True, check_pymodules = True):
         actions = [DSCFileLoader(content, sequence, output), DSCEntryFormatter()]
         for a in actions:
             a(self)
@@ -646,6 +646,16 @@ class DSCData(dotdict):
                 os.makedirs('.sos/.dsc', exist_ok = True)
                 os.system('echo "{}" > {}'.format(repr(rlibs),
                                                   '.sos/.dsc/RLib.{}.info'.format(rlibs_md5)))
+        #
+        pymodules = try_get_value(self['DSC'], ('python_modules'))
+        if pymodules and check_pymodules:
+            pymodules_md5 = textMD5(repr(pymodules) + str(datetime.date.today()))
+            if not os.path.exists('.sos/.dsc/pymodules.{}.info'.format(pymodules_md5)):
+                install_py_modules(pymodules)
+                os.makedirs('.sos/.dsc', exist_ok = True)
+                os.system('echo "{}" > {}'.format(repr(pymodules),
+                                                  '.sos/.dsc/pymodules.{}.info'.format(pymodules_md5)))
+
 
     def __str__(self):
         res = ''
