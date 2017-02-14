@@ -16,9 +16,9 @@ from sos.sos_script import SoS_Script
 from sos.sos_executor import Base_Executor, MP_Executor
 from sos.rq.sos_executor import RQ_Executor
 
-def dsc_run(args, content, workflow = 'DSC', verbosity = 1, jobs = None, queue = None, is_prepare = False):
+def dsc_run(args, content, workflow = 'DSC', verbosity = 1, queue = None, is_prepare = False):
     env.verbosity = verbosity
-    env.max_jobs = args.__max_jobs__ if jobs is None else jobs
+    env.max_jobs = args.__max_jobs__ 
     # kill all remaining processes when the master process is killed.
     atexit.register(env.cleanup)
     env.sig_mode = 'default'
@@ -147,7 +147,7 @@ def execute(args):
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, run_jobs.conf_str, workflow = 'INIT', verbosity = 0, jobs = 1, is_prepare = True)
+    dsc_run(args, run_jobs.conf_str, workflow = 'INIT', verbosity = 0, is_prepare = True)
     if args.__dryrun__:
         return
     # Wetrun
