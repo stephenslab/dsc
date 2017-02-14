@@ -574,10 +574,6 @@ remove_obsolete_db('{3}')
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
         input_vars = None
         depend_steps = []
-        cmds_md5 = ''.join([(fileMD5(item.split()[0], partial = False) if os.path.isfile(item.split()[0])
-                             else item.split()[0]) + \
-                            (item.split()[1] if len(item.split()) > 1 else '')
-                            for item in step_data['command']])
         if params:
             loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(params)])
         else:
@@ -599,12 +595,12 @@ remove_obsolete_db('{3}')
                 res.append("depends: sos_variable('{}')".format(input_vars))
             loop_string += ' for __i in chunks({}, {})'.format(input_vars, len(depend_steps))
             out_string = "[sos_hash_output('{0}'{1}, prefix = '{3}', suffix = '{{}}'.format({4})) {2}]".\
-                         format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
+                         format(' '.join([step_data['exe'], step_data['name']] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
                                 format_string, loop_string, step_data['exe'], "':'.join(__i)")
         else:
             out_string = "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
-                         format(' '.join([step_data['exe'], step_data['name'], cmds_md5] \
+                         format(' '.join([step_data['exe'], step_data['name']] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
                                 format_string, loop_string, step_data['exe'])
         res.append("{}_output = {}".format(step_data['name'], out_string))
@@ -639,6 +635,10 @@ remove_obsolete_db('{3}')
     def __get_run_step(self, step_data):
         res = ["[{0}_{1} ({2})]".format(step_data['name'], step_data['exe_id'], step_data['exe'])]
         res.append("parameter: sequence_id = None")
+        cmds_md5 = ''.join([(fileMD5(item.split()[0], partial = False) if os.path.isfile(item.split()[0])
+                             else item.split()[0]) + \
+                            (item.split()[1] if len(item.split()) > 1 else '')
+                            for item in step_data['command']])
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
             res.append('{} = {}'.format(key, repr(step_data['parameters'][key])))
@@ -690,9 +690,10 @@ remove_obsolete_db('{3}')
                     raise StepError("Cannot find script ``{}``!".format(cmd.split()[0]))
                 if plugin.name == 'R':
                     cmd_text = ["suppressMessages({})".format(x) if re.search(r'^(library|require)\((.*?)\)$',x.strip()) else x for x in cmd_text]
-                script = """{0}\n{1}\n{2}""".format(script_begin, '\n'.join(cmd_text), script_end)
+                script = """__DSC_step_ID__ = '{3}'\n{0}\n{1}\n{2}""".\
+                         format(script_begin, '\n'.join(cmd_text), script_end, cmds_md5)
                 res.append(script)
             else:
                 executable(cmd.split()[0])
                 res.append('\n{}\n'.format(cmd))
-        return '\n'.join([x for x in '\n'.join(res).split('\n') if not x.startswith('#')]) + '\n'
+        return '\n'.join([x for x in '\n'.join(res).split('\n') if not x.strip().startswith('#')]) + '\n'
