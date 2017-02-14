@@ -580,7 +580,7 @@ class DSCEntryFormatter(DSCFileParser):
 
     def __call__(self, data):
         actions = [Str2List(),
-                   ExpandVars(try_get_value(data.DSC, 'parameters')),
+                   ExpandVars(try_get_value(data.DSC, 'params')),
                    ExpandActions(),
                    CastData()]
         data = self.__Transform(data, actions)

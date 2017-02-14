@@ -501,6 +501,7 @@ class DSC2SoS:
                            format(step['name'], step['exe_id'],
                                   '_'.join([i[0] for i in step['depends']]))
                     exe_id = step['exe_id']
+                    step['exe'] = re.sub('\s+', '_', step['exe'])
                     if name not in processed_steps:
                         pattern = re.compile("^{0}_{1}$|^{0}_[0-9]+_{1}$".\
                                              format(step['name'], step['exe_id']))
