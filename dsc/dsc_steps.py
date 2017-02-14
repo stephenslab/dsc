@@ -527,13 +527,13 @@ class DSC2SoS:
                 sqn = [replace_right(x, '_', ':', 1) for x in rsqn]
                 provides_files = ['.sos/.dsc/{}.{}.mpk'.\
                                   format(data.output_prefix, '_'.join((str(i), x))) for x in rsqn]
-                conf_str.append("[INIT_{0}: provides = {3}]\nsos_run('{2}', {1})".\
+                conf_str.append("[INIT_{0}: provides = {3}]\ninput: None\nsos_run('{2}', {1})".\
                               format(i, "sequence_id = '{}', sequence_name = '{}'".\
                                      format(i, '+'.join(rsqn)),
                                      '+'.join(['prepare_{}'.format(x) for x in sqn]),
                                      repr(provides_files)))
                 io_info_files.extend(provides_files)
-                job_str.append("[DSC_{0} ({3})]\nsos_run('{2}', {1})".\
+                job_str.append("[DSC_{0} ({3})]\ninput: None\nsos_run('{2}', {1})".\
                               format(i, "sequence_id = '{}'".format(i), '+'.join(sqn), "DSC sequence {}".format(i)))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
