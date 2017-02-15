@@ -481,7 +481,8 @@ class DSC2SoS:
         self.libpath = data.libpath
         self.confdb =  "'.sos/.dsc/{}.{{}}.mpk'.format('_'.join((sequence_id, step_name[8:])))".\
                        format(os.path.basename(data.output_prefix))
-        conf_header = 'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
+        conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
+                      'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
                       'from dsc.dsc_database import remove_obsolete_db, build_config_db\n\n\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      "parameter: IO_DB =  msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
@@ -566,6 +567,7 @@ remove_obsolete_db('{3}')
         '''
         res = ["[prepare_{0}_{1}: shared = '{0}_output']".format(step_data['name'], step_data['exe_id'])]
         res.extend(["parameter: sequence_id = None", "parameter: sequence_name = None"])
+        res.append("input: '{}'\noutput: {}".format(self.dsc_file, self.confdb))
         # Set params, make sure each time the ordering is the same
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
@@ -573,10 +575,9 @@ remove_obsolete_db('{3}')
         input_vars = None
         depend_steps = []
         if params:
-            loop_string_outter = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(params)])
-            loop_string_inner = ' '.join(['for _{0} in [${{{0}!r,}}]'.format(s) for s in reversed(params)])
+            loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(params)])
         else:
-            loop_string_outter = loop_string_inner = ''
+            loop_string = ''
         format_string = '.format({})'.\
                         format(', '.join(['_{}'.format(s) for s in reversed(params)]))
         if step_data['depends']:
@@ -592,31 +593,25 @@ remove_obsolete_db('{3}')
             else:
                 input_vars = "{}_output".format(depend_steps[0])
                 res.append("depends: sos_variable('{}')".format(input_vars))
-            loop_string_outter += ' for __i in chunks({}, {})'.format(input_vars, len(depend_steps))
-            loop_string_inner += ' for __i in chunks({}, {})'.format(input_vars, len(depend_steps))
+            loop_string += ' for __i in chunks({}, {})'.format(input_vars, len(depend_steps))
             out_string = "[sos_hash_output('{0}'{1}, prefix = '{3}', suffix = '{{}}'.format({4})) {2}]".\
                          format(' '.join([step_data['exe'], step_data['name']] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
-                                format_string, loop_string_outter, step_data['exe'], "':'.join(__i)")
+                                format_string, loop_string, step_data['exe'], "':'.join(__i)")
         else:
             out_string = "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
                          format(' '.join([step_data['exe'], step_data['name']] \
                                            + ['{0}:{{}}'.format(x) for x in reversed(params)]),
-                                format_string, loop_string_outter, step_data['exe'])
+                                format_string, loop_string, step_data['exe'])
         res.append("{}_output = {}".format(step_data['name'], out_string))
         param_string = '[([{0}], {1}) {2}]'.\
                        format(', '.join(["('exec', '{}')".format(step_data['exe'])] \
                                           + ["('{0}', _{0})".format(x) for x in reversed(params)]),
-                              None if '__i' not in loop_string_inner else "'{}'.format(' '.join(__i))",
-                              loop_string_inner)
-        res.append("input: None\noutput: {}".format(self.confdb))
-        res.append('python:\nfrom dsc.utils import chunks\nfrom collections import OrderedDict\nimport msgpack')
+                              None if '__i' not in loop_string else "'{}'.format(' '.join(__i))",
+                              loop_string)
         key = "DSC_UPDATES_[':'.join((sequence_id, step_name[8:]))]"
-        run_string = "sequence_id = ${{sequence_id!r}}\nsequence_name = ${{sequence_name!r}}\n" \
-                     "step_name = ${{step_name!r}}\n{2}_output = [${{{2}_output!r,}}]\n{3}" \
-                     "DSC_PARAMS_ = {0}\nDSC_UPDATES_ = OrderedDict()\n{1} = OrderedDict()\n".\
-                     format(param_string, key, step_data['name'],
-                            '' if input_vars is None else '{0} = [${{{0}!r,}}]\n'.format(input_vars))
+        run_string = "DSC_PARAMS_ = {}\nDSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".\
+                     format(param_string, key)
         if step_data['depends']:
             run_string += "for x, y in zip(DSC_PARAMS_, %s_output):\n\t %s[' '.join((y, x[1]))]"\
                           " = OrderedDict([('sequence_id', sequence_id), "\
@@ -633,7 +628,7 @@ remove_obsolete_db('{3}')
                              format(input_vars),
                              "{}_output".format(step_data['name']))
         run_string += "{0}['DSC_EXT_'] = {1}\n".format(key, step_data['output_ext'])
-        run_string += "open(${output!r}, 'wb').write(msgpack.packb(DSC_UPDATES_))\n"
+        run_string += "open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))\n"
         res.append(run_string)
         return '\n'.join(res) + '\n'
 
