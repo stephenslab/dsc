@@ -665,8 +665,7 @@ remove_obsolete_db('{3}')
                 else:
                     script_begin = plugin.get_input(params, input_num = len(depend_steps),
                                                     lib = self.libpath, index = idx,
-                                                    cmd_args = cmd.split()[1:]
-                                                    if len(cmd.split()) > 1 else None)
+                                                    cmd_args = cmd.split()[1:] if len(cmd.split()) > 1 else None)
                 if step_data['to_plugin']:
                     script_end = plugin.get_return(step_data['output_vars'])
                 else:
