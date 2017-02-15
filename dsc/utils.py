@@ -4,9 +4,8 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, copy, re, itertools, yaml, collections, time, sympy
+import os, copy, re, itertools, yaml, collections, time, sympy, collections
 from sympy.parsing.sympy_parser import parse_expr
-from collections import OrderedDict
 from difflib import SequenceMatcher
 from io import StringIO
 import readline
@@ -19,12 +18,18 @@ from rpy2.robjects import pandas2ri
 pandas2ri.activate()
 import numpy as np
 import pandas as pd
-from sos.utils import env
+from sos.utils import env, Error
 from sos.target import textMD5
 from sos.R.target import R_library
 from sos.Python3.target import Py_Module
 
 from dsc import HTML_CSS, HTML_JS
+
+class FormatError(Error):
+    """Raised when format is illegal."""
+    def __init__(self, msg):
+        Error.__init__(self, msg)
+        self.args = (msg, )
 
 Expr_mul = sympy.Expr.__mul__
 
@@ -60,6 +65,20 @@ def no_duplicates_constructor(loader, node, deep=False):
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 yaml.Dumper.ignore_aliases = lambda self, value: True
+
+def load_from_yaml(f, fn = None):
+    try:
+        cfg = yaml.load(f)
+    # a very rough initial check and prompt
+    except Exception as e:
+        raise FormatError("Illegal YAML syntax{}:\n``{}``".\
+                          format(" in script ``{}``".format(fn) if os.path.isfile(fn) else '', e))
+    # return lower_keys(cfg)
+    return OrderedDict(cfg)
+
+class OrderedDict(collections.OrderedDict):
+     def __str__(self):
+          return dict2str(self)
 
 class Timer(object):
     def __init__(self, verbose=False):
@@ -204,6 +223,20 @@ def get_slice(value, all_tuple = True, mismatch_quit = True):
          return name, idxs[0]
     else:
          return name, tuple(idxs)
+
+def expand_slice(line):
+    '''
+    input: .... xxx[1,2,3] ....
+    output: .... (xxx[1], xxx[2], xxx[3]) ....
+    '''
+    pattern = re.compile(r'\w+\[(?P<b>.+?)\](?P<a>,|\s*|\*|\+)')
+    for m in re.finditer(pattern, line):
+        sliced_text = get_slice(m.group(0))
+        if len(sliced_text[1]) == 1:
+            continue
+        text = '({})'.format(','.join(['{}[{}]'.format(sliced_text[0], x + 1) for x in sliced_text[1]]))
+        line = line.replace(m.group(0), text + m.group('a'), 1)
+    return line
 
 def try_get_value(value, keys):
     '''
