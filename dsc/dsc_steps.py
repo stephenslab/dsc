@@ -469,10 +469,8 @@ class DSC2SoS:
       * Final workflow also use nested workflow structure,
         with workflow name "DSC" for each sequence, indexed by
         the possible ways to combine exec routines. The possible ways are pre-determined and passed here.
-      * Each DSC sequence is a separate SoS code piece. These pieces have to be executed sequentially
-        to reuse some runtime signature although -j N is allowed in each script
     '''
-    def __init__(self, data, dsc_file, rerun = False):
+    def __init__(self, data, dsc_file, rerun = False, n_cpu = 4):
         def replace_right(source, target, replacement, replacements=None):
             return replacement.join(source.rsplit(target, replacements))
         #
@@ -539,15 +537,15 @@ class DSC2SoS:
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + '\n'.join(job_str)
         self.conf_str += '''
-#[INIT_{2}]
-#parameter: vanilla = {1}
-#input: dynamic(sorted(set({4})))
-#output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'
-#build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
+[BUILD_0]
+parameter: vanilla = {1}
+input: dynamic(sorted(set({4})))
+output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'
+build_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs = {5})
 [INIT_0]
 remove_obsolete_db('{3}')
         '''.format(os.path.basename(data.output_prefix), rerun, i,
-                   data.output_prefix, repr(io_info_files))
+                   data.output_prefix, repr(io_info_files), n_cpu)
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
 
@@ -689,7 +687,7 @@ remove_obsolete_db('{3}')
                     raise StepError("Cannot find script ``{}``!".format(cmd.split()[0]))
                 if plugin.name == 'R':
                     cmd_text = ["suppressMessages({})".format(x) if re.search(r'^(library|require)\((.*?)\)$',x.strip()) else x for x in cmd_text]
-                script = """__DSC_step_ID__ = '{3}'\n{0}\n{1}\n{2}""".\
+                script = """DSC_STEP_ID__ = '{3}'\n{0}\n{1}\n{2}""".\
                          format(script_begin, '\n'.join(cmd_text), script_end, cmds_md5)
                 res.append(script)
             else:

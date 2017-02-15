@@ -16,9 +16,9 @@ from sos.sos_script import SoS_Script
 from sos.sos_executor import Base_Executor, MP_Executor
 from sos.rq.sos_executor import RQ_Executor
 
-def dsc_run(args, content, workflow = 'DSC', verbosity = 1, queue = None, is_prepare = False):
+def dsc_run(args, content, workflows = ['DSC'], verbosity = 1, queue = None, is_prepare = False):
     env.verbosity = verbosity
-    env.max_jobs = args.__max_jobs__ 
+    env.max_jobs = args.__max_jobs__
     # kill all remaining processes when the master process is killed.
     atexit.register(env.cleanup)
     env.sig_mode = 'default'
@@ -26,28 +26,29 @@ def dsc_run(args, content, workflow = 'DSC', verbosity = 1, queue = None, is_pre
         env.sig_mode = 'build'
     if args.__rerun__:
         env.sig_mode = 'force'
-    try:
-        script = SoS_Script(content=content, transcript = None)
-        workflow = script.workflow(workflow)
-        if env.max_jobs == 1 and env.verbosity == 1:
-            # Do not use progressbar for single CPU job
-            # For better debugging
-            env.verbosity = 2
-        if queue is None and env.max_jobs == 1:
-            # single process executor
-            executor_class = Base_Executor
-        elif queue is None:
-            executor_class = MP_Executor
-        else:
-            executor_class = RQ_Executor
-        executor = executor_class(workflow, args = None,
-                                  config = {'output_dag': args.__dag__})
-        executor.run()
-    except Exception as e:
-        if verbosity and verbosity > 2:
-            sys.stderr.write(get_traceback())
-        env.logger.error(e)
-        sys.exit(1)
+    if env.max_jobs == 1 and env.verbosity == 1:
+        # Do not use progressbar for single CPU job
+        # For better debugging
+        env.verbosity = 2
+    if queue is None and env.max_jobs == 1:
+        # single process executor
+        executor_class = Base_Executor
+    elif queue is None:
+        executor_class = MP_Executor
+    else:
+        executor_class = RQ_Executor
+    script = SoS_Script(content=content, transcript = None)
+    for w in workflows:
+        workflow = script.workflow(w)
+        try:
+            executor = executor_class(workflow, args = None,
+                                      config = {'output_dag': args.__dag__})
+            executor.run()
+        except Exception as e:
+            if verbosity and verbosity > 2:
+                sys.stderr.write(get_traceback())
+            env.logger.error(e)
+            sys.exit(1)
     env.verbosity = args.verbosity
 
 
@@ -113,7 +114,7 @@ def execute(args):
         if args.verbosity > 3:
             yaml2html(str(dsc_data), '.sos/.dsc/{}.data'.format(db_name), title = 'DSC data')
             yaml2html(str(dsc_jobs), '.sos/.dsc/{}.jobs'.format(db_name), title = 'DSC jobs')
-        run_jobs = DSC2SoS(dsc_jobs, args.dsc_file, args.__rerun__)
+        run_jobs = DSC2SoS(dsc_jobs, args.dsc_file, args.__rerun__, args.__max_jobs__)
         if args.verbosity > 3:
             yaml2html(str(run_jobs), '.sos/.dsc/{}.exec'.format(db_name), title = 'DSC runs')
         # master block for output
@@ -147,7 +148,7 @@ def execute(args):
     env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, run_jobs.conf_str, workflow = 'INIT', verbosity = 0, is_prepare = True)
+    dsc_run(args, run_jobs.conf_str, workflows = ['INIT', 'BUILD'], verbosity = 0, is_prepare = True)
     if args.__dryrun__:
         return
     # Wetrun

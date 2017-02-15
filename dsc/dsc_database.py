@@ -11,7 +11,8 @@ from sos.utils import Error
 from sos.__main__ import cmd_remove
 from .utils import load_rds, save_rds, \
      flatten_list, no_duplicates_constructor, \
-     cartesian_list, extend_dict, dotdict
+     cartesian_list, extend_dict, dotdict, chunks
+from multiprocessing import Process, Manager
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
@@ -37,14 +38,30 @@ def remove_obsolete_db(fid, additional_files = []):
                             "targets": to_remove, "__dryrun__": False,
                             "__confirm__": True, "signature": False, "verbosity": 0}), [])
 
+def load_mpk(mpk_files, jobs):
+    d = Manager().dict()
+    def f(d, x):
+        for xx in x:
+            d.update(msgpack.unpackb(open(xx, "rb").read(), encoding = 'utf-8',
+                                     object_pairs_hook = OrderedDict))
+    #
+    mpk_files = [x for x in chunks(mpk_files, int(len(mpk_files) / jobs) + 1)]
+    job_pool = [Process(target = f, args = (d, x)) for x in mpk_files]
+    for job in job_pool:
+        job.start()
+    for job in job_pool:
+        job.join()
+    return OrderedDict([(x, d[x]) for x in sorted(d.keys())])
 
-def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
+
+def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs = 4):
     '''
     - collect all output file names in md5 style
     - check if map file should be loaded, and load it
     - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
     - create conf file based on map file and io file
     '''
+
     def get_names(data):
         names = []
         lookup = {}
@@ -84,10 +101,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
                                    object_pairs_hook = OrderedDict)
     else:
         map_data = OrderedDict()
-    data = OrderedDict()
-    for item in input_files:
-        data.update(msgpack.unpackb(open(item, "rb").read(), encoding = 'utf-8',
-                                    object_pairs_hook = OrderedDict))
+    data = load_mpk(input_files, jobs)
     open(io_db, "wb").write(msgpack.packb(data))
     update_map(get_names(data))
     # remove *.conf.mpk extension
@@ -98,7 +112,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False):
         if sid not in conf:
             conf[sid] = OrderedDict()
         if name not in conf[sid]:
-            conf[sid][name] = OrderedDict() 
+            conf[sid][name] = OrderedDict()
         conf[sid][name]['input'] = [os.path.join(fid, map_data[item]) \
                                     for item in data[k]['DSC_IO_'][0]]
         conf[sid][name]['output'] = [os.path.join(fid, map_data[item]) \
