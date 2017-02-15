@@ -539,13 +539,13 @@ class DSC2SoS:
         self.conf_str += '''
 [BUILD_0]
 parameter: vanilla = {1}
-input: dynamic(sorted(set({4})))
+input: {4}
 output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'
 build_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs = {5})
 [INIT_0]
 remove_obsolete_db('{3}')
         '''.format(os.path.basename(data.output_prefix), rerun, i,
-                   data.output_prefix, repr(io_info_files), n_cpu)
+                   data.output_prefix, repr(sorted(set(io_info_files))), n_cpu)
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
 
