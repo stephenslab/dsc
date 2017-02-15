@@ -527,7 +527,7 @@ class DSC2SoS:
                 sqn = [replace_right(x, '_', ':', 1) for x in rsqn]
                 provides_files = ['.sos/.dsc/{}.{}.mpk'.\
                                   format(data.output_prefix, '_'.join((str(i), x))) for x in rsqn]
-                conf_str.append("[INIT_{0}: provides = {3}]\ninput: None\nsos_run('{2}', {1})".\
+                conf_str.append("[INIT_{0}]\ninput: None\nsos_run('{2}', {1})".\
                               format(i, "sequence_id = '{}', sequence_name = '{}'".\
                                      format(i, '+'.join(rsqn)),
                                      '+'.join(['prepare_{}'.format(x) for x in sqn]),
@@ -539,11 +539,11 @@ class DSC2SoS:
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + '\n'.join(job_str)
         self.conf_str += '''
-[INIT_{2}]
-parameter: vanilla = {1}
-input: dynamic(sorted(set({4})))
-output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'
-build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
+#[INIT_{2}]
+#parameter: vanilla = {1}
+#input: dynamic(sorted(set({4})))
+#output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'
+#build_config_db(input, output[0], output[1], output[2], vanilla = vanilla)
 [INIT_0]
 remove_obsolete_db('{3}')
         '''.format(os.path.basename(data.output_prefix), rerun, i,
@@ -567,7 +567,7 @@ remove_obsolete_db('{3}')
         '''
         res = ["[prepare_{0}_{1}: shared = '{0}_output']".format(step_data['name'], step_data['exe_id'])]
         res.extend(["parameter: sequence_id = None", "parameter: sequence_name = None"])
-        res.append("input: '{}'\noutput: {}".format(self.dsc_file, self.confdb))
+        res.append("input: None\noutput: {}".format(self.confdb))
         # Set params, make sure each time the ordering is the same
         params = sorted(step_data['parameters'].keys()) if 'parameters' in step_data else []
         for key in params:
@@ -610,18 +610,17 @@ remove_obsolete_db('{3}')
                               None if '__i' not in loop_string else "'{}'.format(' '.join(__i))",
                               loop_string)
         key = "DSC_UPDATES_[':'.join((sequence_id, step_name[8:]))]"
-        run_string = "DSC_PARAMS_ = {}\nDSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".\
-                     format(param_string, key)
+        run_string = "DSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".format(key)
         if step_data['depends']:
-            run_string += "for x, y in zip(DSC_PARAMS_, %s_output):\n\t %s[' '.join((y, x[1]))]"\
+            run_string += "for x, y in zip(%s, %s_output):\n\t %s[' '.join((y, x[1]))]"\
                           " = OrderedDict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name[8:])] + x[0])\n" % \
-                          (step_data['name'], key)
+                          (param_string, step_data['name'], key)
         else:
-            run_string += "for x, y in zip(DSC_PARAMS_, %s_output):\n\t %s[y]"\
+            run_string += "for x, y in zip(%s, %s_output):\n\t %s[y]"\
                           " = OrderedDict([('sequence_id', sequence_id), "\
                           "('sequence_name', sequence_name), ('step_name', step_name[8:])] + x[0])\n" % \
-                          (step_data['name'], key)
+                          (param_string, step_data['name'], key)
         run_string += "{0}['DSC_IO_'] = ({1}, {2})\n".\
                       format(key,
                              '[]' if input_vars is None else '{0} if {0} is not None else []'.\
