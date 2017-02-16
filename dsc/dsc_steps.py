@@ -273,40 +273,40 @@ class DSCJobs(dotdict):
                 self.master_data[name][idx]['command'] = (self.master_data[name][idx]['command'],)
                 self.master_data[name][idx]['plugin'] = (self.master_data[name][idx]['plugin'],)
 
-    def get_workflow(self, sequence):
-        '''Convert self.master_data to self.data
-           * Fully expand sequences so that each sequence will be one SoS instance
-           * Resolving step dependencies and some syntax conversion, most importantly the $ symbol
-        '''
-        def find_dependencies(value):
-            curr_idx = idx
-            if curr_idx == 0:
-                raise StepError('Symbol ``$`` is not allowed in the first step of DSC sequence.')
-            curr_idx = curr_idx - 1
-            dependence = None
-            to_plugin = None
-            while curr_idx >= 0:
-                output_vars = [x[0] if isinstance(x, tuple) else x for x in res[curr_idx][0]['output_vars']]
-                try:
-                    dependence = (res[curr_idx][0]['name'], value, output_vars.index(value))
-                    to_plugin = res[curr_idx][0]['to_plugin']
-                except ValueError:
-                    pass
-                if dependence is not None:
-                    break
-                else:
-                    curr_idx = curr_idx - 1
-            if dependence is None:
-                raise StepError('Cannot find return value for ``${}`` in any of its previous steps.'.\
-                                format(value))
-            if dependence not in master_data[item][step_idx]['depends']:
-                master_data[item][step_idx]['depends'].append(dependence)
-                if master_data[item][step_idx]['from_plugin'] is not None \
-                and master_data[item][step_idx]['from_plugin'] != to_plugin:
-                    raise StepError("Mixed input from previous plugin and non-plugin steps is currently "\
-                                    "not implemented!")
-                else:
-                    master_data[item][step_idx]['from_plugin'] = to_plugin
+    # def get_workflow(self, sequence):
+    #     '''Convert self.master_data to self.data
+    #        * Fully expand sequences so that each sequence will be one SoS instance
+    #        * Resolving step dependencies and some syntax conversion, most importantly the $ symbol
+    #     '''
+    #     def find_dependencies(value):
+    #         curr_idx = idx
+    #         if curr_idx == 0:
+    #             raise StepError('Symbol ``$`` is not allowed in the first step of DSC sequence.')
+    #         curr_idx = curr_idx - 1
+    #         dependence = None
+    #         to_plugin = None
+    #         while curr_idx >= 0:
+    #             output_vars = [x[0] if isinstance(x, tuple) else x for x in res[curr_idx][0]['output_vars']]
+    #             try:
+    #                 dependence = (res[curr_idx][0]['name'], value, output_vars.index(value))
+    #                 to_plugin = res[curr_idx][0]['to_plugin']
+    #             except ValueError:
+    #                 pass
+    #             if dependence is not None:
+    #                 break
+    #             else:
+    #                 curr_idx = curr_idx - 1
+    #         if dependence is None:
+    #             raise StepError('Cannot find return value for ``${}`` in any of its previous steps.'.\
+    #                             format(value))
+    #         if dependence not in master_data[item][step_idx]['depends']:
+    #             master_data[item][step_idx]['depends'].append(dependence)
+    #             if master_data[item][step_idx]['from_plugin'] is not None \
+    #             and master_data[item][step_idx]['from_plugin'] != to_plugin:
+    #                 raise StepError("Mixed input from previous plugin and non-plugin steps is currently "\
+    #                                 "not implemented!")
+    #             else:
+    #                 master_data[item][step_idx]['from_plugin'] = to_plugin
         #
         # res = []
         # master_data = copy.deepcopy(self.master_data)

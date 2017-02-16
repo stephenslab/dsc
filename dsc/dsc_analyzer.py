@@ -33,10 +33,13 @@ class DSC_Analyzer:
         Every step in a workflow is a plugin, whether it be Python, R or Shell.
         When output contain variables the default RDS format and method to save variables are
         applied.
+
+        This class provides a member called `workflow` which contains multiple workflows 
         '''
         self.workflows = []
         for sequence in script_data.runtime.sequence:
             self.add_workflow(sequence[0], script_data.blocks, list(script_data.runtime.sequence_ordering.keys()))
+        self.consolidate_workflows()
 
     def add_workflow(self, sequence, data, ordering):
         workflow = OrderedDict()
@@ -77,6 +80,27 @@ class DSC_Analyzer:
             raise FormatError('Cannot find return variable for ``${}`` in any of its previous steps.'.\
                               format(variable))
         return dependencies
+
+    def consolidate_workflows(self):
+        '''
+        For trivial multiple workflows, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
+        This cannot be done with symbolic math logic so we have to do it here
+
+        First we compare each workflow (a list of OrderedDict) and get rid of duplicate
+        Second ... is there a second?
+        '''
+        import hashlib
+        import pickle
+        def get_md5(data):
+            return hashlib.md5(pickle.dumps(data)).hexdigest()
+        workflows = []
+        ids = []
+        for workflow in self.workflows:
+            md5 = get_md5(workflow)
+            if md5 not in ids:
+                ids.append(md5)
+                workflows.append(workflow)
+        self.workflows = workflows
 
     def __str__(self):
         res = ''

@@ -378,7 +378,8 @@ class DSC_Block:
             options.update(local_options)
         if len(options) == 0:
             return {}
-        res = {0:{}}
+        res = OrderedDict()
+        res[0] = OrderedDict()
         for key, value in options.items():
             try:
                 # get indexed slice
@@ -391,18 +392,18 @@ class DSC_Block:
                         raise FormatError('``[{}]`` Invalid entry: ``exec[0]``. Index must start from 1.'.\
                                           format(self.name))
                     if idx in res:
-                        res[idx].update(flatten_dict(value))
+                        res[idx].update(flatten_dict(value, mapping = OrderedDict))
                     else:
-                        res[idx] = flatten_dict(value)
+                        res[idx] = flatten_dict(value, mapping = OrderedDict)
             except AttributeError:
-                res[0][key] = flatten_dict(value)
+                res[0][key] = flatten_dict(value, mapping = OrderedDict)
         return res
 
     def get_exec_rule(self, rule):
         return rule
 
     def get_return_vars(self, return_vars, num_exec):
-        res = {}
+        res = OrderedDict()
         if isinstance(return_vars, collections.Mapping):
             # exec specific return alias involved
             for i in range(num_exec):
@@ -424,9 +425,10 @@ class DSC_Block:
     def get_params(self, params):
         if params is None:
             return {}, {}, {}
-        res = {0:{}}
-        res_rules = {}
-        res_alias = {}
+        res = OrderedDict()
+        res[0] = OrderedDict()
+        res_rules = OrderedDict()
+        res_alias = OrderedDict()
         OP = OperationParser()
         for key, value in params.items():
             try:
@@ -440,11 +442,11 @@ class DSC_Block:
                         raise FormatError('``[{}]`` Invalid entry: ``exec[0]``. Index must start from 1.'.\
                                           format(self.name))
                     if idx in res:
-                        res[idx].update(flatten_dict(value))
+                        res[idx].update(flatten_dict(value, mapping = OrderedDict))
                     else:
-                        res[idx] = flatten_dict(value)
+                        res[idx] = flatten_dict(value, mapping = OrderedDict)
             except AttributeError:
-                res[0][key] = flatten_dict(value)
+                res[0][key] = flatten_dict(value, mapping = OrderedDict)
             # Parse parameter rules and alias
             for key in res:
                 if '.logic' in res[key]:
@@ -473,7 +475,7 @@ class DSC_Section:
         self.sequence = [(x,) if isinstance(x, str) else x
                          for x in sum([OP(expand_slice(y)) for y in self.sequence], [])]
         self.sequence_ordering = self.__merge_sequences(self.sequence)
-        self.options = {}
+        self.options = OrderedDict()
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else None
         self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
         self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
