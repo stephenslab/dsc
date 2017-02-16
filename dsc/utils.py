@@ -192,7 +192,7 @@ def merge_lists(seq1, seq2):
             res += seq2[start2:end2]
     return res
 
-def get_slice(value, all_tuple = True, mismatch_quit = True):
+def get_slice(value, all_tuple = True, mismatch_quit = True, non_negative = True):
     '''
     Input string is R index style: 1-based, end position inclusive slicing
     Output index will convert it to Python convention
@@ -223,6 +223,8 @@ def get_slice(value, all_tuple = True, mismatch_quit = True):
               idxs.extend([x - 1 for x in range(slice_obj.start or 0, slice_obj.stop or -1, slice_obj.step or 1)])
          else:
               idxs.append(int(item) - 1)
+    if any([i < 0 for i in idxs]) and non_negative:
+        raise ValueError("Invalid slice ``{}``. Indices should be positive integers.".format(value))
     if len(idxs) == 1 and not all_tuple:
          return name, idxs[0]
     else:

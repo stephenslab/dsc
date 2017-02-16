@@ -118,11 +118,14 @@ class DSC_Script:
         self.runtime = DSC_Section(self.content['DSC'], sequence)
         # FIXME: add annotation info / filter here
         # Or, not?
-        self.blocks = OrderedDict([(x, DSC_Block(x, y, self.runtime.options))
-                                   for x, y in self.content.items() if x != 'DSC'])
+        self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options))
+                                    for x in self.runtime.sequence_ordering.keys()])
         self.runtime.expand_sequences(self.blocks)
         # FIXME: maybe this should be allowed?
         self.runtime.check_looped_computation()
+        # Finally prune blocks removing unused steps
+        for name, idxes in self.runtime.sequence_ordering.items():
+            self.blocks[name].extract_steps(idxes)
 
     def __str__(self):
         res = '# Blocks\n' + '\n'.join(['## {}\n{}'.format(x, str(y)) for x, y in self.blocks.items()]) \
@@ -415,6 +418,9 @@ class DSC_Block:
                     del res[key]['.alias']
         return res, res_alias, res_rules
 
+    def extract_steps(self, idxes):
+        self.steps = [y for x, y in enumerate(self.steps) if x in idxes]
+
     def __str__(self):
         steps = {step.name: step.dump() for step in self.steps}
         return dict2str(strip_dict({'computational routines': steps, 'rule': self.rule}))
@@ -444,16 +450,21 @@ class DSC_Section:
         values = sequences[0]
         for idx in range(len(sequences) - 1):
             values = merge_lists(values, sequences[idx + 1])
+        values = OrderedDict([(x, [-9]) for x in values])
         return values
 
     def expand_sequences(self, blocks):
         '''expand DSC sequences by index'''
-        default = {x: range(len(blocks[x].steps)) for x in self.sequence_ordering} if len(blocks) else {}
+        default = {x: [i for i in range(len(blocks[x].steps))] for x in self.sequence_ordering.keys()} if len(blocks) else {}
         res = []
         for value in self.__index_sequences(self.sequence):
             seq = [x[0] for x in value]
             idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
+            for x, y in zip(seq, idxes):
+                self.sequence_ordering[x].extend(y)
             res.append((seq, cartesian_list(*idxes)))
+        for x in self.sequence_ordering.keys():
+            self.sequence_ordering[x] = sorted(list(set([i for i in self.sequence_ordering[x] if i >= 0])))
         self.sequence = res
 
     def check_looped_computation(self):
@@ -476,5 +487,5 @@ class DSC_Section:
 
     def __str__(self):
         return dict2str(strip_dict({'sequence': self.sequence,
-                                    'ordering': self.sequence_ordering,
+                                    'ordering': list(self.sequence_ordering.keys()),
                                     'R libraries': self.rlib, 'Python modules': self.pymodule}))
