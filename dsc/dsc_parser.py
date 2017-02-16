@@ -25,7 +25,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.blocks, self.runtime, and self.runtime.sequence that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None):
+    def __init__(self, content, sequence = None, output = None):
         if os.path.isfile(content):
             with open(content) as f:
                 self.content = load_from_yaml(f, content)
@@ -36,6 +36,23 @@ class DSC_Script:
             with StringIO(content) as f:
                 self.content = load_from_yaml(f)
             self.output = 'DSCStringIO' if output is not None else output
+        #
+        self.propagate_derived_block()
+        self.check_block_error()
+        if sequence:
+            self.content['DSC']['run'] = sequence
+        self.content = DSCEntryFormatter()(self.content, try_get_value(self.content['DSC'], 'params'))
+        self.runtime = DSC_Section(self.content['DSC'], sequence)
+        # FIXME: add annotation info / filter here
+        # Or, not?
+        self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options))
+                                    for x in self.runtime.sequence_ordering.keys()])
+        self.runtime.expand_sequences(self.blocks)
+        # FIXME: maybe this should be allowed?
+        self.runtime.check_looped_computation()
+        # Finally prune blocks removing unused steps
+        for name, idxes in self.runtime.sequence_ordering.items():
+            self.blocks[name].extract_steps(idxes)
 
     def propagate_derived_block(self):
         '''
@@ -111,23 +128,6 @@ class DSC_Script:
                                    format(key, block))
                     del self.content[block][key]
 
-    def __call__(self, sequence = None):
-        self.propagate_derived_block()
-        self.check_block_error()
-        if sequence:
-            self.content['DSC']['run'] = sequence
-        self.content = DSCEntryFormatter()(self.content, try_get_value(self.content['DSC'], 'params'))
-        self.runtime = DSC_Section(self.content['DSC'], sequence)
-        # FIXME: add annotation info / filter here
-        # Or, not?
-        self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options))
-                                    for x in self.runtime.sequence_ordering.keys()])
-        self.runtime.expand_sequences(self.blocks)
-        # FIXME: maybe this should be allowed?
-        self.runtime.check_looped_computation()
-        # Finally prune blocks removing unused steps
-        for name, idxes in self.runtime.sequence_ordering.items():
-            self.blocks[name].extract_steps(idxes)
 
     def __str__(self):
         res = '# Blocks\n' + '\n'.join(['## {}\n```yaml\n{}\n```'.format(x, y) for x, y in self.blocks.items()]) \
@@ -183,12 +183,15 @@ class DSC_Step:
         self.rf = OrderedDict()
         # exec
         self.exe = None
+        self.exe_id = 0
         # script plugin object
         self.plugin = None
         # runtime variables
         self.workdir = None
         self.libpath = None
         self.path = None
+        # dependencies
+        self.depends = []
 
     def set_seed(self, seed):
         self.seed = seed
@@ -317,6 +320,8 @@ class DSC_Step:
                            'return variables': self.rv,
                            'return files': self.rf,
                            'command': self.exe,
+                           'command_index': self.exe_id,
+                           'dependencies': self.depends,
                            'runtime options': {
                                'exec path': self.path,
                                'workdir': self.workdir,

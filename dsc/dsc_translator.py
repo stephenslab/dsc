@@ -28,7 +28,7 @@ class DSC_Translator:
         with workflow name "DSC" for each sequence, indexed by
         the possible ways to combine exec routines. The possible ways are pre-determined and passed here.
     '''
-    def __init__(self, data, dsc_file, rerun = False, n_cpu = 4):
+    def __init__(self, data, dsc_file, runtime, rerun = False, n_cpu = 4):
         def replace_right(source, target, replacement, replacements=None):
             return replacement.join(source.rsplit(target, replacements))
         #
@@ -107,12 +107,33 @@ remove_obsolete_db('{3}')
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
 
+        #
+        self.install_libs(runtime.rlib, "R_library", rerun)
+        self.install_libs(runtime.pymodule, "Python_Module", rerun)
+
+
     def __call__(self):
         pass
 
     def __str__(self):
         return '{}'.format(dict2str(self.step_map)) + '\n\n' + '##\n' * 5 \
             + '\n{}'.format(self.conf_str) + '\n\n' + '##\n' * 5 + '\n{}'.format(self.job_str)
+
+    def install_libs(self, libs, lib_type, force = False):
+        if lib_type not in ["R_library", "Python_Module"]:
+            raise ValueError("Invalid library type ``{}``.".format(lib_type))
+        if libs is None:
+            return
+        libs_md5 = textMD5(repr(libs) + str(datetime.date.today()))
+        if not os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
+            if lib_type == 'R_library':
+                ret = install_r_libs(libs)
+            if lib_type == 'Python_Module':
+                ret = install_py_modules(libs)
+            # FIXME: need to check if installation is successful
+            os.makedirs('.sos/.dsc', exist_ok = True)
+            os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
+
 
     def __get_prepare_step(self, step_data):
         '''

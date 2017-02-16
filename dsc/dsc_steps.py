@@ -384,7 +384,7 @@ class DSCJobs(dotdict):
                 # if len(master_data[item][step_idx]['parameters']) == 0:
                 #     del master_data[item][step_idx]['parameters']
                 # sort input depends
-                master_data[item][step_idx]['depends'].sort(key = lambda x: self.ordering.index(x[0]))
+                # master_data[item][step_idx]['depends'].sort(key = lambda x: self.ordering.index(x[0]))
                 if master_data[item][step_idx]['to_plugin'] is None:
                     # At this point if this is still pending
                     # then it means that every return value must be in the parameter list
@@ -397,9 +397,9 @@ class DSCJobs(dotdict):
                     master_data[item][step_idx]['to_plugin'] = True
                     master_data[item][step_idx]['output_ext'] = repr('rds')
                 # add exec identifier
-                master_data[item][step_idx]['exe_id'] = step_idx + 1
-            res.append(master_data[item])
-        return res
+        #         master_data[item][step_idx]['exe_id'] = step_idx + 1
+        #     res.append(master_data[item])
+        # return res
 
     # def merge_sequences(self, input_sequences):
     #     '''Extract the proper ordering of elements from multiple sequences'''

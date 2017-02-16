@@ -8,45 +8,79 @@ This file analyzes DSC contents to determine dependencies
 and what exactly should be executed.
 '''
 
-import copy, re, os, datetime
-from sos.target import executable, fileMD5, textMD5
-from sos.utils import Error
-from .utils import FormatError, dotdict, dict2str, try_get_value, get_slice, \
-     cartesian_list, merge_lists, uniq_list, flatten_list, install_r_libs, install_py_modules
-from .plugin import Plugin, R_LMERGE, R_SOURCE
+import copy
+from .utils import FormatError, OrderedDict
 
 __all__ = ['DSC_Analyzer']
 
 class DSC_Analyzer:
-    '''Putting together DSC steps to sequences and propagate computational routines for execution
+    '''Putting together DSC steps to sequences and continue to propagate computational routines for execution
     * Handle step dependencies
-    * Auto-complete R, Python or Shell jobs: is_plugin
-    * Handle file I/O rules: from_plugin, to_plugin
     * Merge steps: via block rule
     * Merge blocks: via block option (NOT IMPLEMENTED)
     The output will be analyzed DSC ready to be translated to pipelines for execution
     '''
-    def __init__(self, script_data, force_install = False):
+    def __init__(self, script_data):
         '''
         script_data comes from DSC_Script, having members:
-        blocks, runtime.sequence, runtime.rlib, runtime.pymodule
+        * blocks
+        * runtime (runtime.sequence is relevant)
+        * output (output data prefix)
+        Because different combinations of blocks will lead to different
+        I/O settings particularly with plugin status, here for each
+        sequence, fresh deep copies of blocks will be made from input blocks
+
+        Every step in a workflow is a plugin, whether it be Python, R or Shell.
+        When output contain variables the default RDS format and method to save variables are
+        applied.
         '''
-        
+        self.workflows = []
+        for sequence in script_data.runtime.sequence:
+            self.add_workflow(sequence[0], script_data.blocks, list(script_data.runtime.sequence_ordering.keys()))
 
-        self.install_libs(script_data.runtime.rlib, "R_library", force_install)
-        self.install_libs(script_data.runtime.pymodule, "Python_Module", force_install)
+    def add_workflow(self, sequence, data, ordering):
+        workflow = OrderedDict()
+        for name in sequence:
+            block = copy.deepcopy(data[name])
+            for idx, step in enumerate(block.steps):
+                for k, p in step.p.items():
+                    for p1 in p:
+                        if isinstance(p1, str):
+                            if p1.startswith('$'):
+                                dependencies = self.find_dependencies(p1[1:], list(workflow.values()))
+                                for item in dependencies:
+                                    if item not in block.steps[idx].depends:
+                                        block.steps[idx].depends.append(item)
+                                block.steps[idx].plugin.add_input(k, p1)
+                block.steps[idx].depends.sort(key = lambda x: ordering.index(x[0]))
+                block.steps[idx].exe_id = idx + 1
+            workflow[block.name] = block
+        self.workflows.append(workflow)
 
-    def install_libs(self, libs, lib_type, force = False):
-        if lib_type not in ["R_library", "Python_Module"]:
-            raise ValueError("Invalid library type ``{}``.".format(lib_type))
-        if libs is None:
-            return
-        libs_md5 = textMD5(repr(libs) + str(datetime.date.today()))
-        if not os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
-            if lib_type == 'R_library':
-                ret = install_r_libs(libs)
-            if lib_type == 'Python_Module':
-                ret = install_py_modules(libs)
-            # FIXME: need to check if installation is successful
-            os.makedirs('.sos/.dsc', exist_ok = True)
-            os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
+    def find_dependencies(self, variable, workflow):
+        curr_idx = len(workflow)
+        if curr_idx == 0:
+            raise FormatError('Symbol ``$`` is not allowed in the first step of a DSC sequence.')
+        curr_idx = curr_idx - 1
+        dependencies = []
+        while curr_idx >= 0:
+            # Look up backwards for the corresponding block, looking at the output of the first step
+            if variable in [x for x in workflow[curr_idx].steps[0].rv]:
+                dependencies.append((workflow[curr_idx].name, variable, 'var'))
+            if variable in [x for x in workflow[curr_idx].steps[0].rf]:
+                dependencies.append((workflow[curr_idx].name, variable, 'file'))
+            if len(dependencies):
+                break
+            else:
+                curr_idx = curr_idx - 1
+        if len(dependencies) == 0:
+            raise FormatError('Cannot find return variable for ``${}`` in any of its previous steps.'.\
+                              format(variable))
+        return dependencies
+
+    def __str__(self):
+        res = ''
+        for idx, blocks in enumerate(self.workflows):
+            res += '# Workflow {}\n'.format(idx + 1)
+            res += '## Blocks\n' + '\n'.join(['### {}\n```yaml\n{}\n```\n'.format(x, y) for x, y in blocks.items()])
+        return res
