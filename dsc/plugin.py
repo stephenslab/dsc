@@ -75,6 +75,46 @@ class BasePlug:
     def format_tuple(self, value):
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
 
+class Shell(BasePlug):
+    def __init__(self, identifier = ''):
+        super().__init__(name = 'Shell', identifier = identifier)
+
+    def reset(self):
+        self.container = []
+        self.container_vars = []
+        self.return_alias = []
+        self.input_alias = []
+        self.tempfile = []
+
+    def add_input(self, lhs, rhs):
+
+        pass
+
+    def add_tempfile(self, lhs, rhs):
+        if rhs == '':
+            self.tempfile.append('{}=\'TMP{}\''.format(lhs, self.identifier))
+        else:
+            self.tempfile.append('TMP_{}=`mktemp -d`'.format(self.identifier))
+            temp_var = ['$TMP_{0}/${{_output[0]}}.{1}.{2}'.\
+                        format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
+            self.tempfile.append('{}="{}"'.format(lhs, ' '.join(temp_var)))
+
+    def add_return(self, lhs, rhs):
+        pass
+
+    def get_return(self, output_vars):
+        return ''
+
+    def set_container(self, name, value, params):
+        pass
+
+    def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None):
+        return ''
+
+    def format_tuple(self, value):
+        return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
+
+
 class RPlug(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'R', identifier = identifier)
@@ -282,4 +322,4 @@ def Plugin(key = None, identifier = ''):
     elif key.upper() == 'PY':
         return PyPlug(identifier = identifier)
     else:
-        return BasePlug(name = '', identifier = identifier)
+        return Shell(identifier = identifier)

@@ -187,7 +187,7 @@ class DSC_Step:
         self.p_map = []
         self.r_map = []
         # runtime variables
-        self.plugin = ''
+        self.plugin = None
         self.workdir = None
         self.libpath = None
         self.path = None
@@ -276,6 +276,15 @@ class DSC_Step:
         # FIXME: not implemented yet
         pass
 
+    def apply_params_operator(self):
+        '''
+        Do the following:
+        * convert string to raw string, leave alone `$` variables
+        * strip off Asis() operator
+        * Handle File() parameter based on context
+        '''
+        
+
     def __str__(self):
         return dict2str(self.dump())
 
@@ -335,6 +344,7 @@ class DSC_Block:
             self.steps[i].set_params(try_get_value(params, 0), try_get_value(params, i + 1),
                                      try_get_value(params_alias, 0), try_get_value(params_alias, i + 1))
             self.steps[i].apply_params_rule(try_get_value(params_rules, 0), try_get_value(params_rules, i + 1))
+            self.steps[i].apply_params_operator()
             self.steps[i].set_return(try_get_value(return_vars, 0), try_get_value(return_vars, i + 1))
 
     def get_exec_options(self, global_options, local_options):

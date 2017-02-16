@@ -313,6 +313,7 @@ class DSCJobs(dotdict):
         for idx, item in enumerate(sequence):
             # for each step
             for step_idx, step in enumerate(master_data[item]):
+                # FIXME what's the deal with tuple???
                 output_vars = [x[0] if isinstance(x, tuple) else x for x in master_data[item][step_idx]['output_vars']]
                 # for each exec
                 for k, p in list(step['parameters'].items()):
@@ -431,20 +432,20 @@ class DSCJobs(dotdict):
     #             res = os.path.join(item, file_name)
     #     return res if res else file_name
 
-    def __index_sequences(self, input_sequences):
-        '''Strip slicing symbol out of sequences and add them as index'''
-        res = []
-        for seq in input_sequences:
-            res.append(tuple([get_slice(x, mismatch_quit = False) for x in seq]))
-        return res
+    # def __index_sequences(self, input_sequences):
+    #     '''Strip slicing symbol out of sequences and add them as index'''
+    #     res = []
+    #     for seq in input_sequences:
+    #         res.append(tuple([get_slice(x, mismatch_quit = False) for x in seq]))
+    #     return res
 
-    def __str__(self):
-        text1 = ''
-        for item in self.ordering:
-            text1 += dict2str({item: self.master_data[item]}) + '\n'
-        text2 = ''
-        for sequence in self.data:
-            for block in sequence:
-                for item in block:
-                    text2 += dict2str(item) + '\n'
-        return text1.strip() + '\n{}'.format('#\n' * 5) + text2.strip()
+    # def __str__(self):
+    #     text1 = ''
+    #     for item in self.ordering:
+    #         text1 += dict2str({item: self.master_data[item]}) + '\n'
+    #     text2 = ''
+    #     for sequence in self.data:
+    #         for block in sequence:
+    #             for item in block:
+    #                 text2 += dict2str(item) + '\n'
+    #     return text1.strip() + '\n{}'.format('#\n' * 5) + text2.strip()

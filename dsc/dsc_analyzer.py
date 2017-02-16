@@ -12,7 +12,7 @@ import copy, re, os, datetime
 from sos.target import executable, fileMD5, textMD5
 from sos.utils import Error
 from .utils import FormatError, dotdict, dict2str, try_get_value, get_slice, \
-     cartesian_list, merge_lists, uniq_list, flatten_list
+     cartesian_list, merge_lists, uniq_list, flatten_list, install_r_libs, install_py_modules
 from .plugin import Plugin, R_LMERGE, R_SOURCE
 
 __all__ = ['DSC_Analyzer']
@@ -26,25 +26,27 @@ class DSC_Analyzer:
     * Merge blocks: via block option (NOT IMPLEMENTED)
     The output will be analyzed DSC ready to be translated to pipelines for execution
     '''
-    def __init__(self, script_data):
+    def __init__(self, script_data, force_install = False):
         '''
         script_data comes from DSC_Script, having members:
         blocks, runtime.sequence, runtime.rlib, runtime.pymodule
         '''
+        
 
-        self.install_libs(script_data.runtime.rlib, "R_library")
-        self.install_libs(script_data.runtime.pymodule, "Python_Module")
+        self.install_libs(script_data.runtime.rlib, "R_library", force_install)
+        self.install_libs(script_data.runtime.pymodule, "Python_Module", force_install)
 
-    def install_libs(self, libs, lib_type):
+    def install_libs(self, libs, lib_type, force = False):
         if lib_type not in ["R_library", "Python_Module"]:
             raise ValueError("Invalid library type ``{}``.".format(lib_type))
         if libs is None:
             return
         libs_md5 = textMD5(repr(libs) + str(datetime.date.today()))
-        if not os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)):
+        if not os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
             if lib_type == 'R_library':
-                install_r_libs(libs)
+                ret = install_r_libs(libs)
             if lib_type == 'Python_Module':
-                install_py_modules(libs)
+                ret = install_py_modules(libs)
+            # FIXME: need to check if installation is successful
             os.makedirs('.sos/.dsc', exist_ok = True)
             os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
