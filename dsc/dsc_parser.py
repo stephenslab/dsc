@@ -14,11 +14,12 @@ from io import StringIO
 from sos.utils import logger
 from sos.target import textMD5
 from .utils import dotdict, OrderedDict, FormatError, is_null, str2num, non_commutative_symexpand, strip_dict, \
-     cartesian_list, pairwise_list, get_slice, expand_slice, flatten_dict, \
+     cartesian_list, pairwise_list, get_slice, expand_slice, flatten_dict, merge_lists, \
      try_get_value, dict2str, update_nested_dict, set_nested_value, load_from_yaml, \
-     no_duplicates_constructor, install_r_libs, install_py_modules
+     no_duplicates_constructor, install_r_libs, install_py_modules, locate_file
 from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
+from .plugin import Plugin
 
 __all__ = ['DSC_Script', 'DSC_Annotation']
 
@@ -122,6 +123,9 @@ class DSC_Script:
         # Or, not?
         self.blocks = OrderedDict([(x, DSC_Block(x, y, self.runtime.options))
                                    for x, y in self.content.items() if x != 'DSC'])
+        self.runtime.expand_sequences(self.blocks)
+        # FIXME: maybe this should be allowed?
+        self.runtime.check_looped_computation()
 
     def __str__(self):
         res = '# Blocks\n' + '\n'.join(['## {}\n{}'.format(x, str(y)) for x, y in self.blocks.items()]) \
@@ -176,9 +180,10 @@ class DSC_Step:
         # exec
         self.exe = None
         # container for plug-in alias
-        self.container = []
+        self.p_map = []
+        self.r_map = []
         # runtime variables
-        self.is_plugin = None
+        self.plugin = ''
         self.workdir = None
         self.libpath = None
         self.path = None
@@ -187,7 +192,9 @@ class DSC_Step:
         self.seed = seed
 
     def set_exec(self, exec_var):
-        self.exe = exec_var
+        self.exe = ' '.join([locate_file(exec_var[0], self.path)] + list(exec_var[1:]))
+        self.plugin = Plugin(os.path.splitext(exec_var[0])[1].lstrip('.'), textMD5(self.exe)[:10])
+                        # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
 
     def set_return(self, common_return, spec_return):
         return_var = common_return if common_return is not None else spec_return
@@ -211,6 +218,14 @@ class DSC_Step:
                 if item[0] not in self.rf:
                     self.rv[item[0]] = item[1]
             else:
+                groups = DSC_LAN_OP.search(item[1])
+                if groups:
+                    # have to set return alias inside plugin
+                    if groups.group(1).lower() != str(self.plugin):
+                        raise FormatError('Return alias cannot be created with ``{}`` for this computational routine.'.\
+                                          format(groups.group(1)))
+                    self.r_map.append((item[0], groups.group(2)))
+                else:
                     self.rv[item[0]] = item[1]
 
     def set_options(self, common_option, spec_option):
@@ -244,7 +259,7 @@ class DSC_Step:
         for k1, k2 in list(alias.items()):
             groups = re.search(r'(List|Dict)\((.*?)\)', k2)
             if groups:
-                self.container.append((k1, groups.group(2)))
+                self.p_map.append((k1, groups.group(2)))
                 del alias[k1]
         if len(alias):
             raise FormatError('Invalid .alias for computational routine ``{}``:\n``{}``'.\
@@ -264,11 +279,12 @@ class DSC_Step:
                            'return variables': self.rv,
                            'return files': self.rf,
                            'command': self.exe,
-                           'is plugin': self.is_plugin,
                            'workdir': self.workdir,
                            'library path': self.libpath,
                            'exec path': self.path,
-                           'plugin container': self.container})
+                           'plugin': str(self.plugin),
+                           'plugin return map': self.p_map,
+                           'plugin parameter map': self.r_map})
 
 class DSC_Block:
     def __init__(self, name, content, global_options = {}):
@@ -280,7 +296,7 @@ class DSC_Block:
         # block executable rules
         self.rule = self.get_exec_rule(content['.logic']) if '.logic' in content else None
         exes = [tuple(x.split()) if isinstance(x, str) else x for x in content['exec']]
-        exe_alias = content['.alias'] if '.alias' in content else ['_'.join([x.replace('$', '') for x in y])
+        exe_alias = content['.alias'] if '.alias' in content else ['_'.join([x for x in y if not x.startswith('$')])
                                                                    for y in exes]
         if len(exes) == 1 and len(exe_alias) > 1:
             exes = exes * len(exe_alias)
@@ -302,6 +318,7 @@ class DSC_Block:
         # initialize steps
         self.steps = [DSC_Step(x) for x in exe_alias]
         for i in range(len(self.steps)):
+            self.steps[i].set_options(try_get_value(options, 0), try_get_value(options, i + 1))
             self.steps[i].set_exec(exes[i])
             if 'seed' in content:
                 self.steps[i].set_seed(content['seed'])
@@ -309,7 +326,6 @@ class DSC_Block:
                                      try_get_value(params_alias, 0), try_get_value(params_alias, i + 1))
             self.steps[i].apply_params_rule(try_get_value(params_rules, 0), try_get_value(params_rules, i + 1))
             self.steps[i].set_return(try_get_value(return_vars, 0), try_get_value(return_vars, i + 1))
-            self.steps[i].set_options(try_get_value(options, 0), try_get_value(options, i + 1))
 
     def get_exec_options(self, global_options, local_options):
         options = copy.deepcopy(global_options)
@@ -403,7 +419,11 @@ class DSC_Section:
         self.content = content
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
-        self.sequence = [OperationParser()(expand_slice(x)) for x in self.content['run']]
+        OP = OperationParser()
+        self.sequence = sequence if sequence is not None else self.content['run']
+        self.sequence = [(x,) if isinstance(x, str) else x
+                         for x in sum([OP(expand_slice(y)) for y in self.sequence], [])]
+        self.sequence_ordering = self.__merge_sequences(self.sequence)
         self.options = {}
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else None
         self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
@@ -411,6 +431,44 @@ class DSC_Section:
         self.rlib = self.content['R_libs'] if 'R_libs' in self.content else None
         self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else None
 
+    def __merge_sequences(self, input_sequences):
+        '''Extract the proper ordering of elements from multiple sequences'''
+        # remove slicing
+        sequences = [[y.split('[')[0] for y in x] for x in input_sequences]
+        values = sequences[0]
+        for idx in range(len(sequences) - 1):
+            values = merge_lists(values, sequences[idx + 1])
+        return values
+
+    def expand_sequences(self, blocks):
+        '''expand DSC sequences by index'''
+        default = {x: range(len(blocks[x].steps)) for x in self.sequence_ordering} if len(blocks) else {}
+        res = []
+        for value in self.__index_sequences(self.sequence):
+            seq = [x[0] for x in value]
+            idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
+            res.append((seq, cartesian_list(*idxes)))
+        self.sequence = res
+
+    def check_looped_computation(self):
+        # check duplicate block names
+        for seq, idx in self.sequence:
+            # check duplicated block names
+            if len(set(seq)) != len(seq):
+                raise ValueError('Duplicated blocks found in DSC sequence ``{}``. '\
+                                 'Iteratively executing blocks is currently disallowed. '\
+                                 'If you need to execute one routine after another in the same block '\
+                                 'please re-write your DSC script to make these routines in separate blocks'.\
+                                 format(seq))
+
+    def __index_sequences(self, input_sequences):
+        '''Strip slicing symbol out of sequences and add them as index'''
+        res = []
+        for seq in input_sequences:
+            res.append(tuple([get_slice(x, mismatch_quit = False) for x in seq]))
+        return res
+
     def __str__(self):
         return dict2str(strip_dict({'runtime options': self.options, 'sequence': self.sequence,
+                                    'ordering': self.sequence_ordering,
                                     'R libraries': self.rlib, 'Python modules': self.pymodule}))

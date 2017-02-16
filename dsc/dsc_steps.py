@@ -53,21 +53,21 @@ class DSCJobs(dotdict):
         self.path = try_get_value(data.DSC, ('exec_path'))
         self.default_workdir = data.DSC['work_dir'][0]
         # sequences in action, logically ordered
-        self.ordering = self.merge_sequences(data.DSC['run'])
-        for block in self.ordering:
-            self.load_master_data(data[block], name = block)
-        # sequences in action, unordered but expanded by index
-        self.sequences = self.expand_sequences(data.DSC['run'],
-                                                {x : range(len(self.master_data[x]))
-                                                 for x in self.master_data})
-        for seq, idx in self.sequences:
-            # check duplicated block names
-            if len(set(seq)) != len(seq):
-                raise ValueError('Duplicated blocks found in DSC sequence ``{}``. '\
-                                 'Iteratively executing blocks is logically disallowed. '\
-                                 'If you need to execute one routine after another in the same block '\
-                                 'please re-write your DSC script to make these routines in separate blocks'.\
-                                 format(seq))
+        # self.ordering = self.merge_sequences(data.DSC['run'])
+        # for block in self.ordering:
+        #     self.load_master_data(data[block], name = block)
+        # # sequences in action, unordered but expanded by index
+        # self.sequences = self.expand_sequences(data.DSC['run'],
+        #                                         {x : range(len(self.master_data[x]))
+        #                                          for x in self.master_data})
+        # for seq, idx in self.sequences:
+        #     # check duplicated block names
+        #     if len(set(seq)) != len(seq):
+        #         raise ValueError('Duplicated blocks found in DSC sequence ``{}``. '\
+        #                          'Iteratively executing blocks is logically disallowed. '\
+        #                          'If you need to execute one routine after another in the same block '\
+        #                          'please re-write your DSC script to make these routines in separate blocks'.\
+        #                          format(seq))
             self.data.append(self.get_workflow(seq))
 
     def __initialize_block(self, name):
@@ -107,9 +107,9 @@ class DSCJobs(dotdict):
 
     def __reset_block(self, data, exe, exe_name, exec_path):
         '''Intermediate data to be appended to self.data'''
-        data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + list(exe[1:]))
-        plugin = Plugin(os.path.splitext(exe[0])[1].lstrip('.'), textMD5(data.command)[:10])
-                        # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
+        # data.command = ' '.join([self.__search_exec(exe[0], exec_path)] + list(exe[1:]))
+        # plugin = Plugin(os.path.splitext(exe[0])[1].lstrip('.'), textMD5(data.command)[:10])
+        #                 # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
         if (data.plugin.name is not None and (not plugin.name) != (not data.plugin.name)):
             raise StepError("A mixture of plugin codes and other executables are not allowed " \
             "in the same block ``{}``.".format(data.name))
@@ -191,10 +191,10 @@ class DSCJobs(dotdict):
         #         if '=' in item:
         #             # return alias exists
         #             lhs, rhs = (x.strip() for x in item.split('='))
-                    groups = re.search(r'^(R|Python)\((.*?)\)$', rhs)
-                    if groups:
-                        # alias is within plugin
-                        data.plugin.add_return(lhs, groups.group(2))
+                    # groups = re.search(r'^(R|Python)\((.*?)\)$', rhs)
+                    # if groups:
+                    #     # alias is within plugin
+                    #     data.plugin.add_return(lhs, groups.group(2))
                         data.to_plugin = True
                     else:
                         # alias is not for value inside other return objects
@@ -400,36 +400,36 @@ class DSCJobs(dotdict):
             res.append(master_data[item])
         return res
 
-    def merge_sequences(self, input_sequences):
-        '''Extract the proper ordering of elements from multiple sequences'''
-        # remove slicing
-        sequences = [[y.split('[')[0] for y in x] for x in input_sequences]
-        values = sequences[0]
-        for idx in range(len(sequences) - 1):
-            values = merge_lists(values, sequences[idx + 1])
-        return values
+    # def merge_sequences(self, input_sequences):
+    #     '''Extract the proper ordering of elements from multiple sequences'''
+    #     # remove slicing
+    #     sequences = [[y.split('[')[0] for y in x] for x in input_sequences]
+    #     values = sequences[0]
+    #     for idx in range(len(sequences) - 1):
+    #         values = merge_lists(values, sequences[idx + 1])
+    #     return values
 
-    def expand_sequences(self, sequences, default = {}):
-        '''expand DSC sequences by index'''
-        res = []
-        for value in self.__index_sequences(sequences):
-            seq = [x[0] for x in value]
-            idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
-            res.append((seq, cartesian_list(*idxes)))
-        return res
+    # def expand_sequences(self, sequences, default = {}):
+    #     '''expand DSC sequences by index'''
+    #     res = []
+    #     for value in self.__index_sequences(sequences):
+    #         seq = [x[0] for x in value]
+    #         idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
+    #         res.append((seq, cartesian_list(*idxes)))
+    #     return res
 
-    def __search_exec(self, exe, exec_path):
-        '''Use exec_path information to try to complete the path of cmd'''
-        if exec_path is None:
-            return exe
-        res = None
-        for item in exec_path:
-            if os.path.isfile(os.path.join(item, exe)):
-                if res is not None:
-                    raise StepError("File ``{}`` found in multiple directories ``{}`` and ``{}``!".\
-                                    format(exe, item, os.path.join(*os.path.split(res)[:-1])))
-                res = os.path.join(item, exe)
-        return res if res else exe
+    # def locate_file(self, file_name, file_path):
+    #     '''Use file_path information to try to complete the path of file'''
+    #     if file_path is None:
+    #         return file_name
+    #     res = None
+    #     for item in file_path:
+    #         if os.path.isfile(os.path.join(item, file_name)):
+    #             if res is not None:
+    #                 raise StepError("File ``{}`` found in multiple directories ``{}`` and ``{}``!".\
+    #                                 format(file_name, item, os.path.join(*os.path.split(res)[:-1])))
+    #             res = os.path.join(item, file_name)
+    #     return res if res else file_name
 
     def __index_sequences(self, input_sequences):
         '''Strip slicing symbol out of sequences and add them as index'''

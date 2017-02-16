@@ -172,6 +172,9 @@ class RPlug(BasePlug):
     def format_tuple(self, value):
         return 'c({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
 
+    def __str__(self):
+        return 'r'
+
 class PyPlug(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'python', identifier = identifier)
@@ -268,6 +271,8 @@ class PyPlug(BasePlug):
     def format_tuple(self, value):
         return '({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
 
+    def __str__(self):
+        return 'python'
 
 def Plugin(key = None, identifier = ''):
     if key is None:

@@ -650,3 +650,16 @@ def rq_worker(host_url):
      with Connection(conn):
           worker = Worker(map(Queue, listen))
           worker.work()
+
+def locate_file(file_name, file_path):
+    '''Use file_path information to try to complete the path of file'''
+    if file_path is None:
+        return file_name
+    res = None
+    for item in file_path:
+        if os.path.isfile(os.path.join(item, file_name)):
+            if res is not None:
+                raise ValueError("File ``{}`` found in multiple directories ``{}`` and ``{}``!".\
+                                format(file_name, item, os.path.join(*os.path.split(res)[:-1])))
+            res = os.path.join(item, file_name)
+    return res if res else file_name
