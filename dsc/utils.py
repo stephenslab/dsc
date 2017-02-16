@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, copy, re, itertools, yaml, collections, time, sympy, collections
+import os, copy, re, itertools, yaml, collections, time, sympy
 from sympy.parsing.sympy_parser import parse_expr
 from difflib import SequenceMatcher
 from io import StringIO

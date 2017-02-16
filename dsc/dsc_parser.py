@@ -7,16 +7,14 @@ __license__ = "MIT"
 Parser for DSC script and annotation files
 '''
 
-import os, yaml, re, subprocess, itertools, copy, warnings, datetime, collections
-import readline
-import rpy2.robjects as RO
+import os, re, itertools, copy, collections
 from io import StringIO
 from sos.utils import logger
 from sos.target import textMD5
-from .utils import dotdict, OrderedDict, FormatError, is_null, str2num, non_commutative_symexpand, strip_dict, \
-     cartesian_list, pairwise_list, get_slice, expand_slice, flatten_dict, merge_lists, \
-     try_get_value, dict2str, update_nested_dict, set_nested_value, load_from_yaml, \
-     no_duplicates_constructor, install_r_libs, install_py_modules, locate_file
+from .utils import OrderedDict, FormatError, is_null, strip_dict, \
+     cartesian_list, get_slice, expand_slice, flatten_dict, merge_lists, \
+     try_get_value, dict2str, update_nested_dict, load_from_yaml, \
+     locate_file
 from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
 from .plugin import Plugin
@@ -111,7 +109,6 @@ class DSC_Script:
                                    format(key, block))
                     del self.content[block][key]
 
-
     def __call__(self, sequence = None):
         self.propagate_derived_block()
         self.check_block_error()
@@ -136,6 +133,7 @@ class DSC_Script:
 class DSC_Annotation:
     def __init__(self):
         pass
+
 
 class DSCEntryFormatter:
     '''
@@ -164,6 +162,7 @@ class DSCEntryFormatter:
                 else:
                     cfg[key] = value
         return cfg
+
 
 class DSC_Step:
     def __init__(self, name):
@@ -290,6 +289,7 @@ class DSC_Step:
                                'plugin': str(self.plugin),
                                'plugin return map': self.p_map,
                                'plugin parameter map': self.r_map}})
+
 
 class DSC_Block:
     def __init__(self, name, content, global_options = {}):
@@ -418,6 +418,7 @@ class DSC_Block:
     def __str__(self):
         steps = {step.name: step.dump() for step in self.steps}
         return dict2str(strip_dict({'computational routines': steps, 'rule': self.rule}))
+
 
 class DSC_Section:
     def __init__(self, content, sequence):
