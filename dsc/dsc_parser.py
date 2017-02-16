@@ -129,7 +129,7 @@ class DSC_Script:
 
     def __str__(self):
         res = '# Blocks\n' + '\n'.join(['## {}\n{}'.format(x, str(y)) for x, y in self.blocks.items()]) \
-              + '\n# Sequences\n' + str(self.runtime)
+              + '\n# Execution\n' + str(self.runtime)
         return res
 
 
@@ -205,6 +205,8 @@ class DSC_Step:
                 if param_return:
                     # return value is found in params
                     for p in param_return:
+                        if not isinstance(p, str):
+                            continue
                         groups = DSC_FILE_OP.search(p)
                         if groups:
                             try:
@@ -279,12 +281,15 @@ class DSC_Step:
                            'return variables': self.rv,
                            'return files': self.rf,
                            'command': self.exe,
-                           'workdir': self.workdir,
-                           'library path': self.libpath,
-                           'exec path': self.path,
-                           'plugin': str(self.plugin),
-                           'plugin return map': self.p_map,
-                           'plugin parameter map': self.r_map})
+                           'runtime options': {
+                               'exec path': self.path,
+                               'workdir': self.workdir,
+                               'library path': self.libpath
+                           },
+                           'plugin options': {
+                               'plugin': str(self.plugin),
+                               'plugin return map': self.p_map,
+                               'plugin parameter map': self.r_map}})
 
 class DSC_Block:
     def __init__(self, name, content, global_options = {}):
@@ -469,6 +474,6 @@ class DSC_Section:
         return res
 
     def __str__(self):
-        return dict2str(strip_dict({'runtime options': self.options, 'sequence': self.sequence,
+        return dict2str(strip_dict({'sequence': self.sequence,
                                     'ordering': self.sequence_ordering,
                                     'R libraries': self.rlib, 'Python modules': self.pymodule}))
