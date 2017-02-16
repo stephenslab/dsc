@@ -183,11 +183,9 @@ class DSC_Step:
         self.rf = OrderedDict()
         # exec
         self.exe = None
-        # container for plug-in alias
-        self.p_map = []
-        self.r_map = []
-        # runtime variables
+        # script plugin object
         self.plugin = None
+        # runtime variables
         self.workdir = None
         self.libpath = None
         self.path = None
@@ -230,7 +228,7 @@ class DSC_Step:
                     if groups.group(1).lower() != str(self.plugin):
                         raise FormatError('Return alias cannot be created with ``{}`` for this computational routine.'.\
                                           format(groups.group(1)))
-                    self.r_map.append((item[0], groups.group(2)))
+                    self.plugin.add_return(item[0], groups.group(2))
                 else:
                     self.rv[item[0]] = item[1]
 
@@ -265,7 +263,7 @@ class DSC_Step:
         for k1, k2 in list(alias.items()):
             groups = re.search(r'(List|Dict)\((.*?)\)', k2)
             if groups:
-                self.p_map.append((k1, groups.group(2)))
+                self.plugin.set_container(k1, groups.group(2), self.p)
                 del alias[k1]
         if len(alias):
             raise FormatError('Invalid .alias for computational routine ``{}``:\n``{}``'.\
@@ -283,7 +281,32 @@ class DSC_Step:
         * strip off Asis() operator
         * Handle File() parameter based on context
         '''
-        
+        for k, p in list(self.p.items()):
+            values = []
+            for p1 in p:
+                if isinstance(p1, str):
+                    if DSC_ASIS_OP.search(p1):
+                        p1 = DSC_ASIS_OP.search(p1).group(1)
+                    elif DSC_FILE_OP.search(p1):
+                        # p1 is file extension
+                        file_ext = DSC_FILE_OP.search(p1).group(1)
+                        if k in self.rf:
+                            # This file is to be saved as output
+                            # FIXME: have to figure out what is the index of the output
+                            self.plugin.add_input(k, '${_output!r}')
+                            continue
+                        else:
+                            # This file is a temp file
+                            self.plugin.add_tempfile(k, file_ext)
+                            continue
+                    else:
+                        p1 = repr(p1)
+                if isinstance(p1, tuple):
+                    # FIXME format_tuple has to be defined for shell as well
+                    p1 = [plugin.format_tuple(p1)]
+                values.append(p1)
+            if len(values) == 0:
+                del self.p[k]
 
     def __str__(self):
         return dict2str(self.dump())
@@ -299,10 +322,7 @@ class DSC_Step:
                                'workdir': self.workdir,
                                'library path': self.libpath
                            },
-                           'plugin options': {
-                               'plugin': str(self.plugin),
-                               'plugin return map': self.p_map,
-                               'plugin parameter map': self.r_map}})
+                           'plugin status': self.plugin.dump()})
 
 
 class DSC_Block:

@@ -20,3 +20,5 @@ _TMPL = r'^File\((.*?)\)$'
 DSC_FILE_OP = LazyRegex(_TMPL, re.VERBOSE)
 _TMPL = r'^(R|Python)\((.*?)\)$'
 DSC_LAN_OP = LazyRegex(_TMPL, re.VERBOSE)
+_TMPL = r'^Asis\((.*?)\)$'
+DSC_ASIS_OP = LazyRegex(_TMPL, re.VERBOSE)

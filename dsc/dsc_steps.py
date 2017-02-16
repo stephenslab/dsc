@@ -165,10 +165,10 @@ class DSCJobs(dotdict):
         #             params[k] = params.pop(item)
         #         else:
         #             if groups.group(1) == 'Pack':
-                        if not data.plugin.name:
-                            raise StepError("Alias ``Pack`` is not applicable to executable ``{}``.".\
-                                            format(exe[0]))
-                        data.plugin.set_container(k, groups.group(2), params)
+                        # if not data.plugin.name:
+                        #     raise StepError("Alias ``Pack`` is not applicable to executable ``{}``.".\
+                        #                     format(exe[0]))
+                        # data.plugin.set_container(k, groups.group(2), params)
                     # else:
                     #     raise StepError('Invalid .alias ``{}`` in block ``{}``.'.\
                     #                     format(groups.group(1), name))
@@ -308,81 +308,81 @@ class DSCJobs(dotdict):
                 else:
                     master_data[item][step_idx]['from_plugin'] = to_plugin
         #
-        res = []
-        master_data = copy.deepcopy(self.master_data)
-        for idx, item in enumerate(sequence):
-            # for each step
-            for step_idx, step in enumerate(master_data[item]):
-                # FIXME what's the deal with tuple???
-                output_vars = [x[0] if isinstance(x, tuple) else x for x in master_data[item][step_idx]['output_vars']]
-                # for each exec
-                for k, p in list(step['parameters'].items()):
-                    values = []
-                    for p1 in p:
-                        if isinstance(p1, str):
+        # res = []
+        # master_data = copy.deepcopy(self.master_data)
+        # for idx, item in enumerate(sequence):
+        #     # for each step
+        #     for step_idx, step in enumerate(master_data[item]):
+        #         # FIXME what's the deal with tuple???
+        #         output_vars = [x[0] if isinstance(x, tuple) else x for x in master_data[item][step_idx]['output_vars']]
+        #         # for each exec
+        #         for k, p in list(step['parameters'].items()):
+        #             values = []
+        #             for p1 in p:
+        #                 if isinstance(p1, str):
                             if p1.startswith('$'):
                                 find_dependencies(p1[1:])
                                 for plugin in master_data[item][step_idx]['plugin']:
                                     plugin.add_input(k, p1)
                                 continue
-                            elif re.search(r'^Asis\((.*?)\)$', p1):
-                                p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
-                            elif re.search(r'^File\((.*?)\)$', p1):
-                                # p1 is file extension
-                                # then will see if k is in the return list
-                                # if so, this is not plugin mode, set plugin to False
-                                # (this is because we'll not allow returning a file if it is already
-                                # plugin mode! It is possible to use File() though but I'll not monitor
-                                # the resulting product [in terms of signature])
-                                file_ext = re.search(r'^File\((.*?)\)$', p1).group(1)
-                                if k in output_vars:
-                                    if file_ext.lower() == 'tmp':
-                                        raise ValueError('Cannot return temporary file ``{}: File({})``!'.\
-                                                         format(k, file_ext))
-                                    if master_data[item][step_idx]['to_plugin'] is True:
-                                        raise StepError("Cannot return to additional file ``{}: File({})``"\
-                                                        " in plugin mode!".format(k))
-                                    elif master_data[item][step_idx]['to_plugin'] is False:
-                                        # FIXME: multiple file output not allowed for now
-                                        raise StepError('Multiple file output not allowed in ``{}``'.\
-                                                        format(item))
-                                    else:
-                                        master_data[item][step_idx]['to_plugin'] = False
-                                        master_data[item][step_idx]['output_ext'] = repr(file_ext)
-                                        # continue because we do not need to have this parameter
-                                        # in the parameter list
-                                        for plugin in master_data[item][step_idx]['plugin']:
-                                            plugin.add_input(k, '${_output!r}')
-                                        continue
-                                else:
-                                    # this file is a tmp file
-                                    for plugin in master_data[item][step_idx]['plugin']:
-                                        plugin.add_tempfile(k, file_ext)
-                                    continue
-                            else:
-                                p1 = repr(p1)
-                        if isinstance(p1, tuple):
-                            # FIXME: for ambiguous tuple, will have to ask users to reformat
-                            tmp = set([plugin.format_tuple(p1)
-                                      for plugin in master_data[item][step_idx]['plugin']])
-                            if len(tmp) > 1:
-                                raise StepError('Cannot properly determine the format for ``{}`` '\
-                                                'for multiple executables of different types. '\
-                                                'Please explicitly format it via ``Asis()`` syntax.')
-                            p1 = list(tmp)[0]
-                        values.append(p1)
-                    if len(values) == 0:
-                        del master_data[item][step_idx]['parameters'][k]
-                    elif len(values) < len(p):
-                        # This means that $XX and other variables coexist
-                        # For a plugin script
-                        raise StepError("Cannot use return value from a script " \
-                                         "as input parameter in parallel to others!\nLine: ``{}``".\
-                                         format(', '.join(map(str, p))))
-                    else:
-                        master_data[item][step_idx]['parameters'][k] = values
-                if len(master_data[item][step_idx]['parameters']) == 0:
-                    del master_data[item][step_idx]['parameters']
+                #             elif re.search(r'^Asis\((.*?)\)$', p1):
+                #                 p1 = re.search(r'^Asis\((.*?)\)$', p1).group(1)
+                #             elif re.search(r'^File\((.*?)\)$', p1):
+                #                 # p1 is file extension
+                #                 # then will see if k is in the return list
+                #                 # if so, this is not plugin mode, set plugin to False
+                #                 # (this is because we'll not allow returning a file if it is already
+                #                 # plugin mode! It is possible to use File() though but I'll not monitor
+                #                 # the resulting product [in terms of signature])
+                #                 file_ext = re.search(r'^File\((.*?)\)$', p1).group(1)
+                #                 if k in output_vars:
+                #                     if file_ext.lower() == 'tmp':
+                #                         raise ValueError('Cannot return temporary file ``{}: File({})``!'.\
+                #                                          format(k, file_ext))
+                #                     if master_data[item][step_idx]['to_plugin'] is True:
+                #                         raise StepError("Cannot return to additional file ``{}: File({})``"\
+                #                                         " in plugin mode!".format(k))
+                #                     elif master_data[item][step_idx]['to_plugin'] is False:
+                #                         # FIXME: multiple file output not allowed for now
+                #                         raise StepError('Multiple file output not allowed in ``{}``'.\
+                #                                         format(item))
+                #                     else:
+                #                         master_data[item][step_idx]['to_plugin'] = False
+                #                         master_data[item][step_idx]['output_ext'] = repr(file_ext)
+                #                         # continue because we do not need to have this parameter
+                #                         # in the parameter list
+                #                         for plugin in master_data[item][step_idx]['plugin']:
+                #                             plugin.add_input(k, '${_output!r}')
+                #                         continue
+                #                 else:
+                #                     # this file is a tmp file
+                #                     for plugin in master_data[item][step_idx]['plugin']:
+                #                         plugin.add_tempfile(k, file_ext)
+                #                     continue
+                #             else:
+                #                 p1 = repr(p1)
+                #         if isinstance(p1, tuple):
+                #             # FIXME: for ambiguous tuple, will have to ask users to reformat
+                #             tmp = set([plugin.format_tuple(p1)
+                #                       for plugin in master_data[item][step_idx]['plugin']])
+                #             if len(tmp) > 1:
+                #                 raise StepError('Cannot properly determine the format for ``{}`` '\
+                #                                 'for multiple executables of different types. '\
+                #                                 'Please explicitly format it via ``Asis()`` syntax.')
+                #             p1 = list(tmp)[0]
+                #         values.append(p1)
+                #     if len(values) == 0:
+                #         del master_data[item][step_idx]['parameters'][k]
+                #     elif len(values) < len(p):
+                #         # This means that $XX and other variables coexist
+                #         # For a plugin script
+                #         raise StepError("Cannot use return value from a script " \
+                #                          "as input parameter in parallel to others!\nLine: ``{}``".\
+                #                          format(', '.join(map(str, p))))
+                #     else:
+                #         master_data[item][step_idx]['parameters'][k] = values
+                # if len(master_data[item][step_idx]['parameters']) == 0:
+                #     del master_data[item][step_idx]['parameters']
                 # sort input depends
                 master_data[item][step_idx]['depends'].sort(key = lambda x: self.ordering.index(x[0]))
                 if master_data[item][step_idx]['to_plugin'] is None:

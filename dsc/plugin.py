@@ -75,6 +75,13 @@ class BasePlug:
     def format_tuple(self, value):
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
 
+    def dump(self):
+        return {'container': self.container,
+                'container variables': self.container_vars,
+                'return alias': self.return_alias,
+                'input_alias': self.input_alias,
+                'temp file': self.tempfile}
+
 class Shell(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'Shell', identifier = identifier)
@@ -87,8 +94,7 @@ class Shell(BasePlug):
         self.tempfile = []
 
     def add_input(self, lhs, rhs):
-
-        pass
+        self.add_tempfile(lhs, rhs)
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
@@ -215,6 +221,7 @@ class RPlug(BasePlug):
     def __str__(self):
         return 'r'
 
+
 class PyPlug(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'python', identifier = identifier)
@@ -302,9 +309,9 @@ class PyPlug(BasePlug):
         res = ['{} = {{}}'.format(name)]
         for k in keys:
             if not (isinstance(params[k][0], str) and params[k][0].startswith('$')):
-                res.append('%s[%s] = ${_%s}' % (name, k, k))
+                res.append('%s[%s] = ${_%s}' % (name, repr(str(k)), k))
             else:
-                res.append('%s[%s] = %s' % (name, k, k))
+                res.append('%s[%s] = %s' % (name, repr(str(k)), k))
         self.container.extend(res)
         self.container_vars.extend(keys)
 
