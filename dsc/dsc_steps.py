@@ -125,72 +125,72 @@ class DSCJobs(dotdict):
         data.exe = ' '.join([x for x in exe if not x.startswith('$')]) if exe_name is None else exe_name
 
     def load_master_data(self, block, name = 'block'):
-        '''Load block data to self.master_data with some preliminary processing
-        '''
-        def load_params():
-            params = {}
-            if 'params' in block:
-                if 0 in list(block.params.keys()):
-                    params = copy.deepcopy(block.params[0])
-                if (idx + 1) in list(block.params.keys()):
-                    params.update(block.params[idx + 1])
-            # Handle seed here
-            if 'seed' in block.meta:
-                params['seed'] = block.meta['seed']
-            return params
+        # '''Load block data to self.master_data with some preliminary processing
+        # '''
+        # def load_params():
+        #     params = {}
+        #     if 'params' in block:
+        #         if 0 in list(block.params.keys()):
+        #             params = copy.deepcopy(block.params[0])
+        #         if (idx + 1) in list(block.params.keys()):
+        #             params.update(block.params[idx + 1])
+        #     # Handle seed here
+        #     if 'seed' in block.meta:
+        #         params['seed'] = block.meta['seed']
+        #     return params
 
-        def load_rules():
-            rules = None
-            if 'rules' in block:
-                if 0 in list(block.rules.keys()):
-                    rules = block.rules[0]
-                if (idx + 1) in list(block.rules.keys()):
-                    rules = block.rules[idx + 1]
-            return rules
+        # def load_rules():
+        #     rules = None
+        #     if 'rules' in block:
+        #         if 0 in list(block.rules.keys()):
+        #             rules = block.rules[0]
+        #         if (idx + 1) in list(block.rules.keys()):
+        #             rules = block.rules[idx + 1]
+        #     return rules
 
-        def load_alias():
-            alias = {}
-            if 'params_alias' in block:
-                if 0 in list(block.params_alias.keys()):
-                    alias = dict([(x.strip() for x in item.split('=', 1)) for item in block.params_alias[0]])
-                if (idx + 1) in list(block.params_alias.keys()):
-                    alias = dict([(x.strip() for x in item.split('=', 1)) for item in block.params_alias[idx + 1]])
-            return alias
+        # def load_alias():
+        #     alias = {}
+        #     if 'params_alias' in block:
+        #         if 0 in list(block.params_alias.keys()):
+        #             alias = dict([(x.strip() for x in item.split('=', 1)) for item in block.params_alias[0]])
+        #         if (idx + 1) in list(block.params_alias.keys()):
+        #             alias = dict([(x.strip() for x in item.split('=', 1)) for item in block.params_alias[idx + 1]])
+        #     return alias
 
-        def process_alias():
-            for k, item in list(alias.items()):
-                groups = re.search(r'(.*?)\((.*?)\)', item)
-                if not groups:
-                    # swap key
-                    params[k] = params.pop(item)
-                else:
-                    if groups.group(1) == 'Pack':
+        # def process_alias():
+        #     for k, item in list(alias.items()):
+        #         groups = re.search(r'(.*?)\((.*?)\)', item)
+        #         if not groups:
+        #             # swap key
+        #             params[k] = params.pop(item)
+        #         else:
+        #             if groups.group(1) == 'Pack':
                         if not data.plugin.name:
                             raise StepError("Alias ``Pack`` is not applicable to executable ``{}``.".\
                                             format(exe[0]))
                         data.plugin.set_container(k, groups.group(2), params)
-                    else:
-                        raise StepError('Invalid .alias ``{}`` in block ``{}``.'.\
-                                        format(groups.group(1), name))
+                    # else:
+                    #     raise StepError('Invalid .alias ``{}`` in block ``{}``.'.\
+                    #                     format(groups.group(1), name))
 
         def process_rules():
             # parameter value slicing
             pass
 
-        def process_return(out, idx):
-            if isinstance(out, dict):
-                # exec specific return alias involved
-                # need to extract the one that matches
-                # and discard others
-                try:
-                    out = out['exec[{}]'.format(idx)]
-                except KeyError:
-                    raise StepError("Invalid return alias ``{}``".format(out))
-            for item in out:
-                lhs = ''
-                if '=' in item:
-                    # return alias exists
-                    lhs, rhs = (x.strip() for x in item.split('='))
+        # def process_return(out, idx):
+        #     if isinstance(out, dict):
+        #         # exec specific return alias involved
+        #         # need to extract the one that matches
+        #         # and discard others
+        #         try:
+        #             out = out['exec[{}]'.format(idx)]
+        #         except KeyError:
+        #             raise StepError("Invalid return alias ``{}``".format(out))
+        #     for item in out:
+        #         lhs = ''
+        #         if '=' in item:
+        #             # return alias exists
+        #             lhs, rhs = (x.strip() for x in item.split('='))
                     groups = re.search(r'^(R|Python)\((.*?)\)$', rhs)
                     if groups:
                         # alias is within plugin
@@ -202,9 +202,9 @@ class DSCJobs(dotdict):
                         # Or be name of a variable inside the plugin
                         if rhs not in params:
                             data.to_plugin = True
-                        lhs = (lhs, rhs)
-                else:
-                    lhs = item.strip()
+                #         lhs = (lhs, rhs)
+                # else:
+                #     lhs = item.strip()
                 if lhs not in params and not isinstance(lhs, tuple):
                     data.to_plugin = True
                 data.output_vars.append(lhs)

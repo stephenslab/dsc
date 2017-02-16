@@ -145,9 +145,8 @@ class ExpandActions(YLine):
     Action entries are
       * R(), Python(), Shell()
       * Combo() and Pairs()
-      * Asis()
     Untouched entries are:
-      * File(), Temp()
+      * File(), Temp(), Asis()
     because they'll have to be dynamically determined
     '''
     def __init__(self):
@@ -166,8 +165,7 @@ class ExpandActions(YLine):
                 for name in list(self.method.keys()):
                     pattern = re.compile(r'^{}\((.*?)\)$'.format(name))
                     for m in re.finditer(pattern, item):
-                        item = item.replace(m.group(0), self.encodeVar(self.method[name](m.group(1)))
-                                            if name != 'Asis' else m.group(1), 1)
+                        item = item.replace(m.group(0), self.encodeVar(self.method[name](m.group(1))), 1)
                 if item != value[idx]:
                     value[idx] = item
         return value

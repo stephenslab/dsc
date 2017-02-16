@@ -9,7 +9,7 @@ simulate:
         max_pi0: 1
         nsamp: 1000
         betahatsd: 1
-        .alias: args = Pack()
+        .alias: args = List()
     return: data, true_beta = R(data$meta$beta), true_pi0 = R(data$meta$pi0)
 
 shrink:

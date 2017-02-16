@@ -16,3 +16,5 @@ _TMPL = r'^(.*?)\((.*?)\)$'
 DSC_DERIVED_BLOCK = LazyRegex(_TMPL, re.VERBOSE)
 _TMPL = r'^[A-Za-z0-9_]+$'
 DSC_BLOCK_NAME = LazyRegex(_TMPL, re.VERBOSE)
+_TMPL = r'^File\((.*?)\)$'
+DSC_FILE_OP = LazyRegex(_TMPL, re.VERBOSE)

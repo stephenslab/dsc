@@ -61,12 +61,16 @@ def no_duplicates_constructor(loader, node, deep=False):
             raise yaml.constructor.ConstructorError("while constructing a mapping", node.start_mark,
                                    "found duplicate key (%s)" % key, key_node.start_mark)
         mapping[key] = value
-    return loader.construct_mapping(node, deep)
+    return collections.OrderedDict(loader.construct_mapping(node, deep))
 
+def dict_representer(dumper, data):
+    return dumper.represent_dict(data.iteritems())
+
+yaml.add_representer(collections.OrderedDict, dict_representer)
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 yaml.Dumper.ignore_aliases = lambda self, value: True
 
-def load_from_yaml(f, fn = None):
+def load_from_yaml(f, fn = ''):
     try:
         cfg = yaml.load(f)
     # a very rough initial check and prompt
@@ -112,7 +116,7 @@ def is_null(var):
     if type(var) is str:
         if var.lower() in ['na','nan','null','none','']:
             return True
-    if isinstance(var, (list, tuple, dict)):
+    if isinstance(var, (list, tuple, collections.Mapping)):
         return True if len(var) == 0 else False
     return False
 
@@ -238,11 +242,13 @@ def expand_slice(line):
         line = line.replace(m.group(0), text + m.group('a'), 1)
     return line
 
-def try_get_value(value, keys):
+def try_get_value(value, keys, default = None):
     '''
     Input: dict_data, (key1, key2, key3 ...)
     Output: dict_data[key1][key2][key3][...] or None
     '''
+    if value is None:
+        return default
     if not isinstance(keys, (list, tuple)):
         keys = [keys]
     try:
@@ -251,7 +257,7 @@ def try_get_value(value, keys):
         else:
             return try_get_value(value[keys[0]], keys[1:])
     except KeyError:
-        return None
+        return default
 
 def set_nested_value(d, keys, value, default_factory = dict):
     """
@@ -269,13 +275,15 @@ def set_nested_value(d, keys, value, default_factory = dict):
         d = val
     d[keys[-1]] = value
 
-def dict2str(value, replace = []):
+def dict2str(value):
     out = StringIO()
     yaml.dump(strip_dict(value, into_list = True), out, default_flow_style=False)
     res = out.getvalue()
     out.close()
-    for item in replace:
-        res = res.replace(item[0], item[1])
+    pattern = re.compile(r'!!python/(.*?)\s')
+    for m in re.finditer(pattern, res):
+        res = res.replace(m.group(1), '', 1)
+    res = res.replace('!!python/', '')
     return res
 
 def update_nested_dict(d, u, mapping = dict):
@@ -288,16 +296,16 @@ def update_nested_dict(d, u, mapping = dict):
     return d
 
 def strip_dict(data, mapping = dict, into_list = False):
-    if not isinstance(data, mapping):
+    if not isinstance(data, collections.Mapping):
         return data
-    mapping_null = mapping()
+    mapping_null = [dict(), OrderedDict()]
     new_data = mapping()
     for k, v in data.items():
         if isinstance(v, collections.Mapping):
             v = strip_dict(v, mapping, into_list)
         if isinstance(v, list) and into_list:
             v = [strip_dict(x, mapping, into_list) for x in v]
-        if not is_null(v) and v != mapping_null:
+        if not is_null(v) and not v in mapping_null:
             new_data[k] = v
     return new_data
 
