@@ -574,6 +574,16 @@ def yaml2html(content, to_file, title = ''):
         f.write(content)
         f.write('\n</code></pre></body></html>')
 
+def md2html(content, to_file):
+    import pypandoc
+    if os.path.isfile(content):
+        content = open(content).read()
+    if not os.path.splitext(to_file)[1] == '.html':
+        to_file += '.html'
+    output = pypandoc.convert_text(content, 'html', format = 'md')
+    with open(to_file, 'w') as f:
+        f.write(output)
+
 def dsc2html(dsc_conf, dsc_ann, output, section_content = {}):
     '''
     section_content: ordered dictionary of lists,

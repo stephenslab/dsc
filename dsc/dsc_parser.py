@@ -22,7 +22,9 @@ from .plugin import Plugin
 __all__ = ['DSC_Script', 'DSC_Annotation']
 
 class DSC_Script:
-    '''Parse a DSC script'''
+    '''Parse a DSC script
+     * provides self.blocks, self.runtime, and self.runtime.sequence that contain all DSC information needed for a run
+    '''
     def __init__(self, content, output = None):
         if os.path.isfile(content):
             with open(content) as f:
@@ -128,8 +130,8 @@ class DSC_Script:
             self.blocks[name].extract_steps(idxes)
 
     def __str__(self):
-        res = '# Blocks\n' + '\n'.join(['## {}\n{}'.format(x, str(y)) for x, y in self.blocks.items()]) \
-              + '\n# Execution\n' + str(self.runtime)
+        res = '# Blocks\n' + '\n'.join(['## {}\n```yaml\n{}\n```'.format(x, y) for x, y in self.blocks.items()]) \
+              + '\n# Execution\n```yaml\n{}\n```'.format(self.runtime)
         return res
 
 
@@ -455,7 +457,8 @@ class DSC_Section:
 
     def expand_sequences(self, blocks):
         '''expand DSC sequences by index'''
-        default = {x: [i for i in range(len(blocks[x].steps))] for x in self.sequence_ordering.keys()} if len(blocks) else {}
+        default = {x: [i for i in range(len(blocks[x].steps))]
+                   for x in self.sequence_ordering.keys()} if len(blocks) else {}
         res = []
         for value in self.__index_sequences(self.sequence):
             seq = [x[0] for x in value]
@@ -486,6 +489,6 @@ class DSC_Section:
         return res
 
     def __str__(self):
-        return dict2str(strip_dict({'sequence': self.sequence,
-                                    'ordering': list(self.sequence_ordering.keys()),
+        return dict2str(strip_dict({'sequences to execute': self.sequence,
+                                    'sequence ordering': list(self.sequence_ordering.keys()),
                                     'R libraries': self.rlib, 'Python modules': self.pymodule}))
