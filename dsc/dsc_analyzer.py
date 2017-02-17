@@ -45,7 +45,7 @@ class DSC_Analyzer:
         for name in sequence:
             block = copy.deepcopy(data[name])
             for idx, step in enumerate(block.steps):
-                for k, p in step.p.items():
+                for k, p in list(step.p.items()):
                     for p1_idx, p1 in enumerate(p):
                         if isinstance(p1, str):
                             if p1.startswith('$'):
@@ -54,7 +54,12 @@ class DSC_Analyzer:
                                     if item not in block.steps[idx].depends:
                                         block.steps[idx].depends.append(item)
                                 block.steps[idx].plugin.add_input(k, p1)
-                                block.steps[idx].p[k][p1_idx] = repr(p1)
+                                # FIXME: should not delete, but rather transform it, when this
+                                # can be properly bypassed on scripts
+                                # block.steps[idx].p[k][p1_idx] = repr(p1)
+                                block.steps[idx].p[k].pop(p1_idx)
+                    if len(block.steps[idx].p[k]) == 0:
+                        del block.steps[idx].p[k]
                 block.steps[idx].depends.sort(key = lambda x: ordering.index(x[0]))
                 block.steps[idx].exe_id = idx + 1
             workflow[block.name] = block

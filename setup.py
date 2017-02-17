@@ -19,7 +19,7 @@ setup(name        = "dsc",
       url         = 'https://github.com/stephenslab/dsc2',
       download_url= 'https://github.com/stephenslab/dsc2/archive/v{}.tar.gz'.format(__version__),
       version     = __version__,
-      scripts     = ["dsc/dsc"],
+      entry_points = {'console_scripts': ['dsc = dsc.__main__:main']},
       package_dir = {"dsc": "dsc"},
       license     = __license__,
       classifiers = [

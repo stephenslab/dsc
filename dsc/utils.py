@@ -618,9 +618,8 @@ def dsc2html(dsc_conf, dsc_ann, output, section_content = {}):
           f.write(dsc_ann)
           f.write('\n</code></pre></div></div><div class="accordion">\n')
         # DSC sections with executable scripts
-        for name, section in section_content.items():
+        for name, commands in section_content.items():
             # get section scripts
-            commands = flatten_list([x['command'] for x in section])
             scripts = []
             seen = []
             for command in commands:

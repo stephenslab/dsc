@@ -29,13 +29,13 @@ class DSC_Script:
         if os.path.isfile(content):
             with open(content) as f:
                 self.content = load_from_yaml(f, content)
-            output = os.path.split(os.path.splitext(content)[0])[-1] if output is not None else output
+            dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
         else:
             if len(content.split('\n')) == 1:
                 raise ValueError("Cannot find file ``{}``".format(content))
             with StringIO(content) as f:
                 self.content = load_from_yaml(f)
-            output = 'DSCStringIO' if output is not None else output
+            dsc_name = 'DSCStringIO'
         #
         self.propagate_derived_block()
         self.check_block_error()
@@ -43,6 +43,9 @@ class DSC_Script:
             self.content['DSC']['run'] = sequence
         self.content = DSCEntryFormatter()(self.content, try_get_value(self.content['DSC'], 'params'))
         self.runtime = DSC_Section(self.content['DSC'], sequence, output)
+        if self.runtime.output is None:
+            # logger.warning("Using default output name ````.".format(dsc_name))
+            self.runtime.output = dsc_name
         # FIXME: add annotation info / filter here
         # Or, not?
         script_path = os.path.dirname(os.path.abspath(os.path.expanduser(content))) if os.path.isfile(content) else None
@@ -502,7 +505,7 @@ class DSC_Block:
 class DSC_Section:
     def __init__(self, content, sequence, output):
         self.content = content
-        self.output = output
+        self.output = self.content['output'][0] if 'output' in self.content else output
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
         OP = OperationParser()
@@ -516,7 +519,6 @@ class DSC_Section:
         self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
         self.rlib = self.content['R_libs'] if 'R_libs' in self.content else None
         self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else None
-
 
     def __merge_sequences(self, input_sequences):
         '''Extract the proper ordering of elements from multiple sequences'''

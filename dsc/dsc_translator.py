@@ -30,15 +30,16 @@ class DSC_Translator:
             return replacement.join(source.rsplit(target, replacements))
         #
         self.output = runtime.output
+        self.db = os.path.basename(runtime.output)
         self.confdb =  "'.sos/.dsc/{}.{{}}.mpk'.format('_'.join((sequence_id, step_name[8:])))".\
-                       format(runtime.output)
+                       format(self.db)
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
                       'from dsc.dsc_database import remove_obsolete_db, build_config_db\n\n\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      "parameter: IO_DB =  msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n".\
-                     format(runtime.output)
+                     format(self.db)
         processed_steps = {}
         conf_str = []
         job_str = []
@@ -74,7 +75,7 @@ class DSC_Translator:
                         for x, y in zip(sequence, step_id)]
                 sqn = [replace_right(x, '_', ':', 1) for x in rsqn]
                 provides_files = ['.sos/.dsc/{}.{}.mpk'.\
-                                  format(self.output, '_'.join((str(i), x))) for x in rsqn]
+                                  format(self.db, '_'.join((str(i), x))) for x in rsqn]
                 conf_str.append("[INIT_{0}]\ninput: None\nsos_run('{2}', {1})".\
                               format(i, "sequence_id = '{}', sequence_name = '{}'".\
                                      format(i, '+'.join(rsqn)),
@@ -94,7 +95,7 @@ parameter: vanilla = {1}
 input: {2}
 output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'
 build_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs = {3})
-        '''.format(self.output, rerun, repr(sorted(set(io_info_files))), n_cpu)
+        '''.format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
         #
