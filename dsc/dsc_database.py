@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import sys, os, msgpack, yaml, re, glob
+import os, msgpack, yaml, re, glob
 from collections import OrderedDict
 import pandas as pd
 import numpy as np

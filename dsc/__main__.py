@@ -12,7 +12,7 @@ from dsc.dsc_parser import DSC_Script
 from dsc.dsc_analyzer import DSC_Analyzer
 from dsc.dsc_translator import DSC_Translator
 from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
-from .utils import get_slice, load_rds, flatten_list, md2html, dsc2html, dotdict, Timer
+from .utils import get_slice, load_rds, flatten_list, workflow2html, dsc2html, dotdict, Timer
 from sos.sos_script import SoS_Script
 from sos.sos_executor import Base_Executor, MP_Executor
 from sos.rq.sos_executor import RQ_Executor
@@ -102,7 +102,7 @@ def remove(workflows, steps, db, force, debug):
     if debug:
         env.logger.info(to_remove)
     else:
-        cmd_remove(dotdict({"tracked": False, "untracked": False if not force else true,
+        cmd_remove(dotdict({"tracked": False, "untracked": False if not force else True,
                             "targets": to_remove, "__dryrun__": False,
                             "__confirm__": True, "signature": False, "verbosity": env.verbosity}), [])
 
@@ -131,10 +131,10 @@ def execute(args):
     if db_dir:
         os.makedirs(db_dir, exist_ok = True)
     if args.verbosity > 3:
-        md2html(str(script), '.sos/.dsc/{}.script.html'.format(db_name))
+        workflow2html(script.dump().values(), '.sos/.dsc/{}.script.html'.format(db_name))
     workflow = DSC_Analyzer(script)
     if args.verbosity > 3:
-        md2html(str(workflow), '.sos/.dsc/{}.workflow.html'.format(db_name))
+        workflow2html(workflow.workflows, '.sos/.dsc/{}.workflow.html'.format(db_name))
     pipeline = DSC_Translator(workflow.workflows, script.runtime, args.__rerun__, args.__max_jobs__)
     if args.verbosity > 3:
         sos2html((pipeline.write_pipeline(1), pipeline.write_pipeline(2)),

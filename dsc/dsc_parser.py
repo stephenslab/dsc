@@ -133,10 +133,15 @@ class DSC_Script:
                                    format(key, block))
                     del self.content[block][key]
 
+    def dump(self):
+        res = OrderedDict([('Blocks', self.blocks),
+                           ('DSC', OrderedDict([("Sequence", self.runtime.sequence),
+                                                      ("Ordering", self.runtime.sequence_ordering)]))])
+        return res
 
     def __str__(self):
         res = '# Blocks\n' + '\n'.join(['## {}\n```yaml\n{}\n```'.format(x, y) for x, y in self.blocks.items()]) \
-              + '\n# Execution\n```yaml\n{}\n```'.format(self.runtime)
+              + '\n# DSC\n```yaml\n{}\n```'.format(self.runtime)
         return res
 
 
@@ -326,7 +331,7 @@ class DSC_Step:
                             p1 = repr(p1)
                 if isinstance(p1, tuple):
                     # FIXME format_tuple has to be defined for shell as well
-                    p1 = [plugin.format_tuple(p1)]
+                    p1 = [self.plugin.format_tuple(p1)]
                 values.append(p1)
             if len(values) == 0:
                 del self.p[k]

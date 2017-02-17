@@ -7,8 +7,8 @@ __license__ = "MIT"
 This file defines methods to translate DSC into pipeline in SoS language
 '''
 import re, os, datetime
-from sos.target import fileMD5, textMD5
-from .utils import flatten_list, uniq_list, dict2str
+from sos.target import fileMD5, textMD5, executable
+from .utils import flatten_list, uniq_list, dict2str, install_r_libs, install_py_modules
 from .plugin import R_LMERGE, R_SOURCE
 
 
@@ -208,7 +208,8 @@ build_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs 
         return '\n'.join(res) + '\n'
 
     def get_run_step(self, step):
-        res = ["[{0}_{1} ({2})]".format(step.group, step.exe_id, step.name)]
+        res = ["[{0}_{1} ({2}): provides = IO_DB[sequence_id][step_name]['output']]".\
+               format(step.group, step.exe_id, step.name)]
         res.append("parameter: sequence_id = None")
         # FIXME: using [step.exe] for now as super step has not yet been ported over
         cmds_md5 = ''.join([(fileMD5(item.split()[0], partial = False) if os.path.isfile(item.split()[0])
