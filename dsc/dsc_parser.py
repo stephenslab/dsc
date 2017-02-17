@@ -23,31 +23,30 @@ __all__ = ['DSC_Script', 'DSC_Annotation']
 
 class DSC_Script:
     '''Parse a DSC script
-     * provides self.blocks, self.runtime, and self.runtime.sequence that contain all DSC information needed for a run
+     * provides self.blocks, self.runtime that contain all DSC information needed for a run
     '''
     def __init__(self, content, sequence = None, output = None):
         if os.path.isfile(content):
             with open(content) as f:
                 self.content = load_from_yaml(f, content)
-            self.output = os.path.split(os.path.splitext(content)[0])[-1] if output is not None else output
+            output = os.path.split(os.path.splitext(content)[0])[-1] if output is not None else output
         else:
             if len(content.split('\n')) == 1:
                 raise ValueError("Cannot find file ``{}``".format(content))
             with StringIO(content) as f:
                 self.content = load_from_yaml(f)
-            self.output = 'DSCStringIO' if output is not None else output
+            output = 'DSCStringIO' if output is not None else output
         #
         self.propagate_derived_block()
         self.check_block_error()
         if sequence:
             self.content['DSC']['run'] = sequence
         self.content = DSCEntryFormatter()(self.content, try_get_value(self.content['DSC'], 'params'))
-        self.runtime = DSC_Section(self.content['DSC'], sequence,
-                                   os.path.dirname(os.path.abspath(os.path.expanduser(content)))
-                                   if os.path.isfile(content) else None)
+        self.runtime = DSC_Section(self.content['DSC'], sequence, output)
         # FIXME: add annotation info / filter here
         # Or, not?
-        self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options))
+        script_path = os.path.dirname(os.path.abspath(os.path.expanduser(content))) if os.path.isfile(content) else None
+        self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options, script_path))
                                     for x in self.runtime.sequence_ordering.keys()])
         self.runtime.expand_sequences(self.blocks)
         self.runtime.consolidate_sequences()
@@ -197,6 +196,8 @@ class DSC_Step:
         self.path = None
         # dependencies
         self.depends = []
+        # check if it runs in shell
+        self.shell_run = None
 
     def set_seed(self, seed):
         self.seed = seed
@@ -205,6 +206,15 @@ class DSC_Step:
         self.exe = ' '.join([locate_file(exec_var[0], self.path)] + list(exec_var[1:]))
         self.plugin = Plugin(os.path.splitext(exec_var[0])[1].lstrip('.'), textMD5(self.exe)[:10])
                         # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
+
+    def check_shell(self, exec_var):
+        # FIXME: check if the exec is meant to be executed from shell
+        # True only if command has $ parameters and they exist in parameter list
+        # Also this conflicts with self.rv: self.shell_run == True && len(self.rv) == 0
+        self.shell_run = False
+        if not self.shell_run:
+            # make it a list in order to readily merge with other self.rf items
+            self.rf['DSC_AUTO_OUTPUT_'] = ['rds']
 
     def set_return(self, common_return, spec_return):
         return_var = common_return if common_return is not None else spec_return
@@ -326,9 +336,10 @@ class DSC_Step:
     def dump(self):
         return strip_dict(OrderedDict([ ( 'name', self.name), ( 'group', self.group),
                                         ('dependencies', self.depends), ('command', self.exe),
-                                        ('command_index', self.exe_id),('seed', self.seed),
+                                        ('command_index', self.exe_id),('use replicates', self.seed),
                                         ('parameters', self.p), ('return variables', self.rv),
-                                        ('return files', self.rf),  ('plugin status', self.plugin.dump()),
+                                        ('return files', self.rf),  ('shell status', self.shell_run),
+                                        ('plugin status', self.plugin.dump()),
                                         ('runtime options', OrderedDict([('exec path', self.path),
                                                                          ('workdir', self.workdir),
                                                                          ('library path', self.libpath)]))]),
@@ -336,7 +347,7 @@ class DSC_Step:
 
 
 class DSC_Block:
-    def __init__(self, name, content, global_options = {}):
+    def __init__(self, name, content, global_options = {}, script_path = None):
         '''Populate steps in the block and keep track of block rules
         Members are:
           - self.steps, self.rule, self.name
@@ -355,7 +366,8 @@ class DSC_Block:
             raise FormatError('Alias ``{}`` (length {}) does not match exec (length {}), in block ``{}``!'.\
                               format(repr(exe_alias), len(exe_alias), len(exes), name))
         # block runtime options
-        options = self.get_exec_options(global_options, content['.options'] if '.options' in content else None)
+        options = self.get_exec_options(global_options,
+                                        content['.options'] if '.options' in content else None, script_path)
         # get return values
         return_vars = self.get_return_vars(content['return'], len(exe_alias))
         # get parameters
@@ -374,15 +386,17 @@ class DSC_Block:
             self.steps[i].set_params(try_get_value(params, 0), try_get_value(params, i + 1),
                                      try_get_value(params_alias, 0), try_get_value(params_alias, i + 1))
             self.steps[i].apply_params_rule(try_get_value(params_rules, 0), try_get_value(params_rules, i + 1))
-            self.steps[i].apply_params_operator()
             self.steps[i].set_return(try_get_value(return_vars, 0), try_get_value(return_vars, i + 1))
+            self.steps[i].apply_params_operator()
+            self.steps[i].check_shell(exes[i])
 
-    def get_exec_options(self, global_options, local_options):
+    def get_exec_options(self, global_options, local_options, script_path):
         options = copy.deepcopy(global_options)
         if local_options:
             options.update(local_options)
         if len(options) == 0:
             return {}
+        options = self.swap_abs_paths(options, script_path)
         res = OrderedDict()
         res[0] = OrderedDict()
         for key, value in options.items():
@@ -465,35 +479,11 @@ class DSC_Block:
     def extract_steps(self, idxes):
         self.steps = [y for x, y in enumerate(self.steps) if x in idxes]
 
-    def __str__(self):
-        steps = {step.name: step.dump() for step in self.steps}
-        return dict2str(strip_dict(OrderedDict([('computational routines', steps), ('rule', self.rule)]),
-                                   mapping = OrderedDict))
-
-
-class DSC_Section:
-    def __init__(self, content, sequence, script_path):
-        self.content = content
-        if 'run' not in self.content:
-            raise FormatError('Missing required ``DSC::run``.')
-        OP = OperationParser()
-        self.sequence = sequence if sequence is not None else self.content['run']
-        self.sequence = [(x,) if isinstance(x, str) else x
-                         for x in sum([OP(expand_slice(y)) for y in self.sequence], [])]
-        self.sequence_ordering = self.__merge_sequences(self.sequence)
-        self.options = OrderedDict()
-        self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else None
-        self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
-        self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
-        self.options = self.swap_abs_paths(self.options, script_path)
-        self.rlib = self.content['R_libs'] if 'R_libs' in self.content else None
-        self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else None
-
     def swap_abs_paths(self, data, master_path):
         if master_path is None:
             return data
         cwd = os.getcwd() + '/'
-        for k in data:
+        for k in ['work_dir', 'lib_path', 'exec_path']:
             if data[k] is None:
                 continue
             for kk, item in enumerate(data[k]):
@@ -502,6 +492,31 @@ class DSC_Section:
                 if relative_path != item:
                     data[k][kk] = os.path.join(master_path, relative_path)
         return data
+
+    def __str__(self):
+        steps = {step.name: step.dump() for step in self.steps}
+        return dict2str(strip_dict(OrderedDict([('computational routines', steps), ('rule', self.rule)]),
+                                   mapping = OrderedDict))
+
+
+class DSC_Section:
+    def __init__(self, content, sequence, output):
+        self.content = content
+        self.output = output
+        if 'run' not in self.content:
+            raise FormatError('Missing required ``DSC::run``.')
+        OP = OperationParser()
+        self.sequence = sequence if sequence is not None else self.content['run']
+        self.sequence = [(x,) if isinstance(x, str) else x
+                         for x in sum([OP(expand_slice(y)) for y in self.sequence], [])]
+        self.sequence_ordering = self.__merge_sequences(self.sequence)
+        self.options = OrderedDict()
+        self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
+        self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
+        self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
+        self.rlib = self.content['R_libs'] if 'R_libs' in self.content else None
+        self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else None
+
 
     def __merge_sequences(self, input_sequences):
         '''Extract the proper ordering of elements from multiple sequences'''

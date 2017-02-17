@@ -181,16 +181,19 @@ class RPlug(BasePlug):
         res += '\n' + '\n'.join(self.container)
         if cmd_args:
             for item in cmd_args:
-                # FIXME: will eventually allow for parameter input for plugins (at SoS level)
-                lhs, rhs = item.split('=')
-                if rhs.startswith('$'):
-                    if rhs[1:] not in params:
-                        raise ValueError('Cannot find ``{}`` in parameter list'.format(rhs))
+                if "=" in item:
+                    lhs, rhs = item.split('=')
+                    if rhs.startswith('$'):
+                        if rhs[1:] not in params:
+                            raise ValueError('Cannot find ``{}`` in parameter list'.format(rhs))
+                        else:
+                            res += '\n%s <- ${_%s}' % (lhs, rhs[1:])
+                            params.remove(rhs[1:])
                     else:
-                        res += '\n%s <- ${_%s}' % (lhs, rhs[1:])
-                        params.remove(rhs[1:])
+                        res += '\n%s <- %s' % (lhs, rhs)
                 else:
-                    res += '\n%s <- %s' % (lhs, rhs)
+                    pass
+                    # FIXME: will eventually allow for parameter input for plugins (at SoS level)
         for k in keys:
             res += '\n%s <- ${_%s}' % (k, k)
         return res
