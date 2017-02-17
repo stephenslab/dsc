@@ -171,7 +171,9 @@ class DSCEntryFormatter:
 
 
 class DSC_Step:
-    def __init__(self, name):
+    def __init__(self, group, name):
+        # block name
+        self.group = group
         # step name
         self.name = name
         # system seed
@@ -233,6 +235,7 @@ class DSC_Step:
                         raise FormatError('Return alias cannot be created with ``{}`` for this computational routine.'.\
                                           format(groups.group(1)))
                     self.plugin.add_return(item[0], groups.group(2))
+                    self.rv[item[0]] = 'FROM DICT/LIST'
                 else:
                     self.rv[item[0]] = item[1]
 
@@ -316,19 +319,15 @@ class DSC_Step:
         return dict2str(self.dump())
 
     def dump(self):
-        return strip_dict({'seed': self.seed, 'name': self.name,
-                           'parameters': self.p,
-                           'return variables': self.rv,
-                           'return files': self.rf,
-                           'command': self.exe,
-                           'command_index': self.exe_id,
-                           'dependencies': self.depends,
-                           'runtime options': {
-                               'exec path': self.path,
-                               'workdir': self.workdir,
-                               'library path': self.libpath
-                           },
-                           'plugin status': self.plugin.dump()})
+        return strip_dict(OrderedDict([ ( 'name', self.name), ( 'group', self.group),
+                                        ('dependencies', self.depends), ('command', self.exe),
+                                        ('command_index', self.exe_id),('seed', self.seed),
+                                        ('parameters', self.p), ('return variables', self.rv),
+                                        ('return files', self.rf),  ('plugin status', self.plugin.dump()),
+                                        ('runtime options', OrderedDict([('exec path', self.path),
+                                                                         ('workdir', self.workdir),
+                                                                         ('library path', self.libpath)]))]),
+                          mapping = OrderedDict)
 
 
 class DSC_Block:
@@ -361,7 +360,7 @@ class DSC_Block:
             raise FormatError('``exec[{}]`` out of range, in ``params`` section of ``{}`` with {} executable routines.'.\
                               format(max(params.keys()), name, len(exes)))
         # initialize steps
-        self.steps = [DSC_Step(x) for x in exe_alias]
+        self.steps = [DSC_Step(name, x) for x in exe_alias]
         for i in range(len(self.steps)):
             self.steps[i].set_options(try_get_value(options, 0), try_get_value(options, i + 1))
             self.steps[i].set_exec(exes[i])
@@ -463,7 +462,8 @@ class DSC_Block:
 
     def __str__(self):
         steps = {step.name: step.dump() for step in self.steps}
-        return dict2str(strip_dict({'computational routines': steps, 'rule': self.rule}))
+        return dict2str(strip_dict(OrderedDict([('computational routines', steps), ('rule', self.rule)]),
+                                   mapping = OrderedDict))
 
 
 class DSC_Section:
@@ -543,6 +543,7 @@ class DSC_Section:
         self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
 
     def __str__(self):
-        return dict2str(strip_dict({'sequences to execute': self.sequence,
-                                    'sequence ordering': list(self.sequence_ordering.keys()),
-                                    'R libraries': self.rlib, 'Python modules': self.pymodule}))
+        return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence), (
+                                    'sequence ordering', list(self.sequence_ordering.keys())), (
+                                        'R libraries', self.rlib), ( 'Python modules', self.pymodule)]),
+                                   mapping = OrderedDict))

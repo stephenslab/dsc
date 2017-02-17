@@ -106,7 +106,6 @@ remove_obsolete_db('{3}')
                    data.output_prefix, repr(sorted(set(io_info_files))), n_cpu)
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
-
         #
         self.install_libs(runtime.rlib, "R_library", rerun)
         self.install_libs(runtime.pymodule, "Python_Module", rerun)

@@ -279,13 +279,15 @@ def set_nested_value(d, keys, value, default_factory = dict):
 
 def dict2str(value):
     out = StringIO()
-    yaml.dump(strip_dict(value, into_list = True), out, default_flow_style=False)
+    yaml.dump(strip_dict(value, into_list = True, mapping = OrderedDict),
+              out, default_flow_style=False)
     res = out.getvalue()
     out.close()
     pattern = re.compile(r'!!python/(.*?)\s')
     for m in re.finditer(pattern, res):
         res = res.replace(m.group(1), '', 1)
     res = res.replace('!!python/', '')
+    res = '\n'.join([x for x in res.split('\n') if x.strip() != 'dictitems:'])
     return res
 
 def update_nested_dict(d, u, mapping = dict):
