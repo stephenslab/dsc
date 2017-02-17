@@ -48,6 +48,7 @@ class DSC_Script:
         self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options))
                                     for x in self.runtime.sequence_ordering.keys()])
         self.runtime.expand_sequences(self.blocks)
+        self.runtime.consolidate_sequences()
         # FIXME: maybe this should be allowed?
         self.runtime.check_looped_computation()
         # Finally prune blocks removing unused steps
@@ -498,11 +499,11 @@ class DSC_Section:
                    for x in self.sequence_ordering.keys()} if len(blocks) else {}
         res = []
         for value in self.__index_sequences(self.sequence):
-            seq = [x[0] for x in value]
+            seq = tuple([x[0] for x in value])
             idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
             for x, y in zip(seq, idxes):
                 self.sequence_ordering[x].extend(y)
-            res.append((seq, cartesian_list(*idxes)))
+            res.append([seq, cartesian_list(*idxes)])
         for x in self.sequence_ordering.keys():
             self.sequence_ordering[x] = sorted(list(set([i for i in self.sequence_ordering[x] if i >= 0])))
         self.sequence = res
@@ -524,6 +525,22 @@ class DSC_Section:
         for seq in input_sequences:
             res.append(tuple([get_slice(x, mismatch_quit = False) for x in seq]))
         return res
+
+
+    def consolidate_sequences(self):
+        '''
+        For trivial multiple sequences, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
+        This cannot be done with symbolic math logic so we have to do it here
+        '''
+        sequences = OrderedDict()
+        for sequence, idx in self.sequence:
+            if sequence not in sequences:
+                sequences[sequence] = idx
+            else:
+                for item in idx:
+                    if item not in sequences[sequence]:
+                        sequences.sequence.append(item)
+        self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
 
     def __str__(self):
         return dict2str(strip_dict({'sequences to execute': self.sequence,
