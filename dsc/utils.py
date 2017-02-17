@@ -654,7 +654,7 @@ def dsc2html(dsc_conf, dsc_ann, output, section_content = {}):
             f.write('</div></div></div></div>\n')
         f.write('\n</div></body></html>')
 
-def workflow2html(workflow_content, output):
+def workflow2html(output, *multi_workflows):
     with open(output, 'w') as f:
         # header and style/scripts
         f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(os.path.basename(output)[:-5]))
@@ -665,50 +665,55 @@ def workflow2html(workflow_content, output):
         # DSC script file
         f.write('</script></head><body>\n')
         f.write('<div class="accordion">\n')
-        for i, blocks in enumerate(workflow_content):
-            is_runtime = False
-            if i > 0:
-                f.write('\n<hr>\n')
-            for key, block in blocks.items():
-                try:
-                    f.write('<div class="accodion-section">\n'
-                            '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
-                            '<div id={1} class="accordion-section-content">\n'.\
-                            format(block.name, make_html_name(block.name)))
-                    f.write('<div class="tabs">\n<ul class="tab-links">\n')
-                    for idx, script in enumerate(block.steps):
+        for j, workflow_content in enumerate(multi_workflows):
+            for i, blocks in enumerate(workflow_content):
+                is_runtime = False
+                if i > 0:
+                    f.write('\n<hr>\n')
+                for key, block in blocks.items():
+                    try:
+                        f.write('<div class="accodion-section">\n'
+                                '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
+                                '<div id={1} class="accordion-section-content">\n'.\
+                                format(block.name, make_html_name(block.name + str(j + 1))))
+                        f.write('<div class="tabs">\n<ul class="tab-links">\n')
+                        for idx, script in enumerate(block.steps):
+                            f.write('<li{2}><a href="#{0}">{1}</a></li>\n'.\
+                                        format(make_html_name(script.name + '_{}_'.format(j+1) + script.group),
+                                               script.name,
+                                               ' class="active"' if idx == 0 else ''))
+                        f.write('</ul>\n<div class="tab-content">\n')
+                        for idx, script in enumerate(block.steps):
+                            f.write('<div id="{0}" class="tab{1}">\n'.\
+                                    format(make_html_name(script.name + '_{}_'.format(j+1) + script.group),
+                                           ' active' if idx == 0 else ''))
+                            f.write('<pre><code class="{}line-numbers; left-trim; right-trim;">\n'.\
+                                    format("language-yaml; "))
+                            f.write(str(script))
+                            f.write('\n</code></pre></div>\n')
+                        f.write('</div></div></div></div>\n')
+                    except AttributeError:
+                        is_runtime = True
+                if is_runtime:
+                    for key, block in blocks.items():
+                        f.write('<div class="accodion-section">\n'
+                                '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
+                                '<div id={1} class="accordion-section-content">\n'.\
+                                format(key, make_html_name(key + str(j + 1))))
+                        f.write('<div class="tabs">\n<ul class="tab-links">\n')
                         f.write('<li{2}><a href="#{0}">{1}</a></li>\n'.\
-                                    format(make_html_name(script.name + '_' + script.group), script.name,
-                                           ' class="active"' if idx == 0 else ''))
-                    f.write('</ul>\n<div class="tab-content">\n')
-                    for idx, script in enumerate(block.steps):
+                                        format(make_html_name(key + '_DSC_{}'.format(j+1)), key,  ' class="active"'))
+                        f.write('</ul>\n<div class="tab-content">\n')
+                        #
                         f.write('<div id="{0}" class="tab{1}">\n'.\
-                                format(make_html_name(script.name + '_' + script.group), ' active' if idx == 0 else ''))
+                                format(make_html_name(key + '_DSC_{}'.format(j+1)), ' active'))
                         f.write('<pre><code class="{}line-numbers; left-trim; right-trim;">\n'.\
                                 format("language-yaml; "))
-                        f.write(str(script))
+                        f.write(str(block) if not isinstance(block, list) else '\n'.join(['- ' + str(x) for x in block]))
                         f.write('\n</code></pre></div>\n')
-                    f.write('</div></div></div></div>\n')
-                except AttributeError:
-                    is_runtime = True
-            if is_runtime:
-                for key, block in blocks.items():
-                    f.write('<div class="accodion-section">\n'
-                            '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
-                            '<div id={1} class="accordion-section-content">\n'.\
-                            format(key, make_html_name(key)))
-                    f.write('<div class="tabs">\n<ul class="tab-links">\n')
-                    f.write('<li{2}><a href="#{0}">{1}</a></li>\n'.\
-                                    format(make_html_name(key + '_DSC'), key,  ' class="active"'))
-                    f.write('</ul>\n<div class="tab-content">\n')
-                    #
-                    f.write('<div id="{0}" class="tab{1}">\n'.\
-                            format(make_html_name(key + '_DSC'), ' active'))
-                    f.write('<pre><code class="{}line-numbers; left-trim; right-trim;">\n'.\
-                            format("language-yaml; "))
-                    f.write(str(block) if not isinstance(block, list) else '\n'.join(['- ' + str(x) for x in block]))
-                    f.write('\n</code></pre></div>\n')
-                    f.write('</div></div></div></div>\n')
+                        f.write('</div></div></div></div>\n')
+            if j + 1 != len(multi_workflows):
+                f.write('<hr size="2">\n' * 2)
         f.write('\n</div></body></html>')
 
 def rq_worker(host_url):

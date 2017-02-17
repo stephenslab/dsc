@@ -130,11 +130,9 @@ def execute(args):
     args.__dag__ = '.sos/.dsc/{}.dag'.format(db_name)
     if db_dir:
         os.makedirs(db_dir, exist_ok = True)
-    if args.verbosity > 3:
-        workflow2html(script.dump().values(), '.sos/.dsc/{}.script.html'.format(db_name))
     workflow = DSC_Analyzer(script)
     if args.verbosity > 3:
-        workflow2html(workflow.workflows, '.sos/.dsc/{}.workflow.html'.format(db_name))
+        workflow2html('.sos/.dsc/{}.workflow.html'.format(db_name), workflow.workflows, script.dump().values())
     pipeline = DSC_Translator(workflow.workflows, script.runtime, args.__rerun__, args.__max_jobs__)
     if args.verbosity > 3:
         sos2html((pipeline.write_pipeline(1), pipeline.write_pipeline(2)),
