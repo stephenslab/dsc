@@ -42,7 +42,9 @@ class DSC_Script:
         if sequence:
             self.content['DSC']['run'] = sequence
         self.content = DSCEntryFormatter()(self.content, try_get_value(self.content['DSC'], 'params'))
-        self.runtime = DSC_Section(self.content['DSC'], sequence)
+        self.runtime = DSC_Section(self.content['DSC'], sequence,
+                                   os.path.dirname(os.path.abspath(os.path.expanduser(content)))
+                                   if os.path.isfile(content) else None)
         # FIXME: add annotation info / filter here
         # Or, not?
         self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options))
@@ -307,13 +309,16 @@ class DSC_Step:
                             self.plugin.add_tempfile(k, file_ext)
                             continue
                     else:
-                        p1 = repr(p1)
+                        if not p1.startswith('$'):
+                            p1 = repr(p1)
                 if isinstance(p1, tuple):
                     # FIXME format_tuple has to be defined for shell as well
                     p1 = [plugin.format_tuple(p1)]
                 values.append(p1)
             if len(values) == 0:
                 del self.p[k]
+            else:
+                self.p[k] = values
 
     def __str__(self):
         return dict2str(self.dump())
@@ -467,7 +472,7 @@ class DSC_Block:
 
 
 class DSC_Section:
-    def __init__(self, content, sequence):
+    def __init__(self, content, sequence, script_path):
         self.content = content
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
@@ -480,8 +485,23 @@ class DSC_Section:
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else None
         self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
         self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
+        self.options = self.swap_abs_paths(self.options, script_path)
         self.rlib = self.content['R_libs'] if 'R_libs' in self.content else None
         self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else None
+
+    def swap_abs_paths(self, data, master_path):
+        if master_path is None:
+            return data
+        cwd = os.getcwd() + '/'
+        for k in data:
+            if data[k] is None:
+                continue
+            for kk, item in enumerate(data[k]):
+                item = os.path.normpath(os.path.abspath(os.path.expanduser(item)))
+                relative_path = item.replace(cwd, '')
+                if relative_path != item:
+                    data[k][kk] = os.path.join(master_path, relative_path)
+        return data
 
     def __merge_sequences(self, input_sequences):
         '''Extract the proper ordering of elements from multiple sequences'''

@@ -46,7 +46,7 @@ class DSC_Analyzer:
             block = copy.deepcopy(data[name])
             for idx, step in enumerate(block.steps):
                 for k, p in step.p.items():
-                    for p1 in p:
+                    for p1_idx, p1 in enumerate(p):
                         if isinstance(p1, str):
                             if p1.startswith('$'):
                                 dependencies = self.find_dependencies(p1[1:], list(workflow.values()))
@@ -54,6 +54,7 @@ class DSC_Analyzer:
                                     if item not in block.steps[idx].depends:
                                         block.steps[idx].depends.append(item)
                                 block.steps[idx].plugin.add_input(k, p1)
+                                block.steps[idx].p[k][p1_idx] = repr(p1)
                 block.steps[idx].depends.sort(key = lambda x: ordering.index(x[0]))
                 block.steps[idx].exe_id = idx + 1
             workflow[block.name] = block
