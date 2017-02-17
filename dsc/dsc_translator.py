@@ -144,6 +144,9 @@ build_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs 
         params = list(step.p.keys())
         for key in params:
             res.append('{} = {}'.format(key, repr(step.p[key])))
+        if step.seed:
+            params.append('seed')
+            res.append('seed = {}'.format(repr(step.seed)))
         input_vars = None
         depend_steps = []
         if params:
@@ -215,6 +218,9 @@ build_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs 
         params = list(step.p.keys())
         for key in params:
             res.append('{} = {}'.format(key, repr(step.p[key])))
+        if step.seed:
+            params.append('seed')
+            res.append('seed = {}'.format(repr(step.seed)))
         #
         depend_steps = []
         for_each = 'for_each = %s' % repr(params) if len(params) else ''
