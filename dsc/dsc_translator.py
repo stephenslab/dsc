@@ -31,8 +31,6 @@ class DSC_Translator:
         #
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
-        self.confdb =  "'.sos/.dsc/{}.{{}}.mpk'.format('_'.join((sequence_id, step_name[8:])))".\
-                       format(self.db)
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
                       'from dsc.dsc_database import remove_obsolete_db, build_config_db\n\n\n'
@@ -59,8 +57,8 @@ class DSC_Translator:
                                    set(flatten_list([list(self.step_map[i].values()) for i in range(workflow_id)]))
                                    if pattern.match(k)])
                         step.exe_id = "{0}_{1}".format(cnt, step.exe_id) if cnt > 0 else step.exe_id
-                        conf_str.append(self.get_prepare_step(step))
-                        job_str.append(self.get_run_step(step))
+                        conf_str.append(self.Step_Translator(step, self.db, 1).dump())
+                        job_str.append(self.Step_Translator(step, self.db, 0).dump())
                         processed_steps[name] = "{}_{}".format(step.group, step.exe_id)
                     self.step_map[workflow_id]["{}_{}".format(step.group, exe_id_tmp)] = processed_steps[name]
         # Get workflows executions
@@ -87,15 +85,10 @@ class DSC_Translator:
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + '\n'.join(job_str)
-        self.conf_str += '''
-[INIT_0]
-remove_obsolete_db('{0}')
-[BUILD_0]
-parameter: vanilla = {1}
-input: {2}
-output: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'
-build_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs = {3})
-        '''.format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
+        self.conf_str += "\n[INIT_0]\nremove_obsolete_db('{0}')\n[BUILD_0]\nparameter: vanilla = {1}\n" \
+                         "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
+                         "\nbuild_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs = {3})".\
+                         format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
         #
@@ -130,151 +123,185 @@ build_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs 
             os.makedirs('.sos/.dsc', exist_ok = True)
             os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
 
-    def get_prepare_step(self, step):
-        '''
-        This will produce source to build config and database for
-        parameters and file names. The result is one binary json file (via msgpack)
-        with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
-            (name of indexed DSC block corresponding to a computational routine).
-        '''
-        res = ["[prepare_{0}_{1}: shared = '{0}_output']".format(step.group, step.exe_id)]
-        res.extend(["parameter: sequence_id = None", "parameter: sequence_name = None"])
-        res.append("input: None\noutput: {}".format(self.confdb))
-        # Set params, make sure each time the ordering is the same
-        params = list(step.p.keys())
-        for key in params:
-            res.append('{} = {}'.format(key, repr(step.p[key])))
-        if step.seed:
-            params.append('seed')
-            res.append('seed = {}'.format(repr(step.seed)))
-        input_vars = None
-        depend_steps = []
-        if params:
-            loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(params)])
-        else:
-            loop_string = ''
-        format_string = '.format({})'.\
-                        format(', '.join(['_{}'.format(s) for s in reversed(params)]))
-        if step.depends:
-            # A step can depend on maximum of other 2 steps, by DSC design
-            # FIXME: this will soon be changed
-            depend_steps = uniq_list([x[0] for x in step.depends])
-            if len(depend_steps) >= 2:
-                # Generate combinations of input files
-                input_vars = "input_files"
-                res.append("depends: {}".\
-                           format(', '.join(['sos_variable(\'{}_output\')'.format(x) for x in depend_steps])))
-                res.append('input_files = sos_group_input([{}])'.\
-                           format(', '.join(['{}_output'.format(x) for x in depend_steps])))
-            else:
-                input_vars = "{}_output".format(depend_steps[0])
-                res.append("depends: sos_variable('{}')".format(input_vars))
-            loop_string += ' for __i in chunks({}, {})'.format(input_vars, len(depend_steps))
-            out_string = "[sos_hash_output('{0}'{1}, prefix = '{3}', suffix = '{{}}'.format({4})) {2}]".\
-                         format(' '.join([step.name, step.group] \
-                                           + ['{0}:{{}}'.format(x) for x in reversed(params)]),
-                                format_string, loop_string, step.name, "':'.join(__i)")
-        else:
-            out_string = "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
-                         format(' '.join([step.name, step.group] \
-                                           + ['{0}:{{}}'.format(x) for x in reversed(params)]),
-                                         format_string, loop_string, step.name)
-        res.append("{}_output = {}".format(step.group, out_string))
-        param_string = '[([{0}], {1}) {2}]'.\
-                       format(', '.join(["('exec', '{}')".format(step.name)] \
-                                          + ["('{0}', _{0})".format(x) for x in reversed(params)]),
-                              None if '__i' not in loop_string else "'{}'.format(' '.join(__i))",
-                              loop_string)
-        key = "DSC_UPDATES_[':'.join((sequence_id, step_name[8:]))]"
-        run_string = "DSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".format(key)
-        if step.depends:
-            run_string += "for x, y in zip(%s, %s_output):\n\t %s[' '.join((y, x[1]))]"\
-                          " = OrderedDict([('sequence_id', sequence_id), "\
-                          "('sequence_name', sequence_name), ('step_name', step_name[8:])] + x[0])\n" % \
-                          (param_string, step.group, key)
-        else:
-            run_string += "for x, y in zip(%s, %s_output):\n\t %s[y]"\
-                          " = OrderedDict([('sequence_id', sequence_id), "\
-                          "('sequence_name', sequence_name), ('step_name', step_name[8:])] + x[0])\n" % \
-                          (param_string, step.group, key)
-        run_string += "{0}['DSC_IO_'] = ({1}, {2})\n".\
-                      format(key,
-                             '[]' if input_vars is None else '{0} if {0} is not None else []'.\
-                             format(input_vars),
-                             "{}_output".format(step.group))
-        run_string += "{0}['DSC_EXT_'] = \'{1}\'\n".format(key, step.rf['DSC_AUTO_OUTPUT_'][0])
-        run_string += "open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))\n"
-        res.append(run_string)
-        return '\n'.join(res) + '\n'
+    class Step_Translator:
+        def __init__(self, step, db, prepare):
+            '''
+            prepare step:
+             - will produce source to build config and database for
+            parameters and file names. The result is one binary json file (via msgpack)
+            with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
+                (name of indexed DSC block corresponding to a computational routine).
+            run step:
+             - will construct the actual script to run
+            '''
+            self.prepare = prepare
+            self.step = step
+            self.db = db
+            self.input_vars = None
+            self.header = ''
+            self.loop_string = ''
+            self.param_string = ''
+            self.input_string = ''
+            self.output_string = ''
+            self.input_option = []
+            self.step_option = ''
+            self.action = ''
+            self.name = '{}_{}'.format(self.step.group, self.step.exe_id)
+            self.get_header()
+            self.get_parameters()
+            self.get_input()
+            self.get_output()
+            self.get_step_option()
+            self.get_action()
 
-    def get_run_step(self, step):
-        res = ["[{0}_{1} ({2}): provides = IO_DB[sequence_id][step_name]['output']]".\
-               format(step.group, step.exe_id, step.name)]
-        res.append("parameter: sequence_id = None")
-        # FIXME: using [step.exe] for now as super step has not yet been ported over
-        cmds_md5 = ''.join([(fileMD5(item.split()[0], partial = False) if os.path.isfile(item.split()[0])
-                             else item.split()[0]) + \
-                            (item.split()[1] if len(item.split()) > 1 else '')
-                            for item in [step.exe]])
-        params = list(step.p.keys())
-        for key in params:
-            res.append('{} = {}'.format(key, repr(step.p[key])))
-        if step.seed:
-            params.append('seed')
-            res.append('seed = {}'.format(repr(step.seed)))
-        #
-        depend_steps = []
-        for_each = 'for_each = %s' % repr(params) if len(params) else ''
-        group_by = ''
-        input_var = 'input: dynamic(IO_DB[sequence_id][step_name]["input"]), '
-        if step.depends:
-            # A step can depend on maximum of other 2 steps, by DSC design
-            depend_steps = uniq_list([x[0] for x in step.depends])
-            group_by = "group_by = {}".format(len(depend_steps))
-        else:
-            input_var = 'input:'
-        res.append('output_files = IO_DB[sequence_id][step_name]["output"]')
-        if not (not for_each and input_var == 'input:'):
-            res.append('{} {}'.format(input_var, ', '.join([group_by, for_each]).strip().strip(',')))
-        res.append('output: output_files[_index]')
-        # FIXME: have not considered super-step yet
-        # Create fake plugin and command list
-        for idx, (plugin, cmd) in enumerate(zip([step.plugin], [step.exe])):
-            res.append("{}{}:".format("task: workdir = {}, concurrent = True\n".\
-                                      format(repr(step.workdir)) if idx == 0 else '',
-                                      plugin.name if plugin.name else 'run'))
-            # Add action
-            if plugin.name:
-                if step.shell_run:
-                    script_begin = ''
-                else:
-                    script_begin = plugin.get_input(params, input_num = len(depend_steps),
-                                                    lib = step.libpath, index = idx,
-                                                    cmd_args = cmd.split()[1:] if len(cmd.split()) > 1 else None)
-                if len(step.rv):
-                    script_end = plugin.get_return(step.rv)
-                else:
-                    script_end = ''
-                if script_begin:
-                    script_begin = '{1}\n{0}\n{2}'.\
-                                   format(script_begin.strip(),
-                                          '## BEGIN code auto-generated by DSC2',
-                                          '## END code auto-generated by DSC2')
-                if script_end:
-                    script_end = '{1}\n{0}\n{2}'.\
-                                   format(script_end.strip(),
-                                          '## BEGIN code auto-generated by DSC2',
-                                          '## END code auto-generated by DSC2')
-                try:
-                    cmd_text = [x.rstrip() for x in open(cmd.split()[0], 'r').readlines() if x.strip()]
-                except IOError:
-                    raise IOError("Cannot find script ``{}``!".format(cmd.split()[0]))
-                if plugin.name == 'R':
-                    cmd_text = ["suppressMessages({})".format(x) if re.search(r'^(library|require)\((.*?)\)$',x.strip()) else x for x in cmd_text]
-                script = """DSC_STEP_ID__ = '{3}'\n{0}\n{1}\n{2}""".\
-                         format(script_begin, '\n'.join(cmd_text), script_end, cmds_md5)
-                res.append(script)
+        def get_header(self):
+            if self.prepare:
+                self.header += "[prepare_{1}: shared = '{0}_output']\n".format(self.step.group, self.name)
+                self.header += "parameter: sequence_id = None\nparameter: sequence_name = None\n"
+                self.header += "input: None\noutput: '.sos/.dsc/{}.{{}}_{}.mpk'.format(sequence_id)".\
+                               format(self.db, self.name)
             else:
-                executable(cmd.split()[0])
-                res.append('\n{}\n'.format(cmd))
-        return '\n'.join([x for x in '\n'.join(res).split('\n') if not x.strip().startswith('#')]) + '\n'
+                self.header = "[{0} ({1}): provides = IO_DB[sequence_id]['{0}']['output']]\n".\
+                               format(self.name, self.step.name)
+                self.header += "parameter: sequence_id = None\n"
+                self.header += "output_files = IO_DB[sequence_id]['{}']['output']".format(self.name)
+                # FIXME: using [step.exe] for now as super step has not yet been ported over
+
+        def get_parameters(self):
+            # Set params, make sure each time the ordering is the same
+            self.params = list(self.step.p.keys())
+            for key in self.params:
+                self.param_string += '{} = {}\n'.format(key, repr(self.step.p[key]))
+            if self.step.seed:
+                self.params.append('seed')
+                self.param_string += 'seed = {}'.format(repr(self.step.seed))
+            if self.params:
+                self.loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(self.params)])
+
+        def get_input(self):
+            depend_steps = uniq_list([x[0] for x in self.step.depends]) if self.step.depends else []
+            if self.prepare:
+                if len(depend_steps) >= 2:
+                    self.input_vars = 'input_files'
+                    self.input_string += "depends: {}\n".\
+                       format(', '.join(['sos_variable(\'{}_output\')'.format(x) for x in depend_steps]))
+                    self.input_string += 'input_files = sos_group_input([{}])'.\
+                       format(', '.join(['{}_output'.format(x) for x in depend_steps]))
+                elif len(depend_steps) == 1:
+                    self.input_vars = "{}_output".format(depend_steps[0])
+                    self.input_string += "depends: sos_variable('{}')".format(self.input_vars)
+                else:
+                    pass
+                if len(depend_steps):
+                    self.loop_string += ' for __i in chunks({}, {})'.format(self.input_vars, len(depend_steps))
+            else:
+                if len(depend_steps):
+                    self.input_string += "input: dynamic(IO_DB[sequence_id]['{}']['input'])".format(self.name)
+                    self.input_option.append('group_by = {}'.format(len(depend_steps)))
+                else:
+                    self.input_string += "input:"
+                if len(self.params):
+                    self.input_option.append('for_each = %s' % repr(self.params))
+
+        def get_output(self):
+            if self.prepare:
+                format_string = '.format({})'.format(', '.join(['_{}'.format(s) for s in reversed(self.params)]))
+                self.output_string += "{}_output = ".format(self.step.group)
+                if self.step.depends:
+                    self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}', "\
+                                          "suffix = '{{}}'.format({4})) {2}]".\
+                                          format(' '.join([self.step.name, self.step.group] \
+                                                          + ['{0}:{{}}'.format(x) for x in reversed(self.params)]),
+                                                 format_string, self.loop_string, self.step.name, "':'.join(__i)")
+                else:
+                    self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
+                                      format(' '.join([self.step.name, self.step.group] \
+                                                      + ['{0}:{{}}'.format(x) for x in reversed(self.params)]),
+                                             format_string, self.loop_string, self.step.name)
+            else:
+                # FIXME
+                output_option = '_index'
+                self.output_string += "output: output_files[{}]".format(output_option)
+
+        def get_step_option(self):
+            if not self.prepare:
+                self.step_option += "task: workdir = {}, concurrent = True".format(repr(self.step.workdir))
+
+        def get_action(self):
+            if self.prepare:
+                combined_params = '[([{0}], {1}) {2}]'.\
+                                  format(', '.join(["('exec', '{}')".format(self.step.name)] \
+                                                   + ["('{0}', _{0})".format(x) for x in reversed(self.params)]),
+                                         None if '__i' not in self.loop_string else "'{}'.format(' '.join(__i))",
+                                         self.loop_string)
+                key = "DSC_UPDATES_['{{}}:{}'.format(sequence_id)]".format(self.name)
+                self.action += "DSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".format(key)
+                if self.step.depends:
+                    self.action += "for x, y in zip({}, {}_output):\n\t{}[' '.join((y, x[1]))]"\
+                                  " = OrderedDict([('sequence_id', {}), "\
+                                  "('sequence_name', {}), ('step_name', '{}')] + x[0])\n".\
+                                  format(combined_params, self.step.group, key, 'sequence_id',
+                                         'sequence_name', self.name)
+                else:
+                    self.action += "for x, y in zip({}, {}_output):\n\t{}[y]"\
+                                   " = OrderedDict([('sequence_id', {}), "\
+                                   "('sequence_name', {}), ('step_name', '{}')] + x[0])\n".\
+                                   format(combined_params, self.step.group, key, 'sequence_id',
+                                          'sequence_name', self.name)
+                self.action += "{0}['DSC_IO_'] = ({1}, {2})\n".\
+                               format(key, '[]' if self.input_vars is None else '{0} if {0} is not None else []'.\
+                                      format(self.input_vars), "{}_output".format(self.step.group))
+                self.action += "{0}['DSC_EXT_'] = \'{1}\'\n".format(key, self.step.rf['DSC_AUTO_OUTPUT_'][0])
+                self.action += "open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))"
+            else:
+                # FIXME: have not considered super-step yet
+                # Create fake plugin and command list
+                for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
+                    self.action += '{}:\n'.format(plugin.name)
+                    # Add action
+                    if not self.step.shell_run:
+                        script_begin = plugin.get_input(self.params, input_num = len(self.step.depends),
+                                                        lib = self.step.libpath, index = idx,
+                                                        cmd_args = cmd.split()[1:] if len(cmd.split()) > 1 else None)
+                        script_begin = '{1}\n{0}\n{2}'.\
+                                       format(script_begin.strip(),
+                                              '## BEGIN code by DSC2',
+                                              '## END code by DSC2')
+                        if len(self.step.rv):
+                            script_end = plugin.get_return(self.step.rv)
+                            script_end = '{1}\n{0}\n{2}'.\
+                                         format(script_end.strip(),
+                                                '## BEGIN code by DSC2',
+                                                '## END code by DSC2')
+                        else:
+                            script_end = ''
+                        try:
+                            cmd_text = [x.rstrip() for x in open(cmd.split()[0], 'r').readlines()
+                                        if x.strip() and not x.strip().startswith('#')]
+                        except IOError:
+                            raise IOError("Cannot find script ``{}``!".format(cmd.split()[0]))
+                        if plugin.name == 'R':
+                            cmd_text = ["suppressMessages({})".format(x.strip())
+                                        if re.search(r'^(library|require)\((.*?)\)$', x.strip())
+                                        else x for x in cmd_text]
+                        cmd_md5 = (fileMD5(self.step.exe.split()[0], partial = False)
+                                   if os.path.isfile(self.step.exe.split()[0]) else self.step.exe.split()[0]) + \
+                                      (self.step.exe.split()[1] if len(self.step.exe.split()) > 1 else '')
+                        script = """DSC_STEP_ID__ = '{3}'\n{0}\n{1}\n{2}""".\
+                                 format(script_begin, '\n'.join(cmd_text), script_end, cmd_md5)
+                        self.action += script
+                    else:
+                        executable(cmd.split()[0])
+                        self.action += cmd
+
+        def dump(self):
+            return '\n'.join([x for x in
+                              [self.header,
+                               self.param_string,
+                               ' '.join([self.input_string,
+                                         (', ' if self.input_string != 'input:' else '') + ', '.join(self.input_option)])
+                               if not self.prepare else self.input_string,
+                               self.output_string,
+                               self.step_option,
+                               self.action]
+                              if x])

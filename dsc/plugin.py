@@ -43,7 +43,7 @@ function(x, y, ...)
 '''
 
 class BasePlug:
-    def __init__(self, name = None, identifier = ''):
+    def __init__(self, name = 'run', identifier = ''):
         self.name = name
         self.identifier = 'DSC_{}'.format(identifier.upper())
         self.reset()
@@ -87,7 +87,7 @@ class BasePlug:
 
 class Shell(BasePlug):
     def __init__(self, identifier = ''):
-        super().__init__(name = 'Shell', identifier = identifier)
+        super().__init__(name = 'run', identifier = identifier)
 
     def reset(self):
         self.container = []
