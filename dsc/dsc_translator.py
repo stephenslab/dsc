@@ -196,6 +196,7 @@ class DSC_Translator:
                     self.loop_string += ' for __i in chunks({}, {})'.format(self.input_vars, len(depend_steps))
             else:
                 if len(depend_steps):
+                    self.input_string += "depends: IO_DB[sequence_id]['{}']['input']\n".format(self.name)
                     self.input_string += "input: dynamic(IO_DB[sequence_id]['{}']['input'])".format(self.name)
                     self.input_option.append('group_by = {}'.format(len(depend_steps)))
                 else:
