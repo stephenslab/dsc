@@ -67,6 +67,7 @@ class DSC_Translator:
         for workflow_id, sequence in enumerate(runtime.sequence):
             sequence, step_ids = sequence
             for step_id in step_ids:
+                # Configuration
                 rsqn = ['{}_{}'.format(x, y + 1)
                         if '{}_{}'.format(x, y + 1) not in self.step_map[workflow_id]
                         else self.step_map[workflow_id]['{}_{}'.format(x, y + 1)]
@@ -80,8 +81,13 @@ class DSC_Translator:
                                      '+'.join(['prepare_{}'.format(x) for x in sqn]),
                                      repr(provides_files)))
                 io_info_files.extend(provides_files)
-                job_str.append("[DSC_{0} ({3})]\ninput: None\nsos_run('{2}', {1})".\
-                              format(i, "sequence_id = '{}'".format(i), '+'.join(sqn), "DSC sequence {}".format(i)))
+                # Execution
+                for x, y in zip(rsqn, sqn):
+                    job_str.append("[{0}_{1}: provides = IO_DB['{1}']['{0}']['output']]".format(x, i))
+                    job_str.append("parameter: input_files = IO_DB['{1}']['{0}']['input']".format(x, i))
+                    job_str.append("depends: input_files")
+                    job_str.append("sos_run('core_{2}', output_files = IO_DB['{1}']['{0}']['output']"\
+                                   ", input_files = input_files)".format(x, i, y))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + '\n'.join(job_str)
@@ -89,6 +95,7 @@ class DSC_Translator:
                          "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
                          "\nbuild_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs = {3})".\
                          format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
+        self.job_str += "\n[DSC]\ndepends: set(sum(sum(sum([[[IO_DB[x][y][z] for z in IO_DB[x][y]] for y in IO_DB[x]] for x in IO_DB], []), []), []))"
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
         #
@@ -161,10 +168,9 @@ class DSC_Translator:
                 self.header += "input: None\noutput: '.sos/.dsc/{}.{{}}_{}.mpk'.format(sequence_id)".\
                                format(self.db, self.name)
             else:
-                self.header = "[{0} ({1}): provides = IO_DB[sequence_id]['{0}']['output']]\n".\
+                self.header = "[core_{0} ({1})]\n".\
                                format(self.name, self.step.name)
-                self.header += "parameter: sequence_id = None\n"
-                self.header += "output_files = IO_DB[sequence_id]['{}']['output']".format(self.name)
+                self.header += "parameter: output_files = []"
                 # FIXME: using [step.exe] for now as super step has not yet been ported over
 
         def get_parameters(self):
@@ -196,8 +202,7 @@ class DSC_Translator:
                     self.loop_string += ' for __i in chunks({}, {})'.format(self.input_vars, len(depend_steps))
             else:
                 if len(depend_steps):
-                    self.input_string += "depends: IO_DB[sequence_id]['{}']['input']\n".format(self.name)
-                    self.input_string += "input: dynamic(IO_DB[sequence_id]['{}']['input'])".format(self.name)
+                    self.input_string += "parameter: input_files = []\ninput: dynamic(input_files)".format(self.name)
                     self.input_option.append('group_by = {}'.format(len(depend_steps)))
                 else:
                     self.input_string += "input:"

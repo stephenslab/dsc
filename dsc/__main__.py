@@ -61,7 +61,6 @@ def dsc_run(args, content, workflows = ['DSC'], verbosity = 1, queue = None, is_
             sys.exit(1)
     env.verbosity = args.verbosity
 
-
 def remove(workflows, steps, db, force, debug):
     filename = os.path.basename(db) + '.rds'
     if not os.path.isfile(filename):
