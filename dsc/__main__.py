@@ -14,8 +14,6 @@ from dsc.dsc_translator import DSC_Translator
 from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
 from .utils import get_slice, load_rds, flatten_list, workflow2html, dsc2html, dotdict, Timer
 from sos.sos_script import SoS_Script
-from sos.sos_executor import Base_Executor, MP_Executor
-from sos.rq.sos_executor import RQ_Executor
 from sos.converter import script_to_html
 from . import VERSION
 
@@ -26,7 +24,7 @@ def sos2html(sos_files, html_files):
         script_to_html(x, y)
     env.verbosity = verbosity
 
-def dsc_run(args, content, workflows = ['DSC'], verbosity = 1, queue = None, is_prepare = False):
+def dsc_run(args, content, workflows = ['DSC'], dag = None, verbosity = 1, queue = None, is_prepare = False):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__
     # kill all remaining processes when the master process is killed.
@@ -40,19 +38,32 @@ def dsc_run(args, content, workflows = ['DSC'], verbosity = 1, queue = None, is_
         # Do not use progressbar for single CPU job
         # For better debugging
         env.verbosity = 2
-    if queue is None and env.max_jobs == 1:
-        # single process executor
-        executor_class = Base_Executor
-    elif queue is None:
-        executor_class = MP_Executor
+    if queue:
+        # import all executors
+        executor_class = None
+        for entrypoint in pkg_resources.iter_entry_points(group='sos_executors'):
+            # Grab the function that is the actual plugin.
+            name = entrypoint.name
+            if name == queue:
+                try:
+                    executor_class = entrypoint.load()
+                except Exception as e:
+                    print('Failed to load queue executor {}: {}'.format(entrypoint.name, e))
+
+        if not executor_class:
+            sys.exit('Could not locate specified queue executor {}'.format(queue))
     else:
-        executor_class = RQ_Executor
+        from sos.sos_executor import Base_Executor, MP_Executor
+        if env.max_jobs == 1:
+            executor_class = Base_Executor
+        else:
+            executor_class = MP_Executor
     script = SoS_Script(content=content, transcript = None)
     for w in workflows:
         workflow = script.workflow(w)
         try:
             executor = executor_class(workflow, args = None,
-                                      config = {'output_dag': args.__dag__})
+                                      config = {'output_dag': dag})
             executor.run()
         except Exception as e:
             if verbosity and verbosity > 2:
@@ -126,7 +137,6 @@ def execute(args):
     db = script.runtime.output
     db_name = os.path.basename(db)
     db_dir = os.path.dirname(db)
-    args.__dag__ = '.sos/.dsc/{}.dag'.format(db_name)
     if db_dir:
         os.makedirs(db_dir, exist_ok = True)
     workflow = DSC_Analyzer(script)
@@ -154,14 +164,18 @@ def execute(args):
     # 5. Prepare
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, pipeline.conf_str, workflows = ['INIT', 'BUILD'], verbosity = 0, is_prepare = True)
+    dsc_run(args, pipeline.conf_str, workflows = ['INIT', 'BUILD'], dag = None, verbosity = 0, is_prepare = True)
+    # 6. Run
+    pipeline.filter_execution()
+    if args.verbosity > 3:
+        sos2html((pipeline.write_pipeline(2),), ('.sos/.dsc/{}.run.html'.format(db_name),))
     if args.__dryrun__:
         return
-    # 6. Run
     env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
-    if os.path.isfile(env.logfile): os.remove(env.logfile)
+    if os.path.isfile(env.logfile):
+        os.remove(env.logfile)
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
-    dsc_run(args, pipeline.job_str,
+    dsc_run(args, pipeline.job_str, dag = '.sos/.dsc/{}.dag'.format(db_name),
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
             queue = queue)
     # 7. Construct meta database

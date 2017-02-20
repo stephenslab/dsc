@@ -6,9 +6,9 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import re, os, datetime
+import re, os, datetime, msgpack, hashlib, pickle
 from sos.target import fileMD5, textMD5, executable
-from .utils import flatten_list, uniq_list, dict2str, install_r_libs, install_py_modules
+from .utils import OrderedDict, flatten_list, uniq_list, dict2str, install_r_libs, install_py_modules
 from .plugin import R_LMERGE, R_SOURCE
 
 
@@ -41,7 +41,10 @@ class DSC_Translator:
         processed_steps = {}
         conf_str = []
         job_str = []
-        self.step_map = {} # name map for steps
+        # name map for steps
+        self.step_map = {}
+        # Execution steps, unfiltered
+        self.job_pool = OrderedDict()
         # Get workflow steps
         for workflow_id, workflow in enumerate(workflows):
             self.step_map[workflow_id] = {}
@@ -64,15 +67,16 @@ class DSC_Translator:
         # Get workflows executions
         i = 1
         io_info_files = []
+        final_step_label = []
         for workflow_id, sequence in enumerate(runtime.sequence):
             sequence, step_ids = sequence
             for step_id in step_ids:
-                # Configuration
                 rsqn = ['{}_{}'.format(x, y + 1)
                         if '{}_{}'.format(x, y + 1) not in self.step_map[workflow_id]
                         else self.step_map[workflow_id]['{}_{}'.format(x, y + 1)]
                         for x, y in zip(sequence, step_id)]
                 sqn = [replace_right(x, '_', ':', 1) for x in rsqn]
+                # Configuration
                 provides_files = ['.sos/.dsc/{}.{}.mpk'.\
                                   format(self.db, '_'.join((str(i), x))) for x in rsqn]
                 conf_str.append("[INIT_{0}]\ninput: None\nsos_run('{2}', {1})".\
@@ -81,13 +85,15 @@ class DSC_Translator:
                                      '+'.join(['prepare_{}'.format(x) for x in sqn]),
                                      repr(provides_files)))
                 io_info_files.extend(provides_files)
-                # Execution
+                # Execution pool
                 for x, y in zip(rsqn, sqn):
-                    job_str.append("[{0}_{1}: provides = IO_DB['{1}']['{0}']['output']]".format(x, i))
-                    job_str.append("parameter: input_files = IO_DB['{1}']['{0}']['input']".format(x, i))
-                    job_str.append("depends: input_files")
-                    job_str.append("sos_run('core_{2}', output_files = IO_DB['{1}']['{0}']['output']"\
-                                   ", input_files = input_files)".format(x, i, y))
+                    tmp_str = []
+                    tmp_str.append("[{0}_{1}s: provides = IO_DB['{1}']['{0}']['output']]".format(x, i))
+                    tmp_str.append("depends: IO_DB['{1}']['{0}']['input']".format(x, i))
+                    tmp_str.append("sos_run('core_{2}', output_files = IO_DB['{1}']['{0}']['output']"\
+                                   ", input_files = IO_DB['{1}']['{0}']['input'])".format(x, i, y))
+                    self.job_pool[(i, x)] = '\n'.join(tmp_str)
+                final_step_label.append((str(i), x))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + '\n'.join(job_str)
@@ -95,7 +101,8 @@ class DSC_Translator:
                          "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
                          "\nbuild_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs = {3})".\
                          format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
-        self.job_str += "\n[DSC]\ndepends: set(sum(sum(sum([[[IO_DB[x][y][z] for z in IO_DB[x][y]] for y in IO_DB[x]] for x in IO_DB], []), []), []))"
+        self.job_str += "\n[DSC]\ndepends: set(sum([IO_DB[x[0]][x[1]]['output'] for x in {}], []))".\
+                        format(repr(final_step_label))
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
         #
@@ -114,6 +121,19 @@ class DSC_Translator:
         with open(output, 'w') as f:
             f.write('\n'.join(res))
         return output
+
+    def filter_execution(self):
+        '''Filter steps removing the ones having common input and output'''
+        def get_md5(data):
+            return hashlib.md5(pickle.dumps(data)).hexdigest()
+        IO_DB = msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'.format(self.db), 'rb').\
+                                 read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
+        seen = []
+        for x in self.job_pool:
+            md5 = get_md5(IO_DB[str(x[0])][x[1]]['output'])
+            if md5 not in seen:
+                seen.append(md5)
+                self.job_str += '\n{}'.format(self.job_pool[x])
 
     def install_libs(self, libs, lib_type, force = False):
         if lib_type not in ["R_library", "Python_Module"]:
