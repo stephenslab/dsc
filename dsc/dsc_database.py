@@ -38,6 +38,7 @@ def remove_obsolete_db(fid, additional_files = []):
                             "targets": to_remove, "__dryrun__": False,
                             "__confirm__": True, "signature": False, "verbosity": 0}), [])
 
+
 def load_mpk(mpk_files, jobs):
     d = Manager().dict()
     def f(d, x):
@@ -70,6 +71,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
             for k1 in data[k]:
                 if k1 == "DSC_IO_" or k1 == "DSC_EXT_":
                     continue
+                print(k1)
                 prefix = [x.split(':', 1)[0] for x in k1.split()]
                 prefix.append(prefix.pop(0))
                 suffix = [x.split(':', 1)[1] for x in k1.split()]
@@ -78,11 +80,14 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                 for x, y in zip(prefix, suffix):
                     if x not in lookup:
                         lookup[x] = []
-                    lookup[x].append(y.split(':', 1)[0])
+                    if y.split(':', 1)[0] not in lookup[x]:
+                        lookup[x].append(y.split(':', 1)[0])
         # 2. append index to the [prefix, suffix] list so it becomes list of [prefix, suffix, index]
         for x, y in enumerate(names):
             names[x].append([lookup[xx].index(yy.split(':', 1)[0]) + 1 for xx, yy in zip(y[0], y[1])])
         # 3. construct names
+        print(lookup)
+        print(names)
         return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
                             '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
                             '.{}'.format(data[k]["DSC_EXT_"])) for x in names]))
@@ -119,6 +124,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                                      for item in data[k]['DSC_IO_'][1]]
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
+
 
 class ResultDBError(Error):
     """Raised when there is a problem building the database."""
@@ -294,7 +300,8 @@ class ResultDB:
 class ResultAnnotator:
     def __init__(self, ann_file, ann_table, dsc_data):
         '''Load master table to be annotated and annotation contents'''
-        data = load_rds(dsc_data['DSC']['output'][0] + '.rds')
+        self.dsc = dsc_data
+        data = load_rds(self.dsc.runtime.output + '.rds')
         self.data = {k : pd.DataFrame(v) for k, v in data.items() if k != '.dscsrc'}
         if ann_table is not None:
             self.master = ann_table if ann_table.startswith('master_') else 'master_{}'.format(ann_table)
@@ -312,7 +319,6 @@ class ResultAnnotator:
         self.ann = yaml.load(open(ann_file))
         if self.ann is None:
             raise ValueError("Annotation file ``{}`` does not contain proper annotation information!".format(ann_file))
-        self.dsc = dsc_data
         self.msg = []
 
     def ConvertAnnToQuery(self):
@@ -352,7 +358,7 @@ class ResultAnnotator:
                 else:
                     # we take that all sub tables in this block is involved
                     # and we look for these tables in DSC data
-                    subtables = [x[0] for x in self.dsc[block]['meta']['exec']]
+                    subtables = [x.name for x in self.dsc.blocks[block].steps]
                 # get query
                 block_query = []
                 for k1 in self.ann[tag][block]:
@@ -446,12 +452,12 @@ class ResultAnnotator:
                         res[k] = get_output(k, target_id)['return'].tolist()
             return res
         #
-        self.result = OrderedDict() 
+        self.result = OrderedDict()
         for tag in self.queries:
             self.result[tag] = OrderedDict()
             for queries in self.queries[tag]:
                 self.result[tag] = extend_dict(self.result[tag], run_query(queries))
-        open(os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.tags'.format(self.master[7:])), "wb").\
+        open(os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.tags'.format(self.master[7:])), "wb").\
             write(msgpack.packb(self.result))
 
     def ShowQueries(self, verbosity):
@@ -473,16 +479,14 @@ class ResultAnnotator:
         # Get available var menu
         var_menu = []
         lask_blocks = [k[7:] for k in self.data if k.startswith('master_')]
-        for block in self.dsc:
-            if block == 'DSC' or (block in lask_blocks and block != self.master[7:]):
+        for block in self.dsc.blocks:
+            if block in lask_blocks and block != self.master[7:]:
                 continue
-            if isinstance(self.dsc[block]['out'], dict):
-                # must be alias. need to handle here
-                self.dsc[block]['out'] = list(set([x.split('=')[0].strip() for x in flatten_list([y for x, y in self.dsc[block]['out'].items()])]))
-            for item in self.dsc[block]['out']:
-                var_menu.append('{}:{}'.format(block, item.split('=')[0].strip()))
+            # FIXME: Here assuming all steps have the same output variables
+            for item in set(flatten_list([list(step.rv.keys()) for step in self.dsc.blocks[block].steps])):
+                var_menu.append('{}:{}'.format(block, item))
         res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu)}
-        save_rds(res, os.path.join('.sos/.dsc', self.dsc['DSC']['output'][0] + '.{}.shinymeta.rds'.format(self.master[7:])))
+        save_rds(res, os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.shinymeta.rds'.format(self.master[7:])))
 
 
 EXTRACT_RDS_R = '''

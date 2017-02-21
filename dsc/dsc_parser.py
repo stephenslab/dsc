@@ -136,7 +136,7 @@ class DSC_Script:
     def dump(self):
         res = OrderedDict([('Blocks', self.blocks),
                            ('DSC', OrderedDict([("Sequence", self.runtime.sequence),
-                                                      ("Ordering", self.runtime.sequence_ordering)]))])
+                                                ("Ordering", [(x, y) for x, y in self.runtime.sequence_ordering.items()])]))])
         return res
 
     def __str__(self):

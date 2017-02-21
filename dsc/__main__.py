@@ -6,6 +6,7 @@ __license__ = "MIT"
 
 import os, sys, atexit, re, glob, argparse
 from collections import OrderedDict
+import pkg_resources
 from sos.utils import env, get_traceback
 from sos.__main__ import cmd_remove
 from dsc.dsc_parser import DSC_Script
@@ -15,6 +16,7 @@ from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
 from .utils import get_slice, load_rds, flatten_list, workflow2html, dsc2html, dotdict, Timer
 from sos.sos_script import SoS_Script
 from sos.converter import script_to_html
+from sos.sos_executor import Base_Executor, MP_Executor
 from . import VERSION
 
 def sos2html(sos_files, html_files):
@@ -53,7 +55,6 @@ def dsc_run(args, content, workflows = ['DSC'], dag = None, verbosity = 1, queue
         if not executor_class:
             sys.exit('Could not locate specified queue executor {}'.format(queue))
     else:
-        from sos.sos_executor import Base_Executor, MP_Executor
         if env.max_jobs == 1:
             executor_class = Base_Executor
         else:
@@ -164,7 +165,8 @@ def execute(args):
     # 5. Prepare
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
-    dsc_run(args, pipeline.conf_str, workflows = ['INIT', 'BUILD'], dag = None, verbosity = 0, is_prepare = True)
+    dsc_run(args, pipeline.conf_str, workflows = ['INIT', 'BUILD'], dag = None,
+            verbosity = args.verbosity if args.__dryrun__ else 0, is_prepare = True)
     # 6. Run
     pipeline.filter_execution()
     if args.verbosity > 3:
@@ -193,7 +195,7 @@ def annotate(args):
         dsc_file = args.annotation[0].rsplit('.', 1)[0] + '.dsc'
     if not os.path.isfile(dsc_file):
         raise ValueError('DSC script ``{}`` does not exist. Please specify it via ``-a annotation_file script_file``'.format(dsc_file))
-    dsc_data = DSCData(dsc_file, check_rlibs = False, check_pymodules = False, output = args.output)
+    dsc_data = DSC_Script(dsc_file, sequence = args.sequence, output = args.output)
     ann = ResultAnnotator(args.annotation[0], args.master, dsc_data)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()

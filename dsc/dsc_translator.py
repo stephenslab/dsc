@@ -89,7 +89,8 @@ class DSC_Translator:
                 for x, y in zip(rsqn, sqn):
                     tmp_str = []
                     tmp_str.append("[{0}_{1}s: provides = IO_DB['{1}']['{0}']['output']]".format(x, i))
-                    tmp_str.append("depends: IO_DB['{1}']['{0}']['input']".format(x, i))
+                    tmp_str.append("depends: IO_DB['{1}']['{0}']['input']\n"\
+                                   "output:IO_DB['{1}']['{0}']['output'] ".format(x, i))
                     tmp_str.append("sos_run('core_{2}', output_files = IO_DB['{1}']['{0}']['output']"\
                                    ", input_files = IO_DB['{1}']['{0}']['input'])".format(x, i, y))
                     self.job_pool[(i, x)] = '\n'.join(tmp_str)
