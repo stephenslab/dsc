@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import re, os, datetime, msgpack, hashlib, pickle
+import re, os, datetime, msgpack
 from sos.target import fileMD5, textMD5, executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, install_r_libs, install_py_modules
 from .plugin import R_LMERGE, R_SOURCE
@@ -93,7 +93,7 @@ class DSC_Translator:
                                    "output:IO_DB['{1}']['{0}']['output'] ".format(x, i))
                     tmp_str.append("sos_run('core_{2}', output_files = IO_DB['{1}']['{0}']['output']"\
                                    ", input_files = IO_DB['{1}']['{0}']['input'])".format(x, i, y))
-                    self.job_pool[(i, x)] = '\n'.join(tmp_str)
+                    self.job_pool[(str(i), x)] = '\n'.join(tmp_str)
                 final_step_label.append((str(i), x))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
@@ -125,15 +125,10 @@ class DSC_Translator:
 
     def filter_execution(self):
         '''Filter steps removing the ones having common input and output'''
-        def get_md5(data):
-            return hashlib.md5(pickle.dumps(data)).hexdigest()
         IO_DB = msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'.format(self.db), 'rb').\
                                  read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
-        seen = []
         for x in self.job_pool:
-            md5 = get_md5(IO_DB[str(x[0])][x[1]]['output'])
-            if md5 not in seen:
-                seen.append(md5)
+            if x[0] in IO_DB and x[1] in IO_DB[x[0]]:
                 self.job_str += '\n{}'.format(self.job_pool[x])
 
     def install_libs(self, libs, lib_type, force = False):

@@ -580,7 +580,7 @@ class DSC_Section:
             else:
                 for item in idx:
                     if item not in sequences[sequence]:
-                        sequences.sequence.append(item)
+                        sequences[sequence].append(item)
         self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
 
     def __str__(self):

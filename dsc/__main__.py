@@ -177,6 +177,7 @@ def execute(args):
     if os.path.isfile(env.logfile):
         os.remove(env.logfile)
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
+    env.logger.info("Building execution graph ...")
     dsc_run(args, pipeline.job_str, dag = '.sos/.dsc/{}.dag'.format(db_name),
             verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
             queue = queue)

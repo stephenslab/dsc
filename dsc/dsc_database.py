@@ -64,13 +64,23 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
     - create conf file based on map file and io file
     '''
     def get_names(data):
+        '''Get map names. Also dedup data object'''
         names = OrderedDict()
         lookup = {}
+        seen = set()
         # 1. collect exec names and ID
-        for k in data:
+        for k in list(data.keys()):
             for k1 in data[k]:
-                if k1 == "DSC_IO_" or k1 == "DSC_EXT_":
+                if k1 == "DSC_EXT_":
                     continue
+                if k1 == "DSC_IO_":
+                    tmp_output = tuple(sorted(data[k][k1][1]))
+                    if tmp_output in seen:
+                        del data[k]
+                        break
+                    else:
+                        seen.add(tmp_output)
+                        continue
                 k1 = k1.split()[0]
                 # names[k1] example:
                 # [('rcauchy.R', '71c60831e6ac5e824cb845171bd19933'),
@@ -105,7 +115,8 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
         map_data = OrderedDict()
     data = load_mpk(input_files, jobs)
     open(io_db, "wb").write(msgpack.packb(data))
-    update_map(get_names(data))
+    map_names = get_names(data)
+    update_map(map_names)
     # remove *.conf.mpk extension
     fid = os.path.basename(conf_db)[:-9]
     conf = OrderedDict()
