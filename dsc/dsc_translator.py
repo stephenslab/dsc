@@ -86,14 +86,17 @@ class DSC_Translator:
                                      repr(provides_files)))
                 io_info_files.extend(provides_files)
                 # Execution pool
+                ii = 1
                 for x, y in zip(rsqn, sqn):
                     tmp_str = []
-                    tmp_str.append("[{0}_{1}s: provides = IO_DB['{1}']['{0}']['output']]".format(x, i))
-                    tmp_str.append("depends: IO_DB['{1}']['{0}']['input']\n"\
-                                   "output:IO_DB['{1}']['{0}']['output'] ".format(x, i))
+                    tmp_str.append("[{0}_{1}s: provides = IO_DB['{1}']['{0}']['output'][0]]".format(x, i))
+                    if ii > 1:
+                        tmp_str.append("depends: IO_DB['{1}']['{0}']['input'][0]".format(x, i))
+                    tmp_str.append("output:IO_DB['{1}']['{0}']['output']".format(x, i))
                     tmp_str.append("sos_run('core_{2}', output_files = IO_DB['{1}']['{0}']['output']"\
                                    ", input_files = IO_DB['{1}']['{0}']['input'])".format(x, i, y))
                     self.job_pool[(str(i), x)] = '\n'.join(tmp_str)
+                    ii += 1
                 final_step_label.append((str(i), x))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
@@ -102,8 +105,7 @@ class DSC_Translator:
                          "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
                          "\nbuild_config_db(input, output[0], output[1], output[2], vanilla = vanilla, jobs = {3})".\
                          format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
-        self.job_str += "\n[DSC]\ndepends: set(sum([IO_DB[x[0]][x[1]]['output'] for x in {}], []))".\
-                        format(repr(final_step_label))
+        self.job_str += "\n[DSC]\ndepends: [IO_DB[x[0]][x[1]]['output'][0] for x in {}]".format(repr(final_step_label))
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
         #
