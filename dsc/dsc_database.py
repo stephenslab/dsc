@@ -10,11 +10,12 @@ import numpy as np
 from sos.utils import Error
 from sos.__main__ import cmd_remove
 from .utils import load_rds, save_rds, \
-     flatten_list, no_duplicates_constructor, \
+     flatten_list, uniq_list, no_duplicates_constructor, \
      cartesian_list, extend_dict, dotdict, chunks
 from multiprocessing import Process, Manager
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
+
 
 def remove_obsolete_db(fid, additional_files = []):
     map_db = '.sos/.dsc/{}.map.mpk'.format(fid)
@@ -62,36 +63,32 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
     - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
     - create conf file based on map file and io file
     '''
-
     def get_names(data):
-        names = []
+        names = OrderedDict()
         lookup = {}
         # 1. collect exec names and ID
         for k in data:
             for k1 in data[k]:
                 if k1 == "DSC_IO_" or k1 == "DSC_EXT_":
                     continue
-                print(k1)
-                prefix = [x.split(':', 1)[0] for x in k1.split()]
-                prefix.append(prefix.pop(0))
-                suffix = [x.split(':', 1)[1] for x in k1.split()]
-                suffix.append(suffix.pop(0))
-                names.append([prefix, suffix])
-                for x, y in zip(prefix, suffix):
-                    if x not in lookup:
-                        lookup[x] = []
-                    if y.split(':', 1)[0] not in lookup[x]:
-                        lookup[x].append(y.split(':', 1)[0])
-        # 2. append index to the [prefix, suffix] list so it becomes list of [prefix, suffix, index]
-        for x, y in enumerate(names):
-            names[x].append([lookup[xx].index(yy.split(':', 1)[0]) + 1 for xx, yy in zip(y[0], y[1])])
-        # 3. construct names
-        print(lookup)
-        print(names)
-        return sorted(set([('{}:{}'.format(x[0][-1], x[1][-1]),
-                            '_'.join(['{}_{}'.format(xx, yy) for xx, yy in zip(x[0], x[2])]) + \
-                            '.{}'.format(data[k]["DSC_EXT_"])) for x in names]))
-
+                k1 = k1.split()[0]
+                # names[k1] example:
+                # [('rcauchy.R', '71c60831e6ac5e824cb845171bd19933'),
+                # ('mean.R', 'dfb0dd672bf5d91dd580ac057daa97b9'),
+                # ('MSE.R', '0657f03051e0103670c6299f9608e939')]
+                names[k1] = uniq_list(reversed([x for x in chunks(k1.split(":"), 2)]))
+                for x in names[k1]:
+                    if x[0] not in lookup:
+                        lookup[x[0]] = []
+                    if x[1] not in lookup[x[0]]:
+                        lookup[x[0]].append(x[1])
+                names[k1].append(data[k]["DSC_EXT_"])
+        # 2. replace the UUID of executable environment with a unique index
+        for k in names:
+            names[k] = [[x[0], str(lookup[x[0]].index(x[1]) + 1)] for x in names[k][:-1]] + [names[k][-1]]
+        # 3. construct name map
+        return sorted(set([(k, '_'.join(flatten_list(names[k][:-1])) + \
+                            '.{}'.format(names[k][-1])) for k in names]))
 
     def update_map(files):
         '''Update maps and write to disk'''
@@ -131,6 +128,7 @@ class ResultDBError(Error):
     def __init__(self, msg):
         Error.__init__(self, msg)
         self.args = (msg, )
+
 
 class ResultDB:
     def __init__(self, db_name, master_names):

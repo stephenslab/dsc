@@ -168,7 +168,7 @@ def flatten_dict(d, mapping = dict):
 def uniq_list(seq):
     seen = set()
     seen_add = seen.add
-    return [x for x in seq if not (x in seen or seen_add(x))]
+    return [x for x in seq if not (repr(x) in seen or seen_add(repr(x)))]
 
 def merge_lists(seq1, seq2):
     '''
