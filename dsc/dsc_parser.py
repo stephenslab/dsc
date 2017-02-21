@@ -254,8 +254,7 @@ class DSC_Step:
                     if groups.group(1).lower() != str(self.plugin):
                         raise FormatError('Return alias cannot be created with ``{}`` for this computational routine.'.\
                                           format(groups.group(1)))
-                    self.plugin.add_return(item[0], groups.group(2))
-                    self.rv[item[0]] = 'FROM DICT/LIST'
+                    self.rv[item[0]] = groups.group(2)
                 else:
                     self.rv[item[0]] = item[1]
 

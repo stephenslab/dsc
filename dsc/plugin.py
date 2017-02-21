@@ -51,7 +51,6 @@ class BasePlug:
     def reset(self):
         self.container = []
         self.container_vars = []
-        self.return_alias = []
         self.input_alias = []
         self.tempfile = []
 
@@ -81,7 +80,6 @@ class BasePlug:
             ('ID', self.identifier),
             ('container', self.container),
                 ('container variables', self.container_vars),
-                ('return alias', self.return_alias),
                 ('input_alias', self.input_alias),
                 ('temp file', self.tempfile)])
 
@@ -92,7 +90,6 @@ class Shell(BasePlug):
     def reset(self):
         self.container = []
         self.container_vars = []
-        self.return_alias = []
         self.input_alias = []
         self.tempfile = []
 
@@ -140,9 +137,6 @@ class RPlug(BasePlug):
             temp_var = ['paste0(TMP_{0}, "/", basename("${{_output}}.{1}.{2}"))'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
-
-    def add_return(self, lhs, rhs):
-        self.return_alias.append('{} <- {}'.format(lhs, rhs))
 
     def get_input(self, params, input_num, lib, index, cmd_args):
         if lib is not None:
@@ -199,9 +193,8 @@ class RPlug(BasePlug):
         return res
 
     def get_return(self, output_vars):
-        res = '\n'.join(self.return_alias)
-        res += '\nsaveRDS(list({}), ${{_output!r}})'.\
-          format(', '.join(['{0}={0}'.format(x) if not isinstance(x, tuple) else '{0}={1}'.format(x[0], x[1]) for x in output_vars]))
+        res = '\nsaveRDS(list({}), ${{_output!r}})'.\
+          format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars]))
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -245,9 +238,6 @@ class PyPlug(BasePlug):
             temp_var = ['os.path.join(TMP_{0}, os.path.basename("${{_output}}.{1}.{2}"))'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
-
-    def add_return(self, lhs, rhs):
-        self.return_alias.append('{} = {}'.format(lhs, rhs))
 
     def get_input(self, params, input_num, lib, index, cmd_args):
         res = 'import sys, os, tempfile'
@@ -303,9 +293,8 @@ class PyPlug(BasePlug):
         return res
 
     def get_return(self, output_vars):
-        res = '\n'.join(self.return_alias)
-        res += '\nsave_rds({{{}}}, ${{_output!r}})'.\
-          format(', '.join(['"{0}": {0}'.format(x) if not isinstance(x, tuple) else '"{0}": {1}'.format(x[0], x[1]) for x in output_vars]))
+        res = '\nsave_rds({{{}}}, ${{_output!r}})'.\
+          format(', '.join(['"{}": {1}'.format(x, output_vars[x]) for x in output_vars]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 
