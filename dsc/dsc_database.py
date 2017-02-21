@@ -107,6 +107,19 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                 map_data[item[0]] = item[1]
         open(map_db, "wb").write(msgpack.packb(map_data))
 
+
+    def find_representative(files):
+        '''Input files are exec1:id1:exec2:id2:exec3:id3:....rds
+        need to return a list of non-random representative files having unique pattern
+        '''
+        seen = set()
+        res = []
+        for fn in files:
+            keys = tuple([x[0] for x in chunks(fn.split(":"), 2)])
+            if keys not in seen:
+                res.append(fn)
+                seen.add(keys)
+        return res
     #
     if os.path.isfile(map_db) and not vanilla:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
@@ -130,6 +143,10 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                                     for item in data[k]['DSC_IO_'][0]]
         conf[sid][name]['output'] = [os.path.join(fid, map_data[item]) \
                                      for item in data[k]['DSC_IO_'][1]]
+        conf[sid][name]['input_repr'] = [os.path.join(fid, map_data[item]) \
+                                         for item in find_representative(data[k]['DSC_IO_'][0])]
+        conf[sid][name]['output_repr'] = [os.path.join(fid, map_data[item]) \
+                                          for item in find_representative(data[k]['DSC_IO_'][1])]
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
 
