@@ -35,9 +35,9 @@ def remove_obsolete_db(fid, additional_files = []):
         if not os.path.isfile(x):
             to_remove.append(x)
     if len(to_remove):
-        cmd_remove(dotdict({"tracked": False, "untracked": False,
+        cmd_remove(dotdict({"tracked": True, "untracked": True,
                             "targets": to_remove, "__dryrun__": False,
-                            "__confirm__": True, "signature": False, "verbosity": 0}), [])
+                            "__confirm__": True, "signature": True, "verbosity": 0}), [])
 
 
 def load_mpk(mpk_files, jobs):
@@ -106,7 +106,6 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
             if item[0] not in map_data:
                 map_data[item[0]] = item[1]
         open(map_db, "wb").write(msgpack.packb(map_data))
-
 
     def find_representative(files):
         '''Input files are exec1:id1:exec2:id2:exec3:id3:....rds
@@ -180,7 +179,7 @@ class ResultDB:
             raise ResultDBError("DSC file name database is corrupted!")
 
     def load_parameters(self):
-
+        #
         def search_dependent_index(x):
             res = None
             for ii, kk in enumerate(data.keys()):
@@ -281,7 +280,6 @@ class ResultDB:
                 raise ResultDBError('Cannot find step_id ``{}`` in any tables!'.format(depend_id))
             self.__get_sequence(step, depend_id, idx, res)
 
-
     def write_master_table(self, block):
         '''
         Create a master table in DSCR flavor. Columns are:
@@ -307,7 +305,6 @@ class ResultDB:
             header = data[key].pop(0)
             data[key] = pd.DataFrame(data[key], columns = header)
         return pd.concat([data[key] for key in data], ignore_index = True)
-
 
     def Build(self, script = None):
         self.load_parameters()
