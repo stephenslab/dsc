@@ -93,7 +93,7 @@ class DSC_Translator:
                 ii = 1
                 for x, y in zip(rsqn, sqn):
                     tmp_str = []
-                    tmp_str.append("[{0}_{1}s: provides = IO_DB['{1}']['{0}']['output_repr']]".format(x, i))
+                    tmp_str.append("[{0}{1}: provides = IO_DB['{1}']['{0}']['output_repr']]".format(x, i))
                     tmp_str.append("parameter: script_signature = {}".format(repr(exe_signatures[x])))
                     if ii > 1:
                         tmp_str.append("depends: IO_DB['{1}']['{0}']['input_repr']".format(x, i))
@@ -316,7 +316,7 @@ class DSC_Translator:
                             cmd_text = ["suppressMessages({})".format(x.strip())
                                         if re.search(r'^(library|require)\((.*?)\)$', x.strip())
                                         else x for x in cmd_text]
-                        script = """DSC_STEP_ID__ = ${{DSC_STEP_ID_!r}}\n{0}\n{1}\n{2}""".\
+                        script = """## Step UUID: ${{DSC_STEP_ID_!r}}\n{0}\n{1}\n{2}""".\
                                  format(script_begin, '\n'.join(cmd_text), script_end)
                         self.action += script
                         self.exe_signature.append(fileMD5(self.step.exe.split()[0], partial = False)
