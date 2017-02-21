@@ -129,9 +129,6 @@ def execute(args):
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.sequence).split())))
-    # Force rerun if trace of existing project cannot be found and not in recover mode
-    if not os.path.isdir('.sos/.dsc') and not args.__construct__:
-        args.__rerun__ = True
     os.makedirs('.sos/.dsc', exist_ok = True)
     # 2. Parse DSC script
     script = DSC_Script(args.dsc_file, sequence = args.sequence, output = args.output)

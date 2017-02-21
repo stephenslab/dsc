@@ -1,9 +1,9 @@
 simulate:
     exec: rnorm.R, rt.R
-    seed: R(1:10)
+    seed: R(1:2)
     params:
         n: 1000
-        true_mean: 0, 1
+        true_mean: 0, 1 
     return: x, true_mean
 
 estimate:
@@ -20,8 +20,8 @@ mse:
     return: mse
 
 DSC:
-    run: simulate *
-         estimate *
+    run: simulate[1] *
+         estimate[1] *
          mse
     exec_path: R/scenarios, R/methods, R/scores
     output: dsc_result

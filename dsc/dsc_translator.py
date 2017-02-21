@@ -203,10 +203,10 @@ class DSC_Translator:
             # Set params, make sure each time the ordering is the same
             self.params = list(self.step.p.keys())
             for key in self.params:
-                self.param_string += '{} = {}\n'.format(key, repr(self.step.p[key]))
+                self.param_string += 'parameter: {} = {}\n'.format(key, repr(self.step.p[key]))
             if self.step.seed:
                 self.params.append('seed')
-                self.param_string += 'seed = {}'.format(repr(self.step.seed))
+                self.param_string += 'parameter: seed = {}'.format(repr(self.step.seed))
             if self.params:
                 self.loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(self.params)])
 
