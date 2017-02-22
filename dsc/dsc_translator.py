@@ -146,14 +146,15 @@ class DSC_Translator:
         if libs is None:
             return
         libs_md5 = textMD5(repr(libs) + str(datetime.date.today()))
-        if not os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
-            if lib_type == 'R_library':
-                ret = install_r_libs(libs)
-            if lib_type == 'Python_Module':
-                ret = install_py_modules(libs)
-            # FIXME: need to check if installation is successful
-            os.makedirs('.sos/.dsc', exist_ok = True)
-            os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
+        if os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
+            return
+        if lib_type == 'R_library':
+            ret = install_r_libs(libs)
+        if lib_type == 'Python_Module':
+            ret = install_py_modules(libs)
+        # FIXME: need to check if installation is successful
+        os.makedirs('.sos/.dsc', exist_ok = True)
+        os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
 
     class Step_Translator:
         def __init__(self, step, db, prepare):

@@ -294,7 +294,7 @@ class PyPlug(BasePlug):
 
     def get_return(self, output_vars):
         res = '\nsave_rds({{{}}}, ${{_output!r}})'.\
-          format(', '.join(['"{}": {1}'.format(x, output_vars[x]) for x in output_vars]))
+          format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 
