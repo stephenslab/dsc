@@ -610,7 +610,7 @@ def transcript2html(content, to_file, title = ''):
                 lan = line.split()[1]
                 f.write('{0} script {1}<pre><code class='\
                         '"language-{2}; line-numbers; left-trim; right-trim;">\n'.\
-                        format(lan, idx, lan.lower()))
+                        format(lan.capitalize(), idx, lan.lower()))
                 idx += 1
             f.write(line)
         if idx > 1:

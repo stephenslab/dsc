@@ -180,9 +180,10 @@ def execute(args):
             sys.stderr.write(get_traceback())
         transcript2html('.sos/transcript.txt', '{}.transcript.html'.format(db), title = db)
         env.logger.error(e)
-        env.logger.info("If needed, you can open ``{}.transcript.html`` and "\
-                        "use ``ctrl-F`` to search for the problematic chunk of code by output file name.".\
-                        format(db))
+        env.logger.warning("If needed, you can open ``{}.transcript.html`` and "\
+                           "use ``ctrl-F`` to search by ``output file name`` "\
+                           "for the problematic chunk of code.".\
+                           format(db))
         sys.exit(1)
     # 7. Construct meta database
     master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
