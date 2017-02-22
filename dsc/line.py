@@ -61,7 +61,10 @@ class YLine:
         var = self.split(var)
         if isinstance(var, (list, tuple)):
             if len(var) == 1:
-                return '''"{0}"'''.format(var[0])
+                if isinstance(var[0], str):
+                    return '''"{0}"'''.format(var[0])
+                else:
+                    return '{}'.format(var[0])
             else:
                 return '[{}]'.format(', '.join(list(map(str, var))))
         else:
@@ -71,8 +74,6 @@ class YLine:
         '''
         Try to properly decode str to other data type
         '''
-        if not isinstance(var, str):
-            return var
         # Try to convert to number
         var = str2num(var)
         # null type

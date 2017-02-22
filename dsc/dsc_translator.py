@@ -41,6 +41,7 @@ class DSC_Translator:
         processed_steps = {}
         conf_str = []
         job_str = []
+        exe_signatures = {}
         # name map for steps
         self.step_map = {}
         # Execution steps, unfiltered
@@ -60,9 +61,12 @@ class DSC_Translator:
                                    set(flatten_list([list(self.step_map[i].values()) for i in range(workflow_id)]))
                                    if pattern.match(k)])
                         step.exe_id = "{0}_{1}".format(cnt, step.exe_id) if cnt > 0 else step.exe_id
-                        conf_str.append(self.Step_Translator(step, self.db, 1).dump())
-                        job_str.append(self.Step_Translator(step, self.db, 0).dump())
+                        conf_translator = self.Step_Translator(step, self.db, 1)
+                        conf_str.append(conf_translator.dump())
+                        job_translator = self.Step_Translator(step, self.db, 0)
+                        job_str.append(job_translator.dump())
                         processed_steps[name] = "{}_{}".format(step.group, step.exe_id)
+                        exe_signatures["{}_{}".format(step.group, step.exe_id)] = job_translator.exe_signature
                     self.step_map[workflow_id]["{}_{}".format(step.group, exe_id_tmp)] = processed_steps[name]
         # Get workflows executions
         i = 1
@@ -89,12 +93,14 @@ class DSC_Translator:
                 ii = 1
                 for x, y in zip(rsqn, sqn):
                     tmp_str = []
-                    tmp_str.append("[{0}_{1}s: provides = IO_DB['{1}']['{0}']['output_repr']]".format(x, i))
+                    tmp_str.append("[{0}{1}: provides = IO_DB['{1}']['{0}']['output_repr']]".format(x, i))
+                    tmp_str.append("parameter: script_signature = {}".format(repr(exe_signatures[x])))
                     if ii > 1:
                         tmp_str.append("depends: IO_DB['{1}']['{0}']['input_repr']".format(x, i))
                     tmp_str.append("output:IO_DB['{1}']['{0}']['output']".format(x, i))
                     tmp_str.append("sos_run('core_{2}', output_files = IO_DB['{1}']['{0}']['output']"\
-                                   ", input_files = IO_DB['{1}']['{0}']['input'])".format(x, i, y))
+                                   ", input_files = IO_DB['{1}']['{0}']['input'], "\
+                                   "DSC_STEP_ID_ = script_signature)".format(x, i, y))
                     self.job_pool[(str(i), x)] = '\n'.join(tmp_str)
                     ii += 1
                 final_step_label.append((str(i), x))
@@ -140,14 +146,15 @@ class DSC_Translator:
         if libs is None:
             return
         libs_md5 = textMD5(repr(libs) + str(datetime.date.today()))
-        if not os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
-            if lib_type == 'R_library':
-                ret = install_r_libs(libs)
-            if lib_type == 'Python_Module':
-                ret = install_py_modules(libs)
-            # FIXME: need to check if installation is successful
-            os.makedirs('.sos/.dsc', exist_ok = True)
-            os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
+        if os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
+            return
+        if lib_type == 'R_library':
+            ret = install_r_libs(libs)
+        if lib_type == 'Python_Module':
+            ret = install_py_modules(libs)
+        # FIXME: need to check if installation is successful
+        os.makedirs('.sos/.dsc', exist_ok = True)
+        os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
 
     class Step_Translator:
         def __init__(self, step, db, prepare):
@@ -160,6 +167,7 @@ class DSC_Translator:
             run step:
              - will construct the actual script to run
             '''
+            self.exe_signature = []
             self.prepare = prepare
             self.step = step
             self.db = db
@@ -189,17 +197,17 @@ class DSC_Translator:
             else:
                 self.header = "[core_{0} ({1})]\n".\
                                format(self.name, self.step.name)
-                self.header += "parameter: output_files = []"
+                self.header += "parameter: DSC_STEP_ID_ = None\nparameter: output_files = []"
                 # FIXME: using [step.exe] for now as super step has not yet been ported over
 
         def get_parameters(self):
             # Set params, make sure each time the ordering is the same
             self.params = list(self.step.p.keys())
             for key in self.params:
-                self.param_string += '{} = {}\n'.format(key, repr(self.step.p[key]))
+                self.param_string += 'parameter: {} = {}\n'.format(key, repr(self.step.p[key]))
             if self.step.seed:
                 self.params.append('seed')
-                self.param_string += 'seed = {}'.format(repr(self.step.seed))
+                self.param_string += 'parameter: seed = {}'.format(repr(self.step.seed))
             if self.params:
                 self.loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(self.params)])
 
@@ -309,12 +317,14 @@ class DSC_Translator:
                             cmd_text = ["suppressMessages({})".format(x.strip())
                                         if re.search(r'^(library|require)\((.*?)\)$', x.strip())
                                         else x for x in cmd_text]
-                        cmd_md5 = (fileMD5(self.step.exe.split()[0], partial = False)
-                                   if os.path.isfile(self.step.exe.split()[0]) else self.step.exe.split()[0]) + \
-                                      (self.step.exe.split()[1] if len(self.step.exe.split()) > 1 else '')
-                        script = """DSC_STEP_ID__ = '{3}'\n{0}\n{1}\n{2}""".\
-                                 format(script_begin, '\n'.join(cmd_text), script_end, cmd_md5)
+                        script = """## Script UUID: ${{DSC_STEP_ID_}}\n{0}\n{1}\n{2}""".\
+                                 format(script_begin, '\n'.join(cmd_text), script_end)
                         self.action += script
+                        self.exe_signature.append(fileMD5(self.step.exe.split()[0], partial = False)
+                                                  if os.path.isfile(self.step.exe.split()[0])
+                                                  else self.step.exe.split()[0] + \
+                                                  (self.step.exe.split()[1]
+                                                   if len(self.step.exe.split()) > 1 else ''))
                     else:
                         executable(cmd.split()[0])
                         self.action += cmd

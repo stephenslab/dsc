@@ -63,11 +63,12 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
     - update map file: remove irrelevant entries; add new file name mapping (starting from max index)
     - create conf file based on map file and io file
     '''
-    def get_names(data):
+    def get_names():
         '''Get map names. Also dedup data object'''
         names = OrderedDict()
         lookup = {}
         seen = set()
+        base_ids = {}
         # 1. collect exec names and ID
         for k in list(data.keys()):
             for k1 in data[k]:
@@ -82,11 +83,19 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                         seen.add(tmp_output)
                         continue
                 k1 = k1.split()[0]
+                k_tmp = [x for x in chunks(k1.split(":"), 2)]
                 # names[k1] example:
                 # [('rcauchy.R', '71c60831e6ac5e824cb845171bd19933'),
                 # ('mean.R', 'dfb0dd672bf5d91dd580ac057daa97b9'),
                 # ('MSE.R', '0657f03051e0103670c6299f9608e939')]
-                names[k1] = uniq_list(reversed([x for x in chunks(k1.split(":"), 2)]))
+                if k1 in map_data:
+                    k_tmp = tuple([x[0] for x in uniq_list(reversed(k_tmp))])
+                    if not k_tmp in base_ids:
+                        base_ids[k_tmp] = 1
+                    else:
+                        base_ids[k_tmp] += 1
+                    continue
+                names[k1] = uniq_list(reversed(k_tmp))
                 for x in names[k1]:
                     if x[0] not in lookup:
                         lookup[x[0]] = []
@@ -95,7 +104,10 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                 names[k1].append(data[k]["DSC_EXT_"])
         # 2. replace the UUID of executable environment with a unique index
         for k in names:
-            names[k] = [[x[0], str(lookup[x[0]].index(x[1]) + 1)] for x in names[k][:-1]] + [names[k][-1]]
+            k_tmp = tuple([x[0] for x in names[k][:-1]])
+            base_id = base_ids[k_tmp] if k_tmp in base_ids else 0
+            names[k] = [[x[0], str(lookup[x[0]].index(x[1]) + 1 + base_id)]
+                        for x in names[k][:-1]] + [names[k][-1]]
         # 3. construct name map
         return sorted(set([(k, '_'.join(flatten_list(names[k][:-1])) + \
                             '.{}'.format(names[k][-1])) for k in names]))
@@ -103,8 +115,9 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
     def update_map(files):
         '''Update maps and write to disk'''
         for item in files:
-            if item[0] not in map_data:
-                map_data[item[0]] = item[1]
+            if item[0] in map_data:
+                raise ValueError('Key ``{}`` already exists in name map!'.format(item[0]))
+            map_data[item[0]] = item[1]
         open(map_db, "wb").write(msgpack.packb(map_data))
 
     def find_representative(files):
@@ -127,7 +140,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
         map_data = OrderedDict()
     data = load_mpk(input_files, jobs)
     open(io_db, "wb").write(msgpack.packb(data))
-    map_names = get_names(data)
+    map_names = get_names()
     update_map(map_names)
     # remove *.conf.mpk extension
     fid = os.path.basename(conf_db)[:-9]

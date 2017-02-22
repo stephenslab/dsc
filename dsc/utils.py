@@ -61,7 +61,7 @@ def no_duplicates_constructor(loader, node, deep=False):
             raise yaml.constructor.ConstructorError("while constructing a mapping", node.start_mark,
                                    "found duplicate key (%s)" % key, key_node.start_mark)
         mapping[key] = value
-    return collections.OrderedDict(loader.construct_mapping(node, deep))
+    return collections.OrderedDict(loader.construct_pairs(node, deep))
 
 def dict_representer(dumper, data):
     return dumper.represent_dict(data.iteritems())
@@ -134,11 +134,21 @@ def str2num(var):
             return int(var)
         except ValueError:
             try:
-                return float(var)
+                var = float(var)
+                if var.is_integer():
+                    return int(var)
+                else:
+                    return var
             except ValueError:
                 return re.sub(r'''^"|^'|"$|'$''', "", var)
     else:
-        return var
+        try:
+            if var.is_integer():
+                return int(var)
+            else:
+                return var
+        except AttributeError:
+            return var
 
 def cartesian_dict(value, mapping = dict):
     return [mapping(zip(value, x)) for x in itertools.product(*value.values())]
