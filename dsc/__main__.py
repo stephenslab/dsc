@@ -13,7 +13,7 @@ from dsc.dsc_parser import DSC_Script
 from dsc.dsc_analyzer import DSC_Analyzer
 from dsc.dsc_translator import DSC_Translator
 from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
-from .utils import get_slice, load_rds, flatten_list, workflow2html, dsc2html, dotdict, Timer
+from .utils import get_slice, load_rds, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
 from sos.sos_script import SoS_Script
 from sos.converter import script_to_html
 from sos.sos_executor import Base_Executor, MP_Executor
@@ -62,15 +62,9 @@ def dsc_run(args, content, workflows = ['DSC'], dag = None, verbosity = 1, queue
     script = SoS_Script(content=content, transcript = None)
     for w in workflows:
         workflow = script.workflow(w)
-        try:
-            executor = executor_class(workflow, args = None,
-                                      config = {'output_dag': dag})
-            executor.run()
-        except Exception as e:
-            if verbosity and verbosity > 2:
-                sys.stderr.write(get_traceback())
-            env.logger.error(e)
-            sys.exit(1)
+        executor = executor_class(workflow, args = None,
+                                  config = {'output_dag': dag})
+        executor.run()
     env.verbosity = args.verbosity
 
 def remove(workflows, steps, db, force, debug):
@@ -173,11 +167,23 @@ def execute(args):
     env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
     if os.path.isfile(env.logfile):
         os.remove(env.logfile)
+    if os.path.isfile('.sos/transcript.txt'):
+        os.remove('.sos/transcript.txt')
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     env.logger.info("Building execution graph ...")
-    dsc_run(args, pipeline.job_str, dag = '.sos/.dsc/{}.dag'.format(db_name),
-            verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
-            queue = queue)
+    try:
+        dsc_run(args, pipeline.job_str, dag = '.sos/.dsc/{}.dag'.format(db_name),
+                verbosity = (args.verbosity - 1 if args.verbosity > 0 else args.verbosity),
+                queue = queue)
+    except Exception as e:
+        if env.verbosity and env.verbosity > 2:
+            sys.stderr.write(get_traceback())
+        transcript2html('.sos/transcript.txt', '{}.transcript.html'.format(db), title = db)
+        env.logger.error(e)
+        env.logger.info("If needed, you can open ``{}.transcript.html`` and "\
+                        "use ``ctrl-F`` to search for the problematic chunk of code by output file name.".\
+                        format(db))
+        sys.exit(1)
     # 7. Construct meta database
     master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
@@ -202,6 +208,7 @@ def annotate(args):
     if len(ann.msg):
         env.logger.warning('\n' + '\n'.join(ann.msg))
 
+
 def extract(args):
     env.max_jobs = args.__max_jobs__
     env.verbosity = args.verbosity if not args.verbosity == 2 else 1
@@ -211,26 +218,21 @@ def extract(args):
         env.sig_mode = 'force'
     #
     ext = ResultExtractor(args.tags, args.master, args.output, args.extract)
-    try:
-        script = SoS_Script(content = ext.script, transcript = None)
-        workflow = script.workflow("Extracting")
-        if env.max_jobs == 1:
-            # single process executor
-            executor_class = Base_Executor
-        else:
-            executor_class = MP_Executor
-        executor = executor_class(workflow)
-        executor.run()
-    except Exception as e:
-        if env.verbosity and env.verbosity > 2:
-            sys.stderr.write(get_traceback())
-        env.logger.error(e)
-        sys.exit(1)
+    script = SoS_Script(content = ext.script, transcript = None)
+    workflow = script.workflow("Extracting")
+    if env.max_jobs == 1:
+        # single process executor
+        executor_class = Base_Executor
+    else:
+        executor_class = MP_Executor
+    executor = executor_class(workflow)
+    executor.run()
     env.verbosity = args.verbosity
     env.logger.info('Data extracted to ``{}`` for {} for DSC result ``{}``.'.\
                     format(ext.output,
                            'annotations ``{}``'.format(', '.join(args.tags)) if args.tags else "all annotations",
                            ext.master))
+
 
 def run(args):
     if args.dsc_file is not None:
@@ -239,6 +241,7 @@ def run(args):
         annotate(args)
     if args.extract is not None:
         extract(args)
+
 
 def main():
     p = argparse.ArgumentParser(description = __doc__)
@@ -294,15 +297,14 @@ def main():
     p.set_defaults(func = run)
     args = p.parse_args()
     #
-    try:
-        with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
+    with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
+        try:
             args.func(args)
-    except Exception as e:
-        if 'verbosity' in args and args.verbosity > 2:
-            sys.stderr.write(get_traceback())
-        else:
+        except Exception as e:
+            if env.verbosity and env.verbosity > 2:
+                sys.stderr.write(get_traceback())
             env.logger.error(e)
-        sys.exit(1)
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()

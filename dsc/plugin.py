@@ -98,7 +98,7 @@ class Shell(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0}=\'${{_output[0]!bn}}.{0}.{1}\''.format(lhs, self.identifier))
+            self.tempfile.append('{0}=\'${{_output[0]!bn}}.{0}\''.format(lhs))
         else:
             self.tempfile.append('TMP_{}=`mktemp -d`'.format(self.identifier))
             temp_var = ['$TMP_{0}/${{_output[0]!bn}}.{1}.{2}'.\
@@ -131,7 +131,7 @@ class RPlug(BasePlug):
                                                   else '{}{}'.format(self.identifier, rhs)))
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0} <- \'${{_output[0]!bn}}.{0}.{1}\''.format(lhs, self.identifier))
+            self.tempfile.append('{0} <- \'${{_output[0]!bn}}.{0}\''.format(lhs))
         else:
             self.tempfile.append('TMP_{} <- tempdir()'.format(self.identifier))
             temp_var = ['paste0("TMP_{0}/${{_output[0]!bn}}.{1}.{2}")'.\
@@ -232,7 +232,7 @@ class PyPlug(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0} = \'${{_output[0]!bn}}.{0}.{1}\''.format(lhs, self.identifier))
+            self.tempfile.append('{0} = \'${{_output[0]!bn}}.{0}\''.format(lhs))
         else:
             self.tempfile.append('TMP_{} = tempfile.gettempdir()'.format(self.identifier))
             temp_var = ['"TMP_{0}/${{_output[0]!bn}}.{1}.{2}"'.\

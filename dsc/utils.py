@@ -586,6 +586,38 @@ def yaml2html(content, to_file, title = ''):
         f.write(content)
         f.write('\n</code></pre></body></html>')
 
+
+def transcript2html(content, to_file, title = ''):
+    if os.path.isfile(content):
+        content = open(content).readlines()
+    if not os.path.splitext(to_file)[1] == '.html':
+        to_file += '.html'
+    with open(to_file, 'w') as f:
+        f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(title))
+        f.write('<style type="text/css">\n')
+        f.write(HTML_CSS)
+        f.write('\n</style>\n<script type="text/javascript">\n')
+        f.write(HTML_JS)
+        f.write('</script></head><body>')
+        idx = 1
+        for line in content:
+            if not re.match(r'^\s', line):
+                continue
+            if line.strip().startswith('##') and "script UUID:" in line and len(line.strip().split()) == 5:
+                line = line.lstrip()[1:]
+                if idx > 1:
+                    f.write('\n</code></pre>\n')
+                lan = line.split()[1]
+                f.write('{0} script {1}<pre><code class='\
+                        '"language-{2}; line-numbers; left-trim; right-trim;">\n'.\
+                        format(lan, idx, lan.lower()))
+                idx += 1
+            f.write(line)
+        if idx > 1:
+            f.write('\n</code></pre>')
+        f.write('</body></html>')
+
+
 def md2html(content, to_file):
     import pypandoc
     if os.path.isfile(content):
