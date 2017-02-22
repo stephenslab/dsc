@@ -317,7 +317,7 @@ class DSC_Translator:
                             cmd_text = ["suppressMessages({})".format(x.strip())
                                         if re.search(r'^(library|require)\((.*?)\)$', x.strip())
                                         else x for x in cmd_text]
-                        script = """## Step UUID: ${{DSC_STEP_ID_!r}}\n{0}\n{1}\n{2}""".\
+                        script = """## Script UUID: ${{DSC_STEP_ID_}}\n{0}\n{1}\n{2}""".\
                                  format(script_begin, '\n'.join(cmd_text), script_end)
                         self.action += script
                         self.exe_signature.append(fileMD5(self.step.exe.split()[0], partial = False)
