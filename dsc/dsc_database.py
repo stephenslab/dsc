@@ -88,9 +88,8 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                 # [('rcauchy.R', '71c60831e6ac5e824cb845171bd19933'),
                 # ('mean.R', 'dfb0dd672bf5d91dd580ac057daa97b9'),
                 # ('MSE.R', '0657f03051e0103670c6299f9608e939')]
-                print(k1)
                 if k1 in map_data:
-                    k_tmp = tuple([x[0] for x in k_tmp])
+                    k_tmp = tuple([x[0] for x in uniq_list(reversed(k_tmp))])
                     if not k_tmp in base_ids:
                         base_ids[k_tmp] = 1
                     else:
@@ -141,12 +140,8 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
         map_data = OrderedDict()
     data = load_mpk(input_files, jobs)
     open(io_db, "wb").write(msgpack.packb(data))
-    from pprint import pprint
-    pprint(list(map_data.keys()))
     map_names = get_names()
-    print('========')
     update_map(map_names)
-    pprint(list(map_data.keys()))
     # remove *.conf.mpk extension
     fid = os.path.basename(conf_db)[:-9]
     conf = OrderedDict()
