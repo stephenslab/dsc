@@ -75,6 +75,9 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                 if k1 == "DSC_EXT_":
                     continue
                 if k1 == "DSC_IO_":
+                    # handle duplicate output
+                    # FIXME: what if there is partial overlap?
+                    # Maybe I should prevent this via checking input script
                     tmp_output = tuple(sorted(data[k][k1][1]))
                     if tmp_output in seen:
                         del data[k]
@@ -83,19 +86,19 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                         seen.add(tmp_output)
                         continue
                 k1 = k1.split()[0]
-                k_tmp = [x for x in chunks(k1.split(":"), 2)]
-                # names[k1] example:
+                # step_key example:
                 # [('rcauchy.R', '71c60831e6ac5e824cb845171bd19933'),
                 # ('mean.R', 'dfb0dd672bf5d91dd580ac057daa97b9'),
                 # ('MSE.R', '0657f03051e0103670c6299f9608e939')]
+                step_key = uniq_list(reversed([x for x in chunks(k1.split(":"), 2)]))
                 if k1 in map_data:
-                    k_tmp = tuple([x[0] for x in uniq_list(reversed(k_tmp))])
+                    k_tmp = tuple([x[0] for x in step_key])
                     if not k_tmp in base_ids:
-                        base_ids[k_tmp] = 1
-                    else:
-                        base_ids[k_tmp] += 1
+                        base_ids[k_tmp] = {x:set() for x in k_tmp}
+                    for x, y in zip(k_tmp, step_key):
+                        base_ids[k_tmp][x].add(y[1])
                     continue
-                names[k1] = uniq_list(reversed(k_tmp))
+                names[k1] = step_key
                 for x in names[k1]:
                     if x[0] not in lookup:
                         lookup[x[0]] = []
@@ -105,8 +108,9 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
         # 2. replace the UUID of executable environment with a unique index
         for k in names:
             k_tmp = tuple([x[0] for x in names[k][:-1]])
-            base_id = base_ids[k_tmp] if k_tmp in base_ids else 0
-            names[k] = [[x[0], str(lookup[x[0]].index(x[1]) + 1 + base_id)]
+            base_id = base_ids[k_tmp] if k_tmp in base_ids else {}
+            names[k] = [[x[0], str(lookup[x[0]].index(x[1]) + 1 + \
+                                   (len(base_id[x[0]]) if x[0] in base_id and x[1] not in base_id[x[0]] else 0))]
                         for x in names[k][:-1]] + [names[k][-1]]
         # 3. construct name map
         return sorted(set([(k, '_'.join(flatten_list(names[k][:-1])) + \

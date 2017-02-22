@@ -243,12 +243,12 @@ class DSC_Translator:
                 if self.step.depends:
                     self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}', "\
                                           "suffix = '{{}}'.format({4})) {2}]".\
-                                          format(' '.join([self.step.name, self.step.group] \
+                                          format(' '.join([self.step.name, str(self.step.exe), self.step.group] \
                                                           + ['{0}:{{}}'.format(x) for x in reversed(self.params)]),
                                                  format_string, self.loop_string, self.step.name, "':'.join(__i)")
                 else:
                     self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
-                                      format(' '.join([self.step.name, self.step.group] \
+                                      format(' '.join([self.step.name, str(self.step.exe), self.step.group] \
                                                       + ['{0}:{{}}'.format(x) for x in reversed(self.params)]),
                                              format_string, self.loop_string, self.step.name)
             else:
