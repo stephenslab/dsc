@@ -138,13 +138,15 @@ def str2num(var):
                 if var.is_integer():
                     return int(var)
                 else:
-                    return float(var)
+                    return var
             except ValueError:
                 return re.sub(r'''^"|^'|"$|'$''', "", var)
     else:
         try:
             if var.is_integer():
                 return int(var)
+            else:
+                return var
         except AttributeError:
             return var
 
