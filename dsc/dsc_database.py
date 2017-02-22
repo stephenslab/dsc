@@ -65,26 +65,27 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
     '''
     def get_names():
         '''Get map names. Also dedup data object'''
+        # names has to be ordered dict to make sure
+        # map_data is updated non-randomly
+        # return is a list of original name and new name mapping
         names = OrderedDict()
         lookup = {}
         seen = set()
         base_ids = {}
         # 1. collect exec names and ID
         for k in list(data.keys()):
+            # handle duplicate output
+            # FIXME: what if there is partial overlap?
+            # Maybe I should prevent this via checking input script
+            tmp_output = str(sorted(data[k]['DSC_IO_'][1]))
+            if tmp_output in seen:
+                del data[k]
+                continue
+            else:
+                seen.add(tmp_output)
             for k1 in data[k]:
-                if k1 == "DSC_EXT_":
+                if k1 in ["DSC_EXT_", "DSC_IO_"]:
                     continue
-                if k1 == "DSC_IO_":
-                    # handle duplicate output
-                    # FIXME: what if there is partial overlap?
-                    # Maybe I should prevent this via checking input script
-                    tmp_output = tuple(sorted(data[k][k1][1]))
-                    if tmp_output in seen:
-                        del data[k]
-                        break
-                    else:
-                        seen.add(tmp_output)
-                        continue
                 k1 = k1.split()[0]
                 # step_key example:
                 # [('rcauchy.R', '71c60831e6ac5e824cb845171bd19933'),
@@ -98,6 +99,8 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                     for x, y in zip(k_tmp, step_key):
                         base_ids[k_tmp][x].add(y[1])
                     continue
+                if k1 in names:
+                    raise ValueError('\nIdentical computational procedures found: ``{}``!'.format(k1))
                 names[k1] = step_key
                 for x in names[k1]:
                     if x[0] not in lookup:
@@ -105,23 +108,20 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                     if x[1] not in lookup[x[0]]:
                         lookup[x[0]].append(x[1])
                 names[k1].append(data[k]["DSC_EXT_"])
-        # 2. replace the UUID of executable environment with a unique index
         for k in names:
             k_tmp = tuple([x[0] for x in names[k][:-1]])
             base_id = base_ids[k_tmp] if k_tmp in base_ids else {}
+            # 2. replace the UUID of executable environment with a unique index
             names[k] = [[x[0], str(lookup[x[0]].index(x[1]) + 1 + \
                                    (len(base_id[x[0]]) if x[0] in base_id and x[1] not in base_id[x[0]] else 0))]
                         for x in names[k][:-1]] + [names[k][-1]]
-        # 3. construct name map
-        return sorted(set([(k, '_'.join(flatten_list(names[k][:-1])) + \
-                            '.{}'.format(names[k][-1])) for k in names]))
+            # 3. construct name map
+            names[k] = '_'.join(flatten_list(names[k][:-1])) + '.{}'.format(names[k][-1])
+        return names
 
-    def update_map(files):
+    def update_map(names):
         '''Update maps and write to disk'''
-        for item in files:
-            if item[0] in map_data:
-                raise ValueError('Key ``{}`` already exists in name map!'.format(item[0]))
-            map_data[item[0]] = item[1]
+        map_data.update(names)
         open(map_db, "wb").write(msgpack.packb(map_data))
 
     def find_representative(files):
