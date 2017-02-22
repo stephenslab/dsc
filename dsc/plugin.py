@@ -98,10 +98,10 @@ class Shell(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{}=\'TMP{}\''.format(lhs, self.identifier))
+            self.tempfile.append('{0}=\'${{_output[0]!bn}}.{0}.{1}\''.format(lhs, self.identifier))
         else:
             self.tempfile.append('TMP_{}=`mktemp -d`'.format(self.identifier))
-            temp_var = ['$TMP_{0}/${{_output[0]}}.{1}.{2}'.\
+            temp_var = ['$TMP_{0}/${{_output[0]!bn}}.{1}.{2}'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{}="{}"'.format(lhs, ' '.join(temp_var)))
 
@@ -131,10 +131,10 @@ class RPlug(BasePlug):
                                                   else '{}{}'.format(self.identifier, rhs)))
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{} <- \'TMP{}\''.format(lhs, self.identifier))
+            self.tempfile.append('{0} <- \'${{_output[0]!bn}}.{0}.{1}\''.format(lhs, self.identifier))
         else:
             self.tempfile.append('TMP_{} <- tempdir()'.format(self.identifier))
-            temp_var = ['paste0(TMP_{0}, "/", basename("${{_output}}.{1}.{2}"))'.\
+            temp_var = ['paste0("TMP_{0}/${{_output[0]!bn}}.{1}.{2}")'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
 
@@ -232,10 +232,10 @@ class PyPlug(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{} = \'TMP{}\''.format(lhs, self.identifier))
+            self.tempfile.append('{0} = \'${{_output[0]!bn}}.{0}.{1}\''.format(lhs, self.identifier))
         else:
             self.tempfile.append('TMP_{} = tempfile.gettempdir()'.format(self.identifier))
-            temp_var = ['os.path.join(TMP_{0}, os.path.basename("${{_output}}.{1}.{2}"))'.\
+            temp_var = ['"TMP_{0}/${{_output[0]!bn}}.{1}.{2}"'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
 
