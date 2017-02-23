@@ -129,6 +129,7 @@ def execute(args):
     db = script.runtime.output
     db_name = os.path.basename(db)
     db_dir = os.path.dirname(db)
+    manifest = '.sos/.dsc/{}.manifest'.format(db_name)
     if db_dir:
         os.makedirs(db_dir, exist_ok = True)
     workflow = DSC_Analyzer(script)
@@ -143,6 +144,10 @@ def execute(args):
     if args.to_remove is not None:
         remove(workflow.workflows, args.to_remove, db, args.__rerun__, args.debug)
         return
+    # 3.1 prepare for recover mode
+    if args.__construct__ and not os.path.isfile(manifest):
+        raise RuntimeError('Project cannot be recovered due to lack of integrity: manifest file is missing!\n'\
+                         'Please make sure the benchmark was properly distributed with ``--distribute`` option.')
     # 4. Archive scripts
     exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
                                 for k in script.runtime.sequence_ordering])
@@ -152,7 +157,7 @@ def execute(args):
     except:
         dsc_ann = None
     dsc2html(dsc_script, dsc_ann, db, section_content = exec_content)
-    env.logger.info("DSC script exported to ``{}``".format(os.path.splitext(args.dsc_file)[0] + '.html'))
+    env.logger.info("DSC script exported to ``{}.html``".format(db))
     # 5. Prepare
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup run for config files
@@ -178,36 +183,56 @@ def execute(args):
     except Exception as e:
         if env.verbosity and env.verbosity > 2:
             sys.stderr.write(get_traceback())
-        transcript2html('.sos/transcript.txt', '{}.transcript.html'.format(db), title = db)
+        transcript2html('.sos/transcript.txt', '{}.transcript.html'.format(db_name), title = db_name)
         env.logger.error(e)
         env.logger.warning("If needed, you can open ``{}.transcript.html`` and "\
                            "use ``ctrl-F`` to search by ``output file name`` "\
                            "for the problematic chunk of code.".\
-                           format(db))
+                           format(db_name))
         sys.exit(1)
     # 7. Construct meta database
     master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
     env.logger.info("Building output database ``{0}.rds`` ...".format(db))
     ResultDB(db, master).Build(script = dsc_script)
+    # 8. Update manifest
+    manifest_items = [x.strip() for x in open(manifest).readlines()]
+    for x in [args.dsc_file, db + '.html', db + '.rds']:
+        if x not in manifest_items:
+            manifest_items.append(x)
+    with open(manifest, 'w') as f:
+        f.write('\n'.join(manifest_items))
     env.logger.info("DSC complete!")
 
 
 def annotate(args):
     env.verbosity = args.verbosity
-    if len(args.annotation) > 1:
-        dsc_file = args.annotation[1]
+    if not args.dsc_file:
+        if args.annotation[0].endswith('ann'):
+            dsc_file = args.annotation[0].rsplit('.', 1)[0] + '.dsc'
+        else:
+            dsc_file = args.annotation[0]
     else:
-        dsc_file = args.annotation[0].rsplit('.', 1)[0] + '.dsc'
+        dsc_file = args.dsc_file
     if not os.path.isfile(dsc_file):
-        raise ValueError('DSC script ``{}`` does not exist. Please specify it via ``-a annotation_file script_file``'.format(dsc_file))
+        raise ValueError('DSC script ``{}`` does not exist. '\
+                         'Please specify it via ``-a script_file annotation_file1 annotation_file2 ...``'.\
+                         format(dsc_file))
     dsc_data = DSC_Script(dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds)
-    ann = ResultAnnotator(args.annotation[0], args.master, dsc_data)
+    ann = ResultAnnotator([x for x in args.annotation if x.endswith('.ann')], args.master, dsc_data)
     ann.ConvertAnnToQuery()
-    ann.ApplyAnotation()
-    ann.SaveShinyMeta()
+    tagfile = ann.ApplyAnotation()
+    shinyfile = ann.SaveShinyMeta()
     env.logger.info('\n'+ ann.ShowQueries(args.verbosity))
     if len(ann.msg):
         env.logger.warning('\n' + '\n'.join(ann.msg))
+    # update manifest
+    manifest = '.sos/.dsc/{}.manifest'.format(dsc_data.runtime.output)
+    manifest_items = [x.strip() for x in open(manifest).readlines()]
+    for x in args.annotation + [tagfile, shinyfile]:
+        if x not in manifest_items:
+            manifest_items.append(x)
+    with open(manifest, 'w') as f:
+        f.write('\n'.join(manifest_items))
 
 
 def extract(args):
@@ -235,6 +260,40 @@ def extract(args):
                            ext.master))
 
 
+def distribute(args):
+    import tarfile
+    #
+    if args.dsc_file:
+        output = DSC_Script(args.dsc_file, output = args.output).runtime.output
+    elif args.output:
+        output = args.output
+    else:
+        raise RuntimeError("Please specify DSC benchmark name, via ``-o`` option.")
+    manifest = '.sos/.dsc/{}.manifest'.format(output)
+    if not os.path.isfile(manifest):
+        raise RuntimeError('Project cannot be distributed due to lack of integrity: manifest file is missing!\n'\
+                         'Please run DSC with ``-x`` before applying this command.')
+    files = [x.strip() for x in open(manifest).readlines()] + glob.glob("{}/*.*".format(output))
+    for item in args.distribute:
+        if os.path.isdir(item):
+            for root, folder, filenames in os.walk(item):
+                for filename in filenames:
+                    files.append(os.path.join(root, filename))
+        else:
+            files.append(item)
+    env.verbosity = args.verbosity
+    tar_args = {'name': output + '.tar.gz', 'mode': 'w:gz'}
+    if os.path.isfile(tar_args['name']) and not args.__rerun__:
+        raise RuntimeError('Operation aborted due to existing output file ``{}``. Use ``-f`` to overwrite.'.\
+                        format(tar_args['name']))
+    env.logger.info('Archiving project ``{}`` ...'.format(output))
+    with tarfile.open(**tar_args) as archive:
+        for f in files:
+            if not os.path.isfile(f):
+                raise RuntimeError('Project cannot be distributed due to lack of integrity.\n'\
+                         'Please run and annotate DSC before distributing.')
+            archive.add(f)
+
 def run(args):
     if args.dsc_file is not None:
         execute(args)
@@ -242,6 +301,8 @@ def run(args):
         annotate(args)
     if args.extract is not None:
         extract(args)
+    if args.distribute is not None:
+        distribute(args)
 
 
 def main():
@@ -272,7 +333,7 @@ def main():
     p_execute.add_argument('--seeds', metavar = "n", nargs = '+',
                    help = '''This will override any "seed" property in the DSC script. This feature
                    is useful for using a small number of seeds for a test run.''')
-    p_execute.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
+    p_execute.add_argument('-q', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
     p_execute.add_argument('--recover', action='store_true', dest='__construct__',
                    help = '''Recover DSC based on names (not contents) of existing files.''')
     p_execute.add_argument('--clean', dest = 'to_remove', metavar = "str", nargs = '*',
@@ -284,11 +345,12 @@ def main():
     p_execute.add_argument('--host', metavar='str',
                    help='''URL of Redis server for distributed computation.''')
     p_ann = p.add_argument_group("Annotate DSC")
-    p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'DSC files', nargs = '+',
-                       help = '''Annotate DSC. An annotation file name is required and DSC will
-                       look for the script file having the same base name but with *.dsc extension.
-                       Optionally one can input 2 file names with the first the annotation file name
-                       and the second the DSC script name, eg, -a test.ann test.dsc''')
+    p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'file.ann', nargs = '+',
+                       help = '''Annotate DSC. Annotation files must have ".ann" extension. If "-a" option
+                       is used independently from "-x", then the first file should be the DSC configuration
+                       file with a non-".ann" extension. If this rule is violated, the program will attempt to
+                       look for a file having the same base name as the first file but with ".dsc" extension
+                       and if found it will be used as the DSC configuration file.''')
     p_ext = p.add_argument_group("Extract DSC results")
     p_ext.add_argument('-e', '--extract', metavar = 'block:variable', nargs = '+',
                        help = '''Variable(s) to extract.
@@ -298,6 +360,12 @@ def main():
     p_ext.add_argument('--tags', metavar = 'str', nargs = '+',
                        help = '''Tags to extract. The "&&" symbol can be used to specify intersect
                        of multiple tags. Default to extracting for all tags.''')
+    p_dist = p.add_argument_group("Distribute DSC")
+    p_dist.add_argument('--distribute', metavar = 'files', nargs = '*',
+                       help = '''Additional files to distribute.
+                       This option will create a tarball for the DSC benchmark for distribution.
+                       If additional files are given to this option, then those files will also be
+                       included in the benchmark.''')
     p.set_defaults(func = run)
     args = p.parse_args()
     #

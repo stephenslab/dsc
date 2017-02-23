@@ -58,7 +58,7 @@ def load_mpk(mpk_files, jobs):
     return OrderedDict([(x, d[x]) for x in sorted(d.keys())])
 
 
-def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs = 4):
+def build_config_db(input_files, io_db, map_db, conf_db, manifest, vanilla = False, jobs = 4):
     '''
     - collect all output file names in md5 style
     - check if map file should be loaded, and load it
@@ -167,6 +167,8 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                                           for item in find_representative(data[k]['DSC_IO_'][1])]
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
+    with open(manifest, 'w') as f:
+        f.write('\n'.join(input_files + [io_db, map_db, conf_db, manifest]))
 
 
 class ResultDBError(Error):
@@ -340,7 +342,7 @@ class ResultDB:
 
 
 class ResultAnnotator:
-    def __init__(self, ann_file, ann_table, dsc_data):
+    def __init__(self, ann_files, ann_table, dsc_data):
         '''Load master table to be annotated and annotation contents'''
         self.dsc = dsc_data
         data = load_rds(self.dsc.runtime.output + '.rds')
@@ -358,9 +360,14 @@ class ResultAnnotator:
                 self.master = self.master[0]
         if self.master not in data:
             raise ValueError('Cannot find target block ``{}``.'.format(self.master[7:]))
-        self.ann = yaml.load(open(ann_file))
-        if self.ann is None:
-            raise ValueError("Annotation file ``{}`` does not contain proper annotation information!".format(ann_file))
+        self.ann = OrderedDict()
+        for ann_file in ann_files:
+            ann = yaml.load(open(ann_file))
+            if ann is None:
+                raise ValueError("Annotation file ``{}`` does not contain proper annotation information!".\
+                                 format(ann_file))
+            else:
+                self.ann.update(ann)
         self.msg = []
 
     def ConvertAnnToQuery(self):
@@ -499,8 +506,9 @@ class ResultAnnotator:
             self.result[tag] = OrderedDict()
             for queries in self.queries[tag]:
                 self.result[tag] = extend_dict(self.result[tag], run_query(queries))
-        open(os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.tags'.format(self.master[7:])), "wb").\
-            write(msgpack.packb(self.result))
+        metafile = os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.tags'.format(self.master[7:]))
+        open(metafile, "wb").write(msgpack.packb(self.result))
+        return metafile
 
     def ShowQueries(self, verbosity):
         '''Make a table summary of what has been performed'''
@@ -529,7 +537,9 @@ class ResultAnnotator:
                 var_menu.append('{}:{}'.format(block, item))
             var_menu.append('{}:DSC_TIMER'.format(block))
         res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu)}
-        save_rds(res, os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.shinymeta.rds'.format(self.master[7:])))
+        metafile = os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.shinymeta.rds'.format(self.master[7:]))
+        save_rds(res, metafile)
+        return metafile
 
 
 EXTRACT_RDS_R = '''
