@@ -134,7 +134,7 @@ class RPlug(BasePlug):
             self.tempfile.append('{0} <- \'${{_output[0]!bn}}.{0}\''.format(lhs))
         else:
             self.tempfile.append('TMP_{} <- tempdir()'.format(self.identifier))
-            temp_var = ['paste0("TMP_{0}/${{_output[0]!bn}}.{1}.{2}")'.\
+            temp_var = ['paste0(TMP_{0}, "/${{_output[0]!bn}}.{1}.{2}")'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
 
@@ -238,7 +238,7 @@ class PyPlug(BasePlug):
             self.tempfile.append('{0} = \'${{_output[0]!bn}}.{0}\''.format(lhs))
         else:
             self.tempfile.append('TMP_{} = tempfile.gettempdir()'.format(self.identifier))
-            temp_var = ['"TMP_{0}/${{_output[0]!bn}}.{1}.{2}"'.\
+            temp_var = ['"{{}}/${{_output[0]!bn}}.{1}.{2}".format(TMP_{0})'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
 
