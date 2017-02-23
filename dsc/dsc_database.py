@@ -590,7 +590,7 @@ class ResultExtractor:
                         raise ValueError("Invalid tag syntax ``{}``!".format(tag))
                     self.tags[tag.split('=')[0].strip()] = tag.split('=')[1].strip()
                 else:
-                    self.tags['_'.join([x.strip() for x in ann.split('&&')])] = tag
+                    self.tags['_'.join([x.strip() for x in tag.split('&&')])] = tag
         self.name = os.path.split(tag_file)[1].rsplit('.', 2)[0]
         if to_file is None:
             to_file = self.name + '.{}.rds'.format(self.master)
@@ -609,8 +609,7 @@ class ResultExtractor:
                 if not '&&' in ann:
                     input_files = sorted(self.ann[ann][target[0]])
                 else:
-                    ann = [x.strip() for x in ann.split('&&')]
-                    arrays = [self.ann[x][target[0]] for x in ann]
+                    arrays = [self.ann[x.strip()][target[0]] for x in ann.split('&&')]
                     input_files = sorted(set.intersection(*map(set, arrays)))
                 output_prefix = '_'.join([tag, target[0], target[1]])
                 # Compose execution step
