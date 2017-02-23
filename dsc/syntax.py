@@ -10,7 +10,7 @@ import re
 from sos.sos_syntax import LazyRegex
 
 
-DSC_KW = ['DSC_AUTO_OUTPUT_', 'seed'] # engineering keywords, reserved
+DSC_KW = ['DSC_AUTO_OUTPUT_', 'seed', 'DSC_TIMER'] # engineering keywords, reserved
 DSC_BLOCKP = ['exec', 'return', 'params', 'seed', '.logic', '.alias', '.options'] # block properties
 DSC_PARAMP = ['.logic', '.alias', '.options'] # parameter properties
 

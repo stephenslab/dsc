@@ -525,6 +525,7 @@ class ResultAnnotator:
             # FIXME: Here assuming all steps have the same output variables
             for item in set(flatten_list([list(step.rv.keys()) for step in self.dsc.blocks[block].steps])):
                 var_menu.append('{}:{}'.format(block, item))
+            var_menu.append('{}:DSC_TIMER'.format(block))
         res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu)}
         save_rds(res, os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.shinymeta.rds'.format(self.master[7:])))
 

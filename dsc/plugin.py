@@ -190,11 +190,14 @@ class RPlug(BasePlug):
                     # FIXME: will eventually allow for parameter input for plugins (at SoS level)
         for k in keys:
             res += '\n%s <- ${_%s}' % (k, k)
+        # timer
+        res += '\n{}_tic_pt <- proc.time()'.format(self.identifier)
         return res
 
     def get_return(self, output_vars):
         res = '\nsaveRDS(list({}), ${{_output!r}})'.\
-          format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars]))
+          format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
+                           ['DSC_TIMER = proc.time() - {}_tic_pt'.format(self.identifier)]))
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -240,7 +243,7 @@ class PyPlug(BasePlug):
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
 
     def get_input(self, params, input_num, lib, index, cmd_args):
-        res = 'import sys, os, tempfile'
+        res = 'import sys, os, tempfile, timeit'
         if lib is not None:
             for item in lib:
                 res += '\nsys.path.append(os.path.abspath("{}"))'.format(item)
@@ -290,11 +293,13 @@ class PyPlug(BasePlug):
             res += '\nsys.argv.extend([{}])'.format(', '.join(cmd_list))
         for k in keys:
             res += '\n%s = ${_%s}' % (k, k)
+        res += '\n{}_tic_pt = timeit.default_timer()'.format(self.identifier)
         return res
 
     def get_return(self, output_vars):
         res = '\nsave_rds({{{}}}, ${{_output!r}})'.\
-          format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars]))
+          format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
+                           ['DSC_TIMER = timeit.default_timer() - {}_tic_pt'.format(self.identifier)]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 
