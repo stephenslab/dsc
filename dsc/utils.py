@@ -297,7 +297,7 @@ def dict2str(value):
     for m in re.finditer(pattern, res):
         res = res.replace(m.group(1), '', 1)
     res = res.replace('!!python/', '')
-    res = '\n'.join([x for x in res.split('\n') if x.strip() != 'dictitems:'])
+    res = '\n'.join([x[2:] for x in res.split('\n') if x.strip() != 'dictitems:' and x])
     return res
 
 def update_nested_dict(d, u, mapping = dict):

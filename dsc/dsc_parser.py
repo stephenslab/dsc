@@ -7,7 +7,7 @@ __license__ = "MIT"
 Parser for DSC script and annotation files
 '''
 
-import os, re, itertools, copy, collections
+import os, re, itertools, copy, collections, yaml
 from io import StringIO
 from sos.utils import logger
 from sos.target import textMD5
@@ -136,6 +136,14 @@ class DSC_Script:
                     logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.\
                                    format(key, block))
                     del self.content[block][key]
+
+    def WriteAnnotationTemplate(self, target):
+        ann = OrderedDict()
+        for block in self.blocks:
+            for step in self.blocks[block].steps:
+                ann[step.name.replace('.', '_')] = {step.group:{'exec':step.name}}
+        with open(target, 'w') as f:
+            f.write(str(ann))
 
     def dump(self):
         res = OrderedDict([('Blocks', self.blocks),

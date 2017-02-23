@@ -218,10 +218,15 @@ def annotate(args):
                          'Please specify it via ``-a script_file annotation_file1 annotation_file2 ...``'.\
                          format(dsc_file))
     dsc_data = DSC_Script(dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds)
-    ann = [x for x in args.annotation if x.endswith('.ann')]
+    ann = [x for x in args.annotation if x.endswith('.ann') and os.path.isfile(x)]
     if len(ann) == 0:
-        raise RuntimeError("Invalid annotation file names: ``{}``. Annotation files must have ``.ann`` extension.".\
-                           format(str(args.annotation)))
+        target = os.path.splitext(dsc_file)[0] + '.ann'
+        if os.path.isfile(target):
+            env.logger.warning("No valid annotation file specified. Load existing annotation ``{}``.".format(target))
+        else:
+            env.logger.warning("No valid annotation file specified. Load default annotation ``{}``.".format(target))
+            dsc_data.WriteAnnotationTemplate(target)
+        ann.append(target)
     ann = ResultAnnotator(ann, args.master, dsc_data)
     ann.ConvertAnnToQuery()
     tagfile = ann.ApplyAnotation()
