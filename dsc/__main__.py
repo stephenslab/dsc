@@ -125,7 +125,7 @@ def execute(args):
                         format(' '.join(', '.join(args.sequence).split())))
     os.makedirs('.sos/.dsc', exist_ok = True)
     # 2. Parse DSC script
-    script = DSC_Script(args.dsc_file, sequence = args.sequence, output = args.output)
+    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds)
     db = script.runtime.output
     db_name = os.path.basename(db)
     db_dir = os.path.dirname(db)
@@ -200,7 +200,7 @@ def annotate(args):
         dsc_file = args.annotation[0].rsplit('.', 1)[0] + '.dsc'
     if not os.path.isfile(dsc_file):
         raise ValueError('DSC script ``{}`` does not exist. Please specify it via ``-a annotation_file script_file``'.format(dsc_file))
-    dsc_data = DSC_Script(dsc_file, sequence = args.sequence, output = args.output)
+    dsc_data = DSC_Script(dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds)
     ann = ResultAnnotator(args.annotation[0], args.master, dsc_data)
     ann.ConvertAnnToQuery()
     ann.ApplyAnotation()
@@ -269,6 +269,9 @@ def main():
                    entry when specified. Multiple sequences are allowed. Each input should be
                    a quoted string defining a valid DSC sequence. Multiple such strings should be
                    separated by space.''')
+    p_execute.add_argument('--seeds', metavar = "n", nargs = '+',
+                   help = '''This will override any "seed" property in the DSC script. This feature
+                   is useful for using a small number of seeds for a test run.''')
     p_execute.add_argument('-d', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
     p_execute.add_argument('--recover', action='store_true', dest='__construct__',
                    help = '''Recover DSC based on names (not contents) of existing files.''')

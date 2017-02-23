@@ -25,7 +25,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.blocks, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, sequence = None, output = None):
+    def __init__(self, content, output = None, sequence = None, seeds = None):
         if os.path.isfile(content):
             with open(content) as f:
                 self.content = load_from_yaml(f, content)
@@ -41,6 +41,10 @@ class DSC_Script:
         self.check_block_error()
         if sequence:
             self.content['DSC']['run'] = sequence
+        if seeds:
+            for block in self.content:
+                if 'seed' in self.content[block]:
+                    self.content[block]['seed'] = seeds
         self.content = DSCEntryFormatter()(self.content, try_get_value(self.content['DSC'], 'params'))
         self.runtime = DSC_Section(self.content['DSC'], sequence, output)
         if self.runtime.output is None:
