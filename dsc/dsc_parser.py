@@ -398,6 +398,7 @@ class DSC_Block:
         # initialize steps
         self.steps = [DSC_Step(name, x) for x in exe_alias]
         for i in range(len(self.steps)):
+            self.steps[i].exe_id = i + 1
             self.steps[i].set_options(try_get_value(options, 0), try_get_value(options, i + 1))
             self.steps[i].set_exec(exes[i])
             if 'seed' in content:

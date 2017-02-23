@@ -61,7 +61,6 @@ class DSC_Analyzer:
                     if len(block.steps[idx].p[k]) == 0:
                         del block.steps[idx].p[k]
                 block.steps[idx].depends.sort(key = lambda x: ordering.index(x[0]))
-                block.steps[idx].exe_id = idx + 1
             workflow[block.name] = block
         self.workflows.append(workflow)
 
