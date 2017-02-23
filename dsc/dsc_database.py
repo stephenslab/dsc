@@ -484,7 +484,7 @@ class ResultAnnotator:
                         return_id = get_id(item)
                     else:
                         return_id = [x for x in get_id(item) if x in return_id]
-            if len(return_id) == 0:
+            if return_id is None or len(return_id) == 0:
                 self.msg.append("Cannot find matching entries based on query ``{}``".format(repr(text)))
                 res = {}
             else:
