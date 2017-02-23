@@ -214,11 +214,15 @@ def annotate(args):
     else:
         dsc_file = args.dsc_file
     if not os.path.isfile(dsc_file):
-        raise ValueError('DSC script ``{}`` does not exist. '\
+        raise RuntimeError('DSC script ``{}`` does not exist. '\
                          'Please specify it via ``-a script_file annotation_file1 annotation_file2 ...``'.\
                          format(dsc_file))
     dsc_data = DSC_Script(dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds)
-    ann = ResultAnnotator([x for x in args.annotation if x.endswith('.ann')], args.master, dsc_data)
+    ann = [x for x in args.annotation if x.endswith('.ann')]
+    if len(ann) == 0:
+        raise RuntimeError("Invalid annotation file names: ``{}``. Annotation files must have ``.ann`` extension.".\
+                           format(str(args.annotation)))
+    ann = ResultAnnotator(ann, args.master, dsc_data)
     ann.ConvertAnnToQuery()
     tagfile = ann.ApplyAnotation()
     shinyfile = ann.SaveShinyMeta()
@@ -358,8 +362,9 @@ def main():
                        Valid `variable` are variables found in `return` of the corresponding
                        DSC block.''')
     p_ext.add_argument('--tags', metavar = 'str', nargs = '+',
-                       help = '''Tags to extract. The "&&" symbol can be used to specify intersect
-                       of multiple tags. Default to extracting for all tags.''')
+                       help = '''Tags to extract. The "&&" sign can be used to specify intersect
+                       of multiple tags. The "=" sign can be used to rename extracted tags.
+                       Default to extracting for all tags.''')
     p_dist = p.add_argument_group("Distribute DSC")
     p_dist.add_argument('--distribute', metavar = 'files', nargs = '*',
                        help = '''Additional files to distribute.

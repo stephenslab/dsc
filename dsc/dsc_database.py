@@ -581,9 +581,16 @@ class ResultExtractor:
                                    object_pairs_hook = OrderedDict)
         valid_vars = load_rds(tag_file[:-4] + 'shinymeta.rds')['variables'].tolist()
         if tags is None:
-            self.tags = list(self.ann.keys())
+            self.tags = {x:x for x in self.ann.keys()}
         else:
-            self.tags = tags
+            self.tags = {}
+            for tag in tags:
+                if "=" in tag:
+                    if len(tag.split('=')) != 2:
+                        raise ValueError("Invalid tag syntax ``{}``!".format(tag))
+                    self.tags[tag.split('=')[0].strip()] = tag.split('=')[1].strip()
+                else:
+                    self.tags['_'.join([x.strip() for x in ann.split('&&')])] = tag
         self.name = os.path.split(tag_file)[1].rsplit('.', 2)[0]
         if to_file is None:
             to_file = self.name + '.{}.rds'.format(self.master)
@@ -597,16 +604,15 @@ class ResultExtractor:
                 raise ValueError('Invalid input value: ``{}``. \nChoices are ``{}``.'.\
                                  format(item, repr(valid_vars)))
             target = item.split(":")
-            for ann in self.tags:
+            for tag, ann in self.tags.items():
                 # Handle union logic
                 if not '&&' in ann:
                     input_files = sorted(self.ann[ann][target[0]])
                 else:
                     ann = [x.strip() for x in ann.split('&&')]
                     arrays = [self.ann[x][target[0]] for x in ann]
-                    ann = '_'.join(ann)
                     input_files = sorted(set.intersection(*map(set, arrays)))
-                output_prefix = '_'.join([ann, target[0], target[1]])
+                output_prefix = '_'.join([tag, target[0], target[1]])
                 # Compose execution step
                 self.ann_cache.append('{}_output'.format(output_prefix))
                 self.script.append("[Extracting_{0} ({1}): shared = {{'{1}_output' : 'output'}}]".format(idx, output_prefix))
