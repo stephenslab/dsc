@@ -197,7 +197,7 @@ def execute(args):
     ResultDB(db_name, master).Build(script = dsc_script)
     # 8. Update manifest
     manifest_items = [x.strip() for x in open(manifest).readlines()]
-    for x in [args.dsc_file, db + '.html', '.sos/.dsc/{}.db'.format(db_name)]:
+    for x in [args.dsc_file, db + '.html', '.sos/.dsc/{}.db'.format(db_name), manifest]:
         if x not in manifest_items:
             manifest_items.append(x)
     with open(manifest, 'w') as f:
