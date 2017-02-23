@@ -299,7 +299,7 @@ class PyPlug(BasePlug):
     def get_return(self, output_vars):
         res = '\nsave_rds({{{}}}, ${{_output!r}})'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
-                           ['DSC_TIMER = timeit.default_timer() - {}_tic_pt'.format(self.identifier)]))
+                           ['"DSC_TIMER" : timeit.default_timer() - {}_tic_pt'.format(self.identifier)]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 

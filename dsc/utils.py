@@ -604,7 +604,6 @@ def transcript2html(content, to_file, title = ''):
             if not re.match(r'^\s', line):
                 continue
             if line.strip().startswith('##') and "script UUID:" in line and len(line.strip().split()) == 5:
-                line = line.lstrip()[1:]
                 if idx > 1:
                     f.write('\n</code></pre>\n')
                 lan = line.split()[1]
@@ -612,7 +611,7 @@ def transcript2html(content, to_file, title = ''):
                         '"language-{2}; line-numbers; left-trim; right-trim;">\n'.\
                         format(lan.capitalize(), idx, lan.lower()))
                 idx += 1
-            f.write(line)
+            f.write(line[4:])
         if idx > 1:
             f.write('\n</code></pre>')
         f.write('</body></html>')
