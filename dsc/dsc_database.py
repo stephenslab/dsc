@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, msgpack, yaml, re, glob
+import os, msgpack, yaml, re, glob, pickle
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
@@ -178,7 +178,7 @@ class ResultDBError(Error):
 
 class ResultDB:
     def __init__(self, db_name, master_names):
-        self.name = db_name
+        self.dat_prefix = '.sos/.dsc/{}'.format(db_name)
         # If this is None, then the last block will be used
         # As master table
         self.master_names = master_names
@@ -190,7 +190,6 @@ class ResultDB:
         self.last_block = []
         # key = block name, item = exec name
         self.groups = {}
-        self.dat_prefix = '.sos/.dsc/{}'.format(os.path.basename(db_name))
         if os.path.isfile(self.dat_prefix + '.map.mpk'):
             self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.mpk', 'rb').read(), encoding = 'utf-8',
                                         object_pairs_hook = OrderedDict)
@@ -336,14 +335,14 @@ class ResultDB:
         self.data.update(self.master)
         if script is not None:
             self.data['.dscsrc'] = repr(script)
-        save_rds(self.data, self.name + '.rds')
+        pickle.dump(self.data, open(self.dat_prefix + '.db', 'wb'))
 
 
 class ResultAnnotator:
     def __init__(self, ann_files, ann_table, dsc_data):
         '''Load master table to be annotated and annotation contents'''
         self.dsc = dsc_data
-        data = load_rds(self.dsc.runtime.output + '.rds')
+        data = pickle.load(open('.sos/.dsc/{}.db'.format(os.path.basename(self.dsc.runtime.output)), 'rb'))
         self.data = {k : pd.DataFrame(v) for k, v in data.items() if k != '.dscsrc'}
         if ann_table is not None:
             self.master = ann_table if ann_table.startswith('master_') else 'master_{}'.format(ann_table)
@@ -495,8 +494,10 @@ class ResultAnnotator:
                         res[k] = get_output(k, return_id)['return'].tolist()
                     else:
                         target_id = self.data[self.master].loc[
-                            self.data[self.master]['{}_id'.format(self.master[7:])].isin(return_id)]['{}_id'.format(k)]
-                        res[k] = get_output(k, target_id)['return'].tolist()
+                            self.data[self.master]['{}_id'.format(self.master[7:])].isin(return_id)]['{}_id'.format(k)].\
+                            dropna()
+                        if target_id.size:
+                            res[k] = get_output(k, target_id)['return'].tolist()
             return res
         #
         self.result = OrderedDict()

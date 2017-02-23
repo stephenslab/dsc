@@ -4,16 +4,16 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, re, glob, argparse
+import os, sys, atexit, re, glob, argparse, pickle
 from collections import OrderedDict
 import pkg_resources
 from sos.utils import env, get_traceback
 from sos.__main__ import cmd_remove
-from dsc.dsc_parser import DSC_Script
-from dsc.dsc_analyzer import DSC_Analyzer
-from dsc.dsc_translator import DSC_Translator
+from .dsc_parser import DSC_Script
+from .dsc_analyzer import DSC_Analyzer
+from .dsc_translator import DSC_Translator
 from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
-from .utils import get_slice, load_rds, uniq_list, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
+from .utils import get_slice, uniq_list, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
 from sos.sos_script import SoS_Script
 from sos.converter import script_to_html
 from sos.sos_executor import Base_Executor, MP_Executor
@@ -68,12 +68,12 @@ def dsc_run(args, content, workflows = ['DSC'], dag = None, verbosity = 1, queue
     env.verbosity = args.verbosity
 
 def remove(workflows, steps, db, force, debug):
-    filename = os.path.basename(db) + '.rds'
+    filename = '.sos/.dsc/{}.db'.format(os.path.basename(db))
     if not os.path.isfile(filename):
-        raise ValueError('Cannot remove anything because DSC output meta data ``{}`` is not found!'.format(filename))
+        raise ValueError('Cannot remove anything because DSC metadata is not found!')
     if len(steps) == 0:
         # remove everything
-        to_remove = glob.glob('{}/*'.format(os.path.basename(db)))
+        to_remove = glob.glob('{}/*'.format(db))
     else:
         to_remove = []
         for item in steps:
@@ -100,7 +100,7 @@ def remove(workflows, steps, db, force, debug):
                 env.logger.warning('Cannot find step ``{}`` in DSC run sequence specified; '\
                                    'thus not processed.'.format(item))
         #
-        data = load_rds(filename)
+        data = pickle.load(open(filename, 'rb'))
         to_remove = flatten_list([[glob.glob(os.path.join(db, '{}.*'.format(x)))
                                    for x in data[item]['return']]
                                   for item in to_remove if item in data])
@@ -191,13 +191,13 @@ def execute(args):
                            "for the problematic chunk of code.".\
                            format(db_name))
         sys.exit(1)
-    # 7. Construct meta database
+    # 7. Construct metadata
     master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
-    env.logger.info("Building output database ``{0}.rds`` ...".format(db))
-    ResultDB(db, master).Build(script = dsc_script)
+    env.logger.info("Writing output metadata ...")
+    ResultDB(db_name, master).Build(script = dsc_script)
     # 8. Update manifest
     manifest_items = [x.strip() for x in open(manifest).readlines()]
-    for x in [args.dsc_file, db + '.html', db + '.rds']:
+    for x in [args.dsc_file, db + '.html', '.sos/.dsc/{}.db'.format(db_name)]:
         if x not in manifest_items:
             manifest_items.append(x)
     with open(manifest, 'w') as f:

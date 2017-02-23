@@ -342,7 +342,7 @@ class DSC_Step:
                             p1 = repr(p1)
                 if isinstance(p1, tuple):
                     # FIXME format_tuple has to be defined for shell as well
-                    p1 = [self.plugin.format_tuple(p1)]
+                    p1 = self.plugin.format_tuple(p1)
                 values.append(p1)
             if len(values) == 0:
                 del self.p[k]

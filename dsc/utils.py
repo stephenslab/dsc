@@ -485,7 +485,10 @@ def save_rds(data, filename):
                   value = np.asarray(value)
         if isinstance(value, np.matrix):
             value = np.asarray(value)
-        if isinstance(value, (str, float, int, np.ndarray, pd.DataFrame)):
+        if isinstance(value, (str, float, int, np.ndarray)):
+            RO.r.assign(name, value)
+        elif isinstance(value, pd.DataFrame):
+            # FIXME: does not always work well for pd.DataFrame
             RO.r.assign(name, value)
         else:
             raise ValueError("Saving ``{}`` to RDS file is not supported!".format(str(type(value))))
