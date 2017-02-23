@@ -109,8 +109,8 @@ class DSC_Translator:
         self.job_str = job_header + '\n'.join(job_str)
         self.conf_str += "\n[INIT_0]\nremove_obsolete_db('{0}')\n[BUILD_0]\nparameter: vanilla = {1}\n" \
                          "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
-                         ", '.sos/.dsc/{0}.manifest'\nbuild_config_db(input, output[0], output[1], "\
-                         "output[2], output[3], vanilla = vanilla, jobs = {3})".\
+                         "\nbuild_config_db(input, output[0], output[1], "\
+                         "output[2], vanilla = vanilla, jobs = {3})".\
                          format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
         self.job_str += "\n[DSC]\ndepends: sum([IO_DB[x[0]][x[1]]['output_repr'] for x in {}], [])".\
                         format(repr(final_step_label))

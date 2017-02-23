@@ -13,7 +13,7 @@ from dsc.dsc_parser import DSC_Script
 from dsc.dsc_analyzer import DSC_Analyzer
 from dsc.dsc_translator import DSC_Translator
 from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
-from .utils import get_slice, load_rds, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
+from .utils import get_slice, load_rds, uniq_list, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
 from sos.sos_script import SoS_Script
 from sos.converter import script_to_html
 from sos.sos_executor import Base_Executor, MP_Executor
@@ -174,6 +174,7 @@ def execute(args):
         os.remove(env.logfile)
     if os.path.isfile('.sos/transcript.txt'):
         os.remove('.sos/transcript.txt')
+    open(manifest, 'w').write('.sos/.dsc/{}.map.mpk'.format(db_name))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     env.logger.info("Building execution graph ...")
     try:
@@ -290,6 +291,7 @@ def distribute(args):
                     files.append(os.path.join(root, filename))
         else:
             files.append(item)
+    files = uniq_list(files)
     env.verbosity = args.verbosity
     tar_args = {'name': output + '.tar.gz', 'mode': 'w:gz'}
     if os.path.isfile(tar_args['name']) and not args.__rerun__:

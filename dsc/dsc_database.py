@@ -58,7 +58,7 @@ def load_mpk(mpk_files, jobs):
     return OrderedDict([(x, d[x]) for x in sorted(d.keys())])
 
 
-def build_config_db(input_files, io_db, map_db, conf_db, manifest, vanilla = False, jobs = 4):
+def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs = 4):
     '''
     - collect all output file names in md5 style
     - check if map file should be loaded, and load it
@@ -167,8 +167,6 @@ def build_config_db(input_files, io_db, map_db, conf_db, manifest, vanilla = Fal
                                           for item in find_representative(data[k]['DSC_IO_'][1])]
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
-    with open(manifest, 'w') as f:
-        f.write('\n'.join(input_files + [io_db, map_db, conf_db, manifest]))
 
 
 class ResultDBError(Error):
