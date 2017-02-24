@@ -175,6 +175,7 @@ class DSC_Translator:
             self.input_vars = None
             self.header = ''
             self.loop_string = ''
+            self.filter_string = ''
             self.param_string = ''
             self.input_string = ''
             self.output_string = ''
@@ -211,6 +212,8 @@ class DSC_Translator:
                 self.param_string += 'parameter: seed = {}'.format(repr(self.step.seed))
             if self.params:
                 self.loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(self.params)])
+            if self.step.l:
+                self.filter_string = ' if ' + self.step.l
 
         def get_input(self):
             depend_steps = uniq_list([x[0] for x in self.step.depends]) if self.step.depends else []
@@ -235,7 +238,14 @@ class DSC_Translator:
                 else:
                     self.input_string += "input:"
                 if len(self.params):
-                    self.input_option.append('for_each = %s' % repr(self.params))
+                    if self.filter_string:
+                        self.input_option.append("for_each = {{'{0}':[({0}) {1}{2}]}}".\
+                                                 format(','.join(['_{}'.format(x) for x in self.params]),
+                                                        ' '.join(['for _{0} in {0}'.format(s)
+                                                                  for s in reversed(self.params)]),
+                                                        self.filter_string))
+                    else:
+                        self.input_option.append('for_each = %s' % repr(self.params))
 
         def get_output(self):
             if self.prepare:
@@ -246,12 +256,12 @@ class DSC_Translator:
                                           "suffix = '{{}}'.format({4})) {2}]".\
                                           format(' '.join([self.step.name, str(self.step.exe), self.step.group] \
                                                           + ['{0}:{{}}'.format(x) for x in reversed(self.params)]),
-                                                 format_string, self.loop_string, self.step.name, "':'.join(__i)")
+                                                 format_string, self.loop_string + self.filter_string, self.step.name, "':'.join(__i)")
                 else:
                     self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
                                       format(' '.join([self.step.name, str(self.step.exe), self.step.group] \
                                                       + ['{0}:{{}}'.format(x) for x in reversed(self.params)]),
-                                             format_string, self.loop_string, self.step.name)
+                                             format_string, self.loop_string + self.filter_string, self.step.name)
             else:
                 # FIXME
                 output_option = '_index'
@@ -267,7 +277,7 @@ class DSC_Translator:
                                   format(', '.join(["('exec', '{}')".format(self.step.name)] \
                                                    + ["('{0}', _{0})".format(x) for x in reversed(self.params)]),
                                          None if '__i' not in self.loop_string else "'{}'.format(' '.join(__i))",
-                                         self.loop_string)
+                                         self.loop_string + self.filter_string)
                 key = "DSC_UPDATES_['{{}}:{}'.format(sequence_id)]".format(self.name)
                 self.action += "DSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".format(key)
                 if self.step.depends:

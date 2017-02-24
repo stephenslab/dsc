@@ -59,9 +59,11 @@ class DSC_Script:
         self.runtime.consolidate_sequences()
         # FIXME: maybe this should be allowed?
         self.runtime.check_looped_computation()
-        # Finally prune blocks removing unused steps
+        # prune blocks removing unused steps
         for name, idxes in self.runtime.sequence_ordering.items():
             self.blocks[name].extract_steps(idxes)
+        # check blocks with the same step names
+        self.check_duplicate_step()
 
     def propagate_derived_block(self):
         '''
@@ -131,11 +133,24 @@ class DSC_Script:
                 raise FormatError('Missing required entry ``exec`` in block ``{}``'.format(block))
             if not 'return' in self.content[block]:
                 raise FormatError('Missing required entry ``return`` in block ``{}``'.format(block))
-            for key in self.content[block]:
+            for key in list(self.content[block].keys()):
                 if key not in DSC_BLOCKP:
                     logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.\
                                    format(key, block))
                     del self.content[block][key]
+
+    def check_duplicate_step(self):
+        names = {}
+        for block in self.blocks:
+            for step in self.blocks[block].steps:
+                if step.name in names:
+                    raise ValueError("Duplicated executable ``{}`` in block ``{}`` (already seen in {}). "\
+                                     "\nPlease use ``.alias`` to rename one of these executables".\
+                                     format(step.name, block,
+                                            "block ``{}``".format(names[step.name]) if names[step.name] != block
+                                                   else "the same block"))
+                else:
+                    names[step.name] = block
 
     def WriteAnnotationTemplate(self, target):
         ann = OrderedDict()
@@ -182,8 +197,9 @@ class DSCEntryFormatter:
             if isinstance(value, collections.Mapping):
                 self.__Transform(value, actions)
             else:
-                for a in actions:
-                    value = a(value)
+                if key != '.logic':
+                    for a in actions:
+                        value = a(value)
                 if is_null(value):
                     del cfg[key]
                 else:
@@ -315,7 +331,7 @@ class DSC_Step:
         if rule is None or len(rule) == 0:
             return
         raw_rule = rule
-        rule = ' and '.join(['({})'.format(x.replace('.', '_')) for x in rule])
+        rule = ' and '.join(['({})'.format(x.replace('.', '_')) for x in rule.split(',')])
         statement = ';'.join(["{} = {}".format(k, str(self.p[k])) for k in self.p])
         value_str = ','.join(['_{}'.format(x) for x in self.p.keys()])
         loop_str = ' '.join(["for _{0} in {0}".format(x) for x in self.p])
@@ -323,7 +339,7 @@ class DSC_Step:
         try:
             ret = subprocess.check_output('python -c {}'.format(repr(statement)), shell = True).decode('utf-8').strip()
         except:
-            raise FormatError("Invalid .logic: ``{}``!".format(', '.join(raw_rule)))
+            raise FormatError("Invalid .logic: ``{}``!".format(raw_rule))
         if int(ret) == 0:
             raise FormatError("No parameter combination satisfies .logic ``{}``!".format(raw_rule))
         self.l = rule

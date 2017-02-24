@@ -260,7 +260,7 @@ class ResultDB:
                                      ['step_id', 'return', 'depends']]))
                 if keys1 != keys2:
                     raise ResultDBError('Inconsistent keys between step '\
-                                              '``{1} (value {3})`` and ``{2} (value {4})``.'.\
+                                              '``{0} (value {2})`` and ``{1} (value {3})``.'.\
                                               format(idx + 1, keys1, self.data[table]['step_id'], keys2))
             self.data[table]['step_id'].append(idx + 1)
             k = k.split()
