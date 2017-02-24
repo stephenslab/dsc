@@ -349,9 +349,10 @@ def main():
                    entry when specified. Multiple sequences are allowed. Each input should be
                    a quoted string defining a valid DSC sequence. Multiple such strings should be
                    separated by space.''')
-    p_execute.add_argument('--seeds', metavar = "n", nargs = '+',
+    p_execute.add_argument('--seeds', metavar = "values", nargs = '+',
                    help = '''This will override any "seed" property in the DSC script. This feature
-                   is useful for using a small number of seeds for a test run.''')
+                   is useful for using a small number of seeds for a test run.
+                   Example: `--seeds 1`, `--seeds 1 2 3 4`, `--seeds {1..10}`, `--seeds "R(1:10)"`''')
     p_execute.add_argument('-q', action='store_true', dest='__dryrun__', help = SUPPRESS)
     p_execute.add_argument('--recover', action='store_true', dest='__construct__',
                    help = '''Recover DSC based on names (not contents) of existing files.''')
