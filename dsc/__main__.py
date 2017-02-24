@@ -317,7 +317,7 @@ def run(args):
 
 
 def main():
-    p = argparse.ArgumentParser(description = __doc__)
+    p = argparse.ArgumentParser(description = __doc__, allow_abbrev = False)
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
