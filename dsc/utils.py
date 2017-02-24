@@ -300,7 +300,7 @@ def dict2str(value):
     res = '\n'.join([x[2:] for x in res.split('\n') if x.strip() != 'dictitems:' and x])
     return res
 
-def update_nested_dict(d, u, mapping = dict):
+def update_nested_dict(d, u, mapping = collections.OrderedDict):
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
             r = update_nested_dict(d.get(k, mapping()), v)

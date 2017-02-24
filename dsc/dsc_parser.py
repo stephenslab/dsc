@@ -7,7 +7,7 @@ __license__ = "MIT"
 Parser for DSC script and annotation files
 '''
 
-import os, re, itertools, copy, collections, yaml
+import os, re, itertools, copy, collections, yaml, subprocess
 from io import StringIO
 from sos.utils import logger
 from sos.target import textMD5
@@ -201,6 +201,8 @@ class DSC_Step:
         self.seed = None
         # params: alias, value
         self.p = OrderedDict()
+        # parameter logic:
+        self.l = None
         # return variables (to plugin): alias, value
         self.rv = OrderedDict()
         # return files: alias, ext
@@ -309,8 +311,22 @@ class DSC_Step:
 
 
     def apply_params_rule(self, common_rule, spec_rule):
-        # FIXME: not implemented yet
-        pass
+        rule = spec_rule if spec_rule else common_rule
+        if rule is None or len(rule) == 0:
+            return
+        raw_rule = rule
+        rule = ' and '.join(['({})'.format(x.replace('.', '_')) for x in rule])
+        statement = ';'.join(["{} = {}".format(k, str(self.p[k])) for k in self.p])
+        value_str = ','.join(['_{}'.format(x) for x in self.p.keys()])
+        loop_str = ' '.join(["for _{0} in {0}".format(x) for x in self.p])
+        statement += ';print(len([({}) {} if {}]))'.format(value_str, loop_str, rule)
+        try:
+            ret = subprocess.check_output('python -c {}'.format(repr(statement)), shell = True).decode('utf-8').strip()
+        except:
+            raise FormatError("Invalid .logic: ``{}``!".format(', '.join(raw_rule)))
+        if int(ret) == 0:
+            raise FormatError("No parameter combination satisfies .logic ``{}``!".format(raw_rule))
+        self.l = rule
 
     def apply_params_operator(self):
         '''
@@ -356,7 +372,8 @@ class DSC_Step:
         return strip_dict(OrderedDict([ ( 'name', self.name), ( 'group', self.group),
                                         ('dependencies', self.depends), ('command', self.exe),
                                         ('command_index', self.exe_id),('use replicates', self.seed),
-                                        ('parameters', self.p), ('return variables', self.rv),
+                                        ('parameters', self.p), ('parameter rule', self.l),
+                                        ('return variables', self.rv),
                                         ('return files', self.rf),  ('shell status', self.shell_run),
                                         ('plugin status', self.plugin.dump()),
                                         ('runtime options', OrderedDict([('exec path', self.path),
@@ -405,9 +422,9 @@ class DSC_Block:
                 self.steps[i].set_seed(content['seed'])
             self.steps[i].set_params(try_get_value(params, 0), try_get_value(params, i + 1),
                                      try_get_value(params_alias, 0), try_get_value(params_alias, i + 1))
-            self.steps[i].apply_params_rule(try_get_value(params_rules, 0), try_get_value(params_rules, i + 1))
             self.steps[i].set_return(try_get_value(return_vars, 0), try_get_value(return_vars, i + 1))
             self.steps[i].apply_params_operator()
+            self.steps[i].apply_params_rule(try_get_value(params_rules, 0), try_get_value(params_rules, i + 1))
             self.steps[i].check_shell(exes[i])
 
     def get_exec_options(self, global_options, local_options, script_path):
@@ -468,7 +485,6 @@ class DSC_Block:
         res[0] = OrderedDict()
         res_rules = OrderedDict()
         res_alias = OrderedDict()
-        OP = OperationParser()
         for key, value in params.items():
             try:
                 # get indexed slice
@@ -489,7 +505,7 @@ class DSC_Block:
             # Parse parameter rules and alias
             for key in res:
                 if '.logic' in res[key]:
-                    res_rules[key] = OP(res[key]['.logic'])
+                    res_rules[key] = res[key]['.logic']
                     del res[key]['.logic']
                 if '.alias' in res[key]:
                     res_alias[key] = res[key]['.alias']
