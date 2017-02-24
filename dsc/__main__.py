@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, re, glob, argparse, pickle
+import os, sys, atexit, re, glob, pickle
 from collections import OrderedDict
 import pkg_resources
 from sos.utils import env, get_traceback
@@ -18,6 +18,14 @@ from sos.sos_script import SoS_Script
 from sos.converter import script_to_html
 from sos.sos_executor import Base_Executor, MP_Executor
 from . import VERSION
+
+from argparse import ArgumentParser, SUPPRESS
+
+class ArgumentParserError(Exception): pass
+
+class MyArgParser(ArgumentParser):
+    def error(self, message):
+        raise ArgumentParserError(message)
 
 def sos2html(sos_files, html_files):
     verbosity = env.verbosity
@@ -317,12 +325,12 @@ def run(args):
 
 
 def main():
-    p = argparse.ArgumentParser(description = __doc__, allow_abbrev = False)
+    p = MyArgParser(description = __doc__, allow_abbrev = False)
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information. Default to 2.''')
-    p.add_argument('--debug', action='store_true', help = argparse.SUPPRESS)
+    p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('-j', type=int, metavar='N', default=2, dest='__max_jobs__',
                    help='''Number of maximum concurrent processes.''')
     p.add_argument('-o', metavar = "str", dest = 'output',
@@ -344,7 +352,7 @@ def main():
     p_execute.add_argument('--seeds', metavar = "n", nargs = '+',
                    help = '''This will override any "seed" property in the DSC script. This feature
                    is useful for using a small number of seeds for a test run.''')
-    p_execute.add_argument('-q', action='store_true', dest='__dryrun__', help = argparse.SUPPRESS)
+    p_execute.add_argument('-q', action='store_true', dest='__dryrun__', help = SUPPRESS)
     p_execute.add_argument('--recover', action='store_true', dest='__construct__',
                    help = '''Recover DSC based on names (not contents) of existing files.''')
     p_execute.add_argument('--clean', dest = 'to_remove', metavar = "str", nargs = '*',
@@ -379,7 +387,13 @@ def main():
                        If additional files are given to this option, then those files will also be
                        included in the benchmark.''')
     p.set_defaults(func = run)
-    args = p.parse_args()
+    try:
+        args = p.parse_args()
+    except Exception as e:
+        env.logger.error(e)
+        env.logger.info("Please type ``{} -h`` to view available options".\
+                        format(os.path.basename(sys.argv[0])))
+        sys.exit(1)
     #
     with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False):
         try:
