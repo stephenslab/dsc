@@ -559,7 +559,6 @@ class DSC_Section:
         OP = OperationParser()
         self.sequence = []
         if sequence is not None:
-            print(sequence)
             for item in sequence:
                 if isinstance(self.content['run'], collections.Mapping) and item in self.content['run']:
                     self.sequence.extend(self.content['run'][item])
