@@ -11,7 +11,7 @@ import os, re, itertools, copy, collections, yaml, subprocess
 from io import StringIO
 from sos.utils import logger
 from sos.target import textMD5
-from .utils import OrderedDict, FormatError, is_null, strip_dict, \
+from .utils import OrderedDict, FormatError, is_null, strip_dict, flatten_list, \
      cartesian_list, get_slice, expand_slice, flatten_dict, merge_lists, \
      try_get_value, dict2str, update_nested_dict, load_from_yaml, \
      locate_file
@@ -39,8 +39,6 @@ class DSC_Script:
         #
         self.propagate_derived_block()
         self.check_block_error()
-        if sequence:
-            self.content['DSC']['run'] = sequence
         if seeds:
             for block in self.content:
                 if 'seed' in self.content[block]:
@@ -559,7 +557,19 @@ class DSC_Section:
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
         OP = OperationParser()
-        self.sequence = sequence if sequence is not None else self.content['run']
+        self.sequence = []
+        if sequence is not None:
+            print(sequence)
+            for item in sequence:
+                if isinstance(self.content['run'], collections.Mapping) and item in self.content['run']:
+                    self.sequence.extend(self.content['run'][item])
+                else:
+                    self.sequence.append(item)
+        else:
+            if isinstance(self.content['run'], collections.Mapping):
+                self.sequence = flatten_list(self.content['run'].values())
+            else:
+                self.sequence = self.content['run']
         self.sequence = [(x,) if isinstance(x, str) else x
                          for x in sum([OP(expand_slice(y)) for y in self.sequence], [])]
         self.sequence_ordering = self.__merge_sequences(self.sequence)

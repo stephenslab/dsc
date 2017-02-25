@@ -347,8 +347,8 @@ def main():
     p_execute.add_argument('--sequence', metavar = "str", nargs = '+',
                    help = '''DSC sequence to be executed. It will override the DSC::run
                    entry when specified. Multiple sequences are allowed. Each input should be
-                   a quoted string defining a valid DSC sequence. Multiple such strings should be
-                   separated by space.''')
+                   a quoted string defining a valid DSC sequence, or referring to the key of an existing
+                   sequence in the DSC script. Multiple such strings should be separated by space.''')
     p_execute.add_argument('--seeds', metavar = "values", nargs = '+',
                    help = '''This will override any "seed" property in the DSC script. This feature
                    is useful for using a small number of seeds for a test run.
