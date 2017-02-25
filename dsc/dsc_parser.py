@@ -337,7 +337,8 @@ class DSC_Step:
         loop_str = ' '.join(["for _{0} in {0}".format(x) for x in self.p])
         statement += ';print(len([({}) {} if {}]))'.format(value_str, loop_str, rule)
         try:
-            ret = subprocess.check_output('python -c {}'.format(repr(statement)), shell = True).decode('utf-8').strip()
+            ret = subprocess.check_output("python -c '''{}'''".\
+                                          format(str(statement)), shell = True).decode('utf-8').strip()
         except:
             raise FormatError("Invalid .logic: ``{}``!".format(raw_rule))
         if int(ret) == 0:
