@@ -62,6 +62,7 @@ class DSC_Analyzer:
                         del block.steps[idx].p[k]
                 block.steps[idx].depends.sort(key = lambda x: ordering.index(x[0]))
             workflow[block.name] = block
+        self.check_duplicate_step(workflow)
         self.workflows.append(workflow)
 
     def find_dependencies(self, variable, workflow):
@@ -84,6 +85,20 @@ class DSC_Analyzer:
             raise FormatError('Cannot find return variable for ``${}`` in any of its previous steps.'.\
                               format(variable))
         return dependencies
+
+    def check_duplicate_step(self, workflow):
+        names = {}
+        for block in workflow:
+            for step in workflow[block].steps:
+                if step.name in names and len([x[0] for x in step.depends if x[0] in names[step.name]]):
+                    raise ValueError("Duplicated executable ``{}`` in block ``{}`` (already seen in {}). "\
+                                     "\nPlease use ``.alias`` to rename one of these executables".\
+                                     format(step.name, block,
+                                            "block ``{}``".format(names[step.name]) if names[step.name] != block
+                                                   else "the same block"))
+                else:
+                    names[step.name] = block
+
 
     # def consolidate_workflows(self):
     #     '''

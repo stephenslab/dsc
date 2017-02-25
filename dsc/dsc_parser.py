@@ -51,8 +51,11 @@ class DSC_Script:
         # FIXME: add annotation info / filter here
         # Or, not?
         script_path = os.path.dirname(os.path.abspath(os.path.expanduser(content))) if os.path.isfile(content) else None
-        self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options, script_path))
-                                    for x in self.runtime.sequence_ordering.keys()])
+        try:
+            self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options, script_path))
+                                       for x in self.runtime.sequence_ordering.keys()])
+        except KeyError as e:
+            raise FormatError("Block ``{}`` is not defined!".format(e))
         self.runtime.expand_sequences(self.blocks)
         self.runtime.consolidate_sequences()
         # FIXME: maybe this should be allowed?
@@ -60,8 +63,6 @@ class DSC_Script:
         # prune blocks removing unused steps
         for name, idxes in self.runtime.sequence_ordering.items():
             self.blocks[name].extract_steps(idxes)
-        # check blocks with the same step names
-        self.check_duplicate_step()
 
     def propagate_derived_block(self):
         '''
@@ -136,19 +137,6 @@ class DSC_Script:
                     logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.\
                                    format(key, block))
                     del self.content[block][key]
-
-    def check_duplicate_step(self):
-        names = {}
-        for block in self.blocks:
-            for step in self.blocks[block].steps:
-                if step.name in names:
-                    raise ValueError("Duplicated executable ``{}`` in block ``{}`` (already seen in {}). "\
-                                     "\nPlease use ``.alias`` to rename one of these executables".\
-                                     format(step.name, block,
-                                            "block ``{}``".format(names[step.name]) if names[step.name] != block
-                                                   else "the same block"))
-                else:
-                    names[step.name] = block
 
     def WriteAnnotationTemplate(self, target):
         ann = OrderedDict()
