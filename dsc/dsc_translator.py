@@ -35,10 +35,11 @@ class DSC_Translator:
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
                       'from dsc.dsc_database import remove_obsolete_db, build_config_db\n\n\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
-                     "parameter: IO_DB =  msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
+                     "parameter: IO_DB = msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n".\
                      format(self.db)
         processed_steps = {}
+        conf_dict = {}
         conf_str = []
         job_str = []
         exe_signatures = {}
@@ -62,7 +63,9 @@ class DSC_Translator:
                                    if pattern.match(k)])
                         step.exe_id = "{0}_{1}".format(cnt, step.exe_id) if cnt > 0 else step.exe_id
                         conf_translator = self.Step_Translator(step, self.db, 1)
-                        conf_str.append(conf_translator.dump())
+                        if conf_translator.name in conf_dict:
+                            raise ValueError('[BUG] Duplicate section name ``{}``'.format(conf_translator.name))
+                        conf_dict[conf_translator.name] = conf_translator.dump()
                         job_translator = self.Step_Translator(step, self.db, 0)
                         job_str.append(job_translator.dump())
                         processed_steps[name] = "{}_{}".format(step.group, step.exe_id)
@@ -81,14 +84,13 @@ class DSC_Translator:
                         for x, y in zip(sequence, step_id)]
                 sqn = [replace_right(x, '_', ':', 1) for x in rsqn]
                 # Configuration
-                provides_files = ['.sos/.dsc/{}.{}.mpk'.\
-                                  format(self.db, '_'.join((str(i), x))) for x in rsqn]
-                conf_str.append("[INIT_{0}]\ninput: None\nsos_run('{2}', {1})".\
-                              format(i, "sequence_id = '{}', sequence_name = '{}'".\
-                                     format(i, '+'.join(rsqn)),
-                                     '+'.join(['prepare_{}'.format(x) for x in sqn]),
-                                     repr(provides_files)))
-                io_info_files.extend(provides_files)
+                conf_str.append("[INIT_{0}]\nparameter: sequence_id = '{0}'\nparameter: sequence_name = '{1}'".\
+                                format(i, '+'.join(rsqn)))
+                conf_str.append("input: None\noutput: '.sos/.dsc/{1}_{0}.mpk'".format(i, self.db))
+                conf_str.append("DSC_UPDATES_ = OrderedDict()")
+                conf_str.extend([conf_dict[x] for x in rsqn])
+                conf_str.append("open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))")
+                io_info_files.append('.sos/.dsc/{1}_{0}.mpk'.format(i, self.db))
                 # Execution pool
                 ii = 1
                 for x, y in zip(rsqn, sqn):
@@ -192,10 +194,7 @@ class DSC_Translator:
 
         def get_header(self):
             if self.prepare:
-                self.header += "[prepare_{1}: shared = '{0}_output']\n".format(self.step.group, self.name)
-                self.header += "parameter: sequence_id = None\nparameter: sequence_name = None\n"
-                self.header += "input: None\noutput: '.sos/.dsc/{}.{{}}_{}.mpk'.format(sequence_id)".\
-                               format(self.db, self.name)
+                self.header = "## [prepare_{1}: shared = '{0}_output']".format(self.step.group, self.name)
             else:
                 self.header = "[core_{0} ({1})]\n".\
                                format(self.name, self.step.name)
@@ -206,10 +205,11 @@ class DSC_Translator:
             # Set params, make sure each time the ordering is the same
             self.params = list(self.step.p.keys())
             for key in self.params:
-                self.param_string += 'parameter: {} = {}\n'.format(key, repr(self.step.p[key]))
+                self.param_string += '{}{} = {}\n'.\
+                                     format('' if self.prepare else "parameter: ", key, repr(self.step.p[key]))
             if self.step.seed:
                 self.params.append('seed')
-                self.param_string += 'parameter: seed = {}'.format(repr(self.step.seed))
+                self.param_string += '{}seed = {}'.format('' if self.prepare else "parameter: ", repr(self.step.seed))
             if self.params:
                 self.loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(self.params)])
             if self.step.l:
@@ -220,13 +220,13 @@ class DSC_Translator:
             if self.prepare:
                 if len(depend_steps) >= 2:
                     self.input_vars = 'input_files'
-                    self.input_string += "depends: {}\n".\
+                    self.input_string += "## depends: {}\n".\
                        format(', '.join(['sos_variable(\'{}_output\')'.format(x) for x in depend_steps]))
                     self.input_string += 'input_files = sos_group_input([{}])'.\
                        format(', '.join(['{}_output'.format(x) for x in depend_steps]))
                 elif len(depend_steps) == 1:
                     self.input_vars = "{}_output".format(depend_steps[0])
-                    self.input_string += "depends: sos_variable('{}')".format(self.input_vars)
+                    self.input_string += "## depends: sos_variable('{}')".format(self.input_vars)
                 else:
                     pass
                 if len(depend_steps):
@@ -279,7 +279,7 @@ class DSC_Translator:
                                          None if '__i' not in self.loop_string else "'{}'.format(' '.join(__i))",
                                          self.loop_string + self.filter_string)
                 key = "DSC_UPDATES_['{{}}:{}'.format(sequence_id)]".format(self.name)
-                self.action += "DSC_UPDATES_ = OrderedDict()\n{} = OrderedDict()\n".format(key)
+                self.action += "{} = OrderedDict()\n".format(key)
                 if self.step.depends:
                     self.action += "for x, y in zip({}, {}_output):\n\t{}[' '.join((y, x[1]))]"\
                                   " = OrderedDict([('sequence_id', {}), "\
@@ -296,7 +296,6 @@ class DSC_Translator:
                                format(key, '[]' if self.input_vars is None else '{0} if {0} is not None else []'.\
                                       format(self.input_vars), "{}_output".format(self.step.group))
                 self.action += "{0}['DSC_EXT_'] = \'{1}\'\n".format(key, self.step.rf['DSC_AUTO_OUTPUT_'][0])
-                self.action += "open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))"
             else:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list
