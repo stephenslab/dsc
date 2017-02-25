@@ -16,7 +16,7 @@ from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
 from .utils import get_slice, uniq_list, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
 from sos.sos_script import SoS_Script
 from sos.converter import script_to_html
-from sos.sos_executor import Base_Executor, MP_Executor
+from sos.sos_executor import Base_Executor
 from . import VERSION
 
 from argparse import ArgumentParser, SUPPRESS
@@ -63,10 +63,7 @@ def dsc_run(args, content, workflows = ['DSC'], dag = None, verbosity = 1, queue
         if not executor_class:
             sys.exit('Could not locate specified queue executor {}'.format(queue))
     else:
-        if env.max_jobs == 1:
-            executor_class = Base_Executor
-        else:
-            executor_class = MP_Executor
+        executor_class = Base_Executor
     script = SoS_Script(content=content, transcript = None)
     for w in workflows:
         workflow = script.workflow(w)
@@ -264,11 +261,7 @@ def extract(args):
     ext = ResultExtractor(args.tags, args.master, args.output, args.extract)
     script = SoS_Script(content = ext.script, transcript = None)
     workflow = script.workflow("Extracting")
-    if env.max_jobs == 1:
-        # single process executor
-        executor_class = Base_Executor
-    else:
-        executor_class = MP_Executor
+    executor_class = Base_Executor
     executor = executor_class(workflow)
     executor.run()
     env.verbosity = args.verbosity
