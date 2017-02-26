@@ -49,11 +49,14 @@ class DSC_Analyzer:
                     for p1_idx, p1 in enumerate(p):
                         if isinstance(p1, str):
                             if p1.startswith('$'):
-                                dependencies = self.find_dependencies(p1[1:], list(workflow.values()))
-                                for item in dependencies:
-                                    if item not in block.steps[idx].depends:
-                                        block.steps[idx].depends.append(item)
-                                block.steps[idx].plugin.add_input(k, p1)
+                                dependent = self.find_dependent(p1[1:], list(workflow.values()))
+                                if dependent not in block.steps[idx].depends:
+                                    block.steps[idx].depends.append(dependent)
+                                if dependent[2] == 'var':
+                                    block.steps[idx].plugin.add_input(k, p1)
+                                else:
+                                    # FIXME: should figure out the index of previous output
+                                    block.steps[idx].plugin.add_input(k, '${_input!r}')
                                 # FIXME: should not delete, but rather transform it, when this
                                 # can be properly bypassed on scripts
                                 # block.steps[idx].p[k][p1_idx] = repr(p1)
@@ -65,26 +68,28 @@ class DSC_Analyzer:
         self.check_duplicate_step(workflow)
         self.workflows.append(workflow)
 
-    def find_dependencies(self, variable, workflow):
+    def find_dependent(self, variable, workflow):
         curr_idx = len(workflow)
         if curr_idx == 0:
             raise FormatError('Symbol ``$`` is not allowed in the first step of a DSC sequence.')
         curr_idx = curr_idx - 1
-        dependencies = []
+        dependent = ''
         while curr_idx >= 0:
             # Look up backwards for the corresponding block, looking at the output of the first step
             if variable in [x for x in workflow[curr_idx].steps[0].rv]:
-                dependencies.append((workflow[curr_idx].name, variable, 'var'))
+                dependent = (workflow[curr_idx].name, variable, 'var')
             if variable in [x for x in workflow[curr_idx].steps[0].rf]:
-                dependencies.append((workflow[curr_idx].name, variable, 'file'))
-            if len(dependencies):
+                if len(dependent) > 0:
+                    raise ValueError('[BUG]: ``{}`` cannot be both a variable and a file!'.format(variable))
+                dependent = (workflow[curr_idx].name, variable, 'file')
+            if len(dependent):
                 break
             else:
                 curr_idx = curr_idx - 1
-        if len(dependencies) == 0:
+        if len(dependent) == 0:
             raise FormatError('Cannot find return variable for ``${}`` in any of its previous steps.'.\
                               format(variable))
-        return dependencies
+        return dependent
 
     def check_duplicate_step(self, workflow):
         names = {}

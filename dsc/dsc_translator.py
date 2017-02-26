@@ -171,7 +171,7 @@ class DSC_Translator:
              - will construct the actual script to run
             '''
             # FIXME
-            if flatten_list(step.rf.values()) > 0:
+            if len(flatten_list(list(step.rf.values()))) > 1:
                 raise ValueError('Multiple output files not implemented')
             self.exe_signature = []
             self.prepare = prepare
@@ -310,7 +310,8 @@ class DSC_Translator:
                     if not self.step.shell_run:
                         script_begin = plugin.get_input(self.params, input_num = len(self.step.depends),
                                                         lib = self.step.libpath, index = idx,
-                                                        cmd_args = cmd.split()[1:] if len(cmd.split()) > 1 else None)
+                                                        cmd_args = cmd.split()[1:] if len(cmd.split()) > 1 else None,
+                                                        autoload = True if len([x for x in self.step.depends if x[2] == 'var']) else False)
                         script_begin = '{1}\n{0}\n{2}'.\
                                        format(script_begin.strip(),
                                               '## BEGIN code by DSC2',
