@@ -395,7 +395,8 @@ class DSC_Block:
         # block executable rules
         self.rule = self.get_exec_rule(content['.logic']) if '.logic' in content else None
         exes = [tuple(x.split()) if isinstance(x, str) else x for x in content['exec']]
-        exe_alias = content['.alias'] if '.alias' in content else ['_'.join([x for x in y if not x.startswith('$')])
+        exe_alias = content['.alias'] if '.alias' in content else ['_'.join([os.path.splitext(os.path.basename(x))[0] if i == 0 else x
+                                                                             for i, x in enumerate(y) if not x.startswith('$')])
                                                                    for y in exes]
         if len(exes) == 1 and len(exe_alias) > 1:
             exes = exes * len(exe_alias)

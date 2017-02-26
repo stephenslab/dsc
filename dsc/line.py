@@ -25,7 +25,10 @@ class YLine:
     def split(self, value):
         '''Split value by comma outside (), [] and {}'''
         if not isinstance(value, str):
-            return value
+            if isinstance(value, (int, float, bool)):
+                return [value]
+            else:
+                return value
         counts = {'(': 0,
                   ')': 0,
                   '[': 0,
@@ -90,6 +93,7 @@ class YLine:
                     var = tuple(var)
         return var
 
+
 class Str2List(YLine):
     '''
     Convert string to list via splitting by comma outside of parenthesis
@@ -110,6 +114,7 @@ class Str2List(YLine):
             else:
                 return value
 
+
 class ExpandVars(YLine):
     '''
     Replace DSC variable place holder with actual value
@@ -128,7 +133,7 @@ class ExpandVars(YLine):
                 # find pattern with slicing first
                 pattern = re.compile(r'\$\((.*?)\)\[(.*?)\]')
                 for m in re.finditer(pattern, item):
-                    tmp = [x.strip() for x in self.split(self.global_var[m.group(1)])]
+                    tmp = [x.strip() if isinstance(x, str) else str(x) for x in self.split(self.global_var[m.group(1)])]
                     tmp = ', '.join([tmp[i] for i in get_slice('slice[' + m.group(2) + ']')[1]])
                     item = item.replace(m.group(0), '[' + tmp + ']')
                 # then pattern without slicing
@@ -138,6 +143,7 @@ class ExpandVars(YLine):
                 if item != value[idx]:
                     value[idx] = item
         return value
+
 
 class ExpandActions(YLine):
     '''
@@ -196,6 +202,7 @@ class ExpandActions(YLine):
     def __Shell(self, code):
         return subprocess.check_output(code, shell = True).decode('utf8').strip()
 
+
 class CastData(YLine):
     def __init__(self):
         YLine.__init__(self)
@@ -221,6 +228,7 @@ class CastData(YLine):
                 else:
                     res.append(x)
             return res
+
 
 class OperationParser(YLine):
     '''
