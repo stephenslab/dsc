@@ -170,6 +170,9 @@ class DSC_Translator:
             run step:
              - will construct the actual script to run
             '''
+            # FIXME
+            if flatten_list(step.rf.values()) > 0:
+                raise ValueError('Multiple output files not implemented')
             self.exe_signature = []
             self.prepare = prepare
             self.step = step
@@ -295,10 +298,12 @@ class DSC_Translator:
                 self.action += "{0}['DSC_IO_'] = ({1}, {2})\n".\
                                format(key, '[]' if self.input_vars is None else '{0} if {0} is not None else []'.\
                                       format(self.input_vars), "{}_output".format(self.step.group))
-                self.action += "{0}['DSC_EXT_'] = \'{1}\'\n".format(key, self.step.rf['DSC_AUTO_OUTPUT_'][0])
+                # FIXME: multiple output to be implemented
+                self.action += "{0}['DSC_EXT_'] = \'{1}\'\n".\
+                               format(key, flatten_list(self.step.rf.values())[0])
             else:
                 # FIXME: have not considered super-step yet
-                # Create fake plugin and command list
+                # Create fake plugin and command list for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     self.action += '{}:\n'.format(plugin.name)
                     # Add action
