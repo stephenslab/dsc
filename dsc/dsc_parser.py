@@ -236,7 +236,7 @@ class DSC_Step:
         # True only if command has $ parameters and they exist in parameter list
         # Also this conflicts with self.rv: self.shell_run == True && len(self.rv) == 0
         self.shell_run = False
-        if not self.shell_run:
+        if not self.shell_run and len(self.rv) > 0:
             # make it a list in order to readily merge with other self.rf items
             self.rf['DSC_AUTO_OUTPUT_'] = ['rds']
 

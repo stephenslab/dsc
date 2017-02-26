@@ -69,7 +69,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None):
+    def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None, autoload = False):
         return ''
 
     def format_tuple(self, value):
@@ -114,7 +114,7 @@ class Shell(BasePlug):
     def set_container(self, name, value, params):
         pass
 
-    def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None):
+    def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None, autoload = False):
         return ''
 
     def format_tuple(self, value):
@@ -127,7 +127,8 @@ class RPlug(BasePlug):
 
     def add_input(self, lhs, rhs):
         self.input_alias.append('{} <- {}'.format(lhs,
-                                                  rhs if (not rhs.startswith('$')) or rhs == '${_output!r}'
+                                                  rhs if (not rhs.startswith('$'))
+                                                  or rhs in ('${_output!r}', '${_input!r}')
                                                   else '{}{}'.format(self.identifier, rhs)))
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
@@ -138,7 +139,7 @@ class RPlug(BasePlug):
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
 
-    def get_input(self, params, input_num, lib, index, cmd_args):
+    def get_input(self, params, input_num, lib, index, cmd_args, autoload):
         if lib is not None:
             res = 'DSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib]))
         else:
@@ -151,11 +152,11 @@ class RPlug(BasePlug):
         load_single_in = '\n{} <- readRDS("${{_input}}")'.format(self.identifier)
         load_out = '\nattach(readRDS("${_output}"), warn.conflicts = F)'
         flag = False
-        if input_num > 1:
+        if input_num > 1 and autoload:
             res += load_multi_in
             if index > 0:
                 flag = True
-        elif input_num == 1:
+        elif input_num == 1 and autoload:
             res += load_single_in
             if index > 0:
                 flag = True
@@ -195,6 +196,8 @@ class RPlug(BasePlug):
         return res
 
     def get_return(self, output_vars):
+        if len(output_vars) == 0:
+            return ''
         res = '\nsaveRDS(list({}), ${{_output!r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
                            ['DSC_TIMER = proc.time() - {}_tic_pt'.format(self.identifier)]))
@@ -230,7 +233,8 @@ class PyPlug(BasePlug):
 
     def add_input(self, lhs, rhs):
         self.input_alias.append('{} = {}'.format(lhs,
-                                                 rhs if (not rhs.startswith('$')) or rhs == '${_output!r}'
+                                                 rhs if (not rhs.startswith('$'))
+                                                 or rhs in ('${_output!r}', '${_input!r}')
                                                  else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
 
     def add_tempfile(self, lhs, rhs):
@@ -242,7 +246,7 @@ class PyPlug(BasePlug):
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
 
-    def get_input(self, params, input_num, lib, index, cmd_args):
+    def get_input(self, params, input_num, lib, index, cmd_args, autoload):
         res = 'import sys, os, tempfile, timeit'
         if lib is not None:
             for item in lib:
@@ -254,11 +258,11 @@ class PyPlug(BasePlug):
         load_single_in = '\n{} = load_rds("${{_input}}")'.format(self.identifier)
         load_out = '\nglobals().update(load_rds("${_output}"))'
         flag = False
-        if input_num > 1:
+        if input_num > 1 and autoload:
             res += load_multi_in
             if index > 0:
                 flag = True
-        elif input_num == 1:
+        elif input_num == 1 and autoload:
             res += load_single_in
             if index > 0:
                 flag = True
@@ -297,6 +301,8 @@ class PyPlug(BasePlug):
         return res
 
     def get_return(self, output_vars):
+        if len(output_vars) == 0:
+            return ''
         res = '\nsave_rds({{{}}}, ${{_output!r}})'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
                            ['"DSC_TIMER" : timeit.default_timer() - {}_tic_pt'.format(self.identifier)]))
