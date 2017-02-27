@@ -140,7 +140,7 @@ def execute(args):
     workflow = DSC_Analyzer(script)
     if args.verbosity > 3:
         workflow2html('.sos/.dsc/{}.workflow.html'.format(db_name), workflow.workflows, script.dump().values())
-    pipeline = DSC_Translator(workflow.workflows, script.runtime, args.__rerun__, args.__max_jobs__)
+    pipeline = DSC_Translator(workflow.workflows, script.runtime, args.__rerun__, args.__max_jobs__, args.try_catch)
     if args.verbosity > 3:
         sos2html((pipeline.write_pipeline(1), pipeline.write_pipeline(2)),
                  ('.sos/.dsc/{}.prepare.html'.format(db_name),
@@ -359,6 +359,10 @@ def main():
                    will try to reconstruct the entire benchmark skipping existing files. Level 2 recover
                    will only use existing files to reconstruct the benchmark output metadata, making it possible
                    to explore partial benchmark results without having to wait until completion of entire benchmark.''')
+    p_execute.add_argument('--ignore-errors', action='store_true', dest='try_catch',
+                   help = '''Bypass all errors from computational programs. This will keep the benchmark running but
+                   all results will be set to missing values and the problematic script will be saved when applicable.
+                   ''')
     p_execute.add_argument('--clean', dest = 'to_remove', metavar = "str", nargs = '*',
                    help = '''Instead of running DSC, output for one or multiple steps from previous DSC
                    runs are to be cleaned. Each step should be a valid DSC step in the format of

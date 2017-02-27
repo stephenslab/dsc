@@ -83,6 +83,13 @@ class BasePlug:
                 ('input_alias', self.input_alias),
                 ('temp file', self.tempfile)])
 
+    def add_try(self):
+        return ''
+
+    def add_catch(self):
+        return ''
+
+
 class Shell(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'run', identifier = identifier)
@@ -119,6 +126,12 @@ class Shell(BasePlug):
 
     def format_tuple(self, value):
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
+
+    def add_try(self):
+        return ''
+
+    def add_catch(self):
+        return ''
 
 
 class RPlug(BasePlug):
@@ -232,6 +245,12 @@ class RPlug(BasePlug):
         self.container.extend(res)
         self.container_vars.extend(keys)
 
+    def add_try(self):
+        return ''
+
+    def add_catch(self):
+        return ''
+
     def format_tuple(self, value):
         return 'c({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
 
@@ -343,6 +362,12 @@ class PyPlug(BasePlug):
                 res.append('%s[%s] = %s' % (name, repr(str(k)), k))
         self.container.extend(res)
         self.container_vars.extend(keys)
+
+    def add_try(self):
+        return ''
+
+    def add_catch(self):
+        return ''
 
     def format_tuple(self, value):
         return '({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))

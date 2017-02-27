@@ -25,7 +25,7 @@ class DSC_Translator:
         with workflow name "DSC" for each sequence, indexed by
         the possible ways to combine exec routines. The possible ways are pre-determined and passed here.
     '''
-    def __init__(self, workflows, runtime, rerun = False, n_cpu = 4):
+    def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False):
         def replace_right(source, target, replacement, replacements=None):
             return replacement.join(source.rsplit(target, replacements))
         #
@@ -62,11 +62,11 @@ class DSC_Translator:
                                    set(flatten_list([list(self.step_map[i].values()) for i in range(workflow_id)]))
                                    if pattern.match(k)])
                         step.exe_id = "{0}_{1}".format(cnt, step.exe_id) if cnt > 0 else step.exe_id
-                        conf_translator = self.Step_Translator(step, self.db, 1)
+                        conf_translator = self.Step_Translator(step, self.db, 1, try_catch)
                         if conf_translator.name in conf_dict:
                             raise ValueError('[BUG] Duplicate section name ``{}``'.format(conf_translator.name))
                         conf_dict[conf_translator.name] = conf_translator.dump()
-                        job_translator = self.Step_Translator(step, self.db, 0)
+                        job_translator = self.Step_Translator(step, self.db, 0, try_catch)
                         job_str.append(job_translator.dump())
                         processed_steps[name] = "{}_{}".format(step.group, step.exe_id)
                         exe_signatures["{}_{}".format(step.group, step.exe_id)] = job_translator.exe_signature
@@ -160,7 +160,7 @@ class DSC_Translator:
         os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
 
     class Step_Translator:
-        def __init__(self, step, db, prepare):
+        def __init__(self, step, db, prepare, try_catch):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -173,6 +173,7 @@ class DSC_Translator:
             # FIXME
             if len(flatten_list(list(step.rf.values()))) > 1:
                 raise ValueError('Multiple output files not implemented')
+            self.try_catch = try_catch
             self.exe_signature = []
             self.prepare = prepare
             self.step = step
