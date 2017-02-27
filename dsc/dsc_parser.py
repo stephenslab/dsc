@@ -508,6 +508,7 @@ class DSC_Block:
                 res[0][key] = flatten_dict(value, mapping = OrderedDict)
             # Parse parameter rules and alias
             for key in res:
+                res[key] = flatten_dict(res[key])
                 if '.logic' in res[key]:
                     res_rules[key] = res[key]['.logic']
                     del res[key]['.logic']
