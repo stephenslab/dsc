@@ -44,19 +44,20 @@ class DSC_Analyzer:
         workflow = OrderedDict()
         for name in sequence:
             block = copy.deepcopy(data[name])
+            file_dependencies = []
             for idx, step in enumerate(block.steps):
                 for k, p in list(step.p.items()):
                     for p1_idx, p1 in enumerate(p):
                         if isinstance(p1, str):
                             if p1.startswith('$'):
-                                dependent = self.find_dependent(p1[1:], list(workflow.values()))
-                                if dependent not in block.steps[idx].depends:
-                                    block.steps[idx].depends.append(dependent)
-                                if dependent[2] == 'var':
+                                id_dependent = self.find_dependent(p1[1:], list(workflow.values()))
+                                if id_dependent[1] not in block.steps[idx].depends:
+                                    block.steps[idx].depends.append(id_dependent[1])
+                                if id_dependent[1][2] == 'var':
                                     block.steps[idx].plugin.add_input(k, p1)
                                 else:
                                     # FIXME: should figure out the index of previous output
-                                    block.steps[idx].plugin.add_input(k, '${_input!r}')
+                                    file_dependencies.append((id_dependent[0], k))
                                 # FIXME: should not delete, but rather transform it, when this
                                 # can be properly bypassed on scripts
                                 # block.steps[idx].p[k][p1_idx] = repr(p1)
@@ -64,6 +65,9 @@ class DSC_Analyzer:
                     if len(block.steps[idx].p[k]) == 0:
                         del block.steps[idx].p[k]
                 block.steps[idx].depends.sort(key = lambda x: ordering.index(x[0]))
+                if len(file_dependencies):
+                    file_dependencies.sort()
+                    block.steps[idx].plugin.add_input([x[1] for x in file_dependencies], '${_input!r}')
             workflow[block.name] = block
         self.check_duplicate_step(workflow)
         self.workflows.append(workflow)
@@ -89,7 +93,7 @@ class DSC_Analyzer:
         if len(dependent) == 0:
             raise FormatError('Cannot find return variable for ``${}`` in any of its previous steps.'.\
                               format(variable))
-        return dependent
+        return curr_idx, dependent
 
     def check_duplicate_step(self, workflow):
         names = {}

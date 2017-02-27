@@ -126,10 +126,22 @@ class RPlug(BasePlug):
         super().__init__(name = 'R', identifier = identifier)
 
     def add_input(self, lhs, rhs):
-        self.input_alias.append('{} <- {}'.format(lhs,
-                                                  rhs if (not rhs.startswith('$'))
-                                                  or rhs in ('${_output!r}', '${_input!r}')
-                                                  else '{}{}'.format(self.identifier, rhs)))
+        if isinstance(lhs, str):
+            # single value input add
+            self.input_alias.append('{} <- {}'.format(lhs,
+                                                      rhs if (not rhs.startswith('$'))
+                                                      or rhs in ('${_output!r}', '${_input!r}')
+                                                      else '{}{}'.format(self.identifier, rhs)))
+        elif isinstance(lhs, (list, tuple)):
+            # multiple value input add
+            for idx, x in enumerate(lhs):
+                if rhs.startswith("$") and not rhs.startswith("${"):
+                    self.input_alias.append('{} <- {}{}'.format(x, self.identifier, rhs))
+                elif not rhs.startswith("$"):
+                    self.input_alias.append('{} <- {}'.format(x, rhs))
+                else:
+                    self.input_alias.append('{} <- {}'.format(x, rhs.replace('!r', '[{}]!r'.format(idx))))
+
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
             self.tempfile.append('{0} <- \'${{_output[0]!bn}}.{0}\''.format(lhs))
@@ -232,10 +244,21 @@ class PyPlug(BasePlug):
         super().__init__(name = 'python', identifier = identifier)
 
     def add_input(self, lhs, rhs):
-        self.input_alias.append('{} = {}'.format(lhs,
-                                                 rhs if (not rhs.startswith('$'))
-                                                 or rhs in ('${_output!r}', '${_input!r}')
-                                                 else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
+        if isinstance(lhs, str):
+            # single value input add
+            self.input_alias.append('{} = {}'.format(lhs,
+                                                     rhs if (not rhs.startswith('$'))
+                                                     or rhs in ('${_output!r}', '${_input!r}')
+                                                     else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
+        elif isinstance(lhs, (list, tuple)):
+            # multiple value input add
+            for idx, x in enumerate(lhs):
+                if rhs.startswith("$") and not rhs.startswith("${"):
+                    self.input_alias.append('{} = {}[{}]'.format(x, self.identifier, repr(rhs[1:])))
+                elif not rhs.startswith("$"):
+                    self.input_alias.append('{} = {}'.format(x, rhs))
+                else:
+                    self.input_alias.append('{} = {}'.format(x, rhs.replace('!r', '[{}]!r'.format(idx))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
