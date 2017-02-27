@@ -145,7 +145,7 @@ def execute(args):
         sos2html((pipeline.write_pipeline(1), pipeline.write_pipeline(2)),
                  ('.sos/.dsc/{}.prepare.html'.format(db_name),
                   '.sos/.dsc/{}.run.html'.format(db_name)))
-    # 3. remove and return when applicable
+    # 3. remove and reconstruct at level 2: these will not trigger running anything
     if args.to_remove is not None:
         remove(workflow.workflows, args.to_remove, db, args.__rerun__, args.debug)
         return
@@ -153,6 +153,13 @@ def execute(args):
     if args.__construct__ and not os.path.isfile(manifest):
         raise RuntimeError('Project cannot be recovered due to lack of integrity: manifest file is missing!\n'\
                          'Please make sure the benchmark was properly distributed with ``--distribute`` option.')
+    # 3.2 recover level 2
+    if args.__construct__ == 2:
+        master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
+        env.logger.warning("Recovering partially completed DSC benchmark ...\n"\
+                           "--distribute option will fail on this recovered benchmark because it is incomplete.")
+        ResultDB(db_name, master).Build(script = dsc_script)
+        return
     # 4. Archive scripts
     exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
                                 for k in script.runtime.sequence_ordering])
@@ -347,8 +354,11 @@ def main():
                    is useful for using a small number of seeds for a test run.
                    Example: `--seeds 1`, `--seeds 1 2 3 4`, `--seeds {1..10}`, `--seeds "R(1:10)"`''')
     p_execute.add_argument('-q', action='store_true', dest='__dryrun__', help = SUPPRESS)
-    p_execute.add_argument('--recover', action='store_true', dest='__construct__',
-                   help = '''Recover DSC based on names (not contents) of existing files.''')
+    p_execute.add_argument('--recover', metavar = "levels", choices = [1, 2], dest = '__construct__',
+                   help = '''Recover DSC based on names (not contents) of existing files. Level 1 recover
+                   will try to reconstruct the entire benchmark skipping existing files. Level 2 recover
+                   will only use existing files to reconstruct the benchmark output metadata, making it possible
+                   to explore partial benchmark results without having to wait until completion of entire benchmark.''')
     p_execute.add_argument('--clean', dest = 'to_remove', metavar = "str", nargs = '*',
                    help = '''Instead of running DSC, output for one or multiple steps from previous DSC
                    runs are to be cleaned. Each step should be a valid DSC step in the format of
