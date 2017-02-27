@@ -157,8 +157,8 @@ def execute(args):
     if args.__construct__ == 2:
         master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
         env.logger.warning("Recovering partially completed DSC benchmark ...\n"\
-                           "--distribute option will fail on this recovered benchmark because it is incomplete.")
-        ResultDB(db_name, master).Build(script = dsc_script)
+                           "``--distribute`` option will fail on this recovered benchmark because it is incomplete.")
+        ResultDB(db_name, master).Build(script = open(args.dsc_file).read())
         return
     # 4. Archive scripts
     exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
@@ -186,7 +186,7 @@ def execute(args):
         os.remove(env.logfile)
     if os.path.isfile('.sos/transcript.txt'):
         os.remove('.sos/transcript.txt')
-    open(manifest, 'w').write('.sos/.dsc/{}.map.mpk'.format(db_name))
+    open(manifest, 'w').write('.sos/.dsc/{0}.map.mpk\n.sos/.dsc/{0}.io.mpk'.format(db_name))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     env.logger.info("Building execution graph ...")
     try:
@@ -354,7 +354,8 @@ def main():
                    is useful for using a small number of seeds for a test run.
                    Example: `--seeds 1`, `--seeds 1 2 3 4`, `--seeds {1..10}`, `--seeds "R(1:10)"`''')
     p_execute.add_argument('-q', action='store_true', dest='__dryrun__', help = SUPPRESS)
-    p_execute.add_argument('--recover', metavar = "levels", choices = [1, 2], dest = '__construct__',
+    p_execute.add_argument('--recover', type = int,
+                           metavar = "levels", choices = [1, 2], dest = '__construct__',
                    help = '''Recover DSC based on names (not contents) of existing files. Level 1 recover
                    will try to reconstruct the entire benchmark skipping existing files. Level 2 recover
                    will only use existing files to reconstruct the benchmark output metadata, making it possible

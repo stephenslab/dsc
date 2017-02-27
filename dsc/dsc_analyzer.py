@@ -50,7 +50,8 @@ class DSC_Analyzer:
                     for p1_idx, p1 in enumerate(p):
                         if isinstance(p1, str):
                             if p1.startswith('$'):
-                                id_dependent = self.find_dependent(p1[1:], list(workflow.values()))
+                                id_dependent = self.find_dependent(p1[1:], list(workflow.values()),
+                                                                   block.name)
                                 if id_dependent[1] not in block.steps[idx].depends:
                                     block.steps[idx].depends.append(id_dependent[1])
                                 if id_dependent[1][2] == 'var':
@@ -72,12 +73,12 @@ class DSC_Analyzer:
         self.check_duplicate_step(workflow)
         self.workflows.append(workflow)
 
-    def find_dependent(self, variable, workflow):
+    def find_dependent(self, variable, workflow, block_name):
         curr_idx = len(workflow)
         if curr_idx == 0:
             raise FormatError('Symbol ``$`` is not allowed in the first step of a DSC sequence.')
         curr_idx = curr_idx - 1
-        dependent = ''
+        dependent = None
         while curr_idx >= 0:
             # Look up backwards for the corresponding block, looking at the output of the first step
             if variable in [x for x in workflow[curr_idx].steps[0].rv]:
@@ -86,13 +87,13 @@ class DSC_Analyzer:
                 if len(dependent) > 0:
                     raise ValueError('[BUG]: ``{}`` cannot be both a variable and a file!'.format(variable))
                 dependent = (workflow[curr_idx].name, variable, 'file')
-            if len(dependent):
+            if dependent is not None:
                 break
             else:
                 curr_idx = curr_idx - 1
-        if len(dependent) == 0:
-            raise FormatError('Cannot find return variable for ``${}`` in any of its previous steps.'.\
-                              format(variable))
+        if dependent is None:
+            raise FormatError('Cannot find return variable for ``${}`` in any of its previous steps.'\
+                              ' This variable is quested by block ``{}``.'.format(variable, block_name))
         return curr_idx, dependent
 
     def check_duplicate_step(self, workflow):
