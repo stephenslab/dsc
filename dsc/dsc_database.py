@@ -600,6 +600,7 @@ class ResultExtractor:
         else:
             self.tags = {}
             for tag in tags:
+                tag = tag.strip().strip('=') # add this line in case shinydsc gives empty tag alias
                 if "=" in tag:
                     if len(tag.split('=')) != 2:
                         raise ValueError("Invalid tag syntax ``{}``!".format(tag))
