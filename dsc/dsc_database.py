@@ -556,7 +556,7 @@ for (item in c(${input!r,})) {
     dat = readRDS(item)
     for (idx in length(targets)) {
        res[[keys[idx]]][[f_counter]] = dat[[targets[idx]]]
-       res[[paste0('DSC_TIMER_', keys[idx])]][[f_counter]] = dat$DSC_TIMER[1]
+       res[[paste0('DSC_TIMER_', keys[idx])]][[f_counter]] = dat$DSC_TIMER[length(dat$DSC_TIMER)]
     }
   }, error = function(e) {})
   for (idx in length(targets)) {
