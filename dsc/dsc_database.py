@@ -547,9 +547,9 @@ idx = 1
 for (item in c(${input!r,})) {
   tryCatch({
     res[[idx]] = readRDS(item)$${target}
-  }, error = function(e) {
-    res[[idx]] = item
-  })
+  }, error = function(e) {}
+  )
+  if (length(res) < idx) res[[idx]] = item
   idx = idx + 1
 }
 saveRDS(list(${key} = res), ${output!r})
