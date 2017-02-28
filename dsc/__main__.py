@@ -344,7 +344,7 @@ def main():
     p_execute = p.add_argument_group("Execute DSC")
     p_execute.add_argument('-x', '--execute', dest = 'dsc_file', metavar = "DSC script",
                    help = 'Execute DSC.')
-    p_execute.add_argument('--sequences', metavar = "str", dest = 'sequence', nargs = '+',
+    p_execute.add_argument('--sequence', metavar = "str", nargs = '+',
                    help = '''DSC sequences to be executed. It will override the DSC::run
                    entry when specified. Multiple sequences are allowed. Each input should be
                    a quoted string defining a valid DSC sequence, or referring to the key of an existing
