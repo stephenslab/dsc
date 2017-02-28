@@ -151,7 +151,7 @@ class ExpandActions(YLine):
 
     Action entries are
       * R(), Python(), Shell()
-      * Combo() and Pairs()
+      * ForEach() and Pairs()
     Untouched entries are:
       * File(), Temp(), Asis()
     because they'll have to be dynamically determined
@@ -162,7 +162,7 @@ class ExpandActions(YLine):
             'R': self.__R,
             'Python': self.__Python,
             'Shell': self.__Shell,
-            'Combo': self.__Combo,
+            'ForEach': self.__ForEach,
             'Pairs': self.__Pairs
             }
 
@@ -177,11 +177,11 @@ class ExpandActions(YLine):
                     value[idx] = item
         return value
 
-    def __Combo(self, value):
+    def __ForEach(self, value):
         raw_value = value
         value = [self.decodeVar(x) for x in self.split(value)]
         if len(value) == 1:
-            raise ValueError('Cannot produce Combos for single value ``{}``! '\
+            raise ValueError('Cannot produce combinations for single value ``{}``! '\
                              ' Please use "," to separate input string to multiple values.'.format(raw_value))
         value = [x if isinstance(x, (list, tuple)) else [x] for x in value]
         return cartesian_list(*value)
