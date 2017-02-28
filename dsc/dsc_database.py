@@ -534,7 +534,6 @@ class ResultAnnotator:
             # FIXME: Here assuming all steps have the same output variables
             for item in set(flatten_list([list(step.rv.keys()) for step in self.dsc.blocks[block].steps])):
                 var_menu.append('{}:{}'.format(block, item))
-            var_menu.append('{}:DSC_TIMER'.format(block))
         res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu)}
         metafile = os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.shinymeta.rds'.format(self.master[7:]))
         save_rds(res, metafile)
@@ -543,16 +542,29 @@ class ResultAnnotator:
 
 EXTRACT_RDS_R = '''
 res = list()
-idx = 1
+keys = c(${key!r,})
+for (key in keys) {
+  res[[key]] = list()
+}
+targets = c(${target!r,})
+f_counter = 1
 for (item in c(${input!r,})) {
   tryCatch({
-    res[[idx]] = readRDS(item)$${target}
-  }, error = function(e) {}
-  )
-  if (length(res) < idx) res[[idx]] = item
-  idx = idx + 1
+    dat = readRDS(item)
+    for (idx in length(targets)) {
+       res[[keys[idx]]][[f_counter]] = dat[[targets[idx]]]
+       res[[paste0('DSC_TIMER_', keys[idx])]][[f_counter]] = dat$DSC_TIMER[1]
+    }
+  }, error = function(e) {})
+  for (idx in length(targets)) {
+    if (length(res[[keys[idx]]]) < f_counter) {
+      res[[keys[idx]]][[f_counter]] = item
+      res[[paste0('DSC_TIMER_', keys[idx])]][[f_counter]] = NA
+    }
+  }
+  f_counter = f_counter + 1
 }
-saveRDS(list(${key} = res), ${output!r})
+saveRDS(res, ${output!r})
 '''
 
 CONCAT_RDS_R = '''
@@ -562,7 +574,7 @@ saveRDS(res, ${output!r})
 
 
 class ResultExtractor:
-    def __init__(self, tags, from_table, to_file, targets):
+    def __init__(self, tags, from_table, to_file, targets_list):
         tag_file = glob.glob('.sos/.dsc/*.tags')
         tables = [x.split('.')[-2] for x in tag_file]
         if len(tag_file) == 0:
@@ -600,32 +612,41 @@ class ResultExtractor:
         self.output = to_file
         self.ann_cache = []
         self.script = []
-        # Compose executable job file
-        idx = 1
-        for item in targets:
+        # Organize targets
+        targets = {}
+        for item in targets_list:
             if not item in valid_vars:
                 raise ValueError('Invalid input value: ``{}``. \nChoices are ``{}``.'.\
                                  format(item, repr(valid_vars)))
             target = item.split(":")
+            if target[0] not in targets:
+                targets[target[0]] = []
+            targets[target[0]].append(target[1])
+        # Compose executable job file
+        for key, item in targets.items():
             for tag, ann in self.tags.items():
                 # Handle union logic
                 if not '&&' in ann:
-                    input_files = sorted(self.ann[ann][target[0]])
+                    input_files = sorted(self.ann[ann][key])
                 else:
-                    arrays = [self.ann[x.strip()][target[0]] for x in ann.split('&&')]
+                    arrays = [self.ann[x.strip()][key] for x in ann.split('&&')]
                     input_files = sorted(set.intersection(*map(set, arrays)))
-                output_prefix = '_'.join([tag, target[0], target[1]])
+                input_files = flatten_list([glob.glob("{}/{}.*".format(self.name, x)) for x in input_files])
+                output_prefix = ['_'.join([tag, key, x]) for x in item]
+                step_name = '{}_{}'.format(tag, key)
+                output_file = '{}/ann_cache/{}.rds'.format(self.name, step_name)
                 # Compose execution step
-                self.ann_cache.append('{}_output'.format(output_prefix))
-                self.script.append("[Extracting_{0} ({1}): shared = {{'{1}_output' : 'output'}}]".format(idx, output_prefix))
-                self.script.append('parameter: target = {}'.format(repr(target[1])))
+                self.ann_cache.append(output_file)
+                self.script.append("[{0}: provides = '{1}']".\
+                                   format(step_name, output_file))
+                self.script.append('parameter: target = {}'.format(repr(item)))
                 self.script.append('parameter: key = {}'.format(repr(output_prefix)))
-                self.script.append('input: {}'.format(','.join([repr("{}/{}.rds".format(self.name, x)) for x in input_files])))
-                self.script.append('output: \'{}/ann_cache/{}.rds\''.format(self.name, output_prefix))
+                self.script.append('input: {}'.format(','.join([repr(x) for x in input_files])))
+                self.script.append('output: \'{}\''.format(output_file))
                 self.script.extend(['R:', EXTRACT_RDS_R])
-                idx += 1
-        self.script.append("[Extracting_{} (concate RDS)]".format(idx))
-        self.script.append('input: {}'.format('+'.join(sorted(self.ann_cache))))
+        self.script.append("[Extracting (concatenate RDS)]")
+        self.script.append('depends: {}'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
+        self.script.append('input: {}'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
         self.script.append('output: {}'.format(repr(self.output)))
         self.script.extend(['R:', CONCAT_RDS_R])
         self.script = '\n'.join(self.script)
