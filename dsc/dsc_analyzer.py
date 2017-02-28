@@ -84,7 +84,7 @@ class DSC_Analyzer:
             if variable in [x for x in workflow[curr_idx].steps[0].rv]:
                 dependent = (workflow[curr_idx].name, variable, 'var')
             if variable in [x for x in workflow[curr_idx].steps[0].rf]:
-                if len(dependent) > 0:
+                if dependent is not None:
                     raise ValueError('[BUG]: ``{}`` cannot be both a variable and a file!'.format(variable))
                 dependent = (workflow[curr_idx].name, variable, 'file')
             if dependent is not None:
