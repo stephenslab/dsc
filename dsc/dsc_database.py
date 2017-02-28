@@ -11,7 +11,7 @@ from sos.utils import Error
 from sos.__main__ import cmd_remove
 from .utils import load_rds, save_rds, \
      flatten_list, uniq_list, no_duplicates_constructor, \
-     cartesian_list, extend_dict, dotdict, chunks
+     cartesian_list, extend_dict, dotdict, chunks, strip_dict
 from multiprocessing import Process, Manager
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
@@ -505,6 +505,7 @@ class ResultAnnotator:
             self.result[tag] = OrderedDict()
             for queries in self.queries[tag]:
                 self.result[tag] = extend_dict(self.result[tag], run_query(queries))
+        self.result = strip_dict(self.result)
         metafile = os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.tags'.format(self.master[7:]))
         open(metafile, "wb").write(msgpack.packb(self.result))
         return metafile
@@ -515,6 +516,8 @@ class ResultAnnotator:
         res = PrettyTable()
         res.field_names = ["Tag", "No. unique obj.", "Logic"] if verbosity > 2 else ["Tag", "No. unique obj."]
         for tag in sorted(self.queries):
+            if tag not in self.result:
+                continue
             counts = ['``{}`` {}'.format(len(set(self.result[tag][block])), block) for block in sorted(self.result[tag])]
             if verbosity > 2:
                 res.add_row(["``{}``".format(tag), ' & '.join(counts), '\n'.join([' & '.join(item) for item in self.queries[tag]])])
@@ -626,12 +629,15 @@ class ResultExtractor:
         # Compose executable job file
         for key, item in targets.items():
             for tag, ann in self.tags.items():
+                input_files = []
                 # Handle union logic
-                if not '&&' in ann:
+                if not '&&' in ann and ann in self.ann:
                     input_files = sorted(self.ann[ann][key])
                 else:
-                    arrays = [self.ann[x.strip()][key] for x in ann.split('&&')]
+                    arrays = [self.ann[x.strip()][key] for x in ann.split('&&') if x.strip() in self.ann]
                     input_files = sorted(set.intersection(*map(set, arrays)))
+                if len(input_files) == 0:
+                    continue
                 input_files = flatten_list([glob.glob("{}/{}.*".format(self.name, x)) for x in input_files])
                 output_prefix = ['_'.join([tag, key, x]) for x in item]
                 step_name = '{}_{}'.format(tag, key)
