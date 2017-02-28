@@ -334,8 +334,11 @@ class DSC_Translator:
                             cmd_text = ["suppressMessages({})".format(x.strip())
                                         if re.search(r'^(library|require)\((.*?)\)$', x.strip())
                                         else x for x in cmd_text]
-                        script = """## {3} script UUID: ${{DSC_STEP_ID_}}\n{0}\n{1}\n{2}""".\
-                                 format(script_begin, '\n'.join(cmd_text), script_end, str(plugin))
+                        script = '\n'.join([script_begin, '\n'.join(cmd_text), script_end])
+                        if self.try_catch:
+                            script = plugin.add_try(script, len(flatten_list([self.step.rf.values()])))
+                        script = """## {0} script UUID: ${{DSC_STEP_ID_}}\n{1}""".\
+                                 format(str(plugin), script)
                         self.action += script
                         self.exe_signature.append(fileMD5(self.step.exe.split()[0], partial = False)
                                                   if os.path.isfile(self.step.exe.split()[0])

@@ -395,9 +395,14 @@ class DSC_Block:
         # block executable rules
         self.rule = self.get_exec_rule(content['.logic']) if '.logic' in content else None
         exes = [tuple(x.split()) if isinstance(x, str) else x for x in content['exec']]
-        exe_alias = content['.alias'] if '.alias' in content else ['_'.join([os.path.splitext(os.path.basename(x))[0] if i == 0 else x
-                                                                             for i, x in enumerate(y) if not x.startswith('$')])
-                                                                   for y in exes]
+        if '.alias' in content:
+            for item in content['.alias']:
+                if '.' in item:
+                    raise FormatError("Dot ``.`` in alias ``{}`` is not allowed. "\
+                                      "Please remove or replace it with underscore ``_``".format(item))
+            exe_alias = content['.alias']
+        else:
+            exe_alias = ['_'.join([os.path.splitext(os.path.basename(x))[0] if i == 0 else x                                             for i, x in enumerate(y) if not x.startswith('$')]) for y in exes]
         if len(exes) == 1 and len(exe_alias) > 1:
             exes = exes * len(exe_alias)
         # check if any exec out of index

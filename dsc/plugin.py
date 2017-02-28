@@ -83,10 +83,7 @@ class BasePlug:
                 ('input_alias', self.input_alias),
                 ('temp file', self.tempfile)])
 
-    def add_try(self):
-        return ''
-
-    def add_catch(self):
+    def add_try(self, content, n_output):
         return ''
 
 
@@ -127,10 +124,7 @@ class Shell(BasePlug):
     def format_tuple(self, value):
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
 
-    def add_try(self):
-        return ''
-
-    def add_catch(self):
+    def add_try(self, content, n_output):
         return ''
 
 
@@ -245,11 +239,15 @@ class RPlug(BasePlug):
         self.container.extend(res)
         self.container_vars.extend(keys)
 
-    def add_try(self):
-        return ''
-
-    def add_catch(self):
-        return ''
+    def add_try(self, content, n_output):
+        content = "tryCatch({\n" + '\n'.join([' ' * 4 + x for x in content.split('\n')]) + \
+                  "\n}, error = function(e) {\n"
+        content += '    script <- sub(".*=", "", commandArgs()[4])\n'
+        content += '    script <- readChar(script, file.info(script)$size)\n'
+        for i in range(n_output):
+            content += '    cat(script, file = ${_output[%s]!r})\n' % i
+        content += '})'
+        return content
 
     def format_tuple(self, value):
         return 'c({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
@@ -363,11 +361,13 @@ class PyPlug(BasePlug):
         self.container.extend(res)
         self.container_vars.extend(keys)
 
-    def add_try(self):
-        return ''
-
-    def add_catch(self):
-        return ''
+    def add_try(self, content, n_output):
+        content = "try:\n" + '\n'.join([' ' * 4 + x for x in content.split('\n')]) + \
+                  "\nexcept Exception as e:\n"
+        content += '    import sys\nscript = open(sys.argv[len(sys.argv)-1]).read()\n'
+        for i in range(n_output):
+            content += '    open(${_output[%s]!r}).write(script)\n' % i
+        return content
 
     def format_tuple(self, value):
         return '({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))

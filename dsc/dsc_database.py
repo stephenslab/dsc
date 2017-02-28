@@ -400,7 +400,7 @@ class ResultAnnotator:
                 # get subtables
                 if 'exec' in self.ann[tag][block]:
                     # we potentially found the sub table to query from
-                    subtables = self.ann[tag][block]['exec'].split(',')
+                    subtables = [os.path.splitext(os.path.basename(x))[0] for x in self.ann[tag][block]['exec'].split(',')]
                 else:
                     # we take that all sub tables in this block is involved
                     # and we look for these tables in DSC data
@@ -545,7 +545,11 @@ EXTRACT_RDS_R = '''
 res = list()
 idx = 1
 for (item in c(${input!r,})) {
-  res[[idx]] = readRDS(item)$${target}
+  tryCatch({
+    res[[idx]] = readRDS(item)$${target}
+  }, error = function(e) {
+    res[[idx]] = item
+  })
   idx = idx + 1
 }
 saveRDS(list(${key} = res), ${output!r})
