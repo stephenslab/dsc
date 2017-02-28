@@ -642,7 +642,7 @@ class ResultExtractor:
                                    format(step_name, output_file))
                 self.script.append('parameter: target = {}'.format(repr(item)))
                 self.script.append('parameter: key = {}'.format(repr(output_prefix)))
-                self.script.append('input: {}'.format(','.join([repr(x) for x in input_files])))
+                self.script.append('input: [{}]'.format(','.join([repr(x) for x in input_files])))
                 self.script.append('output: \'{}\''.format(output_file))
                 self.script.extend(['R:', EXTRACT_RDS_R])
         self.script.append("[Extracting (concatenate RDS)]")
