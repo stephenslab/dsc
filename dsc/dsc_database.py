@@ -545,9 +545,11 @@ class ResultAnnotator:
 
 EXTRACT_RDS_R = '''
 res = list()
+res$DSC_TIMER = list()
 keys = c(${key!r,})
 for (key in keys) {
   res[[key]] = list()
+  res$DSC_TIMER[[key]] = list()
 }
 targets = c(${target!r,})
 f_counter = 1
@@ -556,13 +558,13 @@ for (item in c(${input!r,})) {
     dat = readRDS(item)
     for (idx in length(targets)) {
        res[[keys[idx]]][[f_counter]] = dat[[targets[idx]]]
-       res[[paste0('DSC_TIMER_', keys[idx])]][[f_counter]] = dat$DSC_TIMER[length(dat$DSC_TIMER)]
+       res$DSC_TIMER[[keys[idx]]][[f_counter]] = dat$DSC_TIMER[length(dat$DSC_TIMER)]
     }
   }, error = function(e) {})
   for (idx in length(targets)) {
     if (length(res[[keys[idx]]]) < f_counter) {
       res[[keys[idx]]][[f_counter]] = item
-      res[[paste0('DSC_TIMER_', keys[idx])]][[f_counter]] = NA
+      res$DSC_TIMER[[keys[idx]]][[f_counter]] = NA
     }
   }
   f_counter = f_counter + 1
