@@ -17,7 +17,7 @@ shrink:
     params:
         input: $data
         mixcompdist: normal, halfuniform
-    return: ash_data, beta_est = R(ash_data$PosteriorMean),
+    return: ash_data, beta_est = R(ashr::get_pm(ash_data)),
             pi0_est = R(ashr::get_pi0(ash_data))
 
 beta_score:
@@ -42,6 +42,6 @@ DSC:
     run: simulate *
          shrink *
          (beta_score, pi0_score)
-    R_libs: stephens999/ashr (1.0.0+)
+    R_libs: stephens999/ashr (2.0.0+)
     exec_path: bin
     output: dsc_result

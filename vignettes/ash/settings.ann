@@ -17,3 +17,7 @@ ash_n:
 ash_nu:
   shrink:
     mixcompdist: halfuniform
+
+DSC:
+  simulation: An, Bn, Cn
+  methods: ash_n, ash_nu

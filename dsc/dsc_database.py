@@ -371,8 +371,11 @@ class ResultAnnotator:
             del self.ann['DSC']
         else:
             self.groups = OrderedDict()
+        pattern = re.compile("^\s+|\s*,\s*|\s+$")
+        for k, value in self.groups.items():
+            self.groups[k] = pattern.split(value)
         for item in flatten_list(self.groups.values()):
-            if item not in self.ann:
+            if item and item not in self.ann:
                 raise ResultDBError("Cannot find group ``{}`` in any annotation tags.".format(item))
         self.msg = []
 
@@ -567,7 +570,7 @@ for (item in c(${input!r,})) {
     dat = readRDS(item)
     for (idx in length(targets)) {
        res[[keys[idx]]][[f_counter]] = dat[[targets[idx]]]
-       res$DSC_TIMER[[keys[idx]]][[f_counter]] = dat$DSC_TIMER[length(dat$DSC_TIMER)]
+       res$DSC_TIMER[[keys[idx]]][[f_counter]] = dat$DSC_TIMER[1]
     }
   }, error = function(e) {})
   for (idx in length(targets)) {
