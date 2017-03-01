@@ -365,6 +365,15 @@ class ResultAnnotator:
                                  format(ann_file))
             else:
                 self.ann.update(ann)
+        # Annotation groups
+        if 'DSC' in self.ann:
+            self.groups = self.ann['DSC']
+            del self.ann['DSC']
+        else:
+            self.groups = OrderedDict()
+        for item in flatten_list(self.groups.values()):
+            if item not in self.ann:
+                raise ResultDBError("Cannot find group ``{}`` in any annotation tags.".format(item))
         self.msg = []
 
     def ConvertAnnToQuery(self):
@@ -537,7 +546,7 @@ class ResultAnnotator:
             # FIXME: Here assuming all steps have the same output variables
             for item in set(flatten_list([list(step.rv.keys()) for step in self.dsc.blocks[block].steps])):
                 var_menu.append('{}:{}'.format(block, item))
-        res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu)}
+        res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu), 'groups': self.groups}
         metafile = os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.shinymeta.rds'.format(self.master[7:]))
         save_rds(res, metafile)
         return metafile
@@ -571,7 +580,7 @@ saveRDS(res, ${output!r})
 '''
 
 CONCAT_RDS_R = '''
-res = do.call(c, lapply(c(${input!r,}), readRDS))
+res = do.call(function(...) mapply(c, ..., SIMPLIFY=F), lapply(c(${input!r,}), readRDS))
 res$DSC_COMMAND = ${command!r}
 saveRDS(res, ${output!r})
 '''
