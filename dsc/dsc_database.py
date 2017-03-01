@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, msgpack, yaml, re, glob, pickle
+import sys, os, msgpack, yaml, re, glob, pickle
 from collections import OrderedDict
 import pandas as pd
 import numpy as np
@@ -572,6 +572,7 @@ saveRDS(res, ${output!r})
 
 CONCAT_RDS_R = '''
 res = do.call(c, lapply(c(${input!r,}), readRDS))
+res$DSC_COMMAND = ${command!r}
 saveRDS(res, ${output!r})
 '''
 
@@ -631,10 +632,11 @@ class ResultExtractor:
             for tag, ann in self.tags.items():
                 input_files = []
                 # Handle union logic
-                if not '&&' in ann and ann in self.ann:
+                if not '&&' in ann and ann in self.ann and key in self.ann[ann]:
                     input_files = sorted(self.ann[ann][key])
                 else:
-                    arrays = [self.ann[x.strip()][key] for x in ann.split('&&') if x.strip() in self.ann]
+                    arrays = [self.ann[x.strip()][key] for x in ann.split('&&')
+                              if x.strip() in self.ann and key in self.ann[x.strip()]]
                     input_files = sorted(set.intersection(*map(set, arrays)))
                 if len(input_files) == 0:
                     continue
@@ -652,6 +654,7 @@ class ResultExtractor:
                 self.script.append('output: \'{}\''.format(output_file))
                 self.script.extend(['R:', EXTRACT_RDS_R])
         self.script.append("[Extracting (concatenate RDS)]")
+        self.script.append('parameter: command = "{}"'.format(' '.join(sys.argv)))
         self.script.append('depends: {}'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
         self.script.append('input: {}'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
         self.script.append('output: {}'.format(repr(self.output)))

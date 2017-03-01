@@ -272,10 +272,10 @@ def extract(args):
     executor = executor_class(workflow)
     executor.run()
     env.verbosity = args.verbosity
-    env.logger.info('Data extracted to ``{}`` for {} for DSC result ``{}``.'.\
-                    format(ext.output,
-                           'annotations ``{}``'.format(', '.join(args.tags)) if args.tags else "all annotations",
-                           ext.master))
+    env.logger.info('Data extracted to ``{}`` for DSC result ``{}`` via {}'.\
+                    format(ext.output, ext.master,
+                           'annotations: \n\t``{}``'.format('\n\t'.join(args.tags))
+                           if args.tags else "all annotations."))
 
 
 def distribute(args):
