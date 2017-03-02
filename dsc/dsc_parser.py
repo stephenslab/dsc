@@ -9,12 +9,13 @@ Parser for DSC script and annotation files
 
 import os, re, itertools, copy, collections, yaml, subprocess
 from io import StringIO
+from functools import reduce
 from sos.utils import logger
 from sos.target import textMD5
 from .utils import OrderedDict, FormatError, is_null, strip_dict, flatten_list, \
      cartesian_list, get_slice, expand_slice, flatten_dict, merge_lists, \
      try_get_value, dict2str, update_nested_dict, load_from_yaml, \
-     locate_file
+     locate_file, uniq_list
 from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
 from .plugin import Plugin
@@ -138,13 +139,30 @@ class DSC_Script:
                                    format(key, block))
                     del self.content[block][key]
 
-    def WriteAnnotationTemplate(self, target):
-        ann = OrderedDict()
-        for block in self.blocks:
-            for step in self.blocks[block].steps:
-                ann[step.name.replace('.', '_')] = {step.group:{'exec':step.name}}
-        with open(target, 'w') as f:
-            f.write(str(ann))
+    def AddDefaultAnnotation(self):
+        if self.runtime.named_sequence is None:
+            ann = OrderedDict()
+            for block in self.blocks:
+                for step in self.blocks[block].steps:
+                    ann[step.name.replace('.', '_')] = {step.group:{'exec':step.name}}
+        else:
+            ann = []
+            for tag, item in self.runtime.named_sequence.items():
+                item = uniq_list([x[:-1] for x in sum([self.runtime.OP(expand_slice(y)) for y in item], [])])
+                all_steps = []
+                for seq in item:
+                    for block in seq:
+                        block, indices = get_slice(block, mismatch_quit = False)
+                        if indices is None:
+                            indices = [x for x in range(len(self.blocks[block].steps))]
+                        block_steps = []
+                        for idx in indices:
+                            step = self.blocks[block].steps[idx]
+                            block_steps.append({step.group:{'exec':step.name}})
+                        all_steps.append(block_steps)
+                ann.extend([{tag : reduce(lambda x, y: dict(x, **y), x)}
+                            for x in itertools.product(*all_steps)])
+        return ann
 
     def dump(self):
         res = OrderedDict([('Blocks', self.blocks),
@@ -551,8 +569,12 @@ class DSC_Section:
         self.output = self.content['output'][0] if 'output' in self.content else output
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
-        OP = OperationParser()
+        self.OP = OperationParser()
         self.sequence = []
+        if isinstance(self.content['run'], collections.Mapping):
+            self.named_sequence = self.content['run']
+        else:
+            self.named_sequence = None
         if sequence is not None:
             for item in sequence:
                 if isinstance(self.content['run'], collections.Mapping) and item in self.content['run']:
@@ -565,7 +587,7 @@ class DSC_Section:
             else:
                 self.sequence = self.content['run']
         self.sequence = [(x,) if isinstance(x, str) else x
-                         for x in sum([OP(expand_slice(y)) for y in self.sequence], [])]
+                         for x in sum([self.OP(expand_slice(y)) for y in self.sequence], [])]
         self.sequence_ordering = self.__merge_sequences(self.sequence)
         self.options = OrderedDict()
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'

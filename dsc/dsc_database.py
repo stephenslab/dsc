@@ -364,7 +364,7 @@ class ResultAnnotator:
                 raise ResultDBError("Cannot find group ``{}`` in any annotation tags.".format(item))
         del ann['DSC']
         if len(ann) == 0:
-            ann = dsc_data.AddDefaultAnnotation()
+            ann = self.dsc.AddDefaultAnnotation()
         #
         data = pickle.load(open('.sos/.dsc/{}.db'.format(os.path.basename(self.dsc.runtime.output)), 'rb'))
         self.data = {k : pd.DataFrame(v) for k, v in data.items() if k != '.dscsrc'}
