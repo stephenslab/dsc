@@ -219,38 +219,15 @@ def execute(args):
 
 def annotate(args):
     env.verbosity = args.verbosity
-    if not args.dsc_file:
-        if args.annotation[0].endswith('ann'):
-            dsc_file = args.annotation[0].rsplit('.', 1)[0] + '.dsc'
-        else:
-            dsc_file = args.annotation[0]
-    else:
-        dsc_file = args.dsc_file
-    if not os.path.isfile(dsc_file):
-        raise RuntimeError('DSC script ``{}`` does not exist. '\
-                         'Please specify it via ``-a script_file annotation_file1 annotation_file2 ...``'.\
-                         format(dsc_file))
-    dsc_data = DSC_Script(dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds)
-    ann = [x for x in args.annotation if x.endswith('.ann') and os.path.isfile(x)]
-    if len(ann) == 0:
-        target = os.path.splitext(dsc_file)[0] + '.ann'
-        if os.path.isfile(target):
-            env.logger.warning("No valid annotation file specified. Load existing annotation ``{}``.".format(target))
-        else:
-            env.logger.warning("No valid annotation file specified. Load default annotation ``{}``.".format(target))
-            dsc_data.WriteAnnotationTemplate(target)
-        ann.append(target)
-    ann = ResultAnnotator(ann, args.master, dsc_data)
-    ann.ConvertAnnToQuery()
-    tagfile = ann.ApplyAnotation()
-    shinyfile = ann.SaveShinyMeta()
-    env.logger.info('\n'+ ann.ShowQueries(args.verbosity))
+    ann = ResultAnnotator(args.annotation, args.master, output = args.output, sequence = args.sequence)
+    tagfile, shinyfile = ann.Apply()
+    env.logger.info('\n'+ ann.ShowQueries())
     if len(ann.msg):
         env.logger.warning('\n' + '\n'.join(ann.msg))
     # update manifest
-    manifest = '.sos/.dsc/{}.manifest'.format(dsc_data.runtime.output)
+    manifest = '.sos/.dsc/{}.manifest'.format(ann.dsc.runtime.output)
     manifest_items = [x.strip() for x in open(manifest).readlines()]
-    for x in args.annotation + [tagfile, shinyfile]:
+    for x in [args.annotation, tagfile, shinyfile]:
         if x not in manifest_items:
             manifest_items.append(x)
     with open(manifest, 'w') as f:
@@ -373,12 +350,8 @@ def main():
     p_execute.add_argument('--host', metavar='str',
                    help='''URL of Redis server for distributed computation.''')
     p_ann = p.add_argument_group("Annotate DSC")
-    p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'file.ann', nargs = '+',
-                       help = '''Annotate DSC. Annotation files must have ".ann" extension. If "-a" option
-                       is used independently from "-x", then the first file should be the DSC configuration
-                       file with a non-".ann" extension. If this rule is violated, the program will attempt to
-                       look for a file having the same base name as the first file but with ".dsc" extension
-                       and if found it will be used as the DSC configuration file.''')
+    p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'file.ann',
+                       help = '''Annotate DSC using file.ann.''')
     p_ext = p.add_argument_group("Extract DSC results")
     p_ext.add_argument('-e', '--extract', metavar = 'block:variable', nargs = '+',
                        help = '''Variable(s) to extract.

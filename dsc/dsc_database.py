@@ -9,9 +9,11 @@ import pandas as pd
 import numpy as np
 from sos.utils import Error
 from sos.__main__ import cmd_remove
+from .dsc_parser import DSC_Script
 from .utils import load_rds, save_rds, \
      flatten_list, uniq_list, no_duplicates_constructor, \
-     cartesian_list, extend_dict, dotdict, chunks, strip_dict
+     cartesian_list, extend_dict, dotdict, chunks, strip_dict, \
+     try_get_value
 from multiprocessing import Process, Manager
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
@@ -339,9 +341,31 @@ class ResultDB:
 
 
 class ResultAnnotator:
-    def __init__(self, ann_files, ann_table, dsc_data):
+    def __init__(self, ann_file, ann_table, output = None, sequence = None):
         '''Load master table to be annotated and annotation contents'''
-        self.dsc = dsc_data
+        ann = yaml.load(open(ann_file))
+        if ann is None:
+            raise ResultDBError("Annotation file ``{}`` does not contain proper annotation information!".\
+                                 format(ann_file))
+        # Annotation groups
+        if try_get_value(ann, 'DSC', 'configuration') is None:
+            raise ResultDBError("Cannot find required entry ``DSC::configuration`` in ``{}``".\
+                                format(ann_file))
+        self.dsc = DSC_Script(ann['DSC']['configuration'], output = output, sequence = sequence)
+        if 'groups' in ann['DSC']:
+            self.groups = ann['DSC']['groups']
+        else:
+            self.groups = OrderedDict()
+        pattern = re.compile("^\s+|\s*,\s*|\s+$")
+        for k, value in self.groups.items():
+            self.groups[k] = pattern.split(value)
+        for item in flatten_list(self.groups.values()):
+            if item and item not in ann:
+                raise ResultDBError("Cannot find group ``{}`` in any annotation tags.".format(item))
+        del ann['DSC']
+        if len(ann) == 0:
+            ann = dsc_data.AddDefaultAnnotation()
+        #
         data = pickle.load(open('.sos/.dsc/{}.db'.format(os.path.basename(self.dsc.runtime.output)), 'rb'))
         self.data = {k : pd.DataFrame(v) for k, v in data.items() if k != '.dscsrc'}
         if ann_table is not None:
@@ -357,29 +381,26 @@ class ResultAnnotator:
                 self.master = self.master[0]
         if self.master not in data:
             raise ValueError('Cannot find target block ``{}``.'.format(self.master[7:]))
-        self.ann = OrderedDict()
-        for ann_file in ann_files:
-            ann = yaml.load(open(ann_file))
-            if ann is None:
-                raise ValueError("Annotation file ``{}`` does not contain proper annotation information!".\
-                                 format(ann_file))
-            else:
-                self.ann.update(ann)
-        # Annotation groups
-        if 'DSC' in self.ann:
-            self.groups = self.ann['DSC']
-            del self.ann['DSC']
-        else:
-            self.groups = OrderedDict()
-        pattern = re.compile("^\s+|\s*,\s*|\s+$")
-        for k, value in self.groups.items():
-            self.groups[k] = pattern.split(value)
-        for item in flatten_list(self.groups.values()):
-            if item and item not in self.ann:
-                raise ResultDBError("Cannot find group ``{}`` in any annotation tags.".format(item))
         self.msg = []
+        #
+        if not isinstance(ann, list):
+            ann = [ann]
+        self.anns = ann
 
-    def ConvertAnnToQuery(self):
+    def Apply(self):
+        self.result = OrderedDict()
+        for ann in self.anns:
+            queries = self.ConvertAnnToQuery(ann)
+            result = self.ApplyAnnotation(queries)
+            for key in result:
+                if not key in self.result:
+                    self.result[key] = {}
+                self.result[key] = extend_dict(self.result[key], result[key], unique = True)
+        tagfile, shinyfile = self.SaveAnnotation()
+        self.msg = uniq_list(self.msg)
+        return tagfile, shinyfile
+
+    def ConvertAnnToQuery(self, ann):
         '''
         Parse annotations to make pytable syntax
         1. for simple numbers / strings use '==' logic
@@ -404,35 +425,36 @@ class ResultAnnotator:
                 else:
                     return '{} == {}'.format(obj, text if not isinstance(text, str) else to_str(text))
 
-        self.queries = {}
-        for tag in self.ann:
-            self.queries[tag] = []
+        queries = {}
+        for tag in ann:
+            queries[tag] = []
             # for each tag we need a query
-            for block in self.ann[tag]:
+            for block in ann[tag]:
                 # get subtables
-                if 'exec' in self.ann[tag][block]:
+                if 'exec' in ann[tag][block]:
                     # we potentially found the sub table to query from
-                    subtables = [os.path.splitext(os.path.basename(x))[0] for x in self.ann[tag][block]['exec'].split(',')]
+                    subtables = [os.path.splitext(os.path.basename(x))[0] for x in ann[tag][block]['exec'].split(',')]
                 else:
                     # we take that all sub tables in this block is involved
                     # and we look for these tables in DSC data
                     subtables = [x.name for x in self.dsc.blocks[block].steps]
                 # get query
                 block_query = []
-                for k1 in self.ann[tag][block]:
+                for k1 in ann[tag][block]:
                     if k1 == 'params':
-                        for k2 in self.ann[tag][block][k1]:
-                            block_query.append(get_query(k2, self.ann[tag][block][k1][k2]))
+                        for k2 in ann[tag][block][k1]:
+                            block_query.append(get_query(k2, ann[tag][block][k1][k2]))
                     elif k1 == 'exec':
                         continue
                     else:
-                        block_query.append(get_query(k1, self.ann[tag][block][k1]))
+                        block_query.append(get_query(k1, ann[tag][block][k1]))
                 # OR logic for multiple subtables
-                self.queries[tag].append(['[{}] {}'.format(table, ' AND '.join(['({})'.format(x) for x in block_query]) if len(block_query) else 'ALL') for table in subtables])
-        for tag in self.queries:
-            self.queries[tag] = cartesian_list(*self.queries[tag])
+                queries[tag].append(['[{}] {}'.format(table, ' AND '.join(['({})'.format(x) for x in block_query]) if len(block_query) else 'ALL') for table in subtables])
+        for tag in queries:
+            queries[tag] = cartesian_list(*queries[tag])
+        return queries
 
-    def ApplyAnotation(self):
+    def ApplyAnnotation(self, queries):
         '''Run query on result table and make a tag column'''
 
         def get_id(query, target = None):
@@ -512,34 +534,26 @@ class ResultAnnotator:
                             res[k] = get_output(k, target_id)['return'].tolist()
             return res
         #
-        self.result = OrderedDict()
-        for tag in self.queries:
-            self.result[tag] = OrderedDict()
-            for queries in self.queries[tag]:
-                self.result[tag] = extend_dict(self.result[tag], run_query(queries))
-        self.result = strip_dict(self.result)
-        metafile = os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.tags'.format(self.master[7:]))
-        open(metafile, "wb").write(msgpack.packb(self.result))
-        return metafile
+        result = OrderedDict()
+        for tag in queries:
+            result[tag] = OrderedDict()
+            for item in queries[tag]:
+                result[tag] = extend_dict(result[tag], run_query(item))
+        return strip_dict(result)
 
-    def ShowQueries(self, verbosity):
+    def ShowQueries(self):
         '''Make a table summary of what has been performed'''
         from prettytable import PrettyTable
         res = PrettyTable()
-        res.field_names = ["Tag", "No. unique obj.", "Logic"] if verbosity > 2 else ["Tag", "No. unique obj."]
-        for tag in sorted(self.queries):
-            if tag not in self.result:
-                continue
+        res.field_names = ["Tag", "No. unique obj."]
+        for tag in self.result:
             counts = ['``{}`` {}'.format(len(set(self.result[tag][block])), block) for block in sorted(self.result[tag])]
-            if verbosity > 2:
-                res.add_row(["``{}``".format(tag), ' & '.join(counts), '\n'.join([' & '.join(item) for item in self.queries[tag]])])
-            else:
-                res.add_row(["``{}``".format(tag), ' & '.join(counts)])
+            res.add_row(["``{}``".format(tag), ' & '.join(counts)])
         res.align = "l"
         return res.get_string(padding_width = 2)
 
-    def SaveShinyMeta(self):
-        '''Save some meta info for shinydsc to load'''
+    def SaveAnnotation(self):
+        '''Save some meta info for shinydsc and for --extract commands'''
         # Get available var menu
         var_menu = []
         lask_blocks = [k[7:] for k in self.data if k.startswith('master_')]
@@ -549,10 +563,14 @@ class ResultAnnotator:
             # FIXME: Here assuming all steps have the same output variables
             for item in set(flatten_list([list(step.rv.keys()) for step in self.dsc.blocks[block].steps])):
                 var_menu.append('{}:{}'.format(block, item))
-        res = {'tags': sorted(self.ann.keys()), 'variables': sorted(var_menu), 'groups': self.groups}
+        res = {'tags': sorted(flatten_list([list(ann.keys()) for ann in self.anns])),
+                              'variables': var_menu, 'groups': self.groups}
         metafile = os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.shinymeta.rds'.format(self.master[7:]))
         save_rds(res, metafile)
-        return metafile
+        # save tag
+        tagfile = os.path.join('.sos/.dsc', self.dsc.runtime.output + '.{}.tags'.format(self.master[7:]))
+        open(tagfile, "wb").write(msgpack.packb(self.result))
+        return metafile, tagfile
 
 
 EXTRACT_RDS_R = '''

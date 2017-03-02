@@ -323,9 +323,11 @@ def strip_dict(data, mapping = dict, into_list = False):
             new_data[k] = v
     return new_data
 
-def extend_dict(dict1, dict2):
+def extend_dict(dict1, dict2, unique = False):
      for key, value in dict2.items():
           dict1.setdefault(key, []).extend(value)
+          if unique:
+              dict1[key] = uniq_list(dict1[key])
      return dict1
 
 class dotdict(dict):

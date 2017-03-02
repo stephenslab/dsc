@@ -14,10 +14,12 @@ ash_n:
   shrink:
     mixcompdist: normal
 
-ash_nu:
+ash_hu:
   shrink:
     mixcompdist: halfuniform
 
 DSC:
-  simulation: An, Bn, Cn
-  methods: ash_n, ash_nu
+  configuration: settings.dsc
+  groups:
+    scenario: An, Bn, Cn
+    method: ash_n, ash_hu
