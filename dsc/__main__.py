@@ -350,8 +350,8 @@ def main():
     p_execute.add_argument('--host', metavar='str',
                    help='''URL of Redis server for distributed computation.''')
     p_ann = p.add_argument_group("Annotate DSC")
-    p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'file.ann',
-                       help = '''Annotate DSC using file.ann.''')
+    p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'DSC Annotation',
+                       help = '''Annotate DSC.''')
     p_ext = p.add_argument_group("Extract DSC results")
     p_ext.add_argument('-e', '--extract', metavar = 'block:variable', nargs = '+',
                        help = '''Variable(s) to extract.
