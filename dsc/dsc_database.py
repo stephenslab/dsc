@@ -369,25 +369,20 @@ class ResultAnnotator:
         data = pickle.load(open('.sos/.dsc/{}.db'.format(os.path.basename(self.dsc.runtime.output)), 'rb'))
         self.data = {k : pd.DataFrame(v) for k, v in data.items() if k != '.dscsrc'}
         if ann_table is not None:
-            self.master = ann_table if ann_table.startswith('master_') else 'master_{}'.format(ann_table)
+            self.masters = [ann_table if ann_table.startswith('master_') else 'master_{}'.format(ann_table)]
         else:
-            self.master = [k for k in self.data if k.startswith('master_')]
-            if len(self.master) > 1:
-
-                raise ValueError("Please specify the DSC block to target, via ``--target``."\
-                                 "\nChoices are ``{}``".\
-                                 format(repr([x[7:] for x in self.master])))
-            else:
-                self.master = self.master[0]
-        if self.master not in data:
-            raise ValueError('Cannot find target block ``{}``.'.format(self.master[7:]))
-        self.msg = []
+            self.masters = [k for k in self.data if k.startswith('master_')]
+        for master in self.masters:
+            if master not in data:
+                raise ValueError('Cannot find target block ``{}``.'.format(master[7:]))
         #
         if not isinstance(ann, list):
             ann = [ann]
         self.anns = ann
 
-    def Apply(self):
+    def Apply(self, master):
+        self.master = master
+        self.msg = []
         self.result = OrderedDict()
         for ann in self.anns:
             queries = self.ConvertAnnToQuery(ann)
@@ -425,7 +420,7 @@ class ResultAnnotator:
                 else:
                     return '{} == {}'.format(obj, text if not isinstance(text, str) else to_str(text))
 
-        queries = {}
+        queries = OrderedDict()
         for tag in ann:
             queries[tag] = []
             # for each tag we need a query
@@ -539,7 +534,7 @@ class ResultAnnotator:
             result[tag] = OrderedDict()
             for item in queries[tag]:
                 result[tag] = extend_dict(result[tag], run_query(item))
-        return strip_dict(result)
+        return strip_dict(result, mapping = OrderedDict)
 
     def ShowQueries(self):
         '''Make a table summary of what has been performed'''
@@ -603,7 +598,18 @@ saveRDS(res, ${output!r})
 '''
 
 CONCAT_RDS_R = '''
-res = do.call(function(...) mapply(c, ..., SIMPLIFY=F), lapply(c(${input!r,}), readRDS))
+res = list()
+for (dat in lapply(c(${input!r,}), readRDS)) {
+  for (item in names(dat)) {
+    if (item != 'DSC_TIMER') {
+      res[[item]] = dat[[item]]
+    } else {
+      for (ii in names(dat[[item]])) {
+        res[[item]][[ii]] = unlist(dat[[item]][[ii]])
+      }
+    }
+  }
+}
 res$DSC_COMMAND = ${command!r}
 saveRDS(res, ${output!r})
 '''
@@ -687,8 +693,8 @@ class ResultExtractor:
                 self.script.extend(['R:', EXTRACT_RDS_R])
         self.script.append("[Extracting (concatenate RDS)]")
         self.script.append('parameter: command = "{}"'.format(' '.join(sys.argv)))
-        self.script.append('depends: {}'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
-        self.script.append('input: {}'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
+        self.script.append('depends: [{}]'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
+        self.script.append('input: [{}]'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
         self.script.append('output: {}'.format(repr(self.output)))
         self.script.extend(['R:', CONCAT_RDS_R])
         self.script = '\n'.join(self.script)

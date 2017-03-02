@@ -219,15 +219,19 @@ def execute(args):
 
 def annotate(args):
     env.verbosity = args.verbosity
+    mfiles = [args.annotation]
     ann = ResultAnnotator(args.annotation, args.master, output = args.output, sequence = args.sequence)
-    tagfile, shinyfile = ann.Apply()
-    env.logger.info('\n'+ ann.ShowQueries())
-    if len(ann.msg):
-        env.logger.warning('\n' + '\n'.join(ann.msg))
+    for master in ann.masters:
+        tagfile, shinyfile = ann.Apply(master)
+        env.logger.info('Annotation summary for sequence ending with ``{}``\n'.format(master[7:]) + ann.ShowQueries())
+        if len(ann.msg):
+            env.logger.warning('\n' + '\n'.join(ann.msg))
+        mfiles.append(tagfile)
+        mfiles.append(shinyfile)
     # update manifest
     manifest = '.sos/.dsc/{}.manifest'.format(ann.dsc.runtime.output)
     manifest_items = [x.strip() for x in open(manifest).readlines()]
-    for x in [args.annotation, tagfile, shinyfile]:
+    for x in mfiles:
         if x not in manifest_items:
             manifest_items.append(x)
     with open(manifest, 'w') as f:
