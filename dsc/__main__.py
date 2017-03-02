@@ -246,7 +246,9 @@ def extract(args):
     if args.__rerun__:
         env.sig_mode = 'force'
     #
-    ext = ResultExtractor(args.tags, args.master, args.output, args.extract)
+    if args.output is None:
+        raise RuntimeError("Please specify DSC benchmark name, via ``-b`` option.")
+    ext = ResultExtractor(args.output, args.tags, args.master, args.extract_to, args.extract)
     script = SoS_Script(content = ext.script, transcript = None)
     workflow = script.workflow("Extracting")
     executor_class = Base_Executor
@@ -267,7 +269,7 @@ def distribute(args):
     elif args.output:
         output = args.output
     else:
-        raise RuntimeError("Please specify DSC benchmark name, via ``-o`` option.")
+        raise RuntimeError("Please specify DSC benchmark name, via ``-b`` option.")
     manifest = '.sos/.dsc/{}.manifest'.format(output)
     if not os.path.isfile(manifest):
         raise RuntimeError('Project cannot be distributed due to lack of integrity: manifest file is missing!\n'\
@@ -314,8 +316,8 @@ def main():
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('-j', type=int, metavar='N', default=2, dest='__max_jobs__',
                    help='''Number of maximum concurrent processes.''')
-    p.add_argument('-o', metavar = "str", dest = 'output',
-                   help = '''Output data prefix for -x / -e commands.''')
+    p.add_argument('-b', metavar = "str", dest = 'output',
+                   help = '''Benchmark name. Will overwrite "DSC::run" in DSC configuration file.''')
     p.add_argument('-f', action='store_true', dest='__rerun__',
                    help='''Force re-run -x / -e commands from scratch.''')
     p.add_argument('--target', dest = 'master', metavar = 'str',
@@ -366,6 +368,8 @@ def main():
                        help = '''Tags to extract. The "&&" sign can be used to specify intersect
                        of multiple tags. The "=" sign can be used to rename extracted tags.
                        Default to extracting for all tags.''')
+    p_ext.add_argument('-o', metavar = "str", dest = 'extract_to',
+                       help = '''Output file name.''')
     p_dist = p.add_argument_group("Distribute DSC")
     p_dist.add_argument('--distribute', metavar = 'files', nargs = '*',
                        help = '''Additional files to distribute.

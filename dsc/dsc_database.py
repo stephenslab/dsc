@@ -616,8 +616,8 @@ saveRDS(res, ${output!r})
 
 
 class ResultExtractor:
-    def __init__(self, tags, from_table, to_file, targets_list):
-        tag_file = glob.glob('.sos/.dsc/*.tags')
+    def __init__(self, project_name, tags, from_table, to_file, targets_list):
+        tag_file = glob.glob('.sos/.dsc/{}.*.tags'.format(project_name))
         tables = [x.split('.')[-2] for x in tag_file]
         if len(tag_file) == 0:
                 raise ValueError("DSC result has not been annotated. Please use ``-a`` option to annotate the results before running ``-e``.")

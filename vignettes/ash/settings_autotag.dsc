@@ -54,4 +54,4 @@ DSC:
       Cn_ash_hu: simulate[3] * shrink[2] * (beta_score, pi0_score)
     R_libs: stephens999/ashr (2.0.0+)
     exec_path: bin
-    output: dsc_result
+    output: dsc_result_auto
