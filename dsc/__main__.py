@@ -330,10 +330,10 @@ def main():
                    entry when specified. Multiple sequences are allowed. Each input should be
                    a quoted string defining a valid DSC sequence, or referring to the key of an existing
                    sequence in the DSC script. Multiple such strings should be separated by space.''')
-    p_execute.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
+    p_execute.add_argument('--seeds', metavar = "values", nargs = '+', dest = 'seeds',
                    help = '''This will override any "seed" property in the DSC script. This feature
                    is useful for using a small number of seeds for a test run.
-                   Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
+                   Example: `--seeds 1`, `--replicate 1 2 3 4`, `--seeds {1..10}`, `--seeds "R(1:10)"`''')
     p_execute.add_argument('-q', action='store_true', dest='__dryrun__', help = SUPPRESS)
     p_execute.add_argument('--recover', type = int,
                            metavar = "levels", choices = [1, 2], dest = '__construct__',
