@@ -488,6 +488,8 @@ def save_rds(data, filename):
         if isinstance(value, np.matrix):
             value = np.asarray(value)
         if isinstance(value, (str, float, int, np.ndarray)):
+            if isinstance(value, np.ndarray) and value.dtype.kind == "u":
+                value = value.astype(int)
             RO.r.assign(name, value)
         elif isinstance(value, pd.DataFrame):
             # FIXME: does not always work well for pd.DataFrame
