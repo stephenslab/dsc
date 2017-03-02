@@ -11,3 +11,6 @@ median_t:
         true_mean: 0
     estimate:
         exec: median.R
+
+DSC:
+    configuration: settings.dsc

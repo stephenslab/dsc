@@ -348,7 +348,7 @@ class ResultAnnotator:
             raise ResultDBError("Annotation file ``{}`` does not contain proper annotation information!".\
                                  format(ann_file))
         # Annotation groups
-        if try_get_value(ann, 'DSC', 'configuration') is None:
+        if try_get_value(ann, ('DSC', 'configuration')) is None:
             raise ResultDBError("Cannot find required entry ``DSC::configuration`` in ``{}``".\
                                 format(ann_file))
         self.dsc = DSC_Script(ann['DSC']['configuration'], output = output, sequence = sequence)
