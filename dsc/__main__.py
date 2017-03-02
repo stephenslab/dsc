@@ -181,7 +181,7 @@ def execute(args):
         sos2html((pipeline.write_pipeline(2),), ('.sos/.dsc/{}.run.html'.format(db_name),))
     if args.__dryrun__:
         return
-    env.logfile = os.path.splitext(args.dsc_file)[0] + '.log'
+    env.logfile = db_name + '.log'
     if os.path.isfile(env.logfile):
         os.remove(env.logfile)
     if os.path.isfile('.sos/transcript.txt'):
