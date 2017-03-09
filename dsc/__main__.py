@@ -48,27 +48,11 @@ def dsc_run(args, content, workflows = ['DSC'], dag = None, verbosity = 1, queue
         # Do not use progressbar for single CPU job
         # For better debugging
         env.verbosity = 2
-    if queue:
-        # import all executors
-        executor_class = None
-        for entrypoint in pkg_resources.iter_entry_points(group='sos_executors'):
-            # Grab the function that is the actual plugin.
-            name = entrypoint.name
-            if name == queue:
-                try:
-                    executor_class = entrypoint.load()
-                except Exception as e:
-                    print('Failed to load queue executor {}: {}'.format(entrypoint.name, e))
-
-        if not executor_class:
-            sys.exit('Could not locate specified queue executor {}'.format(queue))
-    else:
-        executor_class = Base_Executor
     script = SoS_Script(content=content, transcript = None)
     for w in workflows:
         workflow = script.workflow(w)
-        executor = executor_class(workflow, args = None,
-                                  config = {'output_dag': dag})
+        executor = Base_Executor(workflow, args = None,
+                                 config = {'output_dag': dag})
         executor.run()
     env.verbosity = args.verbosity
 
