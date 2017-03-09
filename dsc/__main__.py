@@ -37,9 +37,9 @@ def sos2html(sos_files, html_files):
 def dsc_run(args, content, workflows = ['DSC'], dag = None, verbosity = 1, queue = None, is_prepare = False):
     env.verbosity = verbosity
     env.max_jobs = args.__max_jobs__
-    # kill all remaining processes when the master process is killed.
-    atexit.register(env.cleanup)
     env.sig_mode = 'default'
+    env.__queue__ = queue
+    env.__wait__ = True
     if args.__construct__ and is_prepare == False:
         env.sig_mode = 'build'
     if args.__rerun__:
@@ -48,6 +48,8 @@ def dsc_run(args, content, workflows = ['DSC'], dag = None, verbosity = 1, queue
         # Do not use progressbar for single CPU job
         # For better debugging
         env.verbosity = 2
+    # kill all remaining processes when the master process is killed.
+    atexit.register(env.cleanup)
     script = SoS_Script(content=content, transcript = None)
     for w in workflows:
         workflow = script.workflow(w)
