@@ -1,17 +1,27 @@
-normal, t: rnorm.R, rt.R
-    seed: R(1:5)
-    n: 1000
-    true_mean: 0, 1 
-    return: x, true_mean
+normal, t:
+    exec: rnorm.R, rt.R
+    input:
+      seed: R(1:5)
+      n: 1000
+      true_mean: 0, 1
+    output:
+      $x: x
+      $true_mean: true_mean
 
-mean, median: mean.R, median.R
-    x: $x
-    return: mean
+mean, median:
+    exec: mean.R, median.R
+    input:
+      x: $x
+    output:
+      $mean: mean
 
-mse: MSE.R
-    mean_est: $mean
-    true_mean: $true_mean
-    return: mse
+mse:
+    exec: MSE.R
+    input:
+      mean_est: $mean
+      true_mean: $true_mean
+    output:
+      $mse: mse
 
 DSC:
     run: simulate *
