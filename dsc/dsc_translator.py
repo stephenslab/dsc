@@ -202,7 +202,7 @@ class DSC_Translator:
             else:
                 self.header = "[core_{0} ({1})]\n".\
                                format(self.name, self.step.name)
-                self.header += "parameter: DSC_STEP_ID_ = None\nparameter: output_files = []"
+                self.header += "parameter: DSC_STEP_ID_ = None\nparameter: output_files = list"
                 # FIXME: using [step.exe] for now as super step has not yet been ported over
 
         def get_parameters(self):
@@ -237,7 +237,7 @@ class DSC_Translator:
                     self.loop_string += ' for __i in chunks({}, {})'.format(self.input_vars, len(depend_steps))
             else:
                 if len(depend_steps):
-                    self.input_string += "parameter: input_files = []\ninput: dynamic(input_files)".format(self.name)
+                    self.input_string += "parameter: input_files = list\ninput: dynamic(input_files)".format(self.name)
                     self.input_option.append('group_by = {}'.format(len(depend_steps)))
                 else:
                     self.input_string += "input:"
@@ -268,12 +268,12 @@ class DSC_Translator:
                                              format_string, self.loop_string + self.filter_string, self.step.name)
             else:
                 # FIXME
-                output_option = '_index'
-                self.output_string += "output: output_files[{}]".format(output_option)
+                output_group_by = 1
+                self.output_string += "output: output_files, group_by = {}".format(output_group_by)
 
         def get_step_option(self):
             if not self.prepare:
-                self.step_option += "task: workdir = {}, concurrent = True".format(repr(self.step.workdir))
+                self.step_option += "task: workdir = {}".format(repr(self.step.workdir))
 
         def get_action(self):
             if self.prepare:

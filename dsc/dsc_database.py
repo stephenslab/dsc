@@ -37,11 +37,11 @@ def remove_obsolete_db(fid, additional_files = []):
     for x in additional_files:
         if not os.path.isfile(x):
             to_remove.append(x)
-    if len(to_remove):
-        open(map_db, "wb").write(msgpack.packb(map_data))
-        cmd_remove(dotdict({"tracked": True, "untracked": True,
-                            "targets": to_remove, "__dryrun__": False,
-                            "__confirm__": True, "signature": True, "verbosity": 0}), [])
+    # if len(to_remove):
+    #     open(map_db, "wb").write(msgpack.packb(map_data))
+    #     cmd_remove(dotdict({"tracked": True, "untracked": True,
+    #                         "targets": to_remove, "__dryrun__": False,
+    #                         "__confirm__": True, "signature": True, "verbosity": 0}), [])
 
 
 def load_mpk(mpk_files, jobs):

@@ -32,7 +32,7 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
-      install_requires = ['sos>=0.9.4', 'ptable',
+      install_requires = ['sos>=0.9.8.8', 'ptable',
                           'msgpack-python', 'pyyaml',
                           'pandas>=0.18.0', 'rpy2>=2.7.8',
                           'sympy', 'numexpr', 'numpy']
