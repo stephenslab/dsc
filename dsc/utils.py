@@ -21,7 +21,7 @@ import pandas as pd
 from sos.utils import env, Error
 from sos.target import textMD5
 from sos.R.target import R_library
-from sos.Python3.target import Py_Module
+from sos.Python.target import Py_Module
 
 from dsc import HTML_CSS, HTML_JS
 
@@ -764,16 +764,6 @@ def workflow2html(output, *multi_workflows):
                 f.write('<hr size="2">\n' * 2)
         f.write('\n</div></body></html>')
 
-def rq_worker(host_url):
-     import redis
-     from rq import Worker, Queue, Connection
-     listen = ['high', 'default', 'low']
-     redis_url = 'redis://' + host_url
-     conn = redis.from_url(redis_url)
-     with Connection(conn):
-          worker = Worker(map(Queue, listen))
-          worker.work()
-
 def locate_file(file_name, file_path):
     '''Use file_path information to try to complete the path of file'''
     if file_path is None:
@@ -786,3 +776,33 @@ def locate_file(file_name, file_path):
                                 format(file_name, item, os.path.join(*os.path.split(res)[:-1])))
             res = os.path.join(item, file_name)
     return res if res else file_name
+
+def n2a(col_num, col_abs=False):
+    """
+    Convert a one indexed column cell reference to a string.
+    Args:
+       col:     The cell column. Int.
+       col_abs: Optional flag to make the column absolute. Bool.
+    Returns:
+        Column style string.
+    """
+    col_str = ''
+    col_abs = '$' if col_abs else ''
+
+    while col_num:
+        # Set remainder from 1 .. 26
+        remainder = col_num % 26
+
+        if remainder == 0:
+            remainder = 26
+
+        # Convert the remainder to a character.
+        col_letter = chr(ord('A') + remainder - 1)
+
+        # Accumulate the column letters, right to left.
+        col_str = col_letter + col_str
+
+        # Get the next order of magnitude.
+        col_num = int((col_num - 1) / 26)
+
+    return col_abs + col_str

@@ -152,7 +152,7 @@ def execute(args):
     exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
                                 for k in script.runtime.sequence_ordering])
     dsc_script = open(args.dsc_file).read()
-    dsc2html(dsc_script, None, script.rutime.output, section_content = exec_content)
+    dsc2html(dsc_script, None, script.runtime.output, section_content = exec_content)
     env.logger.info("DSC script exported to ``{}.html``".format(script.runtime.output))
     # Output file structure setup
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
@@ -171,8 +171,7 @@ def execute(args):
         script_to_html(script_run, '.sos/.dsc/{}.run.html'.format(db))
         return
     try:
-        with Silencer(1):
-            cmd_run(prepare_args(args, script_run, "DSC"), [])
+        cmd_run(prepare_args(args, script_run, "DSC"), [])
     except Exception as e:
         if env.verbosity and env.verbosity > 2:
             sys.stderr.write(get_traceback())

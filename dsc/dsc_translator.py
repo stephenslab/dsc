@@ -8,7 +8,7 @@ This file defines methods to translate DSC into pipeline in SoS language
 '''
 import re, os, datetime, msgpack
 from sos.target import fileMD5, textMD5, executable
-from .utils import OrderedDict, flatten_list, uniq_list, dict2str, install_r_libs, install_py_modules
+from .utils import OrderedDict, flatten_list, uniq_list, dict2str, install_r_libs, install_py_modules, n2a
 from .plugin import R_LMERGE, R_SOURCE
 
 
@@ -56,15 +56,15 @@ class DSC_Translator:
                            format(step.group, step.exe_id, '_'.join([i[0] for i in step.depends]))
                     exe_id_tmp = step.exe_id
                     if name not in processed_steps:
-                        pattern = re.compile("^{0}_{1}$|^{0}_[0-9]+_{1}$".\
-                                             format(step.group, step.exe_id))
+                        pattern = re.compile("^{0}_{1}[0-9]+$".\
+                                             format(step.group, n2a(step.exe_id)))
                         cnt = len([k for k in
                                    set(flatten_list([list(self.step_map[i].values()) for i in range(workflow_id)]))
                                    if pattern.match(k)])
-                        step.exe_id = "{0}_{1}".format(cnt, step.exe_id) if cnt > 0 else step.exe_id
+                        step.exe_id = "{1}{0}".format(cnt, n2a(step.exe_id))
                         conf_translator = self.Step_Translator(step, self.db, 1, try_catch)
                         if conf_translator.name in conf_dict:
-                            raise ValueError('[BUG] Duplicate section name ``{}``'.format(conf_translator.name))
+                            raise ValueError('Duplicate section name ``{}``'.format(conf_translator.name))
                         conf_dict[conf_translator.name] = conf_translator.dump()
                         job_translator = self.Step_Translator(step, self.db, 0, try_catch)
                         job_str.append(job_translator.dump())
@@ -78,31 +78,34 @@ class DSC_Translator:
         for workflow_id, sequence in enumerate(runtime.sequence):
             sequence, step_ids = sequence
             for step_id in step_ids:
-                rsqn = ['{}_{}'.format(x, y + 1)
+                sqn = ['{}_{}0'.format(x, n2a(y + 1))
                         if '{}_{}'.format(x, y + 1) not in self.step_map[workflow_id]
                         else self.step_map[workflow_id]['{}_{}'.format(x, y + 1)]
                         for x, y in zip(sequence, step_id)]
-                sqn = [replace_right(x, '_', ':', 1) for x in rsqn]
                 # Configuration
                 conf_str.append("[INIT_{0}]\nparameter: sequence_id = '{0}'\nparameter: sequence_name = '{1}'".\
-                                format(i, '+'.join(rsqn)))
+                                format(i, '+'.join(sqn)))
                 conf_str.append("input: None\noutput: '.sos/.dsc/{1}_{0}.mpk'".format(i, self.db))
                 conf_str.append("DSC_UPDATES_ = OrderedDict()")
-                conf_str.extend([conf_dict[x] for x in rsqn])
+                conf_str.extend([conf_dict[x] for x in sqn])
                 conf_str.append("open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))")
                 io_info_files.append('.sos/.dsc/{1}_{0}.mpk'.format(i, self.db))
                 # Execution pool
                 ii = 1
-                for x, y in zip(rsqn, sqn):
+                for x in sqn:
                     tmp_str = []
-                    tmp_str.append("[{0}{1}: provides = IO_DB['{1}']['{0}']['output_repr']]".format(x, i))
+                    if ii == len(sqn):
+                        tmp_str.append("[{0}{2}: provides = IO_DB['{1}']['{0}']['output']]".format(x, i, n2a(i)))
+                    else:
+                        tmp_str.append("[{0}{1}]".format(x, n2a(i)))
                     tmp_str.append("parameter: script_signature = {}".format(repr(exe_signatures[x])))
                     if ii > 1:
-                        tmp_str.append("depends: IO_DB['{1}']['{0}']['input_repr']".format(x, i))
-                    tmp_str.append("output:IO_DB['{1}']['{0}']['output']".format(x, i))
-                    tmp_str.append("sos_run('core_{2}', output_files = IO_DB['{1}']['{0}']['output']"\
+                        tmp_str.append("depends: [sos_step(x) for x in IO_DB['{1}']['{0}']['depends']]".\
+                                       format(x, i))
+                    tmp_str.append("output: IO_DB['{1}']['{0}']['output']".format(x, i))
+                    tmp_str.append("sos_run('core_{0}', output_files = IO_DB['{1}']['{0}']['output']"\
                                    ", input_files = IO_DB['{1}']['{0}']['input'], "\
-                                   "DSC_STEP_ID_ = script_signature)".format(x, i, y))
+                                   "DSC_STEP_ID_ = script_signature)".format(x, i))
                     self.job_pool[(str(i), x)] = '\n'.join(tmp_str)
                     ii += 1
                 final_step_label.append((str(i), x))
@@ -114,7 +117,7 @@ class DSC_Translator:
                          "\nbuild_config_db(input, output[0], output[1], "\
                          "output[2], vanilla = vanilla, jobs = {3})".\
                          format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
-        self.job_str += "\n[DSC]\ndepends: sum([IO_DB[x[0]][x[1]]['output_repr'] for x in {}], [])".\
+        self.job_str += "\n[DSC]\ndepends: sum([IO_DB[x[0]][x[1]]['output'] for x in {}], [])".\
                         format(repr(final_step_label))
         with open('.sos/.dsc/utils.R', 'w') as f:
             f.write(R_SOURCE + R_LMERGE)
@@ -138,7 +141,7 @@ class DSC_Translator:
     def filter_execution(self):
         '''Filter steps removing the ones having common input and output'''
         IO_DB = msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'.format(self.db), 'rb').\
-                                 read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
+                                read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
         for x in self.job_pool:
             if x[0] in IO_DB and x[1] in IO_DB[x[0]]:
                 self.job_str += '\n{}'.format(self.job_pool[x])

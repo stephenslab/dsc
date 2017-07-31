@@ -13,7 +13,7 @@ from .dsc_parser import DSC_Script
 from .utils import load_rds, save_rds, \
      flatten_list, uniq_list, no_duplicates_constructor, \
      cartesian_list, extend_dict, dotdict, chunks, strip_dict, \
-     try_get_value
+     try_get_value, n2a
 from multiprocessing import Process, Manager
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
@@ -140,6 +140,20 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                 res.append(fn)
                 seen.add(keys)
         return res
+
+    def find_depend(conf):
+        for sid in conf:
+            for name in conf[sid]:
+                conf[sid][name]["depends"] = []
+                for item in conf[sid][name]['input_repr']:
+                    for k in conf[sid]:
+                        if name == k:
+                            continue
+                        if item in conf[sid][k]['output_repr']:
+                            conf[sid][name]['depends'].append("{}{}".format(k, n2a(int(sid))))
+            del conf[sid][name]['input_repr']
+        return conf
+
     #
     if os.path.isfile(map_db) and not vanilla:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
@@ -167,6 +181,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                                          for item in find_representative(data[k]['DSC_IO_'][0])]
         conf[sid][name]['output_repr'] = [os.path.join(fid, map_data[item]) \
                                           for item in find_representative(data[k]['DSC_IO_'][1])]
+    conf = find_depend(conf)
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
 
