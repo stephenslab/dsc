@@ -29,12 +29,9 @@ class Silencer:
     def __exit__(self, etype, value, traceback):
         env.verbosity = self.env_verbosity
 
-def prepare_args(args, script, workflow):
+def prepare_args(args, db, script, workflow):
     out = dotdict()
-    # FIXME: revisit this later
-    # At least should use big j for preparation step
-    out.__max_procs__ = 4
-    out.__max_running_jobs__ = args.__max_jobs__
+    out.__max_running_jobs__ = out.__max_procs__ = args.__max_jobs__
     # FIXME: should wait when local host
     # no-wait when extern task
     out.__wait__ = True
@@ -52,10 +49,10 @@ def prepare_args(args, script, workflow):
     out.__sig_mode__ = 'default' if not args.__rerun__ else 'force'
     out.verbosity = env.verbosity
     # FIXME
-    out.__dag__ = '.sos/.dsc/dag.dot'
+    out.__dag__ = '.sos/.dsc/{}.dot'.format(db)
     # FIXME: use config info
-    out.__config__ = '.sos/.dsc/default.config'
-    # FIXME
+    out.__config__ = '.sos/.dsc/{}.conf.yml'.format(db)
+    # FIXME: port the entire resume related features
     out.__resume__ = False
     out.script = script
     out.workflow = workflow
@@ -106,14 +103,14 @@ def remove(workflows, steps, db, force, debug):
                             "__confirm__": True, "signature": True, "verbosity": env.verbosity}), [])
 
 def dsc_init(args, output):
-    # Parse workflow
     os.makedirs('.sos/.dsc', exist_ok = True)
+    try:
+        os.makedirs(os.path.dirname(output), exist_ok = True)
+    except:
+        pass
     # FIXME: need to utilize this to properly make global configs
-    with open('.sos/.dsc/default.config', 'w') as f:
+    with open('.sos/.dsc/{}.conf.yml'.format(os.path.basename(output)), 'w') as f:
         f.write('name: dsc')
-    db_dir = os.path.dirname(output)
-    if db_dir:
-        os.makedirs(db_dir, exist_ok = True)
     if os.path.isfile(env.logfile):
         os.remove(env.logfile)
     if os.path.isfile('.sos/transcript.txt'):
@@ -124,7 +121,7 @@ def execute(args):
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.sequence).split())))
     script = DSC_Script(args.dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds,
-                        submit = args.host)
+                        extern = args.host)
     db = os.path.basename(script.runtime.output)
     env.logfile = db + '.log'
     dsc_init(args, script.runtime.output)
@@ -161,7 +158,7 @@ def execute(args):
     if args.debug:
         script_to_html(script_prepare, '.sos/.dsc/{}.prepare.html'.format(db))
     with Silencer(0):
-        cmd_run(prepare_args(args, script_prepare, "INIT+BUILD"), [])
+        cmd_run(prepare_args(args, db, script_prepare, "INIT+BUILD"), [])
     # Run
     open(manifest, 'w').write('.sos/.dsc/{0}.map.mpk\n.sos/.dsc/{0}.io.mpk'.format(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
@@ -173,7 +170,7 @@ def execute(args):
         return
     try:
         with Silencer(args.verbosity if args.host else 1):
-            cmd_run(prepare_args(args, script_run, "DSC"), [])
+            cmd_run(prepare_args(args, db, script_run, "DSC"), [])
     except Exception as e:
         if env.verbosity and env.verbosity > 2:
             sys.stderr.write(get_traceback())
@@ -286,22 +283,24 @@ def run(args):
 
 
 def main():
-    from argparse import ArgumentParser, SUPPRESS
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
+    import multiprocessing
     class ArgumentParserError(Exception): pass
     class MyArgParser(ArgumentParser):
         def error(self, message):
             raise ArgumentParserError(message)
     #
-    p = MyArgParser(description = __doc__, allow_abbrev = False)
+    p = MyArgParser(description = __doc__, allow_abbrev = False, formatter_class = ArgumentDefaultsHelpFormatter)
+    p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
-                   information. Default to 2.''')
-    p.add_argument('--debug', action='store_true', help = SUPPRESS)
-    p.add_argument('-j', type=int, metavar='N', default=2, dest='__max_jobs__',
-                   help='''Number of maximum concurrent processes.''')
+                   information.''')
+    p.add_argument('-j', type=int, metavar='N', default=max(int(multiprocessing.cpu_count() / 2), 1),
+                   dest='__max_jobs__',
+                   help='''Number of maximum parallel processes.''')
     p.add_argument('-b', metavar = "str", dest = 'output',
-                   help = '''Benchmark name. Will overwrite "DSC::run" in DSC configuration file.''')
+                   help = '''Benchmark output. Will overwrite "DSC::run::output" in DSC configuration file.''')
     p.add_argument('-f', action='store_true', dest='__rerun__',
                    help='''Force re-run -x / -e commands from scratch.''')
     p.add_argument('--target', dest = 'master', metavar = 'str',
@@ -316,10 +315,10 @@ def main():
                    entry when specified. Multiple sequences are allowed. Each input should be
                    a quoted string defining a valid DSC sequence, or referring to the key of an existing
                    sequence in the DSC script. Multiple such strings should be separated by space.''')
-    p_execute.add_argument('--seeds', metavar = "values", nargs = '+', dest = 'seeds',
+    p_execute.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
                    help = '''This will override any "seed" property in the DSC script. This feature
                    is useful for using a small number of seeds for a test run.
-                   Example: `--seeds 1`, `--replicate 1 2 3 4`, `--seeds {1..10}`, `--seeds "R(1:10)"`''')
+                   Example: `--seed 1`, `--replicate 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
     p_execute.add_argument('--recover', type = int,
                            metavar = "levels", choices = [1, 2], dest = '__construct__',
                    help = '''Recover DSC based on names (not contents) of existing files. Level 1 recover
@@ -337,7 +336,7 @@ def main():
                    Multiple steps should be separated by space. When "--clean" is used with "-f",
                    all specified files will be removed regardless of their step execution status.''')
     p_execute.add_argument('--host', metavar='str',
-                   help='''URL of Redis server for distributed computation.''')
+                   help='''Name of host computer to run jobs.''')
     p_ann = p.add_argument_group("Annotate DSC")
     p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'DSC Annotation',
                        help = '''Annotate DSC.''')
