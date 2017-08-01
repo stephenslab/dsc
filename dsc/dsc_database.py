@@ -32,6 +32,7 @@ def remove_obsolete_output(output, additional_files = None):
         if not os.path.isfile(x):
             to_remove.append(x)
             del map_data[k]
+    # FIXME: remove files in output folder that are no longer in map_data
     # Additional files to remove
     for x in additional_files or []:
         if not os.path.isfile(x):

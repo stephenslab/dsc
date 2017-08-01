@@ -171,6 +171,11 @@ def execute(args):
         script_to_html(script_run, '.sos/.dsc/{}.run.html'.format(db))
         return
     if args.__construct__ == "full":
+        # For this mode, since file names are properly determined by the `cmd_run` above,
+        # then the fact that file name remains the same should be a result of same unique parameter + code
+        # in that case it is safe to simply build signatures for them
+        # For files having different parameter + code new file names should be generated and used for them
+        # The new files should not conflict with existing files, due to the use of `remove_obsolete_output`
         mode = "build"
     try:
         with Silencer(args.verbosity if args.host else min(1, args.verbosity)):
