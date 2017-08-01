@@ -390,7 +390,7 @@ class DSC_Step:
         return dict2str(self.dump())
 
     def dump(self):
-        return strip_dict(OrderedDict([ ( 'name', self.name), ( 'group', self.group),
+        return strip_dict(OrderedDict([ ('name', self.name), ('group', self.group),
                                         ('dependencies', self.depends), ('command', self.exe),
                                         ('command_index', self.exe_id),('use replicates', self.seed),
                                         ('parameters', self.p), ('parameter rule', self.l),

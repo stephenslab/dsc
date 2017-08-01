@@ -788,21 +788,15 @@ def n2a(col_num, col_abs=False):
     """
     col_str = ''
     col_abs = '$' if col_abs else ''
-
     while col_num:
         # Set remainder from 1 .. 26
         remainder = col_num % 26
-
         if remainder == 0:
             remainder = 26
-
         # Convert the remainder to a character.
         col_letter = chr(ord('A') + remainder - 1)
-
         # Accumulate the column letters, right to left.
         col_str = col_letter + col_str
-
         # Get the next order of magnitude.
         col_num = int((col_num - 1) / 26)
-
     return col_abs + col_str

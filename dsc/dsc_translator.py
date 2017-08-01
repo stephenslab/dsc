@@ -38,7 +38,7 @@ class DSC_Translator:
                      "parameter: IO_DB = msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n".\
                      format(self.db)
-        processed_steps = {}
+        processed_steps = []
         conf_dict = {}
         conf_str = []
         job_str = []
@@ -54,23 +54,23 @@ class DSC_Translator:
                 for step in block.steps:
                     name = "{0}_{1}_{2}".\
                            format(step.group, step.exe_id, '_'.join([i[0] for i in step.depends]))
-                    exe_id_tmp = step.exe_id
                     if name not in processed_steps:
+                        processed_steps.append(name)
                         pattern = re.compile("^{0}_{1}[0-9]+$".\
                                              format(step.group, n2a(step.exe_id)))
                         cnt = len([k for k in
                                    set(flatten_list([list(self.step_map[i].values()) for i in range(workflow_id)]))
                                    if pattern.match(k)])
-                        step.exe_id = "{1}{0}".format(cnt, n2a(step.exe_id))
+                        name2 = "{}_{}{}".format(step.group, n2a(step.exe_id), cnt)
+                        self.step_map[workflow_id]["{}_{}".format(step.group, step.exe_id)] = name2
+                        step.exe_id = n2a(step.exe_id)
+                        if cnt == 0:
+                            job_translator = self.Step_Translator(step, self.db, 0, try_catch)
+                            job_str.append(job_translator.dump())
+                        step.exe_id = "{}{}".format(step.exe_id, cnt)
                         conf_translator = self.Step_Translator(step, self.db, 1, try_catch)
-                        if conf_translator.name in conf_dict:
-                            raise ValueError('Duplicate section name ``{}``'.format(conf_translator.name))
-                        conf_dict[conf_translator.name] = conf_translator.dump()
-                        job_translator = self.Step_Translator(step, self.db, 0, try_catch)
-                        job_str.append(job_translator.dump())
-                        processed_steps[name] = "{}_{}".format(step.group, step.exe_id)
-                        exe_signatures["{}_{}".format(step.group, step.exe_id)] = job_translator.exe_signature
-                    self.step_map[workflow_id]["{}_{}".format(step.group, exe_id_tmp)] = processed_steps[name]
+                        conf_dict[name2] = conf_translator.dump()
+                        exe_signatures[name2] = job_translator.exe_signature
         # Get workflows executions
         i = 1
         io_info_files = []
@@ -79,9 +79,9 @@ class DSC_Translator:
             sequence, step_ids = sequence
             for step_id in step_ids:
                 sqn = ['{}_{}0'.format(x, n2a(y + 1))
-                        if '{}_{}'.format(x, y + 1) not in self.step_map[workflow_id]
-                        else self.step_map[workflow_id]['{}_{}'.format(x, y + 1)]
-                        for x, y in zip(sequence, step_id)]
+                       if '{}_{}'.format(x, y + 1) not in self.step_map[workflow_id]
+                       else self.step_map[workflow_id]['{}_{}'.format(x, y + 1)]
+                       for x, y in zip(sequence, step_id)]
                 # Configuration
                 conf_str.append("[INIT_{0}]\nparameter: sequence_id = '{0}'\nparameter: sequence_name = '{1}'".\
                                 format(i, '+'.join(sqn)))
@@ -93,19 +93,20 @@ class DSC_Translator:
                 # Execution pool
                 ii = 1
                 for x in sqn:
+                    y = re.sub(r'\d+$', '', x)
                     tmp_str = []
                     if ii == len(sqn):
-                        tmp_str.append("[{0}{2}: provides = IO_DB['{1}']['{0}']['output']]".format(x, i, n2a(i)))
+                        tmp_str.append("[{0}_{1} ({0}@{3}): provides = IO_DB['{3}']['{2}']['output']]".format(y, n2a(i), x, i))
                     else:
-                        tmp_str.append("[{0}{1}]".format(x, n2a(i)))
+                        tmp_str.append("[{0}_{1} ({0}@{2})]".format(y, n2a(i), i))
                     tmp_str.append("parameter: script_signature = {}".format(repr(exe_signatures[x])))
                     if ii > 1:
                         tmp_str.append("depends: [sos_step(x) for x in IO_DB['{1}']['{0}']['depends']]".\
                                        format(x, i))
                     tmp_str.append("output: IO_DB['{1}']['{0}']['output']".format(x, i))
-                    tmp_str.append("sos_run('core_{0}', output_files = IO_DB['{1}']['{0}']['output']"\
-                                   ", input_files = IO_DB['{1}']['{0}']['input'], "\
-                                   "DSC_STEP_ID_ = script_signature)".format(x, i))
+                    tmp_str.append("sos_run('core_{0}', output_files = IO_DB['{2}']['{1}']['output']"\
+                                   ", input_files = IO_DB['{2}']['{1}']['input'], "\
+                                   "DSC_STEP_ID_ = script_signature)".format(y, x, i))
                     self.job_pool[(str(i), x)] = '\n'.join(tmp_str)
                     ii += 1
                 final_step_label.append((str(i), x))

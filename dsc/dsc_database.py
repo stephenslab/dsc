@@ -141,7 +141,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                 seen.add(keys)
         return res
 
-    def find_depend(conf):
+    def find_dependent(conf):
         for sid in conf:
             for name in conf[sid]:
                 conf[sid][name]["depends"] = []
@@ -150,7 +150,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                         if name == k:
                             continue
                         if item in conf[sid][k]['output_repr']:
-                            conf[sid][name]['depends'].append("{}{}".format(k, n2a(int(sid))))
+                            conf[sid][name]['depends'].append("{}_{}".format(re.sub(r'\d+$', '', k), n2a(int(sid))))
             del conf[sid][name]['input_repr']
         return conf
 
@@ -181,7 +181,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                                          for item in find_representative(data[k]['DSC_IO_'][0])]
         conf[sid][name]['output_repr'] = [os.path.join(fid, map_data[item]) \
                                           for item in find_representative(data[k]['DSC_IO_'][1])]
-    conf = find_depend(conf)
+    conf = find_dependent(conf)
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
 
