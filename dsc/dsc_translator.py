@@ -31,7 +31,7 @@ class DSC_Translator:
         self.db = os.path.basename(runtime.output)
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
-                      'from dsc.dsc_database import remove_obsolete_db, build_config_db\n\n\n'
+                      'from dsc.dsc_database import remove_obsolete_output, build_config_db\n\n\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      "parameter: IO_DB = msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n".\
@@ -111,7 +111,7 @@ class DSC_Translator:
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + '\n'.join(job_str)
-        self.conf_str += "\n[INIT_0]\nremove_obsolete_db('{0}')\n[BUILD_0]\nparameter: vanilla = {1}\n" \
+        self.conf_str += "\n[INIT_0]\nremove_obsolete_output('{0}')\n[BUILD_0]\nparameter: vanilla = {1}\n" \
                          "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
                          "\nbuild_config_db(input, output[0], output[1], "\
                          "output[2], vanilla = vanilla, jobs = {3})".\

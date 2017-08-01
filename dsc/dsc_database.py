@@ -5,6 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import sys, os, msgpack, yaml, re, glob, pickle
 from collections import OrderedDict
+from multiprocessing import Process, Manager
 import pandas as pd
 import numpy as np
 from sos.utils import Error
@@ -14,12 +15,10 @@ from .utils import load_rds, save_rds, \
      flatten_list, uniq_list, no_duplicates_constructor, \
      cartesian_list, extend_dict, dotdict, chunks, strip_dict, \
      try_get_value, n2a
-from multiprocessing import Process, Manager
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
-
-def remove_obsolete_db(fid, additional_files = None):
+def remove_obsolete_output(fid, additional_files = None):
     map_db = '.sos/.dsc/{}.map.mpk'.format(fid)
     if os.path.isfile(map_db):
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
@@ -40,9 +39,10 @@ def remove_obsolete_db(fid, additional_files = None):
     if len(to_remove):
         open(map_db, "wb").write(msgpack.packb(map_data))
         cmd_remove(dotdict({"tracked": True, "untracked": True,
-                            "targets": to_remove, "__dryrun__": False,
-                            "__confirm__": True, "signature": True, "verbosity": 0}), [])
-
+                            "targets": to_remove, "external": True,
+                            "__confirm__": True, "signature": True,
+                            "verbosity": 0, "zap": False,
+                            "size": None, "age": None}, "dryrun": False), [])
 
 def load_mpk(mpk_files, jobs):
     d = Manager().dict()
@@ -58,7 +58,6 @@ def load_mpk(mpk_files, jobs):
     for job in job_pool:
         job.join()
     return OrderedDict([(x, d[x]) for x in sorted(d.keys())])
-
 
 def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs = 4):
     '''

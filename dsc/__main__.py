@@ -98,9 +98,11 @@ def remove(workflows, steps, db, force, debug):
     if debug:
         env.logger.info(to_remove)
     else:
-        cmd_remove(dotdict({"tracked": True, "untracked": False if not force else True,
-                            "targets": to_remove, "__dryrun__": False,
-                            "__confirm__": True, "signature": True, "verbosity": env.verbosity}), [])
+        cmd_remove(dotdict({"tracked": True, "untracked": True,
+                            "targets": to_remove, "external": True,
+                            "__confirm__": True, "signature": True,
+                            "verbosity": env.verbosity, "zap": False,
+                            "size": None, "age": None}, "dryrun": False), [])
 
 def dsc_init(args, output):
     os.makedirs('.sos/.dsc', exist_ok = True)
