@@ -486,10 +486,12 @@ class DSC_Block:
                 res[0][key] = flatten_dict(value, mapping = OrderedDict)
         return res
 
-    def get_exec_rule(self, rule):
+    @staticmethod
+    def get_exec_rule(rule):
         return rule
 
-    def get_return_vars(self, return_vars, num_exec):
+    @staticmethod
+    def get_return_vars(return_vars, num_exec):
         res = OrderedDict()
         if isinstance(return_vars, collections.Mapping):
             # exec specific return alias involved
@@ -547,7 +549,8 @@ class DSC_Block:
     def extract_steps(self, idxes):
         self.steps = [y for x, y in enumerate(self.steps) if x in idxes]
 
-    def swap_abs_paths(self, data, master_path):
+    @staticmethod
+    def swap_abs_paths(data, master_path):
         if master_path is None:
             return data
         cwd = os.getcwd() + '/'
@@ -603,7 +606,8 @@ class DSC_Section:
         self.rlib = self.content['R_libs'] if 'R_libs' in self.content else None
         self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else None
 
-    def __merge_sequences(self, input_sequences):
+    @staticmethod
+    def __merge_sequences(input_sequences):
         '''Extract the proper ordering of elements from multiple sequences'''
         # remove slicing
         sequences = [[y.split('[')[0] for y in x] for x in input_sequences]
@@ -639,7 +643,8 @@ class DSC_Section:
                                  'please re-write your DSC script to make these routines in separate blocks'.\
                                  format(seq))
 
-    def __index_sequences(self, input_sequences):
+    @staticmethod
+    def __index_sequences(input_sequences):
         '''Strip slicing symbol out of sequences and add them as index'''
         res = []
         for seq in input_sequences:

@@ -73,7 +73,8 @@ class DSC_Analyzer:
         self.check_duplicate_step(workflow)
         self.workflows.append(workflow)
 
-    def find_dependent(self, variable, workflow, block_name):
+    @staticmethod
+    def find_dependent(variable, workflow, block_name):
         curr_idx = len(workflow)
         if curr_idx == 0:
             raise FormatError('Symbol ``$`` is not allowed in the first step of a DSC sequence.')
@@ -96,7 +97,8 @@ class DSC_Analyzer:
                               ' This variable is quested by block ``{}``.'.format(variable, block_name))
         return curr_idx, dependent
 
-    def check_duplicate_step(self, workflow):
+    @staticmethod
+    def check_duplicate_step(workflow):
         names = {}
         for block in workflow:
             for step in workflow[block].steps:

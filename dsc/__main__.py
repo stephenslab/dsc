@@ -104,10 +104,8 @@ def remove(workflows, steps, db, force, debug):
 
 def dsc_init(args, output):
     os.makedirs('.sos/.dsc', exist_ok = True)
-    try:
+    if os.path.dirname(output):
         os.makedirs(os.path.dirname(output), exist_ok = True)
-    except:
-        pass
     # FIXME: need to utilize this to properly make global configs
     with open('.sos/.dsc/{}.conf.yml'.format(os.path.basename(output)), 'w') as f:
         f.write('name: dsc')
@@ -169,17 +167,18 @@ def execute(args):
         script_to_html(script_run, '.sos/.dsc/{}.run.html'.format(db))
         return
     try:
-        with Silencer(args.verbosity if args.host else 1):
+        with Silencer(args.verbosity if args.host else min(1, args.verbosity)):
             cmd_run(prepare_args(args, db, script_run, "DSC"), [])
     except Exception as e:
-        if env.verbosity and env.verbosity > 2:
+        if env.verbosity > 2:
             sys.stderr.write(get_traceback())
-        transcript2html('.sos/transcript.txt', '{}.transcript.html'.format(db), title = db)
-        env.logger.error(e)
-        env.logger.warning("If needed, you can open ``{}.transcript.html`` and "\
-                           "use ``ctrl-F`` to search by ``output file name`` "\
-                           "for the problematic chunk of code.".\
-                           format(db))
+        if args.host is None:
+            transcript2html('.sos/transcript.txt', '{}.transcript.html'.format(db), title = db)
+            env.logger.error(e)
+            env.logger.warning("If needed, you can open ``{}.transcript.html`` and "\
+                               "use ``ctrl-F`` to search by ``output file name`` "\
+                               "for the problematic chunk of code.".\
+                               format(db))
         sys.exit(1)
     # Construct metadata
     master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
@@ -284,7 +283,6 @@ def run(args):
 
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
-    import multiprocessing
     class ArgumentParserError(Exception): pass
     class MyArgParser(ArgumentParser):
         def error(self, message):
@@ -296,7 +294,7 @@ def main():
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
-    p.add_argument('-j', type=int, metavar='N', default=max(int(multiprocessing.cpu_count() / 2), 1),
+    p.add_argument('-j', type=int, metavar='N', default=max(int(os.cpu_count() / 2), 1),
                    dest='__max_jobs__',
                    help='''Number of maximum parallel processes.''')
     p.add_argument('-b', metavar = "str", dest = 'output',

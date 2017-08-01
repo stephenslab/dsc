@@ -72,7 +72,8 @@ class BasePlug:
     def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None, autoload = False):
         return ''
 
-    def format_tuple(self, value):
+    @staticmethod
+    def format_tuple(value):
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
 
     def dump(self):
@@ -82,8 +83,8 @@ class BasePlug:
                 ('container variables', self.container_vars),
                 ('input_alias', self.input_alias),
                 ('temp file', self.tempfile)])
-
-    def add_try(self, content, n_output):
+    @staticmethod
+    def add_try(content, n_output):
         return ''
 
 
@@ -121,10 +122,12 @@ class Shell(BasePlug):
     def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None, autoload = False):
         return ''
 
-    def format_tuple(self, value):
+    @staticmethod
+    def format_tuple(value):
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
 
-    def add_try(self, content, n_output):
+    @staticmethod
+    def add_try(content, n_output):
         return ''
 
 
@@ -239,7 +242,8 @@ class RPlug(BasePlug):
         self.container.extend(res)
         self.container_vars.extend(keys)
 
-    def add_try(self, content, n_output):
+    @staticmethod
+    def add_try(content, n_output):
         content = "tryCatch({\n" + '\n'.join([' ' * 4 + x for x in content.split('\n')]) + \
                   "\n}, error = function(e) {\n"
         content += '    script <- sub(".*=", "", commandArgs()[4])\n'
@@ -249,7 +253,8 @@ class RPlug(BasePlug):
         content += '})'
         return content
 
-    def format_tuple(self, value):
+    @staticmethod
+    def format_tuple(value):
         return 'c({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
 
     def __str__(self):
@@ -361,7 +366,8 @@ class PyPlug(BasePlug):
         self.container.extend(res)
         self.container_vars.extend(keys)
 
-    def add_try(self, content, n_output):
+    @staticmethod
+    def add_try(content, n_output):
         content = "try:\n" + '\n'.join([' ' * 4 + x for x in content.split('\n')]) + \
                   "\nexcept Exception as e:\n"
         content += '    import sys\nscript = open(sys.argv[len(sys.argv)-1]).read()\n'
@@ -369,7 +375,8 @@ class PyPlug(BasePlug):
             content += '    open(${_output[%s]!r}).write(script)\n' % i
         return content
 
-    def format_tuple(self, value):
+    @staticmethod
+    def format_tuple(value):
         return '({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
 
     def __str__(self):

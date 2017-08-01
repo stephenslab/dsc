@@ -113,7 +113,7 @@ def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
 def is_null(var):
     if var is None:
         return True
-    if type(var) is str:
+    if isinstance(var, str):
         if var.lower() in ['na','nan','null','none','']:
             return True
     if isinstance(var, (list, tuple, collections.Mapping)):
@@ -519,16 +519,16 @@ def round_print(text, sep, pc = None):
         return
     for line in text.split('\n'):
         line = line.rstrip().split(sep)
-        for i in range(len(line)):
+        for i, value in enumerate(line):
             try:
-                line[i] = int(line[i])
+                line[i] = int(value)
             except:
                 try:
-                    line[i] = float(line[i])
+                    line[i] = float(value)
                 except:
                     pass
-        print (sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x)
-                         for x in line]).strip())
+        print(sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x)
+                        for x in line]).strip())
 
 def install_r_libs(libs):
     if libs is None:

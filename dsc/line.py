@@ -22,7 +22,8 @@ class YLine:
     def __call__(self, value):
         return value
 
-    def split(self, value):
+    @staticmethod
+    def split(value):
         '''Split value by comma outside (), [] and {}'''
         if not isinstance(value, str):
             if isinstance(value, (int, float, bool)):
@@ -191,14 +192,17 @@ class ExpandActions(YLine):
         value = [x if isinstance(x, (list, tuple)) else [x] for x in value]
         return pairwise_list(*value)
 
-    def __R(self, code):
+    @staticmethod
+    def __R(code):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             return list(RO.r(code))
 
-    def __Python(self, code):
+    @staticmethod
+    def __Python(code):
         return list(eval(code))
 
+    @staticmethod
     def __Shell(self, code):
         return subprocess.check_output(code, shell = True).decode('utf8').strip()
 

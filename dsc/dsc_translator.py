@@ -147,7 +147,8 @@ class DSC_Translator:
             if x[0] in IO_DB and x[1] in IO_DB[x[0]]:
                 self.job_str += '\n{}'.format(self.job_pool[x])
 
-    def install_libs(self, libs, lib_type, force = False):
+    @staticmethod
+    def install_libs(libs, lib_type, force = False):
         if lib_type not in ["R_library", "Python_Module"]:
             raise ValueError("Invalid library type ``{}``.".format(lib_type))
         if libs is None:
