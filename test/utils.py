@@ -1,4 +1,4 @@
-import os, sys, unittest
+import sys, unittest
 from dsc.dsc_file import DSCData
 
 class DSCTestCase(unittest.TestCase):

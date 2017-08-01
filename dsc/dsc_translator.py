@@ -164,7 +164,8 @@ class DSC_Translator:
             install_py_modules(libs)
         # FIXME: need to check if installation is successful
         os.makedirs('.sos/.dsc', exist_ok = True)
-        os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
+        with open('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5), 'w') as f:
+            f.write(repr(libs))
 
     class Step_Translator:
         def __init__(self, step, db, prepare, try_catch):

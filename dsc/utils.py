@@ -521,7 +521,7 @@ def round_print(text, sep, pc = None):
         for i, value in enumerate(line):
             try:
                 line[i] = int(value)
-            except:
+            except Exception as e:
                 try:
                     line[i] = float(value)
                 except Exception as e:
@@ -678,7 +678,7 @@ def dsc2html(dsc_conf, dsc_ann, output, section_content = None):
                     seen.append(command)
                 try:
                     text = open(command).read()
-                except:
+                except Exception as e:
                     continue
                 scripts.append((os.path.basename(command), os.path.splitext(command)[1][1:].lower(), text))
             if len(scripts) == 0:
