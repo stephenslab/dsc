@@ -8,7 +8,6 @@ import os, copy, re, itertools, yaml, collections, time, sympy
 from sympy.parsing.sympy_parser import parse_expr
 from difflib import SequenceMatcher
 from io import StringIO
-import readline
 import rpy2.robjects as RO
 import rpy2.robjects.vectors as RV
 import rpy2.rinterface as RI
@@ -121,7 +120,7 @@ def is_null(var):
     return False
 
 def str2num(var):
-    if type(var) is str:
+    if isinstance(var, str):
         # try to warn about boolean
         if var in ['T', 'F'] or var.lower() in ['true', 'false']:
             bmap = {'t': 1, 'true': 1, 'f': 0, 'false': 0}
@@ -213,7 +212,7 @@ def get_slice(value, all_tuple = True, mismatch_quit = True, non_negative = True
     '''
     try:
          slicearg = re.search('\[(.*?)\]', value).group(1)
-    except:
+    except Exception as e:
          if mismatch_quit:
               raise AttributeError('Cannot obtain slice from input string {}'.format(value))
          else:
@@ -525,8 +524,8 @@ def round_print(text, sep, pc = None):
             except:
                 try:
                     line[i] = float(value)
-                except:
-                    pass
+                except Exception as e:
+                    line[i] = value
         print(sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x)
                         for x in line]).strip())
 
@@ -634,7 +633,7 @@ def md2html(content, to_file):
     with open(to_file, 'w') as f:
         f.write(output)
 
-def dsc2html(dsc_conf, dsc_ann, output, section_content = {}):
+def dsc2html(dsc_conf, dsc_ann, output, section_content = None):
     '''
     section_content: ordered dictionary of lists,
     {'section 1': ['exec1.R', 'exec2.py']}
@@ -666,6 +665,7 @@ def dsc2html(dsc_conf, dsc_ann, output, section_content = {}):
           f.write(dsc_ann)
           f.write('\n</code></pre></div></div><div class="accordion">\n')
         # DSC sections with executable scripts
+        section_content = section_content or {}
         for name, commands in section_content.items():
             # get section scripts
             scripts = []

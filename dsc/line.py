@@ -7,7 +7,6 @@ __license__ = "MIT"
 '''Handle one line in a DSC file, a customized YAML parser'''
 
 import re, subprocess, collections, warnings
-import readline
 import rpy2.robjects as RO
 from .utils import is_null, str2num, non_commutative_symexpand, \
      cartesian_list, pairwise_list, get_slice, FormatError
@@ -37,10 +36,10 @@ class YLine:
                   '{': 0,
                   '}': 0}
         res = []
-        token = ''
+        unit = ''
         for item in list(value):
             if item != ',':
-                token += item
+                unit += item
                 if item in counts.keys():
                     counts[item] += 1
             else:
@@ -48,12 +47,12 @@ class YLine:
                   counts['['] != counts[']'] or \
                   counts['{'] != counts['}']:
                     # comma is inside some parenthesis
-                    token += item
+                    unit += item
                 else:
                     # comma is outside any parenthesis, time to split
-                    res.append(token.strip())
-                    token = ''
-        res.append(token.strip())
+                    res.append(unit.strip())
+                    unit = ''
+        res.append(unit.strip())
         return res
 
     def encodeVar(self, var):

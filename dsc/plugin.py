@@ -69,7 +69,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None, autoload = False):
+    def get_input(self, params, input_num, lib, index, cmd_args, autoload):
         return ''
 
     @staticmethod
@@ -119,7 +119,7 @@ class Shell(BasePlug):
     def set_container(self, name, value, params):
         pass
 
-    def get_input(self, params, input_num, lib = None, index = 0, cmd_args = None, autoload = False):
+    def get_input(self, params, input_num, lib, index, cmd_args, autoload):
         return ''
 
     @staticmethod

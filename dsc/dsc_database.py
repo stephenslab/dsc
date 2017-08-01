@@ -19,7 +19,7 @@ from multiprocessing import Process, Manager
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
 
-def remove_obsolete_db(fid, additional_files = []):
+def remove_obsolete_db(fid, additional_files = None):
     map_db = '.sos/.dsc/{}.map.mpk'.format(fid)
     if os.path.isfile(map_db):
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
@@ -34,14 +34,14 @@ def remove_obsolete_db(fid, additional_files = []):
             to_remove.append(x)
             del map_data[k]
     # Additional files to remove
-    for x in additional_files:
+    for x in additional_files or []:
         if not os.path.isfile(x):
             to_remove.append(x)
-    # if len(to_remove):
-    #     open(map_db, "wb").write(msgpack.packb(map_data))
-    #     cmd_remove(dotdict({"tracked": True, "untracked": True,
-    #                         "targets": to_remove, "__dryrun__": False,
-    #                         "__confirm__": True, "signature": True, "verbosity": 0}), [])
+    if len(to_remove):
+        open(map_db, "wb").write(msgpack.packb(map_data))
+        cmd_remove(dotdict({"tracked": True, "untracked": True,
+                            "targets": to_remove, "__dryrun__": False,
+                            "__confirm__": True, "signature": True, "verbosity": 0}), [])
 
 
 def load_mpk(mpk_files, jobs):
@@ -430,7 +430,7 @@ class ResultAnnotator:
                 try:
                     res = re.search(r'^Asis\((.*?)\)$', p1).group(1)
                     return repr(res)
-                except:
+                except Exception as e:
                     return repr(repr(p1))
 
             if isinstance(text, str) and text.startswith('%'):

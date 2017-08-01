@@ -7,7 +7,7 @@ __license__ = "MIT"
 Parser for DSC script and annotation files
 '''
 
-import os, re, itertools, copy, collections, yaml, subprocess
+import os, re, itertools, copy, collections, subprocess
 from io import StringIO
 from functools import reduce
 from sos.utils import logger
@@ -274,11 +274,11 @@ class DSC_Step:
                         if groups:
                             try:
                                 self.rf[item[0]].append(groups.group(1))
-                            except:
+                            except Exception as e:
                                 self.rf[item[0]] = [groups.group(1)]
                     # are there remaining values not File()?
                     if item[0] in self.rf and len(self.rf[item[0]]) < len(param_return):
-                        raise FormatError("Return ``{0}`` cannot be a mixture of File() and non-File() variables".\
+                        raise FormatError("Return ``{0}`` in ``{1}`` cannot be a mixture of File() and non-File() varables".\
                                           format(item[0], repr(param_return)))
                 if item[0] not in self.rf:
                     self.rv[item[0]] = item[1]
@@ -408,7 +408,7 @@ class DSC_Step:
 
 
 class DSC_Block:
-    def __init__(self, name, content, global_options = {}, script_path = None):
+    def __init__(self, name, content, global_options = None, script_path = None):
         '''Populate steps in the block and keep track of block rules
         Members are:
           - self.steps, self.rule, self.name
@@ -433,7 +433,7 @@ class DSC_Block:
             raise FormatError('Alias ``{}`` (length {}) does not match exec (length {}), in block ``{}``!'.\
                               format(repr(exe_alias), len(exe_alias), len(exes), name))
         # block runtime options
-        options = self.get_exec_options(global_options,
+        options = self.get_exec_options(global_options or {},
                                         content['.options'] if '.options' in content else None, script_path)
         # get return values
         return_vars = self.get_return_vars(content['return'], len(exe_alias))

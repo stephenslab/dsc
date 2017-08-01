@@ -9,7 +9,7 @@ from collections import OrderedDict
 import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env
-from sos.__main__ import cmd_run, cmd_resume, cmd_pull, cmd_remove
+from sos.__main__ import cmd_run, cmd_remove
 from sos.converter import script_to_html
 from .dsc_parser import DSC_Script
 from .dsc_analyzer import DSC_Analyzer

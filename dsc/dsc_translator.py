@@ -26,8 +26,6 @@ class DSC_Translator:
         the possible ways to combine exec routines. The possible ways are pre-determined and passed here.
     '''
     def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False):
-        def replace_right(source, target, replacement, replacements=None):
-            return replacement.join(source.rsplit(target, replacements))
         #
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
@@ -157,9 +155,9 @@ class DSC_Translator:
         if os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
             return
         if lib_type == 'R_library':
-            ret = install_r_libs(libs)
+            install_r_libs(libs)
         if lib_type == 'Python_Module':
-            ret = install_py_modules(libs)
+            install_py_modules(libs)
         # FIXME: need to check if installation is successful
         os.makedirs('.sos/.dsc', exist_ok = True)
         os.system('echo "{}" > {}'.format(repr(libs), '.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)))
@@ -242,7 +240,7 @@ class DSC_Translator:
                     self.loop_string += ' for __i in chunks({}, {})'.format(self.input_vars, len(depend_steps))
             else:
                 if len(depend_steps):
-                    self.input_string += "parameter: input_files = list\ninput: dynamic(input_files)".format(self.name)
+                    self.input_string += "parameter: input_files = list\ninput: dynamic(input_files)"
                     self.input_option.append('group_by = {}'.format(len(depend_steps)))
                 else:
                     self.input_string += "input:"
@@ -314,10 +312,10 @@ class DSC_Translator:
                     self.action += '{}: workdir = {}\n'.format(plugin.name, repr(self.step.workdir))
                     # Add action
                     if not self.step.shell_run:
-                        script_begin = plugin.get_input(self.params, input_num = len(self.step.depends),
-                                                        lib = self.step.libpath, index = idx,
-                                                        cmd_args = cmd.split()[1:] if len(cmd.split()) > 1 else None,
-                                                        autoload = True if len([x for x in self.step.depends if x[2] == 'var']) else False)
+                        script_begin = plugin.get_input(self.params, len(self.step.depends),
+                                                        self.step.libpath, idx,
+                                                        cmd.split()[1:] if len(cmd.split()) > 1 else None,
+                                                        True if len([x for x in self.step.depends if x[2] == 'var']) else False)
                         script_begin = '{1}\n{0}\n{2}'.\
                                        format(script_begin.strip(),
                                               '## BEGIN code by DSC2',
