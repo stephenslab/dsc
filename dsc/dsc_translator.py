@@ -111,7 +111,7 @@ class DSC_Translator:
                 final_step_label.append((str(i), x))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
-        self.job_str = job_header + '\n'.join(job_str)
+        self.job_str = job_header + "DSC_RUTILS = '''\n{}'''\n".format(R_SOURCE + R_LMERGE) + '\n'.join(job_str)
         self.conf_str += "\n[default_1]\nremove_obsolete_output('{0}')\n[default_2]\n" \
                          "parameter: vanilla = {1}\ndepends: {3}\n" \
                          "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
@@ -122,8 +122,6 @@ class DSC_Translator:
                                 n_cpu)
         self.job_str += "\n[DSC]\ndepends: sum([IO_DB[x[0]][x[1]]['output'] for x in {}], [])".\
                         format(repr(final_step_label))
-        with open('.sos/.dsc/utils.R', 'w') as f:
-            f.write(R_SOURCE + R_LMERGE)
         #
         self.install_libs(runtime.rlib, "R_library", rerun)
         self.install_libs(runtime.pymodule, "Python_Module", rerun)

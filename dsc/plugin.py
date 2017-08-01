@@ -166,7 +166,7 @@ class RPlug(BasePlug):
             res = 'DSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib]))
         else:
             res = 'DSC_LIBPATH <- NULL'
-        res += '\nsource("{}")'.format(os.path.abspath(".sos/.dsc/utils.R"))
+        res += '\n${DSC_RUTILS}'
         # load files
         load_multi_in = '\n{} <- list()'.format(self.identifier) + \
           '\ninput.files <- c(${{_input!r,}})\nfor (i in 1:length(input.files)) ' \
@@ -295,7 +295,7 @@ class PyPlug(BasePlug):
         res = 'import sys, os, tempfile, timeit'
         if lib is not None:
             for item in lib:
-                res += '\nsys.path.append(os.path.abspath("{}"))'.format(item)
+                res += '\nsys.path.append(os.path.expanduser("{}"))'.format(item)
         # load files
         res += '\nfrom dsc.utils import save_rds, load_rds'
         load_multi_in = '\n{} = {{}}'.format(self.identifier) + \

@@ -51,7 +51,7 @@ class DSC_Script:
             self.runtime.output = dsc_name
         # FIXME: add annotation info / filter here
         # Or, not?
-        script_path = os.path.dirname(os.path.abspath(os.path.expanduser(content))) if os.path.isfile(content) else None
+        script_path = os.path.dirname(os.path.expanduser(content)) if os.path.isfile(content) else None
         try:
             self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options, script_path))
                                        for x in self.runtime.sequence_ordering.keys()])
@@ -464,7 +464,7 @@ class DSC_Block:
             options.update(local_options)
         if len(options) == 0:
             return {}
-        options = self.swap_abs_paths(options, script_path)
+        # options = self.swap_abs_paths(options, script_path)
         res = OrderedDict()
         res[0] = OrderedDict()
         for key, value in options.items():

@@ -296,35 +296,36 @@ def main():
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
-    p.add_argument('-j', type=int, metavar='N', default=max(int(os.cpu_count() / 2), 1),
-                   dest='__max_jobs__',
-                   help='''Number of maximum parallel processes.''')
+    p.add_argument('--cpu', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
+                   dest='__max_jobs__', help='''Number of maximum parallel processes.''')
     p.add_argument('-b', metavar = "str", dest = 'output',
-                   help = '''Benchmark output. Will overwrite "DSC::run::output" in DSC configuration file.''')
+                   help = '''Benchmark output. It overwrites "DSC::run::output" specified by configuration file.''')
     p.add_argument('-f', action='store_true', dest='__rerun__',
-                   help='''Force re-run -x / -e commands from scratch.''')
+                   help='''Start from scratch ignoring any existing results.''')
+    # FIXME to be made obsolete
     p.add_argument('--target', dest = 'master', metavar = 'str',
-                         help = '''The ultimate target of a DSC benchmark is the name of
-                         the last block in a DSC sequence. This option is relevant to -a / -e
-                         commands when there exists multiple DSC sequences with different targets.''')
+                   help = '''The ultimate target of a DSC benchmark is the name of
+                   the last block in a DSC sequence. This option is relevant to -a / -e
+                   commands when there exists multiple DSC sequences with different targets.''')
     p_execute = p.add_argument_group("Execute DSC")
     p_execute.add_argument('-x', '--execute', dest = 'dsc_file', metavar = "DSC script",
                    help = 'Execute DSC.')
     p_execute.add_argument('--sequence', metavar = "str", nargs = '+',
-                   help = '''DSC sequences to be executed. It will override the DSC::run
-                   entry when specified. Multiple sequences are allowed. Each input should be
+                   help = '''DSC sequences to be executed. It overwrites "DSC::run" specified by
+                   configuration file. Multiple sequences are allowed. Each input should be
                    a quoted string defining a valid DSC sequence, or referring to the key of an existing
                    sequence in the DSC script. Multiple such strings should be separated by space.''')
     p_execute.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
-                   help = '''This will override any "seed" property in the DSC script. This feature
-                   is useful for using a small number of seeds for a test run.
-                   Example: `--seed 1`, `--replicate 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
+                   help = '''It overwrites any "seed" property in the DSC script. This feature
+                   is useful for running a quick test with small number of replicates.
+                   Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
     p_execute.add_argument('--recover', type = int,
                            metavar = "levels", choices = [1, 2], dest = '__construct__',
-                   help = '''Recover DSC based on names (not contents) of existing files. Level 1 recover
-                   will try to reconstruct the entire benchmark skipping existing files. Level 2 recover
-                   will only use existing files to reconstruct the benchmark output metadata, making it possible
-                   to explore partial benchmark results without having to wait until completion of entire benchmark.''')
+                           help = '''Recover DSC based on names (not contents) of existing files. Level 1 recover
+                           will try to reconstruct the entire benchmark skipping existing files. Level 2 recover
+                           will only use existing files to reconstruct the benchmark output metadata, making it possible
+                           to explore partial benchmark results without having to wait until completion of
+                           entire benchmark.''')
     p_execute.add_argument('--ignore-errors', action='store_true', dest='try_catch',
                    help = '''Bypass all errors from computational programs. This will keep the benchmark running but
                    all results will be set to missing values and the problematic script will be saved when applicable.
