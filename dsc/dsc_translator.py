@@ -96,9 +96,9 @@ class DSC_Translator:
                     y = re.sub(r'\d+$', '', x)
                     tmp_str = []
                     if ii == len(sqn):
-                        tmp_str.append("[{0}_{1} ({0}@{3}): provides = IO_DB['{3}']['{2}']['output']]".format(y, n2a(i), x, i))
+                        tmp_str.append("[{0}_{1} ({0}[{3}]): provides = IO_DB['{3}']['{2}']['output']]".format(y, n2a(i), x, i))
                     else:
-                        tmp_str.append("[{0}_{1} ({0}@{2})]".format(y, n2a(i), i))
+                        tmp_str.append("[{0}_{1} ({0}[{2}])]".format(y, n2a(i), i))
                     tmp_str.append("parameter: script_signature = {}".format(repr(exe_signatures[x])))
                     if ii > 1:
                         tmp_str.append("depends: [sos_step(x) for x in IO_DB['{1}']['{0}']['depends']]".\

@@ -49,10 +49,10 @@ def prepare_args(args, script, workflow):
     out.__remote__ = None
     out.dryrun = False
     # FIXME: have to be changed with command input
-    out.__sig_mode__ = 'default'
+    out.__sig_mode__ = 'default' if not args.__rerun__ else 'force'
     out.verbosity = env.verbosity
     # FIXME
-    out.__dag__ = '.sos/.dsc/default.dag'
+    out.__dag__ = '.sos/.dsc/dag.dot'
     # FIXME: use config info
     out.__config__ = '.sos/.dsc/default.config'
     # FIXME
@@ -236,7 +236,6 @@ def extract(args):
                     format(ext.output, ext.master,
                            'annotations: \n\t``{}``'.format('\n\t'.join(args.tags))
                            if args.tags else "all annotations."))
-
 
 def distribute(args):
     import tarfile
