@@ -33,9 +33,9 @@ class DSC_Translator:
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
                       'from dsc.dsc_database import remove_obsolete_output, build_config_db\n\n\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
-                     "parameter: IO_DB = msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'"\
+                     "parameter: IO_DB = msgpack.unpackb(open('{}/{}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n".\
-                     format(self.db)
+                     format(self.output, self.db)
         processed_steps = []
         conf_dict = {}
         conf_str = []
@@ -111,13 +111,13 @@ class DSC_Translator:
                 final_step_label.append((str(i), x))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
-        self.job_str = job_header + "DSC_RUTILS = '''\n{}'''\n".format(R_SOURCE + R_LMERGE) + '\n'.join(job_str)
+        self.job_str = job_header + "DSC_RUTILS = '''{}'''\n".format(R_SOURCE + R_LMERGE) + '\n'.join(job_str)
         self.conf_str += "\n[default_1]\nremove_obsolete_output('{0}')\n[default_2]\n" \
-                         "parameter: vanilla = {1}\ndepends: {3}\n" \
-                         "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
+                         "parameter: vanilla = {2}\ndepends: {4}\n" \
+                         "input: dynamic({3})\noutput: '{0}/{1}.io.mpk', '{0}/{1}.map.mpk', '{0}/{1}.conf.mpk'"\
                          "\nbuild_config_db(input, output[0], output[1], "\
-                         "output[2], vanilla = vanilla, jobs = {4})".\
-                         format(self.db, rerun, repr(sorted(set(io_info_files))),
+                         "output[2], vanilla = vanilla, jobs = {5})".\
+                         format(self.output, self.db, rerun, repr(sorted(set(io_info_files))),
                                 ", ".join(["sos_step('{}')".format(n2a(x+1)) for x, y in enumerate(set(io_info_files))]),
                                 n_cpu)
         self.job_str += "\n[DSC]\ndepends: sum([IO_DB[x[0]][x[1]]['output'] for x in {}], [])".\
@@ -141,7 +141,7 @@ class DSC_Translator:
 
     def filter_execution(self):
         '''Filter steps removing the ones having common input and output'''
-        IO_DB = msgpack.unpackb(open('.sos/.dsc/{}.conf.mpk'.format(self.db), 'rb').\
+        IO_DB = msgpack.unpackb(open('{}/{}.conf.mpk'.format(self.output, self.db), 'rb').\
                                 read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
         for x in self.job_pool:
             if x[0] in IO_DB and x[1] in IO_DB[x[0]]:

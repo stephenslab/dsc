@@ -29,7 +29,7 @@ class Silencer:
     def __exit__(self, etype, value, traceback):
         env.verbosity = self.env_verbosity
 
-def prepare_args(args, db, script, workflow):
+def prepare_args(args, db, script, workflow, mode):
     out = dotdict()
     out.__max_running_jobs__ = out.__max_procs__ = args.__max_jobs__
     # FIXME: should wait when local host
@@ -45,8 +45,7 @@ def prepare_args(args, db, script, workflow):
     # Yet to observe the behavior there
     out.__remote__ = None
     out.dryrun = False
-    # FIXME: have to be changed with command input
-    out.__sig_mode__ = 'default' if not args.__rerun__ else 'force'
+    out.__sig_mode__ = mode
     out.verbosity = env.verbosity
     # FIXME
     out.__dag__ = '.sos/.dsc/{}.dot'.format(db)
@@ -128,23 +127,24 @@ def execute(args):
     workflow = DSC_Analyzer(script)
     if args.debug:
         workflow2html('.sos/.dsc/{}.workflow.html'.format(db), workflow.workflows, script.dump().values())
-    pipeline = DSC_Translator(workflow.workflows, script.runtime, args.__rerun__, args.__max_jobs__, args.try_catch)
+    pipeline = DSC_Translator(workflow.workflows, script.runtime, args.__construct__ == "no",
+                              args.__max_jobs__, args.try_catch)
     # Apply clean-up
     # FIXME: need to revisit
     if args.to_remove is not None:
-        remove(workflow.workflows, args.to_remove, script.runtime.output, args.__rerun__, args.debug)
+        remove(workflow.workflows, args.to_remove, script.runtime.output, args.__construct__ == "no", args.debug)
         return
-    # Rebuild database from existing data without rerun
-    # FIXME: need to revisit the logic here
-    manifest = '.sos/.dsc/{}.manifest'.format(db)
-    if args.__construct__ and not os.path.isfile(manifest):
-        raise RuntimeError('Project cannot be recovered due to lack of integrity: manifest file is missing!\n'\
-                         'Please make sure the benchmark was properly distributed with ``--distribute`` option.')
-    if args.__construct__ == 2:
+    # Recover DSC from existing files
+    if args.__construct__ and not \
+       (os.path.isfile('{1}/{0}.map.mpk'.format(db, script.runtime.output)) \
+        and os.path.isfile('{1}/{0}.io.mpk'.format(db, script.runtime.output))):
+        raise RuntimeError('Project cannot be safely recovered because no meta-data can be found under ``{}``!'.\
+                           format(script.runtime.output))
+    if args.__construct__ == "partial":
         master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
         env.logger.warning("Recovering partially completed DSC benchmark ...\n"\
                            "``--distribute`` option will fail on this recovered benchmark because it is incomplete.")
-        ResultDB(db, master).Build(script = open(args.dsc_file).read())
+        ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = open(args.dsc_file).read())
         return
     # Archive scripts
     exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
@@ -157,10 +157,12 @@ def execute(args):
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
         script_to_html(script_prepare, '.sos/.dsc/{}.prepare.html'.format(db))
-    with Silencer(0):
-        cmd_run(prepare_args(args, db, script_prepare, "default"), [])
+    mode = "default"
+    if args.__construct__ == "no":
+        mode = "force"
+    with Silencer(env.verbosity if args.debug else 0):
+        cmd_run(prepare_args(args, db, script_prepare, "default", mode), [])
     # Run
-    open(manifest, 'w').write('.sos/.dsc/{0}.map.mpk\n.sos/.dsc/{0}.io.mpk'.format(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     env.logger.info("Building execution graph ...")
     pipeline.filter_execution()
@@ -168,9 +170,11 @@ def execute(args):
     if args.debug:
         script_to_html(script_run, '.sos/.dsc/{}.run.html'.format(db))
         return
+    if args.__construct__ == "full":
+        mode = "build"
     try:
         with Silencer(args.verbosity if args.host else min(1, args.verbosity)):
-            cmd_run(prepare_args(args, db, script_run, "DSC"), [])
+            cmd_run(prepare_args(args, db, script_run, "DSC", mode), [])
     except Exception as e:
         if env.verbosity > 2:
             sys.stderr.write(get_traceback())
@@ -185,14 +189,7 @@ def execute(args):
     # Construct metadata
     master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
     env.logger.info("Writing output metadata ...")
-    ResultDB(db, master).Build(script = dsc_script)
-    # Update manifest
-    manifest_items = [x.strip() for x in open(manifest).readlines()]
-    for x in [args.dsc_file, script.runtime.output + '.html', '.sos/.dsc/{}.db'.format(db), manifest]:
-        if x not in manifest_items:
-            manifest_items.append(x)
-    with open(manifest, 'w') as f:
-        f.write('\n'.join(manifest_items))
+    ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = dsc_script)
     env.logger.info("DSC complete!")
 
 def annotate(args):
@@ -220,7 +217,7 @@ def extract(args):
     env.verbosity = args.verbosity if not args.verbosity == 2 else 1
     atexit.register(env.cleanup)
     env.sig_mode = 'default'
-    if args.__rerun__:
+    if args.__construct__ == "no":
         env.sig_mode = 'force'
     #
     if args.output is None:
@@ -236,41 +233,6 @@ def extract(args):
                     format(ext.output, ext.master,
                            'annotations: \n\t``{}``'.format('\n\t'.join(args.tags))
                            if args.tags else "all annotations."))
-
-def distribute(args):
-    import tarfile
-    #
-    if args.dsc_file:
-        output = DSC_Script(args.dsc_file, output = args.output).runtime.output
-    elif args.output:
-        output = args.output
-    else:
-        raise RuntimeError("Please specify DSC benchmark name, via ``-b`` option.")
-    manifest = '.sos/.dsc/{}.manifest'.format(output)
-    if not os.path.isfile(manifest):
-        raise RuntimeError('Project cannot be distributed due to lack of integrity: manifest file is missing!\n'\
-                         'Please run DSC with ``-x`` before applying this command.')
-    files = [x.strip() for x in open(manifest).readlines()] + glob.glob("{}/*.*".format(output))
-    for item in args.distribute:
-        if os.path.isdir(item):
-            for root, folder, filenames in os.walk(item):
-                for filename in filenames:
-                    files.append(os.path.join(root, filename))
-        else:
-            files.append(item)
-    files = uniq_list(files)
-    env.verbosity = args.verbosity
-    tar_args = {'name': output + '.tar.gz', 'mode': 'w:gz'}
-    if os.path.isfile(tar_args['name']) and not args.__rerun__:
-        raise RuntimeError('Operation aborted due to existing output file ``{}``. Use ``-f`` to overwrite.'.\
-                        format(tar_args['name']))
-    env.logger.info('Archiving project ``{}`` ...'.format(output))
-    with tarfile.open(**tar_args) as archive:
-        for f in files:
-            if not os.path.isfile(f):
-                raise RuntimeError('Project cannot be distributed due to lack of integrity.\n'\
-                         'Please run and annotate DSC before distributing.')
-            archive.add(f)
 
 def run(args):
     if args.dsc_file is not None:
@@ -296,12 +258,10 @@ def main():
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
-    p.add_argument('--cpu', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
-                   dest='__max_jobs__', help='''Number of maximum parallel processes.''')
-    p.add_argument('-b', metavar = "str", dest = 'output',
+    p.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
+                   dest='__max_jobs__', help='''Number of maximum cpu threads.''')
+    p.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''Benchmark output. It overwrites "DSC::run::output" specified by configuration file.''')
-    p.add_argument('-f', action='store_true', dest='__rerun__',
-                   help='''Start from scratch ignoring any existing results.''')
     # FIXME to be made obsolete
     p.add_argument('--target', dest = 'master', metavar = 'str',
                    help = '''The ultimate target of a DSC benchmark is the name of
@@ -309,35 +269,39 @@ def main():
                    commands when there exists multiple DSC sequences with different targets.''')
     p_execute = p.add_argument_group("Execute DSC")
     p_execute.add_argument('-x', '--execute', dest = 'dsc_file', metavar = "DSC script",
-                   help = 'Execute DSC.')
+                           help = 'Execute DSC.')
     p_execute.add_argument('--sequence', metavar = "str", nargs = '+',
-                   help = '''DSC sequences to be executed. It overwrites "DSC::run" specified by
-                   configuration file. Multiple sequences are allowed. Each input should be
-                   a quoted string defining a valid DSC sequence, or referring to the key of an existing
-                   sequence in the DSC script. Multiple such strings should be separated by space.''')
+                           help = '''DSC sequences to be executed. It overwrites "DSC::run" specified by
+                           configuration file. Multiple sequences are allowed. Each input should be
+                           a quoted string defining a valid DSC sequence, or referring to the key of an existing
+                           sequence in the DSC script. Multiple such strings should be separated by space.''')
     p_execute.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
-                   help = '''It overwrites any "seed" property in the DSC script. This feature
-                   is useful for running a quick test with small number of replicates.
-                   Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
-    p_execute.add_argument('--recover', type = int,
-                           metavar = "levels", choices = [1, 2], dest = '__construct__',
-                           help = '''Recover DSC based on names (not contents) of existing files. Level 1 recover
-                           will try to reconstruct the entire benchmark skipping existing files. Level 2 recover
-                           will only use existing files to reconstruct the benchmark output metadata, making it possible
-                           to explore partial benchmark results without having to wait until completion of
-                           entire benchmark.''')
+                           help = '''It overwrites any "seed" property in the DSC script. This feature
+                           is useful for running a quick test with small number of replicates.
+                           Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
+    p_execute.add_argument('--recover', metavar = "option", choices = ["default", "no", "full", "partial"],
+                           dest = '__construct__', default = "default",
+                           help = '''Behavior of how DSC is executed in the presence of existing files.
+                           "default" recover will check file signature and skip the ones that matches expected signature.
+                           "no" recover will run everything from scratch ignoring any existing file.
+                           "full" recover will reconstruct signature for existing files that matches expected input
+                           environment, and run jobs to generate non-existing files, to complete the benchmark.
+                           "partial" recover will use existing files directly to construct output metadata,
+                           making it possible to explore partial benchmark results without having to wait until
+                           completion of entire benchmark.''')
     p_execute.add_argument('--ignore-errors', action='store_true', dest='try_catch',
-                   help = '''Bypass all errors from computational programs. This will keep the benchmark running but
-                   all results will be set to missing values and the problematic script will be saved when applicable.
-                   ''')
-    p_execute.add_argument('--clean', dest = 'to_remove', metavar = "str", nargs = '*',
-                   help = '''Instead of running DSC, output for one or multiple steps from previous DSC
-                   runs are to be cleaned. Each step should be a valid DSC step in the format of
-                   "block[index]", or "block" for all steps in the block.
-                   Multiple steps should be separated by space. When "--clean" is used with "-f",
-                   all specified files will be removed regardless of their step execution status.''')
+                           help = '''Bypass all errors from computational programs.
+                           This will keep the benchmark running but
+                           all results will be set to missing values and
+                           the problematic script will be saved when possible.''')
+    p_execute.add_argument('--remove', dest = 'to_remove', metavar = "str", nargs = '*',
+                           help = '''Instead of running DSC, output for one or multiple steps from previous DSC
+                           runs are to be cleaned. Each step should be a valid DSC step in the format of
+                           "block[index]", or "block" for all steps in the block.
+                           Multiple steps should be separated by space. When "--remove" is used with "-f",
+                           all specified files will be removed regardless of their step execution status.''')
     p_execute.add_argument('--host', metavar='str',
-                   help='''Name of host computer to run jobs.''')
+                           help='''Name of host computer to run jobs.''')
     p_ann = p.add_argument_group("Annotate DSC")
     p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'DSC Annotation',
                        help = '''Annotate DSC.''')
@@ -351,7 +315,7 @@ def main():
                        help = '''Tags to extract. The "&&" sign can be used to specify intersect
                        of multiple tags. The "=" sign can be used to rename extracted tags.
                        Default to extracting for all tags.''')
-    p_ext.add_argument('-o', metavar = "str", dest = 'extract_to',
+    p_ext.add_argument('-f', metavar = "str", dest = 'extract_to',
                        help = '''Output file name.''')
     p_dist = p.add_argument_group("Distribute DSC")
     p_dist.add_argument('--distribute', metavar = 'files', nargs = '*',

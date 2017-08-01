@@ -18,8 +18,8 @@ from .utils import load_rds, save_rds, \
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
-def remove_obsolete_output(fid, additional_files = None):
-    map_db = '.sos/.dsc/{}.map.mpk'.format(fid)
+def remove_obsolete_output(output, additional_files = None):
+    map_db = '{}/{}.map.mpk'.format(output, os.path.basename(output))
     if os.path.isfile(map_db):
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
                                    object_pairs_hook = OrderedDict)
@@ -28,7 +28,7 @@ def remove_obsolete_output(fid, additional_files = None):
     # Remove file signature when files are deleted
     to_remove = []
     for k, x in list(map_data.items()):
-        x = os.path.join(fid, x)
+        x = os.path.join(output, x)
         if not os.path.isfile(x):
             to_remove.append(x)
             del map_data[k]
@@ -199,8 +199,8 @@ class ResultDBError(Error):
 
 
 class ResultDB:
-    def __init__(self, db_name, master_names):
-        self.dat_prefix = '.sos/.dsc/{}'.format(db_name)
+    def __init__(self, db_prefix, master_names):
+        self.db_prefix = db_prefix
         # If this is None, then the last block will be used
         # As master table
         self.master_names = master_names
@@ -212,8 +212,8 @@ class ResultDB:
         self.last_block = []
         # key = block name, item = exec name
         self.groups = {}
-        if os.path.isfile(self.dat_prefix + '.map.mpk'):
-            self.maps = msgpack.unpackb(open(self.dat_prefix + '.map.mpk', 'rb').read(), encoding = 'utf-8',
+        if os.path.isfile(self.db_prefix + '.map.mpk'):
+            self.maps = msgpack.unpackb(open(self.db_prefix + '.map.mpk', 'rb').read(), encoding = 'utf-8',
                                         object_pairs_hook = OrderedDict)
         else:
             raise ResultDBError("DSC file name database is corrupted!")
@@ -236,7 +236,7 @@ class ResultDB:
             raise ResultDBError('Cannot find name map for ``{}``'.format(x))
         #
         try:
-            data_all = msgpack.unpackb(open(self.dat_prefix + ".io.mpk", "rb").read(),
+            data_all = msgpack.unpackb(open(self.db_prefix + ".io.mpk", "rb").read(),
                                     encoding = 'utf-8', object_pairs_hook = OrderedDict)
         except:
             raise ResultDBError('Cannot load source data to build database!')
@@ -357,7 +357,7 @@ class ResultDB:
         self.data.update(self.master)
         if script is not None:
             self.data['.dscsrc'] = repr(script)
-        pickle.dump(self.data, open(self.dat_prefix + '.db', 'wb'))
+        pickle.dump(self.data, open(self.db_prefix + '.db', 'wb'))
 
 
 class ResultAnnotator:
