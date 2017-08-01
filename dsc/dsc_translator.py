@@ -81,10 +81,11 @@ class DSC_Translator:
                        else self.step_map[workflow_id]['{}_{}'.format(x, y + 1)]
                        for x, y in zip(sequence, step_id)]
                 # Configuration
-                conf_str.append("[INIT_{0}]\nparameter: sequence_id = '{0}'\nparameter: sequence_name = '{1}'".\
-                                format(i, '+'.join(sqn)))
-                conf_str.append("input: None\noutput: '.sos/.dsc/{1}_{0}.mpk'".format(i, self.db))
-                conf_str.append("DSC_UPDATES_ = OrderedDict()")
+                conf_str.append("[{0}]\n" \
+                                "parameter: sequence_id = '{1}'\nparameter: sequence_name = '{2}'\n" \
+                                "input: None\noutput: '{3}'".\
+                                format(n2a(i), i, '+'.join(sqn), '.sos/.dsc/{1}_{0}.mpk'.format(i, self.db)))
+                conf_str.append("DSC_UPDATES_ = OrderedDict()\n")
                 conf_str.extend([conf_dict[x] for x in sqn])
                 conf_str.append("open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))")
                 io_info_files.append('.sos/.dsc/{1}_{0}.mpk'.format(i, self.db))
@@ -111,11 +112,14 @@ class DSC_Translator:
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + '\n'.join(job_str)
-        self.conf_str += "\n[INIT_0]\nremove_obsolete_output('{0}')\n[BUILD_0]\nparameter: vanilla = {1}\n" \
+        self.conf_str += "\n[default_1]\nremove_obsolete_output('{0}')\n[default_2]\n" \
+                         "parameter: vanilla = {1}\ndepends: {3}\n" \
                          "input: {2}\noutput: '.sos/.dsc/{0}.io.mpk', '.sos/.dsc/{0}.map.mpk', '.sos/.dsc/{0}.conf.mpk'"\
                          "\nbuild_config_db(input, output[0], output[1], "\
-                         "output[2], vanilla = vanilla, jobs = {3})".\
-                         format(self.db, rerun, repr(sorted(set(io_info_files))), n_cpu)
+                         "output[2], vanilla = vanilla, jobs = {4})".\
+                         format(self.db, rerun, repr(sorted(set(io_info_files))),
+                                ", ".join(["sos_step('{}')".format(n2a(x+1)) for x, y in enumerate(set(io_info_files))]),
+                                n_cpu)
         self.job_str += "\n[DSC]\ndepends: sum([IO_DB[x[0]][x[1]]['output'] for x in {}], [])".\
                         format(repr(final_step_label))
         with open('.sos/.dsc/utils.R', 'w') as f:
@@ -201,7 +205,7 @@ class DSC_Translator:
 
         def get_header(self):
             if self.prepare:
-                self.header = "## [prepare_{1}: shared = '{0}_output']".format(self.step.group, self.name)
+                self.header = "## Codes for {1} ({0})".format(self.step.group, self.name)
             else:
                 self.header = "[core_{0} ({1})]\n".\
                                format(self.name, self.step.name)
@@ -225,15 +229,14 @@ class DSC_Translator:
         def get_input(self):
             depend_steps = uniq_list([x[0] for x in self.step.depends]) if self.step.depends else []
             if self.prepare:
+                if depend_steps:
+                    self.input_string += "## With variables from: {}".format(', '.join(depend_steps))
                 if len(depend_steps) >= 2:
                     self.input_vars = 'input_files'
-                    self.input_string += "## depends: {}\n".\
-                       format(', '.join(['sos_variable(\'{}_output\')'.format(x) for x in depend_steps]))
-                    self.input_string += 'input_files = sos_group_input([{}])'.\
+                    self.input_string += '\ninput_files = sos_group_input([{}])'.\
                        format(', '.join(['{}_output'.format(x) for x in depend_steps]))
                 elif len(depend_steps) == 1:
                     self.input_vars = "{}_output".format(depend_steps[0])
-                    self.input_string += "## depends: sos_variable('{}')".format(self.input_vars)
                 else:
                     pass
                 if len(depend_steps):

@@ -42,7 +42,7 @@ def remove_obsolete_output(fid, additional_files = None):
                             "targets": to_remove, "external": True,
                             "__confirm__": True, "signature": True,
                             "verbosity": 0, "zap": False,
-                            "size": None, "age": None}, "dryrun": False), [])
+                            "size": None, "age": None, "dryrun": False}), [])
 
 def load_mpk(mpk_files, jobs):
     d = Manager().dict()

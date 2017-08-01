@@ -102,7 +102,7 @@ def remove(workflows, steps, db, force, debug):
                             "targets": to_remove, "external": True,
                             "__confirm__": True, "signature": True,
                             "verbosity": env.verbosity, "zap": False,
-                            "size": None, "age": None}, "dryrun": False), [])
+                            "size": None, "age": None, "dryrun": False}), [])
 
 def dsc_init(args, output):
     os.makedirs('.sos/.dsc', exist_ok = True)
@@ -158,7 +158,7 @@ def execute(args):
     if args.debug:
         script_to_html(script_prepare, '.sos/.dsc/{}.prepare.html'.format(db))
     with Silencer(0):
-        cmd_run(prepare_args(args, db, script_prepare, "INIT+BUILD"), [])
+        cmd_run(prepare_args(args, db, script_prepare, "default"), [])
     # Run
     open(manifest, 'w').write('.sos/.dsc/{0}.map.mpk\n.sos/.dsc/{0}.io.mpk'.format(db))
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
