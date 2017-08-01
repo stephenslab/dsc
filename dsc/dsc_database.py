@@ -146,12 +146,18 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
             for name in conf[sid]:
                 conf[sid][name]["depends"] = []
                 for item in conf[sid][name]['input_repr']:
-                    for k in conf[sid]:
-                        if name == k:
-                            continue
-                        if item in conf[sid][k]['output_repr']:
-                            conf[sid][name]['depends'].append("{}_{}".format(re.sub(r'\d+$', '', k), n2a(int(sid))))
-            del conf[sid][name]['input_repr']
+                    for sid2 in conf:
+                        for k in conf[sid2]:
+                            if name == k:
+                                continue
+                            if item in conf[sid2][k]['output_repr']:
+                                conf[sid][name]['depends'].append("{}_{}".format(re.sub(r'\d+$', '', k), n2a(int(sid2))))
+                if len(conf[sid][name]['depends']) > len(set(conf[sid][name]['depends'])):
+                    raise ValueError("Dependent files not unique for sequence {} step {}".format(sid, name))
+        for sid in conf:
+            for name in conf[sid]:
+                del conf[sid][name]['input_repr']
+                del conf[sid][name]['output_repr']
         return conf
 
     #
