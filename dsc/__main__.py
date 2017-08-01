@@ -123,7 +123,8 @@ def execute(args):
     if args.sequence:
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.sequence).split())))
-    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds)
+    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.sequence, seeds = args.seeds,
+                        submit = args.host)
     db = os.path.basename(script.runtime.output)
     env.logfile = db + '.log'
     dsc_init(args, script.runtime.output)
@@ -171,7 +172,8 @@ def execute(args):
         script_to_html(script_run, '.sos/.dsc/{}.run.html'.format(db))
         return
     try:
-        cmd_run(prepare_args(args, script_run, "DSC"), [])
+        with Silencer(args.verbosity if args.host else 1):
+            cmd_run(prepare_args(args, script_run, "DSC"), [])
     except Exception as e:
         if env.verbosity and env.verbosity > 2:
             sys.stderr.write(get_traceback())

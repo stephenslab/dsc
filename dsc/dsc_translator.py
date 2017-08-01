@@ -276,8 +276,8 @@ class DSC_Translator:
                 self.output_string += "output: output_files, group_by = {}".format(output_group_by)
 
         def get_step_option(self):
-            if not self.prepare:
-                self.step_option += "task: workdir = {}".format(repr(self.step.workdir))
+            if not self.prepare and self.step.is_extern:
+                self.step_option += "task:\n"
 
         def get_action(self):
             if self.prepare:
@@ -310,7 +310,7 @@ class DSC_Translator:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
-                    self.action += '{}:\n'.format(plugin.name)
+                    self.action += '{}: workdir = {}\n'.format(plugin.name, repr(self.step.workdir))
                     # Add action
                     if not self.step.shell_run:
                         script_begin = plugin.get_input(self.params, input_num = len(self.step.depends),

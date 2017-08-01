@@ -26,7 +26,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.blocks, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, seeds = None):
+    def __init__(self, content, output = None, sequence = None, seeds = None, submit = None):
         if os.path.isfile(content):
             with open(content) as f:
                 self.content = load_from_yaml(f, content)
@@ -45,7 +45,7 @@ class DSC_Script:
                 if 'seed' in self.content[block]:
                     self.content[block]['seed'] = seeds
         self.content = DSCEntryFormatter()(self.content, try_get_value(self.content['DSC'], 'params'))
-        self.runtime = DSC_Section(self.content['DSC'], sequence, output)
+        self.runtime = DSC_Section(self.content['DSC'], sequence, output, submit)
         if self.runtime.output is None:
             # logger.warning("Using default output name ````.".format(dsc_name))
             self.runtime.output = dsc_name
@@ -234,6 +234,7 @@ class DSC_Step:
         self.plugin = None
         # runtime variables
         self.workdir = None
+        self.is_extern = None
         self.libpath = None
         self.path = None
         # dependencies
@@ -299,9 +300,12 @@ class DSC_Step:
         libpath2 = try_get_value(spec_option, 'lib_path')
         path1 = try_get_value(common_option, 'exec_path')
         path2 = try_get_value(spec_option, 'exec_path')
+        extern1 = try_get_value(common_option, 'submit')
+        extern2 = try_get_value(spec_option, 'submit')
         self.workdir = workdir2 if workdir2 is not None else workdir1
         self.libpath = libpath2 if libpath2 is not None else libpath1
         self.path = path2 if path2 is not None else path1
+        self.is_extern = extern2 if extern2 is not None else extern1
 
     def set_params(self, common, spec, alias_common, alias_spec):
         alias = {}
@@ -564,7 +568,7 @@ class DSC_Block:
 
 
 class DSC_Section:
-    def __init__(self, content, sequence, output):
+    def __init__(self, content, sequence, output, submit):
         self.content = content
         self.output = self.content['output'][0] if 'output' in self.content else output
         if 'run' not in self.content:
@@ -593,6 +597,10 @@ class DSC_Section:
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
         self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
         self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
+        if submit:
+            self.options['is_extern'] = True
+        else:
+            self.options['is_extern'] = self.content['submit'] if 'submit' in self.content else None
         self.rlib = self.content['R_libs'] if 'R_libs' in self.content else None
         self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else None
 
