@@ -97,6 +97,8 @@ class Timer(object):
         self.msecs = self.secs * 1000  # millisecs
         if self.verbose:
             env.logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
+    def disable(self):
+        self.verbose = False
 
 def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
     level_start += 1

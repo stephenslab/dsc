@@ -30,14 +30,19 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
     to_remove = []
     for k, x in list(map_data.items()):
         x = os.path.join(output, x)
-        if not os.path.isfile(x):
+        if not (os.path.isfile(x) or os.path.isfile(x + '.zapped')):
             to_remove.append(x)
             del map_data[k]
     # Remove files that are not in the name database
     for x in glob.glob('{}/*'.format(output)):
+        if x.endswith(".zapped"):
+            x = x[:-7]
+            x_ext = '.zapped'
+        else:
+            x_ext = ''
         if os.path.basename(x) not in map_data.values() and \
            x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['io', 'conf', 'map']]:
-            to_remove.append(x)
+            to_remove.append(x + x_ext)
     # Additional files to remove
     for x in additional_files or []:
         if not os.path.isfile(x):
