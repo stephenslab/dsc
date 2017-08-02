@@ -103,13 +103,14 @@ def remove(workflows, steps, db, debug, replace = False):
         env.logger.warning("No files found to {}. Please check your ``--target`` option".\
                            format('replace' if replace else 'purge'))
 
-def dsc_init(args, output):
+def env_init(args, output):
     os.makedirs('.sos/.dsc', exist_ok = True)
     if os.path.dirname(output):
         os.makedirs(os.path.dirname(output), exist_ok = True)
     # FIXME: need to utilize this to properly make global configs
     with open('.sos/.dsc/{}.conf.yml'.format(os.path.basename(output)), 'w') as f:
         f.write('name: dsc')
+    env.logfile = os.path.basename(output) + '.log'
     if os.path.isfile(env.logfile):
         os.remove(env.logfile)
     if os.path.isfile('.sos/transcript.txt'):
@@ -127,8 +128,7 @@ def execute(args):
     script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, seeds = args.seeds,
                         extern = args.host)
     db = os.path.basename(script.runtime.output)
-    env.logfile = db + '.log'
-    dsc_init(args, script.runtime.output)
+    env_init(args, script.runtime.output)
     workflow = DSC_Analyzer(script)
     if args.debug:
         workflow2html('.sos/.dsc/{}.workflow.html'.format(db), workflow.workflows, script.dump().values())
@@ -145,19 +145,18 @@ def execute(args):
         raise RuntimeError('Project cannot be safely recovered because no meta-data can be found under\n``{}``'.\
                            format(os.path.abspath(script.runtime.output)))
     if args.__construct__ == "partial":
+        # FIXME: need test
         master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
-        env.logger.warning("Recovering partially completed DSC benchmark ...\n"\
-                           "``--distribute`` option will fail on this recovered benchmark because it is incomplete.")
         ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = open(args.dsc_file).read())
         return
     # Archive scripts
+    source_text = open(args.dsc_file).read()
     exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
                                 for k in script.runtime.sequence_ordering])
-    dsc_script = open(args.dsc_file).read()
-    dsc2html(dsc_script, None, script.runtime.output, section_content = exec_content)
+    dsc2html(source_text, None, script.runtime.output, section_content = exec_content)
     env.logger.info("DSC script exported to ``{}.html``".format(script.runtime.output))
-    # Output file structure setup
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
+    # Setup
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
         script_to_html(script_prepare, '.sos/.dsc/{}.prepare.html'.format(db))
@@ -195,63 +194,11 @@ def execute(args):
                                "for the problematic chunk of code.".\
                                format(db))
         sys.exit(1)
-    # Construct metadata
+    # Build database
     master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
-    env.logger.info("Writing output metadata ...")
-    ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = dsc_script)
+    env.logger.info("Writing output database ...")
+    ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = source_text)
     env.logger.info("DSC complete!")
-
-def annotate(args):
-    env.verbosity = args.verbosity
-    mfiles = [args.annotation]
-    ann = ResultAnnotator(args.annotation, args.master, output = args.output, sequence = args.target)
-    for master in ann.masters:
-        tagfile, shinyfile = ann.Apply(master)
-        env.logger.info('Annotation summary for sequence ending with ``{}``\n'.format(master[7:]) + ann.ShowQueries())
-        if len(ann.msg):
-            env.logger.warning('\n' + '\n'.join(ann.msg))
-        mfiles.append(tagfile)
-        mfiles.append(shinyfile)
-    # update manifest
-    manifest = '.sos/.dsc/{}.manifest'.format(ann.dsc.runtime.output)
-    manifest_items = [x.strip() for x in open(manifest).readlines()]
-    for x in mfiles:
-        if x not in manifest_items:
-            manifest_items.append(x)
-    with open(manifest, 'w') as f:
-        f.write('\n'.join(manifest_items))
-
-def extract(args):
-    env.max_jobs = args.__max_jobs__
-    env.verbosity = args.verbosity if not args.verbosity == 2 else 1
-    atexit.register(env.cleanup)
-    env.sig_mode = 'default'
-    if args.__construct__ == "no":
-        env.sig_mode = 'force'
-    #
-    if args.output is None:
-        raise RuntimeError("Please specify DSC benchmark name, via ``-b`` option.")
-    ext = ResultExtractor(args.output, args.tags, args.master, args.extract_to, args.extract)
-    script = SoS_Script(content = ext.script, transcript = None)
-    workflow = script.workflow("Extracting")
-    executor_class = Base_Executor
-    executor = executor_class(workflow)
-    executor.run()
-    env.verbosity = args.verbosity
-    env.logger.info('Data extracted to ``{}`` for DSC result ``{}`` via {}'.\
-                    format(ext.output, ext.master,
-                           'annotations: \n\t``{}``'.format('\n\t'.join(args.tags))
-                           if args.tags else "all annotations."))
-
-def run(args):
-    if args.dsc_file is not None:
-        execute(args)
-    if args.annotation is not None:
-        annotate(args)
-    if args.extract is not None:
-        extract(args)
-    if args.distribute is not None:
-        distribute(args)
 
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
@@ -263,82 +210,54 @@ def main():
     p = MyArgParser(description = __doc__, allow_abbrev = False, formatter_class = ArgumentDefaultsHelpFormatter)
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
+    p.add_argument('dsc_file', metavar = "DSC script", help = 'DSC script to execute.')
+    p.add_argument('--target', metavar = "str", nargs = '+',
+                   help = '''This argument can be used in two contexts:
+                   1) When used without "--remove" it specifies DSC sequences to executed.
+                   It overwrites "DSC::run" defined in configuration file.
+                   Multiple sequences are allowed. Each input should be a quoted string defining
+                   a valid DSC sequence, or referring to the key of an existing
+                   sequence in the DSC script. Multiple such strings should be separated by space.
+                   2) When used along with "--remove" it specifies one or more computational modules,
+                   separated by space, whose output are to be removed. They should be valid DSC step
+                   in the format of "block[index]", or "block" for all steps in the block, or simply path
+                   to files that needs removal.''')
+    p.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
+                   help = '''It overwrites any "seed" property in the DSC script. This feature
+                   is useful for running a quick test with small number of replicates.
+                   Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
+    p.add_argument('--ignore-errors', action='store_true', dest='try_catch',
+                   help = '''Bypass all errors from computational programs.
+                   This will keep the benchmark running but
+                   all results will be set to missing values and
+                   the problematic script will be saved when possible.''')
+    p.add_argument('--recover', metavar = "option", choices = ["default", "no", "full", "partial"],
+                   dest = '__construct__', default = "default",
+                   help = '''Behavior of how DSC is executed in the presence of existing files.
+                   "default" recover will check file signature and skip the ones that matches expected signature.
+                   "no" recover will run everything from scratch ignoring any existing file.
+                   "full" recover will reconstruct signature for existing files that matches expected input
+                   environment, and run jobs to generate non-existing files, to complete the benchmark.
+                   "partial" recover will use existing files directly to construct output metadata,
+                   making it possible to explore partial benchmark results without having to wait until
+                   completion of entire benchmark.''')
+    p.add_argument('--remove', metavar = "option", choices = ["purge", "replace"],
+                   dest = 'to_remove',
+                   help = '''Behavior of how DSC removes files. "purge" deletes specified files
+                   or files generated by specified modules. "replace" replaces these files by
+                   dummy files with "*.zapped" extension, instead of removing them
+                   (useful to swap out large intermediate files).
+                   Files to operate on should be specified by "--target".''')
+    p.add_argument('--host', metavar='str',
+                   help='''Name of host computer to send tasks to.''')
+    p.add_argument('-o', metavar = "str", dest = 'output',
+                   help = '''Benchmark output. It overwrites "DSC::run::output" specified by configuration file.''')
+    p.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
+                   dest='__max_jobs__', help='''Number of maximum cpu threads.''')
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
-    p.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
-                   dest='__max_jobs__', help='''Number of maximum cpu threads.''')
-    p.add_argument('-o', metavar = "str", dest = 'output',
-                   help = '''Benchmark output. It overwrites "DSC::run::output" specified by configuration file.''')
-    # # FIXME to be made obsolete
-    # p.add_argument('--target', dest = 'master', metavar = 'str',
-    #                help = '''The ultimate target of a DSC benchmark is the name of
-    #                the last block in a DSC sequence. This option is relevant to -a / -e
-    #                commands when there exists multiple DSC sequences with different targets.''')
-    p_execute = p.add_argument_group("Execute DSC")
-    p_execute.add_argument('-x', '--execute', dest = 'dsc_file', metavar = "DSC script",
-                           help = 'Execute DSC.')
-    p_execute.add_argument('--target', metavar = "str", nargs = '+',
-                           help = '''This argument can be used in two contexts:
-                           1) When used without "--remove" it specifies DSC sequences to executed.
-                           It overwrites "DSC::run" defined in configuration file.
-                           Multiple sequences are allowed. Each input should be a quoted string defining
-                           a valid DSC sequence, or referring to the key of an existing
-                           sequence in the DSC script. Multiple such strings should be separated by space.
-                           2) When used along with "--remove" it specifies one or more computational modules,
-                           separated by space, whose output are to be removed. They should be valid DSC step
-                           in the format of "block[index]", or "block" for all steps in the block, or simply path
-                           to files that needs removal.''')
-    p_execute.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
-                           help = '''It overwrites any "seed" property in the DSC script. This feature
-                           is useful for running a quick test with small number of replicates.
-                           Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
-    p_execute.add_argument('--ignore-errors', action='store_true', dest='try_catch',
-                           help = '''Bypass all errors from computational programs.
-                           This will keep the benchmark running but
-                           all results will be set to missing values and
-                           the problematic script will be saved when possible.''')
-    p_execute.add_argument('--recover', metavar = "option", choices = ["default", "no", "full", "partial"],
-                           dest = '__construct__', default = "default",
-                           help = '''Behavior of how DSC is executed in the presence of existing files.
-                           "default" recover will check file signature and skip the ones that matches expected signature.
-                           "no" recover will run everything from scratch ignoring any existing file.
-                           "full" recover will reconstruct signature for existing files that matches expected input
-                           environment, and run jobs to generate non-existing files, to complete the benchmark.
-                           "partial" recover will use existing files directly to construct output metadata,
-                           making it possible to explore partial benchmark results without having to wait until
-                           completion of entire benchmark.''')
-    p_execute.add_argument('--remove', metavar = "option", choices = ["purge", "replace"],
-                           dest = 'to_remove',
-                           help = '''Behavior of how DSC removes files. "purge" deletes specified files
-                           or files generated by specified modules. "replace" replaces these files by
-                           dummy files with "*.zapped" extension, instead of removing them
-                           (useful to swap out large intermediate files).
-                           Files to operate on should be specified by "--target".''')
-    p_execute.add_argument('--host', metavar='str',
-                           help='''Name of host computer to send tasks to.''')
-    p_ann = p.add_argument_group("Annotate DSC")
-    p_ann.add_argument('-a', '--annotate', dest = 'annotation', metavar = 'DSC Annotation',
-                       help = '''Annotate DSC.''')
-    p_ext = p.add_argument_group("Extract DSC results")
-    p_ext.add_argument('-e', '--extract', metavar = 'block:variable', nargs = '+',
-                       help = '''Variable(s) to extract.
-                       Variable(s) should be specified by "block:variable".
-                       Valid `variable` are variables found in `return` of the corresponding
-                       DSC block.''')
-    p_ext.add_argument('--tags', metavar = 'str', nargs = '+',
-                       help = '''Tags to extract. The "&&" sign can be used to specify intersect
-                       of multiple tags. The "=" sign can be used to rename extracted tags.
-                       Default to extracting for all tags.''')
-    p_ext.add_argument('-f', metavar = "str", dest = 'extract_to',
-                       help = '''Output file name.''')
-    p_dist = p.add_argument_group("Distribute DSC")
-    p_dist.add_argument('--distribute', metavar = 'files', nargs = '*',
-                       help = '''Additional files to distribute.
-                       This option will create a tarball for the DSC benchmark for distribution.
-                       If additional files are given to this option, then those files will also be
-                       included in the benchmark.''')
-    p.set_defaults(func = run)
+    p.set_defaults(func = execute)
     try:
         args = p.parse_args()
     except Exception as e:
