@@ -18,9 +18,10 @@ from .utils import load_rds, save_rds, \
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
-def remove_obsolete_output(output, additional_files = None):
+def remove_obsolete_output(output, additional_files = None, rerun = False):
     map_db = '{}/{}.map.mpk'.format(output, os.path.basename(output))
-    if os.path.isfile(map_db):
+    # Load existing file names
+    if os.path.isfile(map_db) and not rerun:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
                                    object_pairs_hook = OrderedDict)
     else:
@@ -34,7 +35,7 @@ def remove_obsolete_output(output, additional_files = None):
             del map_data[k]
     # Remove files that are not in the name database
     for x in glob.glob('{}/*'.format(output)):
-        if x not in map_data.values() and \
+        if os.path.basename(x) not in map_data.values() and \
            x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['io', 'conf', 'map']]:
             to_remove.append(x)
     # Additional files to remove

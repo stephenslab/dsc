@@ -112,7 +112,7 @@ class DSC_Translator:
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + "DSC_RUTILS = '''{}'''\n".format(R_SOURCE + R_LMERGE) + '\n'.join(job_str)
-        self.conf_str += "\n[default_1]\nremove_obsolete_output('{0}')\n[default_2]\n" \
+        self.conf_str += "\n[default_1]\nremove_obsolete_output('{0}', rerun = {2})\n[default_2]\n" \
                          "parameter: vanilla = {2}\ndepends: {4}\n" \
                          "input: dynamic({3})\noutput: '{0}/{1}.io.mpk', '{0}/{1}.map.mpk', '{0}/{1}.conf.mpk'"\
                          "\nbuild_config_db(input, output[0], output[1], "\
