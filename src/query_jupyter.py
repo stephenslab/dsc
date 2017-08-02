@@ -3,7 +3,8 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import json, os
+import json
+import os
 
 HOME_DOC = '''
 This page displays contents of DSC database `NAME`. There are two types of tables in this database:
@@ -14,7 +15,17 @@ This page displays contents of DSC database `NAME`. There are two types of table
 [DSC script](#DSC-script) that generated this database can be found at the end of this page.
 '''
 
-def get_database_summary(db, title = "Database Summary"):
+def write_notebook(text, output, execute = True):
+    import nbformat
+    nb = nbformat.reads(text, as_version = 4)
+    if execute:
+        from nbconvert.preprocessors import ExecutePreprocessor
+        ep = ExecutePreprocessor(timeout=600, kernel_name='SoS')
+        ep.preprocess(nb, {})
+    with open(os.path.expanduser(output), 'wt') as f:
+        nbformat.write(nb, f)
+
+def get_database_summary(db, output, title = "Database Summary"):
     import pickle
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title, HOME_DOC.replace("NAME", os.path.basename(db))))
@@ -23,24 +34,19 @@ import pickle
 data = pickle.load(open("{}", 'rb'))
     '''.format(os.path.expanduser(db)), cell = "code")
     data = pickle.load(open(os.path.expanduser(db), 'rb'))
-    jc.add("<hr>")
     jc.add("## Pipelines")
     for key in data:
         if key.startswith('pipeline_'):
-            jc.add("<hr>")
             jc.add("### pipeline `{}`".format(key[9:]))
             jc.add("%preview -n data['{}']".format(key), cell = "code", out = True)
-    jc.add("<hr>")
     jc.add("## Modules")
     for key in data:
         if not key.startswith("pipeline_") and not key.startswith('.'):
-            jc.add("<hr>")
             jc.add("### module `{}`".format(key))
             jc.add("%preview -n data['{}']".format(key), cell = "code", out = True)
-    jc.add("<hr>")
     jc.add("## DSC script")
     jc.add("print(eval(data['.dscsrc']))", cell = "code", out = True)
-    return jc.dump()
+    write_notebook(jc.dump(), output)
 
 class JupyterComposer:
     def __init__(self):
@@ -96,7 +102,7 @@ class JupyterComposer:
 
     @staticmethod
     def get_metadata(cell, kernel, out):
-        out = '"metadata": {\n    "collapsed": true,\n    "kernel": "%s",\n    "scrolled": true,\n    "tags": [%s]\n   },' % (kernel, '"report_output"' if cell == 'code' and out else '')
+        out = '"metadata": {\n    "collapsed": false,\n    "kernel": "%s",\n    "scrolled": true,\n    "tags": [%s]\n   },' % (kernel, '"report_output"' if cell == 'code' and out else '')
         return out
 
 if __name__ == '__main__':
@@ -106,4 +112,4 @@ if __name__ == '__main__':
     # jc.add("print(999)", cell = 'code', kernel = 'SoS', out = True)
     # print(jc.dump())
     import sys
-    print(get_database_summary(sys.argv[1]))
+    get_database_summary(sys.argv[1], sys.argv[2])
