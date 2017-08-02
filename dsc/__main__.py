@@ -97,9 +97,9 @@ def remove(workflows, steps, db, force, debug):
     if debug:
         env.logger.info(to_remove)
     else:
-        cmd_remove(dotdict({"tracked": True, "untracked": True,
+        cmd_remove(dotdict({"tracked": False, "untracked": False,
                             "targets": to_remove, "external": True,
-                            "__confirm__": True, "signature": True,
+                            "__confirm__": True, "signature": False,
                             "verbosity": env.verbosity, "zap": False,
                             "size": None, "age": None, "dryrun": False}), [])
 

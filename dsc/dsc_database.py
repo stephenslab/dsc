@@ -32,16 +32,21 @@ def remove_obsolete_output(output, additional_files = None):
         if not os.path.isfile(x):
             to_remove.append(x)
             del map_data[k]
-    # FIXME: remove files in output folder that are no longer in map_data
+    # Remove files that are not in the name database
+    for x in glob.glob('{}/*'.format(output)):
+        if x not in map_data.values() and \
+           x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['io', 'conf', 'map']]:
+            to_remove.append(x)
     # Additional files to remove
     for x in additional_files or []:
         if not os.path.isfile(x):
             to_remove.append(x)
     if len(to_remove):
         open(map_db, "wb").write(msgpack.packb(map_data))
-        cmd_remove(dotdict({"tracked": True, "untracked": True,
+        # Do not limit to tracked or untracked, and do not just remove signature
+        cmd_remove(dotdict({"tracked": False, "untracked": False,
                             "targets": to_remove, "external": True,
-                            "__confirm__": True, "signature": True,
+                            "__confirm__": True, "signature": False,
                             "verbosity": 0, "zap": False,
                             "size": None, "age": None, "dryrun": False}), [])
 
