@@ -4,18 +4,18 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, atexit, re, glob, pickle
+import os, sys, re, glob, pickle
 from collections import OrderedDict
 import warnings
 warnings.filterwarnings("ignore")
-from sos.utils import env
+from sos.utils import env, get_traceback
 from sos.__main__ import cmd_run, cmd_remove
 from sos.converter import script_to_html
 from .dsc_parser import DSC_Script
 from .dsc_analyzer import DSC_Analyzer
 from .dsc_translator import DSC_Translator
-from .dsc_database import ResultDB, ResultAnnotator, ResultExtractor
-from .utils import get_slice, uniq_list, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
+from .dsc_database import ResultDB
+from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
 from . import VERSION
 
 class Silencer:

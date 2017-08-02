@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-import os, re
+import re
 from .utils import OrderedDict
 
 R_SOURCE = '''

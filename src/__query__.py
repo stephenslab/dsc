@@ -1,0 +1,134 @@
+#!/usr/bin/env python
+__author__ = "Gao Wang"
+__copyright__ = "Copyright 2016, Stephens lab"
+__email__ = "gaow@uchicago.edu"
+__license__ = "MIT"
+
+import os, sys
+import warnings
+warnings.filterwarnings("ignore")
+from sos.utils import env, get_traceback
+from .utils import dotdict
+from . import VERSION
+
+class Silencer:
+    def __init__(self, verbosity):
+        self.verbosity = verbosity
+        self.env_verbosity = env.verbosity
+
+    def __enter__(self):
+        env.verbosity = self.verbosity
+
+    def __exit__(self, etype, value, traceback):
+        env.verbosity = self.env_verbosity
+
+def prepare_args(args, db, script, workflow, mode):
+    out = dotdict()
+    out.__max_running_jobs__ = out.__max_procs__ = args.__max_jobs__
+    # FIXME: should wait when local host
+    # no-wait when extern task
+    out.__wait__ = True
+    out.__no_wait__ = False
+    out.__targets__ = []
+    # FIXME: add bin dir here
+    out.__bin_dirs__ = []
+    # FIXME: add more options here
+    out.__queue__ = 'localhost'
+    # FIXME: when remote is used should make it `no_wait`
+    # Yet to observe the behavior there
+    out.__remote__ = None
+    out.dryrun = False
+    out.__sig_mode__ = mode
+    out.verbosity = env.verbosity
+    # FIXME
+    out.__dag__ = '.sos/.dsc/{}.dot'.format(db)
+    # FIXME: use config info
+    out.__config__ = '.sos/.dsc/{}.conf.yml'.format(db)
+    # FIXME: port the entire resume related features
+    out.__resume__ = False
+    out.script = script
+    out.workflow = workflow
+    return out
+
+def query(args):
+    return 0
+
+def main():
+    from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
+    class ArgumentParserError(Exception): pass
+    class MyArgParser(ArgumentParser):
+        def error(self, message):
+            raise ArgumentParserError(message)
+    #
+    p = MyArgParser(description = __doc__, allow_abbrev = False, formatter_class = ArgumentDefaultsHelpFormatter)
+    p.add_argument('--debug', action='store_true', help = SUPPRESS)
+    p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
+    p.add_argument('dsc_file', metavar = "DSC script", help = 'DSC script to execute.')
+    p.add_argument('--target', metavar = "str", nargs = '+',
+                   help = '''This argument can be used in two contexts:
+                   1) When used without "--remove" it specifies DSC sequences to executed.
+                   It overwrites "DSC::run" defined in configuration file.
+                   Multiple sequences are allowed. Each input should be a quoted string defining
+                   a valid DSC sequence, or referring to the key of an existing
+                   sequence in the DSC script. Multiple such strings should be separated by space.
+                   2) When used along with "--remove" it specifies one or more computational modules,
+                   separated by space, whose output are to be removed. They should be valid DSC step
+                   in the format of "block[index]", or "block" for all steps in the block, or simply path
+                   to files that needs removal.''')
+    p.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
+                   help = '''It overwrites any "seed" property in the DSC script. This feature
+                   is useful for running a quick test with small number of replicates.
+                   Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
+    p.add_argument('--ignore-errors', action='store_true', dest='try_catch',
+                   help = '''Bypass all errors from computational programs.
+                   This will keep the benchmark running but
+                   all results will be set to missing values and
+                   the problematic script will be saved when possible.''')
+    p.add_argument('--recover', metavar = "option", choices = ["default", "no", "full", "partial"],
+                   dest = '__construct__', default = "default",
+                   help = '''Behavior of how DSC is executed in the presence of existing files.
+                   "default" recover will check file signature and skip the ones that matches expected signature.
+                   "no" recover will run everything from scratch ignoring any existing file.
+                   "full" recover will reconstruct signature for existing files that matches expected input
+                   environment, and run jobs to generate non-existing files, to complete the benchmark.
+                   "partial" recover will use existing files directly to construct output metadata,
+                   making it possible to explore partial benchmark results without having to wait until
+                   completion of entire benchmark.''')
+    p.add_argument('--remove', metavar = "option", choices = ["purge", "replace"],
+                   dest = 'to_remove',
+                   help = '''Behavior of how DSC removes files. "purge" deletes specified files
+                   or files generated by specified modules. "replace" replaces these files by
+                   dummy files with "*.zapped" extension, instead of removing them
+                   (useful to swap out large intermediate files).
+                   Files to operate on should be specified by "--target".''')
+    p.add_argument('--host', metavar='str',
+                   help='''Name of host computer to send tasks to.''')
+    p.add_argument('-o', metavar = "str", dest = 'output',
+                   help = '''Benchmark output. It overwrites "DSC::run::output" specified by configuration file.''')
+    p.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
+                   dest='__max_jobs__', help='''Number of maximum cpu threads.''')
+    p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
+                   help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
+                   information.''')
+    p.set_defaults(func = query)
+    try:
+        args = p.parse_args()
+    except Exception as e:
+        env.logger.error(e)
+        env.logger.info("Please type ``{} -h`` to view available options".\
+                        format(os.path.basename(sys.argv[0])))
+        sys.exit(1)
+    #
+    env.verbosity = args.verbosity
+    try:
+        args.func(args)
+    except Exception as e:
+        if args.debug:
+            raise
+        if env.verbosity and env.verbosity > 2:
+            sys.stderr.write(get_traceback())
+        env.logger.error(e)
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
