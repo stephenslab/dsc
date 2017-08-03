@@ -8,8 +8,11 @@ import os, sys
 import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env, get_traceback
+from sos.jupyter.converter import notebook_to_html
 from .utils import dotdict
 from . import VERSION
+from .query_jupyter import get_database_summary
+from .query_engine import Query_Processor
 
 class Silencer:
     def __init__(self, verbosity):
@@ -51,7 +54,19 @@ def prepare_args(args, db, script, workflow, mode):
     return out
 
 def query(args):
-    return 0
+    if os.path.isfile(args.dsc_output):
+    args.dsc_output = os.path.dirname(args.dsc_output)
+    db = os.path.join(args.dsc_output, os.path.basename(args.dsc_output) + '.db')
+    if not args.output.endswith('.ipynb'):
+        args.output = args.output.strip('.') + '.ipynb'
+    if args.target is None:
+        env.logger.info("Exporting database ...")
+        get_database_summary(db, args.output, args.title, args.description)
+        env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(args.output))
+        if not args.no_html:
+            html = args.output[:-6] + '.html'
+            notebook_to_html(args.output, html, dotdict({"template": "sos-report"}),
+                             ["--Application.log_level='CRITICAL'"])
 
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
@@ -72,10 +87,14 @@ def main():
                    help = '''Output notebook / data file prefix.''')
     p.add_argument('--title', metavar = 'str', required = True,
                    help='''Title for notebook file.''')
-    p.add_argument('--language', metavar = 'str', choices = ['R', 'Python'], default = 'R',
-                   help='''Programming language to be embedded to generated notebooks for follow up analysis.''')
+    p.add_argument('--description', metavar = 'str', nargs = '+',
+                   help='''Text to add under notebook title. Each string is a standalone paragraph.''')
+    p.add_argument('--kernel', metavar = 'str', choices = ['R', 'Python', 'ir'],
+                   help='''Language kernel to switch to for follow up analysis in notebook generated.''')
     p.add_argument('--addon', metavar = 'str', nargs = '+',
                    help='''Scripts to load to the notebooks for follow up analysis.''')
+    p.add_argument('--no-html', action = 'store_true', dest = 'no_html',
+                   help='''Do not export to HTML format.''')
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')

@@ -25,10 +25,12 @@ def write_notebook(text, output, execute = True):
     with open(os.path.expanduser(output), 'wt') as f:
         nbformat.write(nb, f)
 
-def get_database_summary(db, output, title = "Database Summary"):
+def get_database_summary(db, output, title = "Database Summary", description = None):
     import pickle
     jc = JupyterComposer()
-    jc.add("# {}\n{}".format(title, HOME_DOC.replace("NAME", os.path.basename(db))))
+    jc.add("# {}\n{}".format(title,
+                             '\n'.join(description) if description is not None
+                             else HOME_DOC.replace("NAME", os.path.basename(db))))
     jc.add('''
 import pickle
 data = pickle.load(open("{}", 'rb'))
@@ -55,6 +57,7 @@ class JupyterComposer:
 
     def add(self, content, cell = "markdown", kernel = "SoS", out = False):
         content = [x + '\n' for x in content.strip().split("\n")]
+        content[-1] = content[-1].rstrip('\n')
         self.text.append('  {\n   "cell_type": "%s",%s\n   %s\n   %s"source": %s' \
                          % (cell, '\n   "execution_count": null,' if cell == "code" else '',
                             self.get_metadata(cell, kernel, out),
