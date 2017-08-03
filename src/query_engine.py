@@ -7,12 +7,12 @@ import sys, os, msgpack, yaml, re, glob, pickle
 from collections import OrderedDict
 import pandas as pd
 from sos.utils import logger
-from .dsc_parser import DSC_Script
 from .dsc_database import ResultDBError
 from .utils import load_rds, save_rds, \
      flatten_list, uniq_list, no_duplicates_constructor, \
      cartesian_list, extend_dict, strip_dict, \
      try_get_value, is_sublist
+from .line import OperationParser
 
 SQL_KEYWORDS = set([
     'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
@@ -59,6 +59,37 @@ SQL_KEYWORDS = set([
     'LOG', 'POW', 'SIN', 'SLEEP', 'SORT', 'STD', 'VALUES', 'SUM'
 ])
 
+def id_generator(size=6, chars=None):
+    import string, random
+    if chars is None:
+        chars = string.ascii_uppercase + string.digits
+    return ''.join(random.choice(chars) for _ in range(size))
+
+def expand_logic(string):
+    PH = '__{}'.format(id_generator())
+    string = string.replace('*', PH + '_ast__')
+    string = string.replace('+', PH + '_plus__')
+    string = string.replace(',', PH + '_com__')
+    string = string.replace(' or ', ',')
+    string = string.replace(' OR ', ',')
+    string = string.replace(' and ', '*')
+    string = string.replace(' AND ', '*')
+    string = re.sub(' +',  PH + '_space__', string)
+    res = []
+    op = OperationParser()
+    for x in op(string):
+        if isinstance(x, str):
+            x = (x,)
+        tmp = []
+        for y in x:
+            y = y.replace(PH + '_ast__', '*')
+            y = y.replace(PH + '_plus__', '+')
+            y = y.replace(PH + '_com__', ',')
+            y = y.replace(PH + '_space__', ' ')
+            tmp.append(y)
+        res.append(tmp)
+    return res
+
 class Query_Processor:
     def __init__(self, db, target, condition = None):
         self.db = db
@@ -76,10 +107,9 @@ class Query_Processor:
         self.pipelines = self.filter_pipelines()
         # 4. make inner join, the FROM clause
         from_clauses = self.get_from_clause()
-        # 5. make select clause
-        select_clauses = self.get_select_clause()
-        # 6. FIXME where clause
-        self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses]))]
+        # 5. make select / where clause
+        select_clauses, where_clauses = self.get_select_where_clause()
+        self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
 
     @staticmethod
     def legalize_name(name, kw = False):
@@ -100,7 +130,7 @@ class Query_Processor:
         [(table, field), (table, field) ...]
         '''
         res = []
-        for item in ' '.join(values).split():
+        for item in re.sub('[^0-9a-zA-Z_.]+', ' ', ' '.join(values)).split():
             if re.search('^\w+\.\w+$', item):
                 x, y = item.split('.')
                 if x == self.legalize_name(x) and y == self.legalize_name(y):
@@ -168,23 +198,63 @@ class Query_Processor:
             res.append('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.parent = {1}.ID".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)]))
         return res
 
-    def get_select_clause(self):
-        res = []
+    def get_select_where_clause(self):
+        select = []
+        where = []
         for pipeline in self.pipelines:
-            tmp = []
+            tmp1 = []
+            tmp2 = []
             for item in self.target_tables:
                 if len([x for x in pipeline if x.lower() == item[0].lower()]) == 0:
                     continue
+                tmp2.append(item)
                 if item[1] is None:
-                    tmp.append("'{0}' AS {0}".format(item[0]))
+                    tmp1.append("'{0}' AS {0}".format(item[0]))
                     continue
                 key = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
                 if item[1] not in [x.lower() for x in self.data[key].keys()]:
-                    tmp.append("{0}.FILE AS {0}_{1}".format(item[0], item[1]))
+                    tmp1.append("{0}.FILE AS {0}_FILE_{1}".format(item[0], item[1]))
                 else:
-                    tmp.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))
-            res.append("SELECT " + ', '.join(tmp))
-        return res
+                    tmp1.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))
+            select.append("SELECT " + ', '.join(tmp1))
+            where.append(self.get_one_where_clause([x[0].lower() for x in tmp2]))
+        return select, where
+
+    def get_one_where_clause(self, tables):
+        '''
+        After expanding, condition is a list of list
+        the outer lists are connected by OR
+        the inner lists are connected by AND
+        '''
+        # to decide which part of the conditions is relevant to which pipeline we have to
+        # dissect it to reveal table/field names
+        condition = []
+        for each_and in expand_logic(' AND '.join(self.condition)):
+            tmp = []
+            for value in each_and:
+                # [valid, invalid]
+                counts = [0,0]
+                for item in re.sub('[^0-9a-zA-Z_.]+', ' ', value).split():
+                    if re.search('^\w+\.\w+$', item):
+                        x, y = item.split('.')
+                        if x == self.legalize_name(x) and y == self.legalize_name(y):
+                            if x.lower() not in tables:
+                                counts[1] += 1
+                            else:
+                                counts[0] += 1
+                                for k in self.data:
+                                    if k.lower() == x:
+                                        if not y.lower() in [i.lower() for i in self.data[k].keys()]:
+                                            raise ResultDBError("``{}`` is invalid query: cannot find column ``{}`` in table ``{}``".\
+                                                                format(value, y, k))
+                if counts[0] >= 1 and counts[1] == 0:
+                    tmp.append(value)
+            condition.append(tmp)
+        return "WHERE " + ' OR '.join(['(' + ' AND '.join(["({})".format(y) for y in x]) + ')' for x in condition])
+
+    def population_table(self, table):
+        # FIXME
+        return table
 
     def get_queries(self):
         return self.queries
@@ -192,133 +262,7 @@ class Query_Processor:
     def get_data(self):
         return self.data
 
-EXTRACT_RDS_R = '''
-res = list()
-res$DSC_TIMER = list()
-keys = c(${key!r,})
-for (key in keys) {
-  res[[key]] = list()
-  res$DSC_TIMER[[key]] = list()
-}
-targets = c(${target!r,})
-f_counter = 1
-for (item in c(${input!r,})) {
-  tryCatch({
-    dat = readRDS(item)
-    for (idx in length(targets)) {
-       res[[keys[idx]]][[f_counter]] = dat[[targets[idx]]]
-       res$DSC_TIMER[[keys[idx]]][[f_counter]] = dat$DSC_TIMER[1]
-    }
-  }, error = function(e) {})
-  for (idx in length(targets)) {
-    if (length(res[[keys[idx]]]) < f_counter) {
-      res[[keys[idx]]][[f_counter]] = item
-      res$DSC_TIMER[[keys[idx]]][[f_counter]] = NA
-    }
-  }
-  f_counter = f_counter + 1
-}
-saveRDS(res, ${output!r})
-'''
-
-CONCAT_RDS_R = '''
-res = list()
-for (dat in lapply(c(${input!r,}), readRDS)) {
-  for (item in names(dat)) {
-    if (item != 'DSC_TIMER') {
-      res[[item]] = dat[[item]]
-    } else {
-      for (ii in names(dat[[item]])) {
-        res[[item]][[ii]] = unlist(dat[[item]][[ii]])
-      }
-    }
-  }
-}
-res$DSC_COMMAND = ${command!r}
-saveRDS(res, ${output!r})
-'''
-
-
-class ResultExtractor:
-    def __init__(self, project_name, tags, from_table, to_file, targets_list):
-        tag_file = glob.glob('.sos/.dsc/{}.*.tags'.format(project_name))
-        tables = [x.split('.')[-2] for x in tag_file]
-        if len(tag_file) == 0:
-                raise ValueError("DSC result has not been annotated. Please use ``-a`` option to annotate the results before running ``-e``.")
-        if from_table is not None and not from_table in tables:
-                raise ValueError("DSC result for ``{}`` has not been annotated. Please use ``-a`` option to annotate the results before running ``-e``.".format(from_table))
-        if len(tag_file) == 1:
-            # we have a unique table to extract from
-            self.master = tag_file[0].split('.')[-2]
-        else:
-            if from_table:
-                self.master = from_table
-            else:
-                raise ValueError("Please specify the DSC block to target, via ``--target``."\
-                                 "\nChoices are ``{}``".\
-                                 format(repr([x.split('.')[-2] for x in tag_file])))
-        tag_file = tag_file[tables.index(self.master)]
-        self.ann = msgpack.unpackb(open(tag_file, 'rb').read(), encoding = 'utf-8',
-                                   object_pairs_hook = OrderedDict)
-        valid_vars = load_rds(tag_file[:-4] + 'shinymeta.rds')['variables'].tolist()
-        if tags is None:
-            self.tags = {x:x for x in self.ann.keys()}
-        else:
-            self.tags = {}
-            for tag in tags:
-                tag = tag.strip().strip('=') # add this line in case shinydsc gives empty tag alias
-                if "=" in tag:
-                    if len(tag.split('=')) != 2:
-                        raise ValueError("Invalid tag syntax ``{}``!".format(tag))
-                    self.tags[tag.split('=')[0].strip()] = tag.split('=')[1].strip()
-                else:
-                    self.tags['_'.join([x.strip() for x in tag.split('&&')])] = tag
-        self.name = os.path.split(tag_file)[1].rsplit('.', 2)[0]
-        if to_file is None:
-            to_file = self.name + '.{}.rds'.format(self.master)
-        self.output = to_file
-        self.ann_cache = []
-        self.script = []
-        # Organize targets
-        targets = {}
-        for item in targets_list:
-            if not item in valid_vars:
-                raise ValueError('Invalid input value: ``{}``. \nChoices are ``{}``.'.\
-                                 format(item, repr(valid_vars)))
-            target = item.split(":")
-            if target[0] not in targets:
-                targets[target[0]] = []
-            targets[target[0]].append(target[1])
-        # Compose executable job file
-        for key, item in targets.items():
-            for tag, ann in self.tags.items():
-                input_files = []
-                # Handle union logic
-                if not '&&' in ann and ann in self.ann and key in self.ann[ann]:
-                    input_files = sorted(self.ann[ann][key])
-                else:
-                    arrays = [self.ann[x.strip()][key] for x in ann.split('&&')
-                              if x.strip() in self.ann and key in self.ann[x.strip()]]
-                    input_files = sorted(set.intersection(*map(set, arrays)))
-                if len(input_files) == 0:
-                    continue
-                input_files = flatten_list([glob.glob("{}/{}.*".format(self.name, x)) for x in input_files])
-                output_prefix = ['_'.join([tag, key, x]) for x in item]
-                step_name = '{}_{}'.format(tag, key)
-                output_file = '{}/ann_cache/{}.rds'.format(self.name, step_name)
-                # Compose execution step
-                self.ann_cache.append(output_file)
-                self.script.append("[{0}: provides = '{1}']".\
-                                   format(step_name, output_file))
-                self.script.append('parameter: target = {}'.format(repr(item)))
-                self.script.append('parameter: key = {}'.format(repr(output_prefix)))
-                self.script.append('input: [{}]'.format(','.join([repr(x) for x in input_files])))
-                self.script.append('output: \'{}\''.format(output_file))
-                self.script.extend(['R:', EXTRACT_RDS_R])
-        self.script.append("[Extracting (concatenate RDS)]")
-        self.script.append('parameter: command = "{}"'.format(' '.join(sys.argv)))
-        self.script.append('depends: [{}]'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
-        self.script.append('input: [{}]'.format(','.join([repr(x) for x in sorted(self.ann_cache)])))
-        self.script.append('output: {}'.format(repr(self.output)))
-        self.script.extend(['R:', CONCAT_RDS_R])
-        self.script = '\n'.join(self.script)
+if __name__ == '__main__':
+    import sys
+    q = Query_Processor(sys.argv[1], [sys.argv[2]], [sys.argv[3]])
+    print(q.queries)

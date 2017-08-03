@@ -70,9 +70,11 @@ def query(args):
         env.logger.info("Running queries ...")
         from .yhat_sqldf import sqldf, PandaSQLException as SQLError
         _QP_ = Query_Processor(db, args.target, args.condition)
+        for query in _QP_.get_queries():
+            env.logger.debug(query)
         globals().update(**(_QP_.get_data()))
         try:
-            output = [sqldf(query) for query in _QP_.get_queries()]
+            output = [_QP_.populate_table(sqldf(query)) for query in _QP_.get_queries()]
         except SQLError as e:
             raise(e)
         fout = args.output[:-6] + '.db'
