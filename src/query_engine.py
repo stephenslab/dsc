@@ -252,7 +252,7 @@ class Query_Processor:
             condition.append(tmp)
         return "WHERE " + ' OR '.join(['(' + ' AND '.join(["({})".format(y) for y in x]) + ')' for x in condition])
 
-    def population_table(self, table):
+    def populate_table(self, table):
         # FIXME
         return table
 

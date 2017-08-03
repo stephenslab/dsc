@@ -108,7 +108,7 @@ def main():
     p.add_argument('dsc_output', metavar = "DSC output folder", help = 'Path to DSC output.')
     p.add_argument('-t', '--target', metavar = "str", nargs = '+',
                    help = '''Query targets.''')
-    p.add_argument('-c', '--condition', metavar = "WHERE",
+    p.add_argument('-c', '--condition', metavar = "WHERE", nargs = '+',
                    help = '''Query condition.''')
     p.add_argument('-o', metavar = "str", dest = 'output', required = True,
                    help = '''Output notebook / data file prefix.''')
