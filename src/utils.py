@@ -802,3 +802,10 @@ def n2a(col_num, col_abs=False):
         # Get the next order of magnitude.
         col_num = int((col_num - 1) / 26)
     return col_abs + col_str
+
+def is_sublist(sub, lst):
+    ln = len(sub)
+    for i in range(len(lst) - ln + 1):
+        if all(sub[j] == lst[i+j] for j in range(ln)):
+            return True
+    return False

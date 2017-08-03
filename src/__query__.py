@@ -11,7 +11,7 @@ from sos.utils import env, get_traceback
 from sos.jupyter.converter import notebook_to_html
 from .utils import dotdict
 from . import VERSION
-from .query_jupyter import get_database_summary
+from .query_jupyter import get_database_summary, get_query_summary
 from .query_engine import Query_Processor
 
 class Silencer:
@@ -54,19 +54,44 @@ def prepare_args(args, db, script, workflow, mode):
     return out
 
 def query(args):
+    from sos.__main__ import AnswerMachine
+    _AM_ = AnswerMachine()
     if os.path.isfile(args.dsc_output):
-    args.dsc_output = os.path.dirname(args.dsc_output)
+        args.dsc_output = os.path.dirname(args.dsc_output)
     db = os.path.join(args.dsc_output, os.path.basename(args.dsc_output) + '.db')
     if not args.output.endswith('.ipynb'):
         args.output = args.output.strip('.') + '.ipynb'
+    if os.path.isfile(args.output) and not _AM_.get("Overwrite existing file \"{}\"?".format(args.output)):
+        sys.exit("Aborted!")
     if args.target is None:
         env.logger.info("Exporting database ...")
         get_database_summary(db, args.output, args.title, args.description)
-        env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(args.output))
-        if not args.no_html:
-            html = args.output[:-6] + '.html'
-            notebook_to_html(args.output, html, dotdict({"template": "sos-report"}),
-                             ["--Application.log_level='CRITICAL'"])
+    else:
+        env.logger.info("Running queries ...")
+        from .yhat_sqldf import sqldf, PandaSQLException as SQLError
+        _QP_ = Query_Processor(db, args.target, args.condition)
+        globals().update(**(_QP_.get_data()))
+        try:
+            output = [sqldf(query) for query in _QP_.get_queries()]
+        except SQLError as e:
+            raise(e)
+        fout = args.output[:-6] + '.db'
+        if fout == _QP_.db:
+            fout = fout[:-3] + '.extracted.db'
+        if os.path.isfile(fout) and not _AM_.get("Overwrite existing file \"{}\"?".format(fout)):
+            sys.exit("Aborted!")
+        import pickle
+        pickle.dump({"data": output, "queries": _QP_.get_queries()}, open(fout, 'wb'))
+        env.logger.info("Exporting results ...")
+        desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
+                                                   format(repr(args.target), repr(args.condition))]
+        get_query_summary(fout, args.output, args.title, desc)
+    #
+    env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(args.output))
+    if not args.no_html:
+        html = args.output[:-6] + '.html'
+        notebook_to_html(args.output, html, dotdict({"template": "sos-report"}),
+                         ["--Application.log_level='CRITICAL'"])
 
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS

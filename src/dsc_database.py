@@ -272,27 +272,27 @@ class ResultDB:
             if not block_name in self.last_block and is_last_block:
                 self.last_block.append(block_name)
             #
-            for x in ['step_id', 'return', 'parent']:
+            for x in ['ID', 'FILE', 'parent']:
                 if x in v.keys():
                     v['.{}'.format(x)] = v.pop(x)
             #
             if not table in self.data:
                 self.data[table] = {}
-                for x in list(v.keys()) + ['step_id', 'return', 'parent']:
+                for x in list(v.keys()) + ['ID', 'FILE', 'parent']:
                     if x not in ['sequence_id', 'sequence_name', 'step_name', 'exec']:
                         self.data[table][x] = []
             else:
                 keys1 = repr(sorted([x for x in v.keys() if not x in
                                      ['sequence_id', 'sequence_name', 'step_name', 'exec']]))
                 keys2 = repr(sorted([x for x in self.data[table].keys() if not x in
-                                     ['step_id', 'return', 'parent']]))
+                                     ['ID', 'FILE', 'parent']]))
                 if keys1 != keys2:
                     raise ResultDBError('Inconsistent keys between step '\
                                               '``{0} (value {2})`` and ``{1} (value {3})``.'.\
-                                              format(idx + 1, keys1, self.data[table]['step_id'], keys2))
-            self.data[table]['step_id'].append(idx + 1)
+                                              format(idx + 1, keys1, self.data[table]['ID'], keys2))
+            self.data[table]['ID'].append(idx + 1)
             k = k.split()
-            self.data[table]['return'].append(find_namemap(k[0]))
+            self.data[table]['FILE'].append(find_namemap(k[0]))
             if len(k) > 1:
                 self.data[table]['parent'].append(search_dependent_index(k[-1]))
             else:
@@ -318,8 +318,8 @@ class ResultDB:
             step = None
             for k in self.data:
                 # try get some idx
-                if depend_id in self.data[k]['step_id']:
-                    idx = self.data[k]['step_id'].index(depend_id)
+                if depend_id in self.data[k]['ID']:
+                    idx = self.data[k]['ID'].index(depend_id)
                     step = k
                     break
             if idx is None or step is None:
@@ -337,11 +337,11 @@ class ResultDB:
         '''
         res = []
         for step in self.groups[block]:
-            for step_idx, step_id in enumerate(self.data[step]['step_id']):
+            for step_idx, step_id in enumerate(self.data[step]['ID']):
                 tmp = []
                 self.__get_sequence(step, step_id, step_idx, tmp)
                 res.append(list(reversed(tmp)))
-        data = {}
+        data = OrderedDict()
         for item in res:
             key = tuple([self.__find_block(x[0]) for x in item])
             if key not in data:
@@ -350,18 +350,20 @@ class ResultDB:
         for key in data:
             header = data[key].pop(0)
             data[key] = pd.DataFrame(data[key], columns = header)
+        captain = [x for x in data.keys()]
         data = pd.concat([data[key] for key in data], ignore_index = True)
         id_cols = [k for k in data.keys() if k.endswith("_id")]
         name_cols = [k for k in data.keys() if not k.endswith("_id")]
         data[id_cols] = data[id_cols].fillna(-9, downcast = int)
         data[name_cols] = data[name_cols].fillna("-")
-        return data
+        return data, captain
 
     def Build(self, script = None):
         self.load_parameters()
         for block in self.last_block:
-            self.master['pipeline_{}'.format(block)] = self.write_master_table(block)
-        tmp = ['step_id', 'parent', 'return']
+            self.master['pipeline_{}'.format(block)], \
+                self.master['pipeline_{}.captain'.format(block)] = self.write_master_table(block)
+        tmp = ['ID', 'parent', 'FILE']
         for table in self.data:
             cols = tmp + [x for x in self.data[table].keys() if x not in tmp]
             self.data[table] = pd.DataFrame(self.data[table], columns = cols)

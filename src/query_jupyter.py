@@ -4,6 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import json
+import pickle
 import os
 
 HOME_DOC = '''
@@ -26,28 +27,48 @@ def write_notebook(text, output, execute = True):
         nbformat.write(nb, f)
 
 def get_database_summary(db, output, title = "Database Summary", description = None):
-    import pickle
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title,
-                             '\n'.join(description) if description is not None
+                             '\n\n'.join(description) if description is not None
                              else HOME_DOC.replace("NAME", os.path.basename(db))))
     jc.add('''
 import pickle
 data = pickle.load(open("{}", 'rb'))
-    '''.format(os.path.expanduser(db)), cell = "code")
+    '''.format(os.path.expanduser(db)), cell = "code", out = False)
     data = pickle.load(open(os.path.expanduser(db), 'rb'))
     jc.add("## Pipelines")
     for key in data:
-        if key.startswith('pipeline_'):
-            jc.add("### pipeline `{}`".format(key[9:]))
-            jc.add("%preview -n data['{}']".format(key), cell = "code", out = True)
+        if key.startswith('pipeline_') and not key.endswith(".captain"):
+            captain = data[key + '.captain']
+            jc.add("### pipeline{} `{}`\nExecuted pipelines:\n{}".\
+                   format('s' if len(captain) > 1 else '', key[9:],
+                          '\n'.join(['* ' + ' + '.join(["`{}`".format(x) for x in seq]) for seq in captain])))
+            jc.add("%preview -n data['{0}']".format(key), cell = "code")
     jc.add("## Modules")
     for key in data:
         if not key.startswith("pipeline_") and not key.startswith('.'):
             jc.add("### module `{}`".format(key))
-            jc.add("%preview -n data['{}']".format(key), cell = "code", out = True)
+            jc.add("%preview -n data['{}']".format(key), cell = "code")
     jc.add("## DSC script")
-    jc.add("print(eval(data['.dscsrc']))", cell = "code", out = True)
+    jc.add("```yaml\n{}\n```".format(eval(data['.dscsrc'])))
+    write_notebook(jc.dump(), output)
+
+def get_query_summary(db, output, title, description = None):
+    jc = JupyterComposer()
+    jc.add("# {}\n{}".format(title,
+                             '\n\n'.join(description) if description is not None
+                             else ''))
+    jc.add('''
+import pickle
+info = pickle.load(open("{}", 'rb'))
+    '''.format(os.path.expanduser(db)), cell = "code", out = False)
+    info = pickle.load(open(os.path.expanduser(db), 'rb'))
+    i = 0
+    for d, q in zip(info['data'], info['queries']):
+        jc.add("## Pipeline {}".format(i + 1))
+        jc.add("```sql\n{}\n```".format(q), out = False)
+        jc.add("%preview -n info['data'][{}]".format(i), cell = "code")
+        i += 1
     write_notebook(jc.dump(), output)
 
 class JupyterComposer:
@@ -55,7 +76,7 @@ class JupyterComposer:
         self.text = ['{\n "cells": [']
         self.has_end = False
 
-    def add(self, content, cell = "markdown", kernel = "SoS", out = False):
+    def add(self, content, cell = "markdown", kernel = "SoS", out = True):
         content = [x + '\n' for x in content.strip().split("\n")]
         content[-1] = content[-1].rstrip('\n')
         self.text.append('  {\n   "cell_type": "%s",%s\n   %s\n   %s"source": %s' \
@@ -105,7 +126,13 @@ class JupyterComposer:
 
     @staticmethod
     def get_metadata(cell, kernel, out):
-        out = '"metadata": {\n    "collapsed": false,\n    "kernel": "%s",\n    "scrolled": true,\n    "tags": [%s]\n   },' % (kernel, '"report_output"' if cell == 'code' and out else '')
+        def get_tag():
+            if cell == 'code' and out:
+                return "report_output"
+            elif cell == 'markdown' and not out:
+                return "hide_output"
+        #
+        out = '"metadata": {\n    "collapsed": false,\n    "kernel": "%s",\n    "scrolled": true,\n    "tags": ["%s"]\n   },' % (kernel, get_tag())
         return out
 
 if __name__ == '__main__':

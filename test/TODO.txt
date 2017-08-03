@@ -1,0 +1,2 @@
+- module name cannot start with `pipeline_`
+- module names have to be SQL compatible

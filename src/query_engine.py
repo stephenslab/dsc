@@ -12,8 +12,7 @@ from .dsc_database import ResultDBError
 from .utils import load_rds, save_rds, \
      flatten_list, uniq_list, no_duplicates_constructor, \
      cartesian_list, extend_dict, strip_dict, \
-     try_get_value
-from .yhat_sqldf import sqldf
+     try_get_value, is_sublist
 
 SQL_KEYWORDS = set([
     'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
@@ -61,15 +60,40 @@ SQL_KEYWORDS = set([
 ])
 
 class Query_Processor:
-    def __init__(self, db, target, condition):
+    def __init__(self, db, target, condition = None):
+        self.db = db
         self.target = target
-        self.condition = condition
-        self.target_tables = self.parse_tables(target, allow_null = True)
-        self.condition_tables = self.parse_tables(condition, allow_null = False)
+        self.condition = condition or []
+        self.target_tables = self.parse_tables(self.target, allow_null = True)
+        self.condition_tables = self.parse_tables(self.condition, allow_null = False)
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
+        # 1. only keep tables that do exist in database
+        self.target_tables = self.filter_tables(self.target_tables)
+        self.condition_tables = self.filter_tables(self.condition_tables)
+        # 2. identify all pipelines in database
+        self.pipelines = self.find_pipelines()
+        # 3. identify which pipelines are minimally involved, based on tables in target / condition
+        self.pipelines = self.filter_pipelines()
+        # 4. make inner join, the FROM clause
+        from_clauses = self.get_from_clause()
+        # 5. make select clause
+        select_clauses = self.get_select_clause()
+        # 6. FIXME where clause
+        self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses]))]
 
     @staticmethod
-    def parse_tables(values, allow_null):
+    def legalize_name(name, kw = False):
+        output = ''
+        for x in name:
+            if re.match(r'^[a-zA-Z0-9_]+$', x):
+                output += x
+            else:
+                output += '_'
+        if re.match(r'^[0-9][a-zA-Z0-9_]+$', output) or (output.upper() in SQL_KEYWORDS and kw):
+            output = '_' + output
+        return output
+
+    def parse_tables(self, values, allow_null):
         '''
         input is lists of strings
         output should be lists of tuples
@@ -86,17 +110,87 @@ class Query_Processor:
                     res.append((item, None))
         return res
 
-    @staticmethod
-    def legalize_name(self, name, kw = False):
-        output = ''
-        for x in name:
-            if re.match(r'^[a-zA-Z0-9_]+$', x):
-                output += x
-            else:
-                output += '_'
-        if re.match(r'^[0-9][a-zA-Z0-9_]+$', output) or (output.upper() in SQL_KEYWORDS and kw):
-            output = '_' + output
-        return output
+    def filter_tables(self, tables):
+        return uniq_list([x for x in tables if x[0].lower() in
+                          [y.lower() for y in self.data.keys() if not y.startswith('pipeline_')]])
+
+    def find_pipelines(self):
+        '''
+        example output:
+        [('rnorm', 'mean', 'MSE'), ('rnorm', 'median', 'MSE'), ... ('rt', 'winsor', 'MSE')]
+        '''
+        masters = {k[:-8] : self.data[k] for k in self.data.keys()
+                   if k.startswith("pipeline_") and k.endswith('.captain')}
+        res = []
+        for key in masters:
+            for pipeline in masters[key]:
+                new_pipeline = []
+                for item in pipeline:
+                    new_pipeline.append([x for x in uniq_list(self.data[key][item + '_name'].tolist()) if x != '-'])
+                res.extend(cartesian_list(*new_pipeline))
+        return res
+
+    def filter_pipelines(self):
+        '''
+        for each pipeline, label whether or not each item is involved
+        '''
+        tables = [x[0].lower() for x in self.target_tables] + [x[0].lower() for x in self.condition_tables]
+        indic = []
+        for pipeline in self.pipelines:
+            indic.append([x.lower() in tables for x in pipeline])
+        res = []
+        for x, y in zip(indic, self.pipelines):
+            tmp = []
+            for idx, item in enumerate(x):
+                if item:
+                    tmp.append(y[idx])
+                else:
+                    break
+            res.append(tuple(tmp))
+        res = uniq_list(res)
+        max_res = []
+        for x in res:
+            include = True
+            for y in res:
+                if x == y:
+                    continue
+                if is_sublist(x, y):
+                    include = False
+                    break
+            if include:
+                max_res.append(x)
+        return max_res
+
+    def get_from_clause(self):
+        res = []
+        for pipeline in self.pipelines:
+            pipeline = list(reversed(pipeline))
+            res.append('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.parent = {1}.ID".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)]))
+        return res
+
+    def get_select_clause(self):
+        res = []
+        for pipeline in self.pipelines:
+            tmp = []
+            for item in self.target_tables:
+                if len([x for x in pipeline if x.lower() == item[0].lower()]) == 0:
+                    continue
+                if item[1] is None:
+                    tmp.append("'{0}' AS {0}".format(item[0]))
+                    continue
+                key = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
+                if item[1] not in [x.lower() for x in self.data[key].keys()]:
+                    tmp.append("{0}.FILE AS {0}_{1}".format(item[0], item[1]))
+                else:
+                    tmp.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))
+            res.append("SELECT " + ', '.join(tmp))
+        return res
+
+    def get_queries(self):
+        return self.queries
+
+    def get_data(self):
+        return self.data
 
 EXTRACT_RDS_R = '''
 res = list()
