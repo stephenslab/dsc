@@ -107,6 +107,16 @@ def is_null(var):
         return True if len(var) == 0 else False
     return False
 
+def convert_null(var, language):
+    if var is None:
+        if language.lower() == 'r':
+            return "NULL"
+        # FIXME: more to comce
+        else:
+            return None
+    else:
+        return var
+
 def str2num(var):
     if isinstance(var, str):
         # try to warn about boolean
@@ -296,12 +306,15 @@ def update_nested_dict(d, u, mapping = collections.OrderedDict):
             d[k] = u[k]
     return d
 
-def strip_dict(data, mapping = dict, into_list = False):
+def strip_dict(data, mapping = dict, into_list = False, skip_keys = []):
     if not isinstance(data, collections.Mapping):
         return data
     mapping_null = [dict(), OrderedDict()]
     new_data = mapping()
     for k, v in data.items():
+        if k in skip_keys:
+            new_data[k] = v
+            continue
         if isinstance(v, collections.Mapping):
             v = strip_dict(v, mapping, into_list)
         if isinstance(v, list) and into_list:

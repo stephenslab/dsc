@@ -204,6 +204,7 @@ class DSCEntryFormatter:
                 if key != '.logic':
                     for a in actions:
                         value = a(value)
+                # empty list
                 if is_null(value):
                     del cfg[key]
                 else:
@@ -333,7 +334,6 @@ class DSC_Step:
             raise FormatError('Invalid .alias for computational routine ``{}``:\n``{}``'.\
                               format(self.name, dict2str(alias)))
 
-
     def apply_params_rule(self, common_rule, spec_rule):
         rule = spec_rule if spec_rule else common_rule
         if rule is None or len(rule) == 0:
@@ -404,8 +404,7 @@ class DSC_Step:
                                         ('runtime options', OrderedDict([('exec path', self.path),
                                                                          ('workdir', self.workdir),
                                                                          ('library path', self.libpath)]))]),
-                          mapping = OrderedDict)
-
+                          mapping = OrderedDict, skip_keys = ['parameters'])
 
 class DSC_Block:
     def __init__(self, name, content, global_options = None, script_path = None):

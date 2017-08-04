@@ -8,7 +8,7 @@ This file defines methods to translate DSC into pipeline in SoS language
 '''
 import re, os, datetime, msgpack
 from sos.target import fileMD5, textMD5, executable
-from .utils import OrderedDict, flatten_list, uniq_list, dict2str, n2a
+from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
 
 class DSC_Translator:
     '''
@@ -216,7 +216,8 @@ class DSC_Translator:
             self.params = list(self.step.p.keys())
             for key in self.params:
                 self.param_string += '{}{} = {}\n'.\
-                                     format('' if self.prepare else "parameter: ", key, repr(self.step.p[key]))
+                                     format('' if self.prepare else "parameter: ", key,
+                                            repr([convert_null(x, self.step.plugin.name) for x in self.step.p[key]]))
             if self.step.seed:
                 self.params.append('seed')
                 self.param_string += '{}seed = {}'.format('' if self.prepare else "parameter: ", repr(self.step.seed))

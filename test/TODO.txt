@@ -1,3 +1,5 @@
 - module name cannot start with `pipeline_`
 - module names have to be SQL compatible
 - Make sure populate_table works robustly when RDS files are missing
+- check whats going on with transcript export
+- None when there is a mixture of R and Python via `+` logic

@@ -219,11 +219,12 @@ class CastData(YLine):
             if not is_null(value[0]):
                 return list(value[0])
             else:
-                return []
+                return [None]
         else:
             res = []
             for x in value:
                 if is_null(x):
+                    res.append(None)
                     continue
                 if isinstance(x, list):
                     # [[],[]] -> [(),()]
