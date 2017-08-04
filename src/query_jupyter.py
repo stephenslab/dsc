@@ -53,7 +53,7 @@ data = pickle.load(open("{}", 'rb'))
     jc.add("```yaml\n{}\n```".format(eval(data['.dscsrc'])))
     write_notebook(jc.dump(), output)
 
-def get_query_notebook(db, queries, output, title, description = None, language = None):
+def get_query_notebook(db, queries, output, title, description = None, language = None, addon = None):
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title,
                              '\n\n'.join(description) if description is not None
@@ -71,9 +71,15 @@ info = [pd.DataFrame.from_dict(x) for x in load_rds("{}").values()]
         jc.add("%preview -n info[{}]".format(i), cell = "code")
     if language is not None:
         if language == 'R':
-            jc.add("%use R\ninfo <- readRDS('{}')".format(db), cell = "code")
+            jc.add("%use R\ninfo <- readRDS('{}')".format(db), cell = "code", out = False)
         else:
-            jc.add("%use {}\n%get info".format(language), cell = "code")
+            jc.add("%use {}\n%get info".format(language), cell = "code", out = False)
+        if addon is not None:
+            files = [os.path.expanduser(x) for x in addon]
+            for item in files:
+                if not os.path.isfile(item):
+                    raise OSError("Cannot find file ``{}``!".format(item))
+                jc.add(open(item).read(), cell = "code", out = False, kernel = language)
     write_notebook(jc.dump(), output)
 
 class JupyterComposer:

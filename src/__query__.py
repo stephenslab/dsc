@@ -9,7 +9,7 @@ import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env, get_traceback
 from sos.jupyter.converter import notebook_to_html
-from .utils import dotdict
+from .utils import dotdict, uniq_list
 from . import VERSION
 from .query_jupyter import get_database_notebook, get_query_notebook
 from .query_engine import Query_Processor
@@ -98,8 +98,9 @@ def query(args):
                 sys.exit("Aborted!")
             desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
                                                    format(repr(args.target), repr(args.condition))]
-            get_query_notebook(fnb, _QP_.get_queries(), nb, args.title, desc, args.language)
-            env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(nb))
+            get_query_notebook(frds, _QP_.get_queries(), fnb, args.title, desc, args.language,
+                               uniq_list(args.addon or []))
+            env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(fnb))
     if not args.no_html:
         html = args.output[:-6] + '.html'
         notebook_to_html(args.output, html, dotdict({"template": "sos-report"}),
@@ -132,7 +133,8 @@ def main():
     p.add_argument('--language', metavar = 'str', choices = ['R', 'Python3'],
                    help='''Language kernel to switch to for follow up analysis in notebook generated.''')
     p.add_argument('--addon', metavar = 'str', nargs = '+',
-                   help='''Scripts to load to the notebooks for follow up analysis.''')
+                   help='''Scripts to load to the notebooks for follow up analysis.
+                   Only usable in conjunction with "--language".''')
     p.add_argument('--no-html', action = 'store_true', dest = 'no_html',
                    help='''Do not export to HTML format.''')
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
