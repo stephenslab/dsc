@@ -653,7 +653,7 @@ def md2html(content, to_file):
     with open(to_file, 'w') as f:
         f.write(output)
 
-def dsc2html(dsc_conf, dsc_ann, output, section_content = None):
+def dsc2html(dsc_conf, output, section_content = None, dsc_ann = None):
     '''
     section_content: ordered dictionary of lists,
     {'section 1': ['exec1.R', 'exec2.py']}

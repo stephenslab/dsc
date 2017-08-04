@@ -147,9 +147,12 @@ def execute(args):
         return
     # Archive scripts
     from collections import OrderedDict
-    exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
-                                for k in script.runtime.sequence_ordering])
-    dsc2html(open(args.dsc_file).read(), None, script.runtime.output, section_content = exec_content)
+    lib_content = [("From <code>{}</code>".format(k), sorted(glob.glob("{}/*.*".format(k))))
+                   for k in script.runtime.options['lib_path'] or []]
+    exec_content = [(k, [step.exe for step in script.blocks[k].steps])
+                    for k in script.runtime.sequence_ordering]
+    dsc2html(open(args.dsc_file).read(), script.runtime.output,
+             section_content = OrderedDict(lib_content + exec_content))
     env.logger.info("DSC script exported to ``{}.html``".format(script.runtime.output))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup
