@@ -53,20 +53,22 @@ data = pickle.load(open("{}", 'rb'))
     jc.add("```yaml\n{}\n```".format(eval(data['.dscsrc'])))
     write_notebook(jc.dump(), output)
 
-def get_query_summary(db, output, title, description = None):
+def get_query_summary(db, queries, output, title, description = None):
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title,
                              '\n\n'.join(description) if description is not None
                              else ''))
     jc.add('''
-import pickle
-info = pickle.load(open("{}", 'rb'))
+import warnings
+warnings.filterwarnings("ignore")
+from dsc.utils import load_rds
+import pandas as pd
+info = [pd.DataFrame.from_dict(x) for x in load_rds("{}").values()]
     '''.format(os.path.expanduser(db)), cell = "code", out = False)
-    info = pickle.load(open(os.path.expanduser(db), 'rb'))
-    for i, q in enumerate(info['queries']):
+    for i, q in enumerate(queries):
         jc.add("## Pipeline {}".format(i + 1))
         jc.add("```sql\n{}\n```".format(q), out = False)
-        jc.add("%preview -n info['data'][{}]".format(i), cell = "code")
+        jc.add("%preview -n info[{}]".format(i), cell = "code")
     write_notebook(jc.dump(), output)
 
 class JupyterComposer:

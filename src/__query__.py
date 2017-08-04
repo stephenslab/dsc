@@ -77,17 +77,15 @@ def query(args):
             output = [_QP_.populate_table(sqldf(query)) for query in _QP_.get_queries()]
         except SQLError as e:
             raise(e)
-        fout = args.output[:-6] + '.db'
-        if fout == _QP_.db:
-            fout = fout[:-3] + '.extracted.db'
+        fout = args.output[:-6] + '.rds'
         if os.path.isfile(fout) and not _AM_.get("Overwrite existing file \"{}\"?".format(fout)):
             sys.exit("Aborted!")
-        import pickle
-        pickle.dump({"data": output, "queries": _QP_.get_queries()}, open(fout, 'wb'))
-        env.logger.info("Exporting results ...")
+        from .utils import save_rds
+        save_rds(output, fout)
+        env.logger.info("Query results saved to R compatible format ``{}``".format(fout))
         desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
                                                    format(repr(args.target), repr(args.condition))]
-        get_query_summary(fout, args.output, args.title, desc)
+        get_query_summary(fout, _QP_.get_queries(), args.output, args.title, desc)
     #
     env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(args.output))
     if not args.no_html:
