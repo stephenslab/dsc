@@ -92,7 +92,7 @@ class PandaSQL:
             conn.execute('set search_path to pg_temp')
 
     @staticmethod
-    def _set_text_factory(self, dbapi_con, connection_record):
+    def _set_text_factory(dbapi_con, connection_record):
         dbapi_con.text_factory = str
 
 
