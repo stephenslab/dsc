@@ -8,53 +8,15 @@ import os, sys
 import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env, get_traceback
-from sos.jupyter.converter import notebook_to_html
-from .utils import dotdict, uniq_list
 from . import VERSION
-from .query_jupyter import get_database_notebook, get_query_notebook
-from .query_engine import Query_Processor
-
-class Silencer:
-    def __init__(self, verbosity):
-        self.verbosity = verbosity
-        self.env_verbosity = env.verbosity
-
-    def __enter__(self):
-        env.verbosity = self.verbosity
-
-    def __exit__(self, etype, value, traceback):
-        env.verbosity = self.env_verbosity
-
-def prepare_args(args, db, script, workflow, mode):
-    out = dotdict()
-    out.__max_running_jobs__ = out.__max_procs__ = args.__max_jobs__
-    # FIXME: should wait when local host
-    # no-wait when extern task
-    out.__wait__ = True
-    out.__no_wait__ = False
-    out.__targets__ = []
-    # FIXME: add bin dir here
-    out.__bin_dirs__ = []
-    # FIXME: add more options here
-    out.__queue__ = 'localhost'
-    # FIXME: when remote is used should make it `no_wait`
-    # Yet to observe the behavior there
-    out.__remote__ = None
-    out.dryrun = False
-    out.__sig_mode__ = mode
-    out.verbosity = env.verbosity
-    # FIXME
-    out.__dag__ = '.sos/.dsc/{}.dot'.format(db)
-    # FIXME: use config info
-    out.__config__ = '.sos/.dsc/{}.conf.yml'.format(db)
-    # FIXME: port the entire resume related features
-    out.__resume__ = False
-    out.script = script
-    out.workflow = workflow
-    return out
 
 def query(args):
+    env.logger.info("Loading database ...")
     from sos.__main__ import AnswerMachine
+    from sos.jupyter.converter import notebook_to_html
+    from .query_jupyter import get_database_notebook, get_query_notebook
+    from .query_engine import Query_Processor
+    from .utils import dotdict, uniq_list
     _AM_ = AnswerMachine()
     if os.path.isfile(args.dsc_output):
         args.dsc_output = os.path.dirname(args.dsc_output)

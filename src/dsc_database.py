@@ -8,12 +8,12 @@ from collections import OrderedDict
 from multiprocessing import Process, Manager
 import pandas as pd
 from sos.utils import Error
-from sos.__main__ import cmd_remove
 from .utils import flatten_list, uniq_list, no_duplicates_constructor, dotdict, chunks, n2a
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
 def remove_obsolete_output(output, additional_files = None, rerun = False):
+    from sos.__main__ import cmd_remove
     map_db = '{}/{}.map.mpk'.format(output, os.path.basename(output))
     # Load existing file names
     if os.path.isfile(map_db) and not rerun:

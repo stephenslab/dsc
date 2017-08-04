@@ -3,9 +3,8 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import json
-import pickle
 import os
+import json
 
 HOME_DOC = '''
 This page displays contents of DSC database `NAME`. There are two types of tables in this database:
@@ -27,6 +26,7 @@ def write_notebook(text, output, execute = True):
         nbformat.write(nb, f)
 
 def get_database_notebook(db, output, title = "Database Summary", description = None):
+    import pickle
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title,
                              '\n\n'.join(description) if description is not None

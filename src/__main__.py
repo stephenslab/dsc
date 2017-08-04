@@ -4,17 +4,10 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, re, glob, pickle
-from collections import OrderedDict
+import os, sys, re, glob
 import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env, get_traceback
-from sos.__main__ import cmd_run, cmd_remove
-from sos.converter import script_to_html
-from .dsc_parser import DSC_Script
-from .dsc_analyzer import DSC_Analyzer
-from .dsc_translator import DSC_Translator
-from .dsc_database import ResultDB
 from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
 from . import VERSION
 
@@ -58,6 +51,8 @@ def prepare_args(args, db, script, workflow, mode):
     return out
 
 def remove(workflows, steps, db, debug, replace = False):
+    import pickle
+    from sos.__main__ import cmd_remove
     to_remove = [x for x in steps if os.path.isfile(x)]
     steps = [x for x in steps if x not in to_remove]
     filename = '{}/{}.db'.format(db, os.path.basename(db))
@@ -125,6 +120,10 @@ def execute(args):
     if args.target:
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.target).split())))
+    from .dsc_parser import DSC_Script
+    from .dsc_analyzer import DSC_Analyzer
+    from .dsc_translator import DSC_Translator
+    from .dsc_database import ResultDB
     script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, seeds = args.seeds,
                         extern = args.host)
     db = os.path.basename(script.runtime.output)
@@ -150,6 +149,7 @@ def execute(args):
         ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = open(args.dsc_file).read())
         return
     # Archive scripts
+    from collections import OrderedDict
     source_text = open(args.dsc_file).read()
     exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
                                 for k in script.runtime.sequence_ordering])
@@ -157,6 +157,8 @@ def execute(args):
     env.logger.info("DSC script exported to ``{}.html``".format(script.runtime.output))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup
+    from sos.__main__ import cmd_run
+    from sos.converter import script_to_html
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
         script_to_html(script_prepare, '.sos/.dsc/{}.prepare.html'.format(db))

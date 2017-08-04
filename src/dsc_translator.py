@@ -8,9 +8,7 @@ This file defines methods to translate DSC into pipeline in SoS language
 '''
 import re, os, datetime, msgpack
 from sos.target import fileMD5, textMD5, executable
-from .utils import OrderedDict, flatten_list, uniq_list, dict2str, install_r_libs, install_py_modules, n2a
-from .plugin import R_LMERGE, R_SOURCE
-
+from .utils import OrderedDict, flatten_list, uniq_list, dict2str, n2a
 
 class DSC_Translator:
     '''
@@ -27,6 +25,7 @@ class DSC_Translator:
     '''
     def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False):
         #
+        from .plugin import R_LMERGE, R_SOURCE
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
@@ -149,6 +148,7 @@ class DSC_Translator:
 
     @staticmethod
     def install_libs(libs, lib_type, force = False):
+        from .utils import install_r_libs, install_py_modules
         if lib_type not in ["R_library", "Python_Module"]:
             raise ValueError("Invalid library type ``{}``.".format(lib_type))
         if libs is None:

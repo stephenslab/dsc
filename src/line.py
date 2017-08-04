@@ -8,8 +8,8 @@ __license__ = "MIT"
 
 import re, subprocess, collections, warnings
 import rpy2.robjects as RO
-from .utils import is_null, str2num, non_commutative_symexpand, \
-     cartesian_list, pairwise_list, get_slice, FormatError
+from .utils import is_null, str2num, cartesian_list, \
+    pairwise_list, get_slice, FormatError
 
 class YLine:
     '''
@@ -317,6 +317,7 @@ class OperationParser(YLine):
         return value
 
     def reconstruct(self, value):
+        from .utils import non_commutative_symexpand
         value = value.replace('+', '_')
         value = value.replace(',', '+')
         res = []

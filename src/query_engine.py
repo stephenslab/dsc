@@ -6,8 +6,6 @@ __license__ = "MIT"
 import os, re, glob, pickle
 from collections import OrderedDict
 import pandas as pd
-import rpy2.robjects.vectors as RV
-import rpy2.rinterface as RI
 from .dsc_database import ResultDBError
 from .utils import load_rds, uniq_list, \
      cartesian_list, is_sublist, is_null
@@ -253,6 +251,8 @@ class Query_Processor:
 
     def populate_table(self, table):
         '''Dig into RDS files generated and get values out of them when possible'''
+        import rpy2.robjects.vectors as RV
+        import rpy2.rinterface as RI
         targets = {name:[] for name in table.keys() if '_FILE_' in name}
         loadables = {name: None for name in targets}
         # try if the column is loadable

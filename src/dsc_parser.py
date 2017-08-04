@@ -14,8 +14,7 @@ from sos.utils import logger
 from sos.target import textMD5
 from .utils import OrderedDict, FormatError, is_null, strip_dict, flatten_list, \
      cartesian_list, get_slice, expand_slice, flatten_dict, merge_lists, \
-     try_get_value, dict2str, update_nested_dict, load_from_yaml, \
-     locate_file, uniq_list
+     try_get_value, dict2str, update_nested_dict, locate_file, uniq_list
 from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
 from .plugin import Plugin
@@ -27,6 +26,7 @@ class DSC_Script:
      * provides self.blocks, self.runtime that contain all DSC information needed for a run
     '''
     def __init__(self, content, output = None, sequence = None, seeds = None, extern = None):
+        from .utils import load_from_yaml
         if os.path.isfile(content):
             with open(content) as f:
                 self.content = load_from_yaml(f, content)

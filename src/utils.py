@@ -5,24 +5,10 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import os, copy, re, itertools, yaml, collections, time, sympy
-from sympy.parsing.sympy_parser import parse_expr
 from difflib import SequenceMatcher
 from io import StringIO
-import rpy2.robjects as RO
-import rpy2.robjects.vectors as RV
-import rpy2.rinterface as RI
-from rpy2.robjects import numpy2ri
-numpy2ri.activate()
-from rpy2.robjects import pandas2ri
-pandas2ri.activate()
-import numpy as np
-import pandas as pd
 from sos.utils import env, Error
-from sos.target import textMD5
-from sos.R.target import R_library
-from sos.Python.target import Py_Module
-
-from dsc import HTML_CSS, HTML_JS
+from .constant import HTML_CSS, HTML_JS
 
 class FormatError(Error):
     """Raised when format is illegal."""
@@ -44,8 +30,8 @@ def mymul(a,b):
 sympy.Expr.__mul__ = mymul
 
 def non_commutative_symexpand(expr_string):
+    from sympy.parsing.sympy_parser import parse_expr
     parsed_expr = parse_expr(expr_string, evaluate=False)
-
     new_locals = {sym.name:sympy.Symbol(sym.name, commutative=False)
                   for sym in parsed_expr.atoms(sympy.Symbol)}
     return sympy.expand(eval(expr_string, {}, new_locals))
@@ -341,6 +327,7 @@ class dotdict(dict):
         return dotdict(copy.deepcopy(dict(self)))
 
 def sos_hash_output(values, db_name = '', prefix = None, suffix = None):
+     from sos.target import textMD5
      if not isinstance(values, list):
           md5 = textMD5(values)
           if isinstance(prefix, str):
@@ -419,6 +406,15 @@ def sos_group_input(value):
     return flatten_list(list(zip(*value)))
 
 def load_rds(filename, types = None):
+    import pandas as pd
+    import numpy as np
+    import rpy2.robjects as RO
+    import rpy2.robjects.vectors as RV
+    import rpy2.rinterface as RI
+    from rpy2.robjects import numpy2ri
+    numpy2ri.activate()
+    from rpy2.robjects import pandas2ri
+    pandas2ri.activate()
     def load(data, types):
          if types is not None and not isinstance(data, types):
               return np.array([])
@@ -474,6 +470,13 @@ def load_rds(filename, types = None):
     return res
 
 def save_rds(data, filename):
+    import pandas as pd
+    import numpy as np
+    import rpy2.robjects as RO
+    from rpy2.robjects import numpy2ri
+    numpy2ri.activate()
+    from rpy2.robjects import pandas2ri
+    pandas2ri.activate()
     # Supported data types:
     # int, float, str, tuple, list, numpy array
     # numpy matrix and pandas dataframe
@@ -532,6 +535,7 @@ def round_print(text, sep, pc = None):
                         for x in line]).strip())
 
 def install_r_libs(libs):
+    from sos.R.target import R_library
     if libs is None:
         return
     for value in libs:
@@ -545,6 +549,7 @@ def install_r_libs(libs):
         R_library(value, versions).exists()
 
 def install_py_modules(libs):
+    from sos.Python.target import Py_Module
     if libs is None:
         return
     for value in libs:
