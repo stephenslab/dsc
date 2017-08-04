@@ -26,7 +26,7 @@ def write_notebook(text, output, execute = True):
     with open(os.path.expanduser(output), 'wt') as f:
         nbformat.write(nb, f)
 
-def get_database_summary(db, output, title = "Database Summary", description = None):
+def get_database_notebook(db, output, title = "Database Summary", description = None):
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title,
                              '\n\n'.join(description) if description is not None
@@ -53,7 +53,7 @@ data = pickle.load(open("{}", 'rb'))
     jc.add("```yaml\n{}\n```".format(eval(data['.dscsrc'])))
     write_notebook(jc.dump(), output)
 
-def get_query_summary(db, queries, output, title, description = None):
+def get_query_notebook(db, queries, output, title, description = None, language = None):
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title,
                              '\n\n'.join(description) if description is not None
@@ -69,6 +69,11 @@ info = [pd.DataFrame.from_dict(x) for x in load_rds("{}").values()]
         jc.add("## Pipeline {}".format(i + 1))
         jc.add("```sql\n{}\n```".format(q), out = False)
         jc.add("%preview -n info[{}]".format(i), cell = "code")
+    if language is not None:
+        if language == 'R':
+            jc.add("%use R\ninfo <- readRDS('{}')".format(db), cell = "code")
+        else:
+            jc.add("%use {}\n%get info".format(language), cell = "code")
     write_notebook(jc.dump(), output)
 
 class JupyterComposer:
@@ -142,4 +147,4 @@ if __name__ == '__main__':
     # jc.add("print(999)", cell = 'code', kernel = 'SoS', out = True)
     # print(jc.dump())
     import sys
-    get_database_summary(sys.argv[1], sys.argv[2])
+    get_database_notebook(sys.argv[1], sys.argv[2])

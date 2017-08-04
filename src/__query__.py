@@ -11,7 +11,7 @@ from sos.utils import env, get_traceback
 from sos.jupyter.converter import notebook_to_html
 from .utils import dotdict
 from . import VERSION
-from .query_jupyter import get_database_summary, get_query_summary
+from .query_jupyter import get_database_notebook, get_query_notebook
 from .query_engine import Query_Processor
 
 class Silencer:
@@ -59,13 +59,13 @@ def query(args):
     if os.path.isfile(args.dsc_output):
         args.dsc_output = os.path.dirname(args.dsc_output)
     db = os.path.join(args.dsc_output, os.path.basename(args.dsc_output) + '.db')
-    if not args.output.endswith('.ipynb'):
-        args.output = args.output.strip('.') + '.ipynb'
-    if os.path.isfile(args.output) and not _AM_.get("Overwrite existing file \"{}\"?".format(args.output)):
-        sys.exit("Aborted!")
     if args.target is None:
+        if not args.output.endswith('.ipynb'):
+            args.output = args.output.strip('.') + '.ipynb'
+        if os.path.isfile(args.output) and not _AM_.get("Overwrite existing file \"{}\"?".format(args.output)):
+            sys.exit("Aborted!")
         env.logger.info("Exporting database ...")
-        get_database_summary(db, args.output, args.title, args.description)
+        get_database_notebook(db, args.output, args.title, args.description)
     else:
         env.logger.info("Running queries ...")
         from .yhat_sqldf import sqldf, PandaSQLException as SQLError
@@ -74,20 +74,32 @@ def query(args):
             env.logger.debug(query)
         globals().update(**(_QP_.get_data()))
         try:
-            output = [_QP_.populate_table(sqldf(query)) for query in _QP_.get_queries()]
+            output = {'pipeline_{}'.format(i+1) : _QP_.populate_table(sqldf(query)) \
+                      for i, query in enumerate(_QP_.get_queries())}
         except SQLError as e:
             raise(e)
-        fout = args.output[:-6] + '.rds'
-        if os.path.isfile(fout) and not _AM_.get("Overwrite existing file \"{}\"?".format(fout)):
+        # write output
+        if not args.output.endswith('.rds') and not args.output.endswith('.ipynb'):
+            args.output = args.output.strip('.') + '.ipynb'
+        if args.output.endswith('.rds'):
+            frds = args.output
+            fnb = None
+            args.no_html = True
+        else:
+            frds = args.output[:-6] + '.rds'
+            fnb = args.output
+        if os.path.isfile(frds) and not _AM_.get("Overwrite existing file \"{}\"?".format(frds)):
             sys.exit("Aborted!")
         from .utils import save_rds
-        save_rds(output, fout)
-        env.logger.info("Query results saved to R compatible format ``{}``".format(fout))
-        desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
+        save_rds(output, frds)
+        env.logger.info("Query results saved to R compatible format ``{}``".format(frds))
+        if fnb is not None:
+            if os.path.isfile(fnb) and not _AM_.get("Overwrite existing file \"{}\"?".format(fnb)):
+                sys.exit("Aborted!")
+            desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
                                                    format(repr(args.target), repr(args.condition))]
-        get_query_summary(fout, _QP_.get_queries(), args.output, args.title, desc)
-    #
-    env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(args.output))
+            get_query_notebook(fnb, _QP_.get_queries(), nb, args.title, desc, args.language)
+            env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(nb))
     if not args.no_html:
         html = args.output[:-6] + '.html'
         notebook_to_html(args.output, html, dotdict({"template": "sos-report"}),
@@ -109,12 +121,15 @@ def main():
     p.add_argument('-c', '--condition', metavar = "WHERE", nargs = '+',
                    help = '''Query condition.''')
     p.add_argument('-o', metavar = "str", dest = 'output', required = True,
-                   help = '''Output notebook / data file prefix.''')
+                   help = '''Output notebook / data file name.
+                   In query applications if file name ends with ".rds" then only data file will be saved
+                   as result of query. Otherwise both data file and a notebook that displays the data
+                   will be saved.''')
     p.add_argument('--title', metavar = 'str', required = True,
                    help='''Title for notebook file.''')
     p.add_argument('--description', metavar = 'str', nargs = '+',
                    help='''Text to add under notebook title. Each string is a standalone paragraph.''')
-    p.add_argument('--kernel', metavar = 'str', choices = ['R', 'Python', 'ir'],
+    p.add_argument('--language', metavar = 'str', choices = ['R', 'Python3'],
                    help='''Language kernel to switch to for follow up analysis in notebook generated.''')
     p.add_argument('--addon', metavar = 'str', nargs = '+',
                    help='''Scripts to load to the notebooks for follow up analysis.''')
