@@ -72,6 +72,7 @@ class DSC_Translator:
         i = 1
         io_info_files = []
         final_step_label = []
+        final_workflow_label = []
         for workflow_id, sequence in enumerate(runtime.sequence):
             sequence, step_ids = sequence
             for step_id in step_ids:
@@ -92,11 +93,9 @@ class DSC_Translator:
                 ii = 1
                 for x in sqn:
                     y = re.sub(r'\d+$', '', x)
-                    tmp_str = []
                     if ii == len(sqn):
-                        tmp_str.append("[{0}_{1} ({0}[{3}]): provides = IO_DB['{3}']['{2}']['output']]".format(y, n2a(i), x, i))
-                    else:
-                        tmp_str.append("[{0}_{1} ({0}[{2}])]".format(y, n2a(i), i))
+                        final_workflow_label.append("{0}_{1}".format(y, n2a(i)))
+                    tmp_str = ["[{0}_{1} ({0}[{2}])]".format(y, n2a(i), i)]
                     tmp_str.append("parameter: script_signature = {}".format(repr(exe_signatures[x])))
                     if ii > 1:
                         tmp_str.append("depends: [sos_step(x) for x in IO_DB['{1}']['{0}']['depends']]".\
@@ -119,8 +118,9 @@ class DSC_Translator:
                          format(self.output, self.db, rerun, repr(sorted(set(io_info_files))),
                                 ", ".join(["sos_step('{}')".format(n2a(x+1)) for x, y in enumerate(set(io_info_files))]),
                                 n_cpu)
-        self.job_str += "\n[DSC]\ndepends: sum([IO_DB[x[0]][x[1]]['output'] for x in {}], [])".\
-                        format(repr(final_step_label))
+        self.job_str += "\n[DSC]\ndepends: {}\noutput: sum([IO_DB[x[0]][x[1]]['output'] for x in {}], [])".\
+                        format(', '.join(["sos_step('{}')".format(x) for x in final_workflow_label]),
+                               repr(final_step_label))
         #
         self.install_libs(runtime.rlib, "R_library", rerun)
         self.install_libs(runtime.pymodule, "Python_Module", rerun)
