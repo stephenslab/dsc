@@ -22,9 +22,9 @@ class Silencer:
     def __exit__(self, etype, value, traceback):
         env.verbosity = self.env_verbosity
 
-def prepare_args(args, db, script, workflow, mode):
+def prepare_args(name, content):
     out = dotdict()
-    out.__max_running_jobs__ = out.__max_procs__ = args.__max_jobs__
+    out.verbosity = env.verbosity
     # FIXME: should wait when local host
     # no-wait when extern task
     out.__wait__ = True
@@ -38,16 +38,16 @@ def prepare_args(args, db, script, workflow, mode):
     # Yet to observe the behavior there
     out.__remote__ = None
     out.dryrun = False
-    out.__sig_mode__ = mode
-    out.verbosity = env.verbosity
     # FIXME
-    out.__dag__ = '.sos/.dsc/{}.dot'.format(db)
+    out.__dag__ = '.sos/.dsc/{}.dot'.format(name)
     # FIXME: use config info
-    out.__config__ = '.sos/.dsc/{}.conf.yml'.format(db)
+    out.__config__ = '.sos/.dsc/{}.conf.yml'.format(name)
+    if not os.path.isfile(out.__config__):
+        with open(out.__config__, 'w') as f:
+            f.write('name: dsc')
     # FIXME: port the entire resume related features
     out.__resume__ = False
-    out.script = script
-    out.workflow = workflow
+    out.update(content)
     return out
 
 def remove(workflows, steps, db, debug, replace = False):
@@ -102,9 +102,6 @@ def env_init(args, output):
     os.makedirs('.sos/.dsc', exist_ok = True)
     if os.path.dirname(output):
         os.makedirs(os.path.dirname(output), exist_ok = True)
-    # FIXME: need to utilize this to properly make global configs
-    with open('.sos/.dsc/{}.conf.yml'.format(os.path.basename(output)), 'w') as f:
-        f.write('name: dsc')
     env.logfile = os.path.basename(output) + '.log'
     if os.path.isfile(env.logfile):
         os.remove(env.logfile)
@@ -165,7 +162,12 @@ def execute(args):
     if args.__construct__ == "no":
         mode = "force"
     with Silencer(env.verbosity if args.debug else 0):
-        cmd_run(prepare_args(args, db, script_prepare, "default", mode), [])
+        content = {'__max_running_jobs__': args.__max_jobs__,
+                   '__max_procs__': args.__max_jobs__,
+                   '__sig_mode__': mode,
+                   'script': script_prepare,
+                   'workflow': "default"}
+        cmd_run(prepare_args(db + '.prepare', content), [])
     # Run
     env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
     env.logger.info("Building execution graph ...")
@@ -183,7 +185,12 @@ def execute(args):
         mode = "build"
     try:
         with Silencer(args.verbosity if args.host else min(1, args.verbosity)):
-            cmd_run(prepare_args(args, db, script_run, "DSC", mode), [])
+            content = {'__max_running_jobs__': args.__max_jobs__,
+                       '__max_procs__': args.__max_jobs__,
+                       '__sig_mode__': mode,
+                       'script': script_run,
+                       'workflow': "DSC"}
+            cmd_run(prepare_args(db + '.run', content), [])
     except Exception as e:
         if env.verbosity > 2:
             sys.stderr.write(get_traceback())
