@@ -166,7 +166,7 @@ class RPlug(BasePlug):
             res = 'DSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib]))
         else:
             res = 'DSC_LIBPATH <- NULL'
-        res += '\n${DSC_RUTILS}'
+        res += '\noptions(warn=1)\n${DSC_RUTILS}'
         # load files
         load_multi_in = '\n{} <- list()'.format(self.identifier) + \
           '\ninput.files <- c(${{_input!r,}})\nfor (i in 1:length(input.files)) ' \

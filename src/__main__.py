@@ -30,8 +30,6 @@ def prepare_args(name, content):
     out.__wait__ = True
     out.__no_wait__ = False
     out.__targets__ = []
-    # FIXME: add bin dir here
-    out.__bin_dirs__ = []
     # FIXME: add more options here
     out.__queue__ = 'localhost'
     # FIXME: when remote is used should make it `no_wait`
@@ -164,10 +162,15 @@ def execute(args):
     mode = "default"
     if args.__construct__ == "no":
         mode = "force"
+    import platform
+    exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
+                 for k in script.runtime.options['exec_path']] + script.runtime.options['exec_path']
+    exec_path = [x for x in exec_path if os.path.isdir(x)]
     with Silencer(env.verbosity if args.debug else 0):
         content = {'__max_running_jobs__': args.__max_jobs__,
                    '__max_procs__': args.__max_jobs__,
                    '__sig_mode__': mode,
+                   '__bin_dirs__': exec_path,
                    'script': script_prepare,
                    'workflow': "default"}
         cmd_run(prepare_args(db + '.prepare', content), [])
@@ -191,6 +194,7 @@ def execute(args):
             content = {'__max_running_jobs__': args.__max_jobs__,
                        '__max_procs__': args.__max_jobs__,
                        '__sig_mode__': mode,
+                       '__bin_dirs__': exec_path,
                        'script': script_run,
                        'workflow': "DSC"}
             cmd_run(prepare_args(db + '.run', content), [])
