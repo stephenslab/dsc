@@ -6,12 +6,14 @@ __license__ = "MIT"
 import sys, os, msgpack, yaml, re, glob, pickle
 from collections import OrderedDict
 import pandas as pd
+import rpy2.robjects.vectors as RV
+import rpy2.rinterface as RI
 from sos.utils import logger
 from .dsc_database import ResultDBError
 from .utils import load_rds, save_rds, \
      flatten_list, uniq_list, no_duplicates_constructor, \
      cartesian_list, extend_dict, strip_dict, \
-     try_get_value, is_sublist
+     try_get_value, is_sublist, is_null
 from .line import OperationParser
 
 SQL_KEYWORDS = set([
@@ -253,8 +255,87 @@ class Query_Processor:
         return "WHERE " + ' OR '.join(['(' + ' AND '.join(["({})".format(y) for y in x]) + ')' for x in condition])
 
     def populate_table(self, table):
-        # FIXME
-        return table
+        '''Dig into RDS files generated and get values out of them when possible'''
+        targets = {name:[] for name in table.keys() if '_FILE_' in name}
+        loadables = {name: None for name in targets}
+        # try if the column is loadable
+        for name in targets:
+            loadable = None
+            rds = os.path.join(os.path.dirname(self.db), table[name][0]) + '.rds'
+            fns = glob.glob(os.path.join(os.path.dirname(self.db), table[name][0]) + '.*')
+            if rds in fns:
+                field = name.split('_FILE_')[1]
+                rdata = load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
+                                               RV.BoolVector, RV.FloatVector, RV.StrVector,
+                                               RI.RNULLType))
+                if field in rdata:
+                    if is_null(rdata[field]) or len(rdata[field]) == 0:
+                        loadable = -9
+                    elif len(rdata[field].shape) > 1:
+                        loadable = 0
+                    elif len(rdata[field]) == 1:
+                        # should be straightforward append
+                        # a single number
+                        loadable = 1
+                    else:
+                        # should be a vector
+                        loadable = 2
+            if loadable not in [1, 2]:
+                ext = [os.path.basename(x)[len(table[name][0])+1:] for x in fns]
+                if len(ext) == 1:
+                    targets[name] = [os.path.join(os.path.dirname(self.db), x) + '.{}'.format(ext[0]) \
+                                     for x in table[name]]
+                else:
+                    targets[name] = [os.path.join(os.path.dirname(self.db), x) + '.{%s}'.format(','.join(ext)) \
+                                     for x in table[name]]
+            loadables[name] = loadable
+        # start loading
+        for name in list(targets.keys()):
+            if len(targets[name]):
+                continue
+            field = name.split('_FILE_')[1]
+            for row in table[name]:
+            # FIXME: should implement a parallel processing version
+                rds = os.path.join(os.path.dirname(self.db), row) + '.rds'
+                data = load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
+                                              RV.BoolVector, RV.FloatVector, RV.StrVector,
+                                              RI.RNULLType))[field]
+                if loadables[name] == 1:
+                    targets[name].append(data[0])
+                else:
+                    targets[name].append(data)
+        # expand columns and change column names
+        for name in loadables:
+            if loadables[name] in [1,2]:
+                newname = name.replace('_FILE_', '_')
+                if loadables[name] == 2:
+                    num = len(str(len(targets[name][0])))
+                    for idx, item in enumerate(list(zip(*targets[name]))):
+                        targets['{}_{}'.format(newname, '{0:0>{width}}'.format(idx+1, width = num))] = list(item)
+                    del targets[name]
+                else:
+                    targets[newname] = targets.pop(name)
+        # finally merge to data
+        table = table.drop(loadables.keys(), axis = 1).to_dict(orient='list')
+        table.update(targets)
+        # do some formatting here before return the result: reorder keys & remove _FILE_ from names
+        # 1. regular fields
+        # 2. fields with index _01 etc
+        # 3. fields with _FILE_
+        keys = {1:[],2:[],3:[]}
+        for k in table:
+            if '_FILE_' in k:
+                keys[3].append(k)
+            elif k.rsplit('_', 1)[-1].isdigit():
+                keys[2].append(k)
+            else:
+                keys[1].append(k)
+        res = OrderedDict()
+        for k in sorted(keys[1]) + sorted(keys[2]):
+            res[k] = table[k]
+        for k in sorted(keys[3]):
+            res[k.replace('_FILE_', '_')] = table[k]
+        return pd.DataFrame(res, columns = res.keys())
 
     def get_queries(self):
         return self.queries
