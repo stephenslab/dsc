@@ -7,7 +7,6 @@ import os, msgpack, yaml, re, glob, pickle
 from collections import OrderedDict
 from multiprocessing import Process, Manager
 import pandas as pd
-import numpy as np
 from sos.utils import Error
 from sos.__main__ import cmd_remove
 from .utils import flatten_list, uniq_list, no_duplicates_constructor, dotdict, chunks, n2a

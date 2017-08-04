@@ -3,17 +3,14 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import sys, os, msgpack, yaml, re, glob, pickle
+import os, re, glob, pickle
 from collections import OrderedDict
 import pandas as pd
 import rpy2.robjects.vectors as RV
 import rpy2.rinterface as RI
-from sos.utils import logger
 from .dsc_database import ResultDBError
-from .utils import load_rds, save_rds, \
-     flatten_list, uniq_list, no_duplicates_constructor, \
-     cartesian_list, extend_dict, strip_dict, \
-     try_get_value, is_sublist, is_null
+from .utils import load_rds, uniq_list, \
+     cartesian_list, is_sublist, is_null
 from .line import OperationParser
 
 SQL_KEYWORDS = set([
@@ -286,7 +283,7 @@ class Query_Processor:
                     targets[name] = [os.path.join(os.path.dirname(self.db), x) + '.{}'.format(ext[0]) \
                                      for x in table[name]]
                 else:
-                    targets[name] = [os.path.join(os.path.dirname(self.db), x) + '.{%s}'.format(','.join(ext)) \
+                    targets[name] = [os.path.join(os.path.dirname(self.db), x) + '.{%s}' % ','.join(ext) \
                                      for x in table[name]]
             loadables[name] = loadable
         # start loading

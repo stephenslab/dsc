@@ -63,12 +63,10 @@ import pickle
 info = pickle.load(open("{}", 'rb'))
     '''.format(os.path.expanduser(db)), cell = "code", out = False)
     info = pickle.load(open(os.path.expanduser(db), 'rb'))
-    i = 0
-    for d, q in zip(info['data'], info['queries']):
+    for i, q in enumerate(info['queries']):
         jc.add("## Pipeline {}".format(i + 1))
         jc.add("```sql\n{}\n```".format(q), out = False)
         jc.add("%preview -n info['data'][{}]".format(i), cell = "code")
-        i += 1
     write_notebook(jc.dump(), output)
 
 class JupyterComposer:
