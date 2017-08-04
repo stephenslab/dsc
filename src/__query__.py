@@ -79,10 +79,6 @@ def main():
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('dsc_output', metavar = "DSC output folder", help = 'Path to DSC output.')
-    p.add_argument('-t', '--target', metavar = "str", nargs = '+',
-                   help = '''Query targets.''')
-    p.add_argument('-c', '--condition', metavar = "WHERE", nargs = '+',
-                   help = '''Query condition.''')
     p.add_argument('-o', metavar = "str", dest = 'output', required = True,
                    help = '''Output notebook / data file name.
                    In query applications if file name ends with ".rds" then only data file will be saved
@@ -92,6 +88,10 @@ def main():
                    help='''Title for notebook file.''')
     p.add_argument('--description', metavar = 'str', nargs = '+',
                    help='''Text to add under notebook title. Each string is a standalone paragraph.''')
+    p.add_argument('-t', '--target', metavar = "WHAT", nargs = '+',
+                   help = '''Query targets.''')
+    p.add_argument('-c', '--condition', metavar = "WHERE", nargs = '+',
+                   help = '''Query conditions.''')
     p.add_argument('--language', metavar = 'str', choices = ['R', 'Python3'],
                    help='''Language kernel to switch to for follow up analysis in notebook generated.''')
     p.add_argument('--addon', metavar = 'str', nargs = '+',

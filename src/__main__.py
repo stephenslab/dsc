@@ -150,10 +150,9 @@ def execute(args):
         return
     # Archive scripts
     from collections import OrderedDict
-    source_text = open(args.dsc_file).read()
     exec_content = OrderedDict([(k, [step.exe for step in script.blocks[k].steps])
                                 for k in script.runtime.sequence_ordering])
-    dsc2html(source_text, None, script.runtime.output, section_content = exec_content)
+    dsc2html(open(args.dsc_file).read(), None, script.runtime.output, section_content = exec_content)
     env.logger.info("DSC script exported to ``{}.html``".format(script.runtime.output))
     env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
     # Setup
@@ -199,7 +198,8 @@ def execute(args):
     # Build database
     master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
     env.logger.info("Writing output database ...")
-    ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = source_text)
+    ResultDB('{}/{}'.format(script.runtime.output, db), master).\
+        Build(script = open(script.runtime.output + '.html').read())
     env.logger.info("DSC complete!")
 
 def main():
@@ -213,26 +213,23 @@ def main():
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('dsc_file', metavar = "DSC script", help = 'DSC script to execute.')
+    p.add_argument('-o', metavar = "str", dest = 'output',
+                   help = '''Benchmark output. It overwrites "DSC::run::output" defined in configuration file.''')
     p.add_argument('--target', metavar = "str", nargs = '+',
                    help = '''This argument can be used in two contexts:
-                   1) When used without "--remove" it specifies DSC sequences to executed.
+                   1) When used without "--remove" it specifies DSC sequences to execute.
                    It overwrites "DSC::run" defined in configuration file.
                    Multiple sequences are allowed. Each input should be a quoted string defining
                    a valid DSC sequence, or referring to the key of an existing
                    sequence in the DSC script. Multiple such strings should be separated by space.
                    2) When used along with "--remove" it specifies one or more computational modules,
-                   separated by space, whose output are to be removed. They should be valid DSC step
-                   in the format of "block[index]", or "block" for all steps in the block, or simply path
-                   to files that needs removal.''')
+                   separated by space, whose output are to be removed. They should be 1) valid DSC modules
+                   in the format of "module[index]", or 2) "module" for all routines in the module,
+                   or 3) simply path to files that needs to be removed.''')
     p.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
                    help = '''It overwrites any "seed" property in the DSC script. This feature
                    is useful for running a quick test with small number of replicates.
                    Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
-    p.add_argument('--ignore-errors', action='store_true', dest='try_catch',
-                   help = '''Bypass all errors from computational programs.
-                   This will keep the benchmark running but
-                   all results will be set to missing values and
-                   the problematic script will be saved when possible.''')
     p.add_argument('--recover', metavar = "option", choices = ["default", "no", "full", "partial"],
                    dest = '__construct__', default = "default",
                    help = '''Behavior of how DSC is executed in the presence of existing files.
@@ -252,10 +249,13 @@ def main():
                    Files to operate on should be specified by "--target".''')
     p.add_argument('--host', metavar='str',
                    help='''Name of host computer to send tasks to.''')
-    p.add_argument('-o', metavar = "str", dest = 'output',
-                   help = '''Benchmark output. It overwrites "DSC::run::output" specified by configuration file.''')
     p.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
                    dest='__max_jobs__', help='''Number of maximum cpu threads.''')
+    p.add_argument('--ignore-errors', action='store_true', dest='try_catch',
+                   help = '''Bypass all errors from computational programs.
+                   This will keep the benchmark running but
+                   all results will be set to missing values and
+                   the problematic script will be saved when possible.''')
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')

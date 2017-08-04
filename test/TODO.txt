@@ -1,2 +1,3 @@
 - module name cannot start with `pipeline_`
 - module names have to be SQL compatible
+- Make sure populate_table works robustly when RDS files are missing

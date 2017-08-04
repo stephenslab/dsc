@@ -368,5 +368,5 @@ class ResultDB:
             self.data[table] = pd.DataFrame(self.data[table], columns = cols)
         self.data.update(self.master)
         if script is not None:
-            self.data['.dscsrc'] = repr(script)
+            self.data['.html'] = script
         pickle.dump(self.data, open(self.db_prefix + '.db', 'wb'))
