@@ -176,8 +176,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
     open(io_db, "wb").write(msgpack.packb(data))
     map_names = get_names()
     update_map(map_names)
-    # remove *.conf.mpk extension
-    fid = os.path.basename(conf_db)[:-9]
+    fid = os.path.dirname(conf_db)
     conf = OrderedDict()
     for k in data:
         sid, name = k.split(':')
