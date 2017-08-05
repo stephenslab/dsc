@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import re, os, datetime, msgpack
+import re, os, datetime, msgpack, glob
 from sos.target import fileMD5, textMD5, executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
 
@@ -134,6 +134,8 @@ class DSC_Translator:
         else:
             res.append(self.job_str)
         output = dest if dest is not None else (tempfile.NamedTemporaryFile().name + '.sos')
+        for item in glob.glob(os.path.join(os.path.dirname(output), "*.sos")):
+            os.remove(item)
         with open(output, 'w') as f:
             f.write('\n'.join(res))
         return output
