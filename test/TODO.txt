@@ -6,3 +6,4 @@
 - add a line of best practice: do not use `library()`
 - add exec `depend` property to track source files
 - force test alias for derived blocks. Maybe no need for it with new interface
+- a more self-contained way to load DSC related functions -- maybe a little companion R package eventually?

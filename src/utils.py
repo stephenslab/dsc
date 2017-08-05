@@ -827,3 +827,19 @@ def is_sublist(sub, lst):
         if all(sub[j] == lst[i+j] for j in range(ln)):
             return True
     return False
+
+def do_parentheses_match(input_string, l = '(', r = ')'):
+    s = []
+    balanced = True
+    index = 0
+    while index < len(input_string) and balanced:
+        unit = input_string[index]
+        if unit == l:
+            s.append(unit)
+        elif unit == r:
+            if len(s) == 0:
+                balanced = False
+            else:
+                s.pop()
+        index += 1
+    return balanced and len(s) == 0

@@ -9,7 +9,7 @@ __license__ = "MIT"
 import re, subprocess, collections, warnings
 import rpy2.robjects as RO
 from .utils import is_null, str2num, cartesian_list, \
-    pairwise_list, get_slice, FormatError
+    pairwise_list, get_slice, FormatError, do_parentheses_match
 
 class YLine:
     '''
@@ -85,8 +85,8 @@ class YLine:
         if isinstance(var, str):
             # see if str can be converted to a list or tuple
             # and apply the same procedure to their elements
-            if (var.startswith('(') and var.endswith(')')) or \
-               (var.startswith('[') and var.endswith(']')):
+            if (var.startswith('(') and var.endswith(')') and do_parentheses_match(var[1:-1])) or \
+               (var.startswith('[') and var.endswith(']') and do_parentheses_match(var[1:-1], l = '[', r = ']')):
                 is_tuple = var.startswith('(')
                 var = [self.decodeVar(x.strip()) for x in self.split(re.sub(r'^\(|^\[|\)$|\]$', "", var))]
                 if is_tuple:
