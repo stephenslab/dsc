@@ -206,7 +206,6 @@ class DSC_Translator:
             self.get_action()
 
         def clean(self):
-            print(self.name)
             for item in glob.glob('.sos/core_{0}*'.format(self.name)):
                 os.remove(item)
 
