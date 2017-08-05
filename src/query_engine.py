@@ -8,7 +8,7 @@ from collections import OrderedDict
 import pandas as pd
 from .dsc_database import ResultDBError
 from .utils import load_rds, uniq_list, \
-     cartesian_list, is_sublist, is_null
+     cartesian_list, filter_sublist, is_null
 from .line import OperationParser
 
 SQL_KEYWORDS = set([
@@ -174,19 +174,7 @@ class Query_Processor:
                 else:
                     break
             res.append(tuple(tmp))
-        res = uniq_list(res)
-        max_res = []
-        for x in res:
-            include = True
-            for y in res:
-                if x == y:
-                    continue
-                if is_sublist(x, y):
-                    include = False
-                    break
-            if include:
-                max_res.append(x)
-        return max_res
+        return filter_sublist(res)
 
     def get_from_clause(self):
         res = []

@@ -828,6 +828,22 @@ def is_sublist(sub, lst):
             return True
     return False
 
+def filter_sublist(lists):
+    '''remove lists who are sublist of other lists'''
+    lists = uniq_list(lists)
+    max_lists = []
+    for x in lists:
+        include = True
+        for y in lists:
+            if x == y:
+                continue
+            if is_sublist(x, y):
+                include = False
+                break
+        if include:
+            max_lists.append(x)
+    return max_lists
+
 def do_parentheses_match(input_string, l = '(', r = ')'):
     s = []
     balanced = True

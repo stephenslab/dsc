@@ -64,6 +64,7 @@ class DSC_Translator:
                         if cnt == 0:
                             job_translator = self.Step_Translator(step, self.db, 0, try_catch)
                             job_str.append(job_translator.dump())
+                            job_translator.clean()
                         step.exe_id = "{}{}".format(step.exe_id, cnt)
                         conf_translator = self.Step_Translator(step, self.db, 1, try_catch)
                         conf_dict[name2] = conf_translator.dump()
@@ -203,6 +204,11 @@ class DSC_Translator:
             self.get_output()
             self.get_step_option()
             self.get_action()
+
+        def clean(self):
+            print(self.name)
+            for item in glob.glob('.sos/core_{0}*'.format(self.name)):
+                os.remove(item)
 
         def get_header(self):
             if self.prepare:

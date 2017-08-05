@@ -50,6 +50,9 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
                             "__confirm__": True, "signature": False,
                             "verbosity": 0, "zap": False,
                             "size": None, "age": None, "dryrun": False}), [])
+    if rerun:
+        for item in glob.glob('.sos/.dsc/*.mpk'):
+            os.remove(item)
 
 def load_mpk(mpk_files, jobs):
     d = Manager().dict()

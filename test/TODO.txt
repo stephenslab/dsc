@@ -8,3 +8,4 @@
 - force test alias for derived blocks. Maybe no need for it with new interface
 - a more self-contained way to load DSC related functions -- maybe a little companion R package eventually?
 - task/nontask file signature problem
+- identical tasks will result in complaint. check for identical jobs ie same parameter twice 

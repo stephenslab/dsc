@@ -14,7 +14,7 @@ from sos.utils import logger
 from sos.target import textMD5
 from .utils import OrderedDict, FormatError, is_null, strip_dict, flatten_list, \
      cartesian_list, get_slice, expand_slice, flatten_dict, merge_lists, \
-     try_get_value, dict2str, update_nested_dict, locate_file, uniq_list
+     try_get_value, dict2str, update_nested_dict, locate_file, uniq_list, filter_sublist
 from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
 from .plugin import Plugin
@@ -593,6 +593,7 @@ class DSC_Section:
                 self.sequence = self.content['run']
         self.sequence = [(x,) if isinstance(x, str) else x
                          for x in sum([self.OP(expand_slice(y)) for y in self.sequence], [])]
+        self.sequence = filter_sublist(self.sequence)
         self.sequence_ordering = self.__merge_sequences(self.sequence)
         self.options = OrderedDict()
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
