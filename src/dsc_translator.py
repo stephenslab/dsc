@@ -47,10 +47,10 @@ class DSC_Translator:
         # Get workflow steps
         for workflow_id, workflow in enumerate(workflows):
             self.step_map[workflow_id] = {}
+            keys = list(workflow.keys())
             for block in workflow.values():
                 for step in block.steps:
-                    name = "{0}_{1}_{2}".\
-                           format(step.group, step.exe_id, '_'.join([i[0] for i in step.depends]))
+                    name = "_".join([step.group, str(step.exe_id), '_'.join(keys[:keys.index(step.group)])])
                     if name not in processed_steps:
                         processed_steps.append(name)
                         pattern = re.compile("^{0}_{1}[0-9]+$".\

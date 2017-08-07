@@ -13,3 +13,7 @@
 - create a switch / or --debug switch to generate mock run file
 - recover full does not work
 - pipeline seed batch has to be used / tested; based on total number of jobs distribut it smartly.
+- do not write library installed files if installation fails
+- remove old Rlib info files
+- check for bad slices simulate[1:5] when simulat onlyh has one item
+- check only existing Rlib
