@@ -197,7 +197,7 @@ class Query_Processor:
                     tmp1.append("'{0}' AS {0}".format(item[0]))
                     continue
                 key = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
-                if item[1] not in [x.lower() for x in self.data[key].keys()]:
+                if item[1].lower() not in [x.lower() for x in self.data[key].keys()]:
                     tmp1.append("{0}.FILE AS {0}_FILE_{1}".format(item[0], item[1]))
                 else:
                     tmp1.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))

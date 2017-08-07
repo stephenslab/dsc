@@ -9,3 +9,7 @@
 - a more self-contained way to load DSC related functions -- maybe a little companion R package eventually?
 - task/nontask file signature problem
 - identical tasks will result in complaint. check for identical jobs ie same parameter twice 
+- Best practice suggestions (RE seeds) and merger of steps ... (of the same language) 
+- create a switch / or --debug switch to generate mock run file
+- recover full does not work
+- pipeline seed batch has to be used / tested; based on total number of jobs distribut it smartly.
