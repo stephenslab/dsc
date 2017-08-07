@@ -42,6 +42,8 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
     for x in additional_files or []:
         if not os.path.isfile(x):
             to_remove.append(x)
+    if rerun:
+        to_remove = list(glob.glob('.sos/.dsc/*.mpk')) + to_remove
     if len(to_remove):
         open(map_db, "wb").write(msgpack.packb(map_data))
         # Do not limit to tracked or untracked, and do not just remove signature
@@ -50,9 +52,6 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
                             "__confirm__": True, "signature": False,
                             "verbosity": 0, "zap": False,
                             "size": None, "age": None, "dryrun": False}), [])
-    if rerun:
-        for item in glob.glob('.sos/.dsc/*.mpk'):
-            os.remove(item)
 
 def load_mpk(mpk_files, jobs):
     d = Manager().dict()

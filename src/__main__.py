@@ -164,7 +164,7 @@ def execute(args):
         mode = "force"
     import platform
     exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
-                 for k in script.runtime.options['exec_path']] + script.runtime.options['exec_path']
+                 for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
     exec_path = [x for x in exec_path if os.path.isdir(x)]
     with Silencer(env.verbosity if args.debug else 0):
         content = {'__max_running_jobs__': args.__max_jobs__,
