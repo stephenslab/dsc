@@ -48,9 +48,11 @@ class DSC_Translator:
             keys = list(workflow.keys())
             for block in workflow.values():
                 for step in block.steps:
-                    name = "_".join([step.group, str(step.exe_id), '_'.join(keys[:keys.index(step.group)])])
-                    if name not in processed_steps:
-                        processed_steps.append(name)
+                    flow = "_".join(['_'.join(keys[:keys.index(step.group)]), step.group, str(step.exe_id)])
+                    depend = "_".join(['_'.join(uniq_list([i[0] for i in step.depends])), step.group, str(step.exe_id)])
+                    # either different flow or different dependency will create a new entry
+                    if (flow, depend) not in processed_steps:
+                        processed_steps.append((flow, depend))
                         pattern = re.compile("^{0}_{1}[0-9]+$".\
                                              format(step.group, n2a(step.exe_id)))
                         cnt = len([k for k in
@@ -70,8 +72,7 @@ class DSC_Translator:
         # Get workflows executions
         i = 1
         io_info_files = []
-        final_step_label = []
-        final_workflow_label = []
+        self.last_steps = []
         # Execution steps, unfiltered
         self.job_pool = OrderedDict()
         for workflow_id, sequence in enumerate(runtime.sequence):
@@ -95,8 +96,6 @@ class DSC_Translator:
                 for x in sqn:
                     # remove trailing number
                     y = re.sub(r'\d+$', '', x)
-                    if ii == len(sqn):
-                        final_workflow_label.append("{0}_{1}".format(y, n2a(i)))
                     tmp_str = ["[{0}_{1} ({0}[{2}])]".format(y, n2a(i), i)]
                     tmp_str.append("parameter: script_signature = {}".format(repr(exe_signatures[x])))
                     if ii > 1:
@@ -106,9 +105,11 @@ class DSC_Translator:
                     tmp_str.append("sos_run('core_{0}', output_files = IO_DB['{2}']['{1}']['output']"\
                                    ", input_files = IO_DB['{2}']['{1}']['input'], "\
                                    "DSC_STEP_ID_ = script_signature)".format(y, x, i))
+                    if ii == len(sqn):
+                        self.last_steps.append(("{0}_{1}".format(y, n2a(i)), "IO_DB['{1}']['{0}']['output']".\
+                                               format(x, i)))
                     self.job_pool[(str(i), x)] = '\n'.join(tmp_str)
                     ii += 1
-                final_step_label.append((str(i), x))
                 i += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
         self.job_str = job_header + "DSC_RUTILS = '''{}'''\n".format(R_SOURCE + R_LMERGE) + '\n'.join(job_str)
@@ -120,9 +121,6 @@ class DSC_Translator:
                          format(self.output, self.db, rerun, repr(sorted(set(io_info_files))),
                                 ", ".join(["sos_step('{}')".format(n2a(x+1)) for x, y in enumerate(set(io_info_files))]),
                                 n_cpu)
-        self.job_str += "\n[DSC]\ndepends: {}\noutput: sum([IO_DB[x[0]][x[1]]['output'] for x in {}], [])".\
-                        format(', '.join(["sos_step('{}')".format(x) for x in final_workflow_label]),
-                               repr(final_step_label))
         #
         self.install_libs(runtime.rlib, "R_library", rerun)
         self.install_libs(runtime.pymodule, "Python_Module", rerun)
@@ -146,9 +144,16 @@ class DSC_Translator:
         '''Filter steps removing the ones having common input and output'''
         IO_DB = msgpack.unpackb(open('{}/{}.conf.mpk'.format(self.output, self.db), 'rb').\
                                 read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
+        included_steps = []
         for x in self.job_pool:
             if x[0] in IO_DB and x[1] in IO_DB[x[0]]:
                 self.job_str += '\n{}'.format(self.job_pool[x])
+                included_steps.append('{}_{}'.format(re.sub(r'\d+$', '', x[1]), n2a(int(x[0]))))
+        #
+        self.last_steps = [x for x in self.last_steps if x[0] in included_steps]
+        self.job_str += "\n[DSC]\ndepends: {}\noutput: {}".\
+                        format(', '.join(["sos_step('{}')".format(x[0]) for x in self.last_steps]),
+                               ', '.join([x[1] for x in self.last_steps]))
 
     @staticmethod
     def install_libs(libs, lib_type, force = False):
