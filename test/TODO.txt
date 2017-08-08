@@ -17,3 +17,4 @@
 - remove old Rlib info files
 - check for bad slices simulate[1:5] when simulat onlyh has one item
 - check only existing Rlib
+- warn when different steps in squence give the same output variable name

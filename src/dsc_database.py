@@ -36,7 +36,8 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
         else:
             x_ext = ''
         if os.path.basename(x) not in map_data.values() and \
-           x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['io', 'conf', 'map']]:
+           x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['io', 'conf', 'map']] and \
+           x != '{}/{}.db'.format(output, os.path.basename(output)):
             to_remove.append(x + x_ext)
     # Additional files to remove
     for x in additional_files or []:
