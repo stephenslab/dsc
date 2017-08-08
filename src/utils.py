@@ -547,27 +547,21 @@ def round_print(text, sep, pc = None):
         print(sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x)
                         for x in line]).strip())
 
-def install_r_libs(libs):
+def install_r_lib(lib):
     from sos.R.target import R_library
-    if libs is None:
-        return
-    for value in libs:
-        groups = re.search('(.*?)\((.*?)\)', value)
-        if groups is not None:
-            value = groups.group(1).strip()
-            versions = [x.strip() for x in groups.group(2).split(',')]
-        else:
-            versions = None
-        env.logger.info("Checking R library ``{}`` ...".format(value))
-        R_library(value, versions).exists()
+    groups = re.search('(.*?)\((.*?)\)', lib)
+    if groups is not None:
+        lib = groups.group(1).strip()
+        versions = [x.strip() for x in groups.group(2).split(',')]
+    else:
+        versions = None
+    env.logger.info("Checking R library ``{}`` ...".format(lib))
+    return R_library(lib, versions).exists()
 
-def install_py_modules(libs):
+def install_py_module(lib):
     from sos.Python.target import Py_Module
-    if libs is None:
-        return
-    for value in libs:
-        env.logger.info("Checking Python module ``{}`` ...".format(value))
-        Py_Module(value).exists()
+    env.logger.info("Checking Python module ``{}`` ...".format(lib))
+    return Py_Module(lib).exists()
 
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
     # ordered_load(stream, yaml.SafeLoader)

@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines methods to translate DSC into pipeline in SoS language
 '''
 import re, os, datetime, msgpack, glob
-from sos.target import fileMD5, textMD5, executable
+from sos.target import fileMD5, executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
 
 class DSC_Translator:
@@ -122,8 +122,8 @@ class DSC_Translator:
                                 ", ".join(["sos_step('{}')".format(n2a(x+1)) for x, y in enumerate(set(io_info_files))]),
                                 n_cpu)
         #
-        self.install_libs(runtime.rlib, "R_library", rerun)
-        self.install_libs(runtime.pymodule, "Python_Module", rerun)
+        self.install_libs(runtime.rlib, "R_library")
+        self.install_libs(runtime.pymodule, "Python_Module")
 
     def write_pipeline(self, pipeline_id, dest = None):
         import tempfile
@@ -155,24 +155,30 @@ class DSC_Translator:
                         format(', '.join(["sos_step('{}')".format(x[0]) for x in self.last_steps]),
                                ', '.join([x[1] for x in self.last_steps]))
 
-    @staticmethod
-    def install_libs(libs, lib_type, force = False):
-        from .utils import install_r_libs, install_py_modules
+    def install_libs(self, libs, lib_type):
+        from .utils import install_r_lib, install_py_module
         if lib_type not in ["R_library", "Python_Module"]:
             raise ValueError("Invalid library type ``{}``.".format(lib_type))
         if libs is None:
             return
-        libs_md5 = textMD5(repr(libs) + str(datetime.date.today()))
-        if os.path.exists('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5)) and not force:
-            return
-        if lib_type == 'R_library':
-            install_r_libs(libs)
-        if lib_type == 'Python_Module':
-            install_py_modules(libs)
-        # FIXME: need to check if installation is successful
-        os.makedirs('.sos/.dsc', exist_ok = True)
-        with open('.sos/.dsc/{}.{}.info'.format(lib_type, libs_md5), 'w') as f:
-            f.write(repr(libs))
+        fn = '.sos/.dsc/{}.lib-info'.format(self.db)
+        if os.path.exists(fn):
+            installed_libs = [x.strip() for x in open(fn).readlines() if x.strip().split()[1] in libs]
+        else:
+            installed_libs = []
+        new_libs = []
+        for lib in libs:
+            if '{} {}'.format(lib_type, lib) in installed_libs:
+                continue
+            else:
+                if lib_type == 'R_library':
+                    ret = install_r_lib(lib)
+                if lib_type == 'Python_Module':
+                    ret = install_py_modules(libs)
+                if ret:
+                    new_libs.append('{} {}'.format(lib_type, lib))
+        with open(fn, 'w') as f:
+            f.write('\n'.join(installed_libs + new_libs))
 
     class Step_Translator:
         def __init__(self, step, db, prepare, try_catch):
