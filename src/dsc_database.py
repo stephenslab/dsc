@@ -66,7 +66,7 @@ def load_mpk(mpk_files, jobs):
         job.start()
     for job in job_pool:
         job.join()
-    return OrderedDict([(x, d[x]) for x in sorted(d.keys())])
+    return OrderedDict([(x, d[x]) for x in sorted(d.keys(), key = lambda x: int(x.split(':')[0]))])
 
 def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs = 4):
     '''

@@ -42,8 +42,6 @@ class DSC_Translator:
         exe_signatures = {}
         # name map for steps
         self.step_map = {}
-        # Execution steps, unfiltered
-        self.job_pool = OrderedDict()
         # Get workflow steps
         for workflow_id, workflow in enumerate(workflows):
             self.step_map[workflow_id] = {}
@@ -74,6 +72,8 @@ class DSC_Translator:
         io_info_files = []
         final_step_label = []
         final_workflow_label = []
+        # Execution steps, unfiltered
+        self.job_pool = OrderedDict()
         for workflow_id, sequence in enumerate(runtime.sequence):
             sequence, step_ids = sequence
             for step_id in step_ids:
@@ -93,6 +93,7 @@ class DSC_Translator:
                 # Execution pool
                 ii = 1
                 for x in sqn:
+                    # remove trailing number
                     y = re.sub(r'\d+$', '', x)
                     if ii == len(sqn):
                         final_workflow_label.append("{0}_{1}".format(y, n2a(i)))
