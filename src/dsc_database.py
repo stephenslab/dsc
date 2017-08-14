@@ -225,7 +225,7 @@ class ResultDB:
             self.maps = msgpack.unpackb(open(self.db_prefix + '.map.mpk', 'rb').read(), encoding = 'utf-8',
                                         object_pairs_hook = OrderedDict)
         else:
-            raise ResultDBError("DSC file name database is corrupted!")
+            raise ResultDBError("DSC filename database is corrupted!")
 
     def load_parameters(self):
         #
@@ -374,3 +374,7 @@ class ResultDB:
         if script is not None:
             self.data['.html'] = script
         pickle.dump(self.data, open(self.db_prefix + '.db', 'wb'))
+
+if __name__ == '__main__':
+    import sys
+    ResultDB(sys.argv[1], sys.argv[2]).Build('NULL')

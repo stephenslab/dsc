@@ -235,7 +235,10 @@ class Query_Processor:
                 if counts[0] >= 1 and counts[1] == 0:
                     tmp.append(value)
             condition.append(tmp)
-        return "WHERE " + ' OR '.join(['(' + ' AND '.join(["({})".format(y) for y in x]) + ')' for x in condition])
+        if len(condition) > 0:
+            return "WHERE " + ' OR '.join(['(' + ' AND '.join(["({})".format(y) for y in x]) + ')' for x in condition])
+        else:
+            return ''
 
     def populate_table(self, table):
         '''Dig into RDS files generated and get values out of them when possible'''

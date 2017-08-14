@@ -27,7 +27,7 @@ def query(args):
         if os.path.isfile(args.output) and not _AM_.get("Overwrite existing file \"{}\"?".format(args.output)):
             sys.exit("Aborted!")
         env.logger.info("Exporting database ...")
-        get_database_notebook(db, args.output, args.title, args.description)
+        get_database_notebook(db, args.output, args.title, args.description, args.limit)
     else:
         env.logger.info("Running queries ...")
         from .yhat_sqldf import sqldf, PandaSQLException as SQLError
@@ -61,7 +61,7 @@ def query(args):
             desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
                                                    format(repr(args.target), repr(args.condition))]
             get_query_notebook(frds, _QP_.get_queries(), fnb, args.title, desc, args.language,
-                               uniq_list(args.addon or []))
+                               uniq_list(args.addon or []), args.limit)
             env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(fnb))
     if not args.no_html:
         html = args.output[:-6] + '.html'
@@ -84,6 +84,9 @@ def main():
                    In query applications if file name ends with ".rds" then only data file will be saved
                    as result of query. Otherwise both data file and a notebook that displays the data
                    will be saved.''')
+    p.add_argument('--limit', metavar = 'N', type = int, default = -1,
+                   help='''Number of rows to display for tables. Default is to display it for all rows
+                   (will result in very large HTML output for large benchmarks).''')
     p.add_argument('--title', metavar = 'str', required = True,
                    help='''Title for notebook file.''')
     p.add_argument('--description', metavar = 'str', nargs = '+',

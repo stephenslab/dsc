@@ -18,3 +18,6 @@
 - check for bad slices simulate[1:5] when simulat onlyh has one item
 - check only existing Rlib
 - warn when different steps in squence give the same output variable name
+- dsc-query strip path for dsc_output argument
+- fix pcarbo/varbvs/R etc
+- fix 2 DSC remove sos problem! should make it local file ...

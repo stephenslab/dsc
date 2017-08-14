@@ -24,7 +24,7 @@ def write_notebook(text, output, execute = True):
     with open(os.path.expanduser(output), 'wt') as f:
         nbformat.write(nb, f)
 
-def get_database_notebook(db, output, title = "Database Summary", description = None):
+def get_database_notebook(db, output, title = "Database Summary", description = None, limit = -1):
     import pickle
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title,
@@ -42,17 +42,19 @@ data = pickle.load(open("{}", 'rb'))
             jc.add("### pipeline{} `{}`\nExecuted pipelines:\n{}".\
                    format('s' if len(captain) > 1 else '', key[9:],
                           '\n'.join(['* ' + ' + '.join(["`{}`".format(x) for x in seq]) for seq in captain])))
-            jc.add("%preview -n data['{0}']".format(key), cell = "code")
+            jc.add("%preview -n data['{0}']{1}".format(key, " --limit {}".format(limit) if limit else ''),
+                   cell = "code")
     jc.add("## Modules")
     for key in data:
         if not key.startswith("pipeline_") and not key.startswith('.'):
             jc.add("### module `{}`".format(key))
-            jc.add("%preview -n data['{}']".format(key), cell = "code")
+            jc.add("%preview -n data['{0}']{1}".format(key, " --limit {}".format(limit) if limit else ''),
+                   cell = "code")
     with open(os.path.basename(db)[:-3] + '.html', 'w') as f:
         f.write(data['.html'])
     write_notebook(jc.dump(), output)
 
-def get_query_notebook(db, queries, output, title, description = None, language = None, addon = None):
+def get_query_notebook(db, queries, output, title, description = None, language = None, addon = None, limit = -1):
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title,
                              '\n\n'.join(description) if description is not None
@@ -67,7 +69,7 @@ info = [pd.DataFrame.from_dict(x) for x in load_rds("{}").values()]
     for i, q in enumerate(queries):
         jc.add("## Pipeline {}".format(i + 1))
         jc.add("```sql\n{}\n```".format(q), out = False)
-        jc.add("%preview -n info[{}]".format(i), cell = "code")
+        jc.add("%preview -n info[{0}]".format(i, " --limit {}".format(limit) if limit else ''), cell = "code")
     if language is not None:
         if language == 'R':
             jc.add("%use R\ninfo <- readRDS('{}')".format(db), cell = "code", out = False)
