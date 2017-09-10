@@ -174,7 +174,7 @@ class DSC_Translator:
                 if lib_type == 'R_library':
                     ret = install_r_lib(lib)
                 if lib_type == 'Python_Module':
-                    ret = install_py_modules(libs)
+                    ret = install_py_module(lib)
                 if ret:
                     new_libs.append('{} {}'.format(lib_type, lib))
         with open(fn, 'w') as f:
