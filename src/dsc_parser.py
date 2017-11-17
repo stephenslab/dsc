@@ -38,6 +38,7 @@ class DSC_Script:
                 self.content = load_from_yaml(f)
             dsc_name = 'DSCStringIO'
         #
+        self.preformat()
         self.propagate_derived_block()
         self.check_block_error()
         if seeds:
@@ -64,6 +65,34 @@ class DSC_Script:
         # prune blocks removing unused steps
         for name, idxes in self.runtime.sequence_ordering.items():
             self.blocks[name].extract_steps(idxes)
+
+    def preformat(self):
+        '''
+        1. add the concept of "block" on top of modules; this can be used also for "define" mini-pipelines
+        2. deal with dot variables (?)
+        '''
+        content = OrderedDict()
+        for k in self.content:
+            if k == 'DSC':
+                content[k] = self.content[k]
+            else:
+                k2 = re.sub(r'\s*,\s*', '_', k).strip('_')
+                content[k2] = OrderedDict()
+                content[k2]['.alias'] = re.sub('\(.*?\)', '', k).strip()
+                for kk in self.content[k]:
+                    if kk == 'input':
+                        content[k2]['params'] = self.content[k][kk]
+                    if kk == 'output':
+                        res = []
+                        for kkk, item in self.content[k]['output'].items():
+                            if not kkk.startswith('$'):
+                                ValueError('Output variable should be pipeline variable with ``$`` sigil.')
+                            if kkk[1:] == item:
+                                res.append(item)
+                            else:
+                                res.append(f'{kkk[1:]} = {item}')
+                        content[k2]['return'] = ','.join(res)
+        self.content = content
 
     def propagate_derived_block(self):
         '''
