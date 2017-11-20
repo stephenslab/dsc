@@ -6,8 +6,8 @@ __license__ = "MIT"
 __version__ = "0.2.2"
 import sys
 _py_ver = sys.version_info
-if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) < (5, 0)):
-    raise SystemError('Python 3.5 or higher is required. Please upgrade your Python {}.{}.{}.'
+if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) < (6, 0)):
+    raise SystemError('Python 3.6 or higher is required. Please upgrade your Python {}.{}.{}.'
          .format(_py_ver.major, _py_ver.minor, _py_ver.micro))
 from setuptools import setup
 
@@ -32,9 +32,9 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
-      install_requires = ['sos>=0.9.8.9', 'feather-format',
+      install_requires = ['sos>=0.9.10.12', 'feather-format',
                           'pyarrow>=0.5.0', 'sqlalchemy',
                           'msgpack-python', 'pyyaml',
-                          'pandas>=0.18.0', 'rpy2>=2.8.5',
+                          'pandas>=0.18.0', 'rpy2>=2.9.1',
                           'sympy', 'numexpr', 'numpy']
       )
