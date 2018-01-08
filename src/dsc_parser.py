@@ -452,7 +452,8 @@ class DSC_Block:
                                       "Please remove or replace it with underscore ``_``".format(item))
             exe_alias = content['.alias']
         else:
-            exe_alias = ['_'.join([os.path.splitext(os.path.basename(x))[0] if i == 0 else x                                             for i, x in enumerate(y) if not x.startswith('$')]) for y in exes]
+            exe_alias = ['_'.join([os.path.splitext(os.path.basename(x))[0] if i == 0 else x \
+                                   for i, x in enumerate(y) if not x.startswith('$')]) for y in exes]
         if len(exes) == 1 and len(exe_alias) > 1:
             exes = exes * len(exe_alias)
         # check if any exec out of index
