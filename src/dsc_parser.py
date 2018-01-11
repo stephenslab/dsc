@@ -18,7 +18,6 @@ from .utils import FormatError, is_null, strip_dict, flatten_list, \
 from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
 from .plugin import Plugin
-
 yaml = YAML()
 
 __all__ = ['DSC_Script']
@@ -67,8 +66,12 @@ class DSC_Script:
 
     def update(self, text, exe):
         block = yaml.load(''.join(text))
+        name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
+        block[name] = block.pop(list(block.keys())[0])
+        if block[name] is None:
+            block[name] = dict()
         if exe:
-            block[list(block.keys())[0]]['.exec'] = exe
+            block[name]['.exec'] = exe
         self.content.update(block)
 
     def set_global_vars(self, gvars):

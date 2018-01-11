@@ -1,7 +1,7 @@
 # module alias and executables
 simulate: datamaker.R
     # module input
-    seed: Rvec(1:5)
+    seed: R(1:5)
     g: raw(ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))),
        raw(ashr::normalmix(rep(1/7,7),c(-1.5,-1,-0.5,0,0.5,1,1.5),rep(0.5,7))),
        raw(ashr::normalmix(c(1/4,1/4,1/3,1/6),c(-2,-1,0,1),c(2,1.5,1,1)))

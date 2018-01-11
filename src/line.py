@@ -149,7 +149,7 @@ class ExpandActions(YLine):
     Run action entries and get values.
 
     Action entries are
-      * Rvec(), Python(), Shell()
+      * R(), Python(), Shell()
       * each() and pairs()
     Untouched entries are:
       * file(), temp(), raw()
@@ -158,7 +158,7 @@ class ExpandActions(YLine):
     def __init__(self):
         YLine.__init__(self)
         self.method = {
-            'Rvec': self.__R,
+            'R': self.__R,
             'Python': self.__Python,
             'Shell': self.__Shell,
             'each': self.__ForEach,
