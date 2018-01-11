@@ -8,91 +8,71 @@ Parser for DSC script and annotation files
 '''
 
 import os, re, itertools, copy, collections, subprocess
-from io import StringIO
+from ruamel.yaml import YAML
 from functools import reduce
 from sos.utils import logger
 from sos.target import textMD5
-from .utils import OrderedDict, FormatError, is_null, strip_dict, flatten_list, \
+from .utils import FormatError, is_null, strip_dict, flatten_list, \
      cartesian_list, get_slice, expand_slice, flatten_dict, merge_lists, \
      try_get_value, dict2str, update_nested_dict, locate_file, uniq_list, filter_sublist
 from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
 from .plugin import Plugin
 
-__all__ = ['DSC_Script', 'DSC_Annotation']
+yaml = YAML()
+
+__all__ = ['DSC_Script']
 
 class DSC_Script:
     '''Parse a DSC script
-     * provides self.blocks, self.runtime that contain all DSC information needed for a run
+     * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
     def __init__(self, content, output = None, sequence = None, seeds = None, extern = None):
-        from .utils import load_from_yaml
+        self.content = dict()
         if os.path.isfile(content):
-            with open(content) as f:
-                self.content = load_from_yaml(f, content)
             dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
+            script_path = os.path.dirname(os.path.expanduser(content))
+            content = open(content).readlines()
         else:
             if len(content.split('\n')) == 1:
-                raise ValueError("Cannot find file ``{}``".format(content))
-            with StringIO(content) as f:
-                self.content = load_from_yaml(f)
+                raise ValueError(f"Cannot find file ``{content}``")
             dsc_name = 'DSCStringIO'
-        #
-        self.preformat()
+            script_path = None
+        res = exe = ''
+        for line in content:
+            if line.strip().startswith('@'):
+                line = line.replace('@', '.', 1)
+            if not DSC_BLOCK_CONTENT.search(line) and not line.startswith('#'):
+                if res and exe:
+                    self.update(res, exe)
+                    res = exe = ''
+                text = line.split(':')
+                if len(text) != 2 or (len(text[1].strip()) == 0 and text[0].strip() != 'DSC'):
+                    raise FormatError(f'Invalid syntax ``{line}``. Should be in the format of ``module names: module executables``')
+                res += f'{text[0]}:\n'
+                exe = text[1].strip()
+            else:
+                res += line
+        self.update(res, exe)
         self.propagate_derived_block()
-        self.check_block_error()
-        if seeds:
-            for block in self.content:
-                if 'seed' in self.content[block]:
-                    self.content[block]['seed'] = seeds
-        self.content = DSCEntryFormatter()(self.content, try_get_value(self.content['DSC'], 'params'))
+        global_vars = try_get_value(self.content, ('DSC', 'global'))
+        # FIXME
+        self.set_global_vars(global_vars)
+        self.content = DSCEntryFormatter()(self.content, global_vars)
+        self.extract_modules()
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, extern)
         if self.runtime.output is None:
             # logger.warning("Using default output name ````.".format(dsc_name))
             self.runtime.output = dsc_name
-        # FIXME: add annotation info / filter here
-        # Or, not?
-        script_path = os.path.dirname(os.path.expanduser(content)) if os.path.isfile(content) else None
-        try:
-            self.blocks = OrderedDict([(x, DSC_Block(x, self.content[x], self.runtime.options, script_path))
-                                       for x in self.runtime.sequence_ordering.keys()])
-        except KeyError as e:
-            raise FormatError("Block ``{}`` is not defined!".format(e))
-        self.runtime.expand_sequences(self.blocks)
-        self.runtime.consolidate_sequences()
-        # FIXME: maybe this should be allowed?
-        self.runtime.check_looped_computation()
-        # prune blocks removing unused steps
-        for name, idxes in self.runtime.sequence_ordering.items():
-            self.blocks[name].extract_steps(idxes)
 
-    def preformat(self):
-        '''
-        1. add the concept of "block" on top of modules; this can be used also for "define" mini-pipelines
-        2. deal with dot variables (?)
-        '''
-        content = OrderedDict()
-        for k in self.content:
-            if k == 'DSC':
-                content[k] = self.content[k]
-            else:
-                k2 = re.sub(r'\s*,\s*', '_', k).strip('_')
-                content[k2] = OrderedDict()
-                content[k2]['.alias'] = re.sub('\(.*?\)', '', k).strip()
-                for kk in self.content[k]:
-                    if kk == 'input':
-                        content[k2]['params'] = self.content[k][kk]
-                    if kk == 'output':
-                        res = []
-                        for kkk, item in self.content[k]['output'].items():
-                            if not kkk.startswith('$'):
-                                ValueError('Output variable should be pipeline variable with ``$`` sigil.')
-                            if kkk[1:] == item:
-                                res.append(item)
-                            else:
-                                res.append(f'{kkk[1:]} = {item}')
-                        content[k2]['return'] = ','.join(res)
-        self.content = content
+    def update(self, text, exe):
+        block = yaml.load(''.join(text))
+        if exe:
+            block[list(block.keys())[0]]['.exec'] = exe
+        self.content.update(block)
+
+    def set_global_vars(self, gvars):
+        pass
 
     def propagate_derived_block(self):
         '''
@@ -102,7 +82,7 @@ class DSC_Script:
         '''
         base = []
         blocks = []
-        derived = OrderedDict()
+        derived = dict()
         for block in self.content:
             groups = DSC_DERIVED_BLOCK.search(block.strip())
             if groups:
@@ -116,15 +96,14 @@ class DSC_Script:
         tmp = [sorted(x) for x in derived.values()]
         for item in ((i, tmp.count(i)) for i in tmp):
             if item[1] > 1:
-                raise FormatError("Looped block inheritance: {0}({1}) and {1}({0})!".\
-                                  format(item[0][0], item[0][1]))
+                raise FormatError(f"Looped block inheritance: {item[0][0]}({item[0][1]}) and {item[0][1]}({item[0][0]})!")
         # Check self-derivation and non-existing base
         tmp = base + [x[0] for x in derived.values()]
         for item in derived.values():
             if item[0] == item[1]:
-                raise FormatError("Looped block inheritance: {0}({0})!".format(item[0]))
+                raise FormatError(f"Looped block inheritance: {item[0]}({item[0]})!")
             if item[1] not in tmp:
-                raise FormatError("Base block does not exist: {0}({1})!".format(item[0], item[1]))
+                raise FormatError(f"Base block does not exist: {item[0]}({item[1]})!")
         #
         derived_cycle = itertools.cycle(derived.values())
         while True:
@@ -144,33 +123,13 @@ class DSC_Script:
                 del self.content[block]
         return
 
-    def check_block_error(self):
+    def extract_modules(self):
         if 'DSC' not in self.content:
             raise ValueError('Cannot find required section ``DSC``!')
-        for block in self.content:
-            if block == 'DSC':
-                continue
-            # Check invalid block names
-            if not DSC_BLOCK_NAME.match(block):
-                raise FormatError("Block name should contain only alphanumeric letters "\
-                                  "or underscore: ``{}``".format(block))
-            if block.split('_')[-1].isdigit():
-                raise FormatError("Block name should not end with ``_{}``: ``{}``".\
-                                  format(block.split('_')[-1], block))
-            # Check block elements
-            if not 'exec' in self.content[block]:
-                raise FormatError('Missing required entry ``exec`` in block ``{}``'.format(block))
-            if not 'return' in self.content[block]:
-                raise FormatError('Missing required entry ``return`` in block ``{}``'.format(block))
-            for key in list(self.content[block].keys()):
-                if key not in DSC_BLOCKP:
-                    logger.warning('Ignore unknown entry ``{}`` in block ``{}``.'.\
-                                   format(key, block))
-                    del self.content[block][key]
 
     def dump(self):
-        res = OrderedDict([('Blocks', self.blocks),
-                           ('DSC', OrderedDict([("Sequence", self.runtime.sequence),
+        res = dict([('Blocks', self.blocks),
+                           ('DSC', dict([("Sequence", self.runtime.sequence),
                                                 ("Ordering", [(x, y) for x, y in self.runtime.sequence_ordering.items()])]))])
         return res
 
@@ -220,13 +179,13 @@ class DSC_Step:
         # system seed
         self.seed = None
         # params: alias, value
-        self.p = OrderedDict()
+        self.p = dict()
         # parameter logic:
         self.l = None
         # return variables (to plugin): alias, value
-        self.rv = OrderedDict()
+        self.rv = dict()
         # return files: alias, ext
-        self.rf = OrderedDict()
+        self.rf = dict()
         # exec
         self.exe = None
         self.exe_id = 0
@@ -283,15 +242,7 @@ class DSC_Step:
                 if item[0] not in self.rf:
                     self.rv[item[0]] = item[1]
             else:
-                groups = DSC_LAN_OP.search(item[1])
-                if groups:
-                    # have to set return alias inside plugin
-                    if groups.group(1).lower() != str(self.plugin):
-                        raise FormatError('Return alias cannot be created with ``{}`` for this computational routine.'.\
-                                          format(groups.group(1)))
-                    self.rv[item[0]] = groups.group(2)
-                else:
-                    self.rv[item[0]] = item[1]
+                self.rv[item[0]] = item[1]
 
     def set_options(self, common_option, spec_option):
         workdir1 = try_get_value(common_option, 'work_dir')
@@ -323,9 +274,9 @@ class DSC_Step:
                 self.p[k1] = self.p.pop(k2)
                 del alias[k1]
         # Handle special alias
-        # Currently it is List() / Dict()
+        # Currently it is list() / dict()
         for k1, k2 in list(alias.items()):
-            groups = re.search(r'(List|Dict)\((.*?)\)', k2)
+            groups = DSC_PACK_OP.search(k2)
             if groups:
                 self.plugin.set_container(k1, groups.group(2), self.p)
                 del alias[k1]
@@ -393,17 +344,17 @@ class DSC_Step:
         return dict2str(self.dump())
 
     def dump(self):
-        return strip_dict(OrderedDict([ ('name', self.name), ('group', self.group),
+        return strip_dict(dict([ ('name', self.name), ('group', self.group),
                                         ('dependencies', self.depends), ('command', self.exe),
                                         ('command_index', self.exe_id),('use replicates', self.seed),
                                         ('parameters', self.p), ('parameter rule', self.l),
                                         ('return variables', self.rv),
                                         ('return files', self.rf),  ('shell status', self.shell_run),
                                         ('plugin status', self.plugin.dump()),
-                                        ('runtime options', OrderedDict([('exec path', self.path),
+                                        ('runtime options', dict([('exec path', self.path),
                                                                          ('workdir', self.workdir),
                                                                          ('library path', self.libpath)]))]),
-                          mapping = OrderedDict, skip_keys = ['parameters'])
+                          mapping = dict, skip_keys = ['parameters'])
 
 class DSC_Block:
     def __init__(self, name, content, global_options = None, script_path = None):
@@ -464,8 +415,8 @@ class DSC_Block:
         if len(options) == 0:
             return {}
         # options = self.swap_abs_paths(options, script_path)
-        res = OrderedDict()
-        res[0] = OrderedDict()
+        res = dict()
+        res[0] = dict()
         for key, value in options.items():
             try:
                 # get indexed slice
@@ -478,11 +429,11 @@ class DSC_Block:
                         raise FormatError('``[{}]`` Invalid entry: ``exec[0]``. Index must start from 1.'.\
                                           format(self.name))
                     if idx in res:
-                        res[idx].update(flatten_dict(value, mapping = OrderedDict))
+                        res[idx].update(flatten_dict(value, mapping = dict))
                     else:
-                        res[idx] = flatten_dict(value, mapping = OrderedDict)
+                        res[idx] = flatten_dict(value, mapping = dict)
             except AttributeError:
-                res[0][key] = flatten_dict(value, mapping = OrderedDict)
+                res[0][key] = flatten_dict(value, mapping = dict)
         return res
 
     @staticmethod
@@ -491,7 +442,7 @@ class DSC_Block:
 
     @staticmethod
     def get_return_vars(return_vars, num_exec):
-        res = OrderedDict()
+        res = dict()
         if isinstance(return_vars, collections.Mapping):
             # exec specific return alias involved
             for i in range(num_exec):
@@ -513,10 +464,10 @@ class DSC_Block:
     def get_params(self, params):
         if params is None:
             return {}, {}, {}
-        res = OrderedDict()
-        res[0] = OrderedDict()
-        res_rules = OrderedDict()
-        res_alias = OrderedDict()
+        res = dict()
+        res[0] = dict()
+        res_rules = dict()
+        res_alias = dict()
         for key, value in params.items():
             try:
                 # get indexed slice
@@ -529,11 +480,11 @@ class DSC_Block:
                         raise FormatError('``[{}]`` Invalid entry: ``exec[0]``. Index must start from 1.'.\
                                           format(self.name))
                     if idx in res:
-                        res[idx].update(flatten_dict(value, mapping = OrderedDict))
+                        res[idx].update(flatten_dict(value, mapping = dict))
                     else:
-                        res[idx] = flatten_dict(value, mapping = OrderedDict)
+                        res[idx] = flatten_dict(value, mapping = dict)
             except AttributeError:
-                res[0][key] = flatten_dict(value, mapping = OrderedDict)
+                res[0][key] = flatten_dict(value, mapping = dict)
             # Parse parameter rules and alias
             for key in res:
                 res[key] = flatten_dict(res[key])
@@ -565,8 +516,8 @@ class DSC_Block:
 
     def __str__(self):
         steps = {step.name: step.dump() for step in self.steps}
-        return dict2str(strip_dict(OrderedDict([('computational routines', steps), ('rule', self.rule)]),
-                                   mapping = OrderedDict))
+        return dict2str(strip_dict(dict([('computational routines', steps), ('rule', self.rule)]),
+                                   mapping = dict))
 
 class DSC_Section:
     def __init__(self, content, sequence, output, extern):
@@ -595,7 +546,7 @@ class DSC_Section:
                          for x in sum([self.OP(expand_slice(y)) for y in self.sequence], [])]
         self.sequence = filter_sublist(self.sequence)
         self.sequence_ordering = self.__merge_sequences(self.sequence)
-        self.options = OrderedDict()
+        self.options = dict()
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
         self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
         self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
@@ -614,7 +565,7 @@ class DSC_Section:
         values = sequences[0]
         for idx in range(len(sequences) - 1):
             values = merge_lists(values, sequences[idx + 1])
-        values = OrderedDict([(x, [-9]) for x in values])
+        values = dict([(x, [-9]) for x in values])
         return values
 
     def expand_sequences(self, blocks):
@@ -657,7 +608,7 @@ class DSC_Section:
         For trivial multiple sequences, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
         This cannot be done with symbolic math logic so we have to do it here
         '''
-        sequences = OrderedDict()
+        sequences = dict()
         for sequence, idx in self.sequence:
             if sequence not in sequences:
                 sequences[sequence] = idx
@@ -668,7 +619,7 @@ class DSC_Section:
         self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
 
     def __str__(self):
-        return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence), (
+        return dict2str(strip_dict(dict([('sequences to execute', self.sequence), (
                                     'sequence ordering', list(self.sequence_ordering.keys())), (
                                         'R libraries', self.rlib), ( 'Python modules', self.pymodule)]),
-                                   mapping = OrderedDict))
+                                   mapping = dict))

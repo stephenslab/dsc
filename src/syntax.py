@@ -9,19 +9,14 @@ This file defines DSC syntax templates
 import re
 from sos.sos_syntax import LazyRegex, SOS_DIRECTIVES
 
-
 DSC_KW = ['DSC_AUTO_OUTPUT_', 'seed', 'DSC_TIMER'] # engineering keywords, reserved
 DSC_KW.extend(SOS_DIRECTIVES)
-DSC_BLOCKP = ['exec', 'return', 'params', 'seed', '.logic', '.alias', '.options'] # block properties
+DSC_BLOCKP = ['exec', 'return', 'params', 'seed', '.alias', '.options'] # module properties
 DSC_PARAMP = ['.logic', '.alias', '.options'] # parameter properties
 
-_TMPL = r'^(.*?)\((.*?)\)$'
-DSC_DERIVED_BLOCK = LazyRegex(_TMPL, re.VERBOSE)
-_TMPL = r'^[A-Za-z0-9_]+$'
-DSC_BLOCK_NAME = LazyRegex(_TMPL, re.VERBOSE)
-_TMPL = r'^File\((.*?)\)$'
-DSC_FILE_OP = LazyRegex(_TMPL, re.VERBOSE)
-_TMPL = r'^(R|Python)\((.*?)\)$'
-DSC_LAN_OP = LazyRegex(_TMPL, re.VERBOSE)
-_TMPL = r'^Asis\((.*?)\)$'
-DSC_ASIS_OP = LazyRegex(_TMPL, re.VERBOSE)
+DSC_DERIVED_BLOCK = LazyRegex(r'^(.*?)\((.*?)\)$', re.VERBOSE)
+DSC_BLOCK_NAME = LazyRegex(r'^[A-Za-z0-9_]+$', re.VERBOSE)
+DSC_FILE_OP = LazyRegex(r'^file\((.*?)\)$', re.VERBOSE)
+DSC_ASIS_OP = LazyRegex(r'^raw\((.*?)\)$', re.VERBOSE)
+DSC_PACK_OP = LazyRegex(r'(list|dict)\((.*?)\)', re.VERBOSE)
+DSC_BLOCK_CONTENT = LazyRegex(r'^\s(.*?)', re.VERBOSE)

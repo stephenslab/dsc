@@ -4,11 +4,14 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, copy, re, itertools, yaml, collections, time, sympy
+import os, copy, re, itertools, collections, time, sympy
+from ruamel.yaml import YAML
 from difflib import SequenceMatcher
 from io import StringIO
 from sos.utils import env, Error
 from .constant import HTML_CSS, HTML_JS
+
+yaml = YAML()
 
 class FormatError(Error):
     """Raised when format is illegal."""
@@ -35,39 +38,6 @@ def non_commutative_symexpand(expr_string):
     new_locals = {sym.name:sympy.Symbol(sym.name, commutative=False)
                   for sym in parsed_expr.atoms(sympy.Symbol)}
     return sympy.expand(eval(expr_string, {}, new_locals))
-
-def no_duplicates_constructor(loader, node, deep=False):
-    """YAML check for duplicate keys."""
-    mapping = {}
-    for key_node, value_node in node.value:
-        key = loader.construct_object(key_node, deep=deep)
-        value = loader.construct_object(value_node, deep=deep)
-        if key in mapping:
-            raise yaml.constructor.ConstructorError("while constructing a mapping", node.start_mark,
-                                   "found duplicate key (%s)" % key, key_node.start_mark)
-        mapping[key] = value
-    return collections.OrderedDict(loader.construct_pairs(node, deep))
-
-def dict_representer(dumper, data):
-    return dumper.represent_dict(data.iteritems())
-
-yaml.add_representer(collections.OrderedDict, dict_representer)
-yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
-yaml.Dumper.ignore_aliases = lambda self, value: True
-
-def load_from_yaml(f, fn = ''):
-    try:
-        cfg = yaml.load(f)
-    # a very rough initial check and prompt
-    except Exception as e:
-        raise FormatError("Illegal YAML syntax{}:\n``{}``".\
-                          format(" in script ``{}``".format(fn) if os.path.isfile(fn) else '', e))
-    # return lower_keys(cfg)
-    return OrderedDict(cfg)
-
-class OrderedDict(collections.OrderedDict):
-     def __str__(self):
-          return dict2str(self)
 
 class Timer(object):
     def __init__(self, verbose=False):
@@ -284,10 +254,26 @@ def set_nested_value(d, keys, value, default_factory = dict):
         d = val
     d[keys[-1]] = value
 
+def find_nested_key(key, dictionary):
+    '''
+    example = {'simulate': {'exec1': {'key': 'value'}}}
+    print(list(find('key', example)))
+    # [['simulate', 'exec1', 'key']]
+    '''
+    for k, v in dictionary.items():
+        if k == key:
+            yield [k]
+        elif isinstance(v, dict):
+            for result in find(key, v):
+                yield [k] + result
+        elif isinstance(v, list):
+            for d in v:
+                for result in find(key, d):
+                    yield [k] + result
+
 def dict2str(value):
     out = StringIO()
-    yaml.dump(strip_dict(value, into_list = True, mapping = OrderedDict),
-              out, default_flow_style=False)
+    yaml.dump(strip_dict(value, into_list = True), out)
     res = out.getvalue()
     out.close()
     pattern = re.compile(r'!!python/(.*?)\s')
@@ -297,7 +283,7 @@ def dict2str(value):
     res = '\n'.join([x[2:] for x in res.split('\n') if x.strip() != 'dictitems:' and x])
     return res
 
-def update_nested_dict(d, u, mapping = collections.OrderedDict):
+def update_nested_dict(d, u, mapping = dict):
     for k, v in u.items():
         if isinstance(v, collections.Mapping):
             r = update_nested_dict(d.get(k, mapping()), v)
@@ -309,7 +295,7 @@ def update_nested_dict(d, u, mapping = collections.OrderedDict):
 def strip_dict(data, mapping = dict, into_list = False, skip_keys = []):
     if not isinstance(data, collections.Mapping):
         return data
-    mapping_null = [dict(), OrderedDict()]
+    mapping_null = [dict()]
     new_data = mapping()
     for k, v in data.items():
         if k in skip_keys:
@@ -562,29 +548,6 @@ def install_py_module(lib):
     from sos.Python.target import Py_Module
     env.logger.info("Checking Python module ``{}`` ...".format(lib))
     return Py_Module(lib).exists()
-
-def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
-    # ordered_load(stream, yaml.SafeLoader)
-    class OrderedLoader(Loader):
-        pass
-    def construct_mapping(loader, node):
-        loader.flatten_mapping(node)
-        return object_pairs_hook(loader.construct_pairs(node))
-    OrderedLoader.add_constructor(
-        yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
-        construct_mapping)
-    return yaml.load(stream, OrderedLoader)
-
-def ordered_dump(data, stream=None, Dumper=yaml.Dumper, **kwds):
-    # ordered_dump(data, Dumper=yaml.SafeDumper)
-    class OrderedDumper(Dumper):
-        pass
-    def _dict_representer(dumper, data):
-        return dumper.represent_mapping(
-            yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
-            data.items())
-    OrderedDumper.add_representer(OrderedDict, _dict_representer)
-    return yaml.dump(data, stream, OrderedDumper, **kwds)
 
 def make_html_name(value):
     return "".join(x for x in value.replace(' ', '-') if x.isalnum() or x in ['-', '_']).lower()

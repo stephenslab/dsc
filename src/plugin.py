@@ -7,7 +7,6 @@ __license__ = "MIT"
 Process R and Python plugin codes to DSC
 '''
 import re
-from .utils import OrderedDict
 
 R_SOURCE = '''
 source.file <- source
@@ -77,7 +76,7 @@ class BasePlug:
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
 
     def dump(self):
-        return OrderedDict([
+        return dict([
             ('ID', self.identifier),
             ('container', self.container),
                 ('container variables', self.container_vars),

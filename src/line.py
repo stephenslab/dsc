@@ -7,7 +7,6 @@ __license__ = "MIT"
 '''Handle one line in a DSC file, a customized YAML parser'''
 
 import re, subprocess, collections, warnings
-import rpy2.robjects as RO
 from .utils import is_null, str2num, cartesian_list, \
     pairwise_list, get_slice, FormatError, do_parentheses_match
 
@@ -150,20 +149,20 @@ class ExpandActions(YLine):
     Run action entries and get values.
 
     Action entries are
-      * R(), Python(), Shell()
-      * ForEach() and Pairs()
+      * Rvec(), Python(), Shell()
+      * each() and pairs()
     Untouched entries are:
-      * File(), Temp(), Asis()
+      * file(), temp(), raw()
     because they'll have to be dynamically determined
     '''
     def __init__(self):
         YLine.__init__(self)
         self.method = {
-            'R': self.__R,
+            'Rvec': self.__R,
             'Python': self.__Python,
             'Shell': self.__Shell,
-            'ForEach': self.__ForEach,
-            'Pairs': self.__Pairs
+            'each': self.__ForEach,
+            'pairs': self.__Pairs
             }
 
     def __call__(self, value):
@@ -193,9 +192,8 @@ class ExpandActions(YLine):
 
     @staticmethod
     def __R(code):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            return list(RO.r(code))
+        return subprocess.check_output(f"R --slave -e 'cat({code})'", \
+                                       shell = True).decode('utf8').strip().split()
 
     @staticmethod
     def __Python(code):
@@ -330,7 +328,7 @@ class OperationParser(YLine):
                                   format(self.sequence))
             # re-construct elements in x
             # complication: the _ operator
-            tmp_1 = collections.OrderedDict((y if '_' not in y else y.split('_')[0], y) for y in x)
+            tmp_1 = dict((y if '_' not in y else y.split('_')[0], y) for y in x)
             if len(tmp_1.keys()) < len(x):
                 raise FormatError("Possibly duplicated elements found in sequence {}".\
                                   format(self.sequence))
