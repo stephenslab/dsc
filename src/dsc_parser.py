@@ -168,31 +168,6 @@ class DSC_Script:
                                    format(key, block))
                     del self.content[block][key]
 
-    def AddDefaultAnnotation(self):
-        if self.runtime.named_sequence is None:
-            ann = OrderedDict()
-            for block in self.blocks:
-                for step in self.blocks[block].steps:
-                    ann[step.name.replace('.', '_')] = {step.group:{'exec':step.name}}
-        else:
-            ann = []
-            for tag, item in self.runtime.named_sequence.items():
-                item = uniq_list([x[:-1] for x in sum([self.runtime.OP(expand_slice(y)) for y in item], [])])
-                all_steps = []
-                for seq in item:
-                    for block in seq:
-                        block, indices = get_slice(block, mismatch_quit = False)
-                        if indices is None:
-                            indices = [x for x in range(len(self.blocks[block].steps))]
-                        block_steps = []
-                        for idx in indices:
-                            step = self.blocks[block].steps[idx]
-                            block_steps.append({step.group:{'exec':step.name}})
-                        all_steps.append(block_steps)
-                ann.extend([{tag : reduce(lambda x, y: dict(x, **y), x)}
-                            for x in itertools.product(*all_steps)])
-        return ann
-
     def dump(self):
         res = OrderedDict([('Blocks', self.blocks),
                            ('DSC', OrderedDict([("Sequence", self.runtime.sequence),
@@ -203,11 +178,6 @@ class DSC_Script:
         res = '# Blocks\n' + '\n'.join(['## {}\n```yaml\n{}\n```'.format(x, y) for x, y in self.blocks.items()]) \
               + '\n# DSC\n```yaml\n{}\n```'.format(self.runtime)
         return res
-
-
-class DSC_Annotation:
-    def __init__(self):
-        pass
 
 
 class DSCEntryFormatter:
@@ -526,7 +496,7 @@ class DSC_Block:
             # exec specific return alias involved
             for i in range(num_exec):
                 try:
-                    res[i + 1] = return_vars['exec[{}]'.format(i+1)]
+                    res[i + 1] = return_vars[f'exec[{i+1}]']
                 except KeyError:
                     pass
         else:
