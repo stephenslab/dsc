@@ -35,9 +35,8 @@ setup(name        = "dsc",
       install_requires = ['sos>=0.9.10.16', 'sos-r>=0.9.10.3',
                           'sos-matlab>=0.9.10.3', 'sos-bash>=0.9.10.1',
                           'sos-python>=0.9.10.1', 'sos-pbs>=0.9.10.3',
-                          'feather-format',
-                          'pyarrow>=0.5.0', 'sqlalchemy',
-                          'msgpack-python', 'ruamel.yaml>=0.15',
-                          'pandas>=0.18.0',
+                          'feather-format', 'pyarrow>=0.5.0',
+                          'sqlalchemy', 'msgpack-python',
+                          'ruamel.yaml>=0.15', 'pandas>=0.22.0',
                           'sympy', 'numexpr', 'numpy']
       )

@@ -264,11 +264,11 @@ def find_nested_key(key, dictionary):
         if k == key:
             yield [k]
         elif isinstance(v, dict):
-            for result in find(key, v):
+            for result in find_nested_key(key, v):
                 yield [k] + result
         elif isinstance(v, list):
             for d in v:
-                for result in find(key, d):
+                for result in find_nested_key(key, d):
                     yield [k] + result
 
 def dict2str(value):

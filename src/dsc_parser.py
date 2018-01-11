@@ -12,7 +12,7 @@ from ruamel.yaml import YAML
 from functools import reduce
 from sos.utils import logger
 from sos.target import textMD5
-from .utils import FormatError, is_null, strip_dict, flatten_list, \
+from .utils import FormatError, is_null, strip_dict, flatten_list, find_nested_key, \
      cartesian_list, get_slice, expand_slice, flatten_dict, merge_lists, \
      try_get_value, dict2str, update_nested_dict, locate_file, uniq_list, filter_sublist
 from .syntax import *
@@ -55,7 +55,6 @@ class DSC_Script:
         self.update(res, exe)
         self.propagate_derived_block()
         global_vars = try_get_value(self.content, ('DSC', 'global'))
-        # FIXME
         self.set_global_vars(global_vars)
         self.content = DSCEntryFormatter()(self.content, global_vars)
         self.extract_modules()
@@ -75,7 +74,14 @@ class DSC_Script:
         self.content.update(block)
 
     def set_global_vars(self, gvars):
-        pass
+        if gvars is None:
+            return
+        for v in gvars:
+            for block in self.content:
+                keys = list(find_nested_key(v, self.content[block]))
+                if len(keys):
+                    for k in keys:
+                        set_nested_value(self.content[block], k, gvars[v])
 
     def propagate_derived_block(self):
         '''
@@ -132,13 +138,13 @@ class DSC_Script:
 
     def dump(self):
         res = dict([('Blocks', self.blocks),
-                           ('DSC', dict([("Sequence", self.runtime.sequence),
-                                                ("Ordering", [(x, y) for x, y in self.runtime.sequence_ordering.items()])]))])
+                    ('DSC', dict([("Sequence", self.runtime.sequence),
+                                  ("Ordering", [(x, y) for x, y in self.runtime.sequence_ordering.items()])]))])
         return res
 
     def __str__(self):
-        res = '# Blocks\n' + '\n'.join(['## {}\n```yaml\n{}\n```'.format(x, y) for x, y in self.blocks.items()]) \
-              + '\n# DSC\n```yaml\n{}\n```'.format(self.runtime)
+        res = '# Blocks\n' + '\n'.join([f'## {x}\n```yaml\n{y}\n```' for x, y in self.blocks.items()]) \
+              + f'\n# DSC\n```yaml\n{self.runtime}\n```'
         return res
 
 
@@ -159,6 +165,8 @@ class DSCEntryFormatter:
     def __Transform(self, cfg, actions):
         '''Apply actions to items'''
         for key, value in list(cfg.items()):
+            if isinstance(value, str):
+                value = value.strip().strip(',')
             if isinstance(value, collections.Mapping):
                 self.__Transform(value, actions)
             else:

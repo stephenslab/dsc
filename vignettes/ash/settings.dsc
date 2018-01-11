@@ -11,7 +11,7 @@ simulate: datamaker.R
     betahatsd: 1
     # module output
     $data: data
-    $true_beta: raw(data$meta$beta),
+    $true_beta: raw(data$meta$beta)
     $true_pi0: raw(data$meta$pi0)
     # global decoration
     @alias: args = list()
