@@ -8,6 +8,7 @@ Parser for DSC script and annotation files
 '''
 
 import os, re, itertools, copy, collections, subprocess
+from collections import OrderedDict
 from ruamel.yaml import YAML
 from functools import reduce
 from sos.utils import logger
@@ -19,8 +20,8 @@ from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
 from .plugin import Plugin
 yaml = YAML()
-
 __all__ = ['DSC_Script']
+
 
 class DSC_Script:
     '''Parse a DSC script
@@ -118,7 +119,7 @@ class DSC_Script:
             item = next(derived_cycle)
             if item[1] in base:
                 base.append(item[0])
-                name = '{}({})'.format(item[0], item[1])
+                name = f'{item[0]}({item[1]})'
                 if name not in blocks:
                     blocks.append(name)
             if len(blocks) == len(self.content.keys()):
@@ -142,10 +143,10 @@ class DSC_Script:
             modules = block.split(',')
             if len(modules) != len(self.content[block]['.EXEC']) and len(self.content[block]['.EXEC']) > 1:
                 raise FormatError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['.EXEC'])}`` executables ``{self.content[block]['.EXEC']}``. " \
-                                 "Please ensure modules and executables match.")
+                                  "Please ensure modules and executables match.")
             if len(modules) > 1 and len(self.content[block]['.EXEC']) == 1:
                 self.content[block]['.EXEC'] = self.content[block]['.EXEC'] * len(modules)
-            # collection module parameters
+            # collection module specific parameters
             tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
             for key in self.content[block]:
                 if key.startswith('.') and key not in DSC_MODP and key[1:] not in modules:
@@ -158,17 +159,18 @@ class DSC_Script:
                 else:
                     for module in modules:
                         tmp[module]['global'][key] = self.content[block][key]
-            # parse input / output / options
+            # parse input / output / meta
+            # output has $ prefix, meta has . prefix, input has no prefix
             for module in tmp:
                 if module in res:
                     raise FormatError(f'Duplicate module definition {module}')
-                res[module] = dict([('input', dict()), ('output', dict()), ('options', dict())])
+                res[module] = dict([('input', dict()), ('output', dict()), ('meta', dict())])
                 for item in ['global', 'local']:
                     for key in tmp[module][item]:
                         if key.startswith('$'):
                             res[module]['output'][key[1:]] = tmp[module][item][key]
                         elif key.startswith('.'):
-                            res[module]['options'][key] = tmp[module][item][key]
+                            res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
                         else:
                             res[module]['input'][key] = tmp[module][item][key]
         res['DSC'] = self.content['DSC']
@@ -568,6 +570,7 @@ class DSC_Block:
         return dict2str(strip_dict(dict([('computational routines', modules), ('rule', self.rule)]),
                                    mapping = dict))
 
+
 class DSC_Section:
     def __init__(self, content, sequence, output, extern):
         self.content = content
@@ -592,7 +595,7 @@ class DSC_Section:
             else:
                 self.sequence = self.content['run']
         self.sequence = [(x,) if isinstance(x, str) else x
-                         for x in sum([self.OP(expand_slice(y)) for y in self.sequence], [])]
+                         for x in sum([self.OP(self.expand_ensemble(y)) for y in self.sequence], [])]
         self.sequence = filter_sublist(self.sequence)
         self.sequence_ordering = self.__merge_sequences(self.sequence)
         self.options = dict()
@@ -614,12 +617,32 @@ class DSC_Section:
         values = sequences[0]
         for idx in range(len(sequences) - 1):
             values = merge_lists(values, sequences[idx + 1])
-        values = dict([(x, [-9]) for x in values])
+        values = OrderedDict([(x, [-9]) for x in values])
         return values
+
+    def expand_ensemble(self, value):
+        '''
+        input
+        =====
+        define:
+            preprocess: filter * (norm1, norm2)
+        run: data * preprocess * analyze
+
+        output
+        ======
+        data * (filter * (norm1, norm2)) * analyze
+        '''
+        if 'define' not in self.content:
+            return value
+        for lhs in self.content["define"]:
+            rhs = f'({", ".join(self.content["define"][lhs])})'
+            # http://www.regular-expressions.info/wordboundaries.html
+            value = re.sub(r"\b%s\b" % lhs, rhs, value)
+        return value
 
     def expand_sequences(self, blocks):
         '''expand DSC sequences by index'''
-        default = {x: [i for i in range(len(blocks[x].modules))]
+        default = {x: [i for i in range(len(blocks[x].steps))]
                    for x in self.sequence_ordering.keys()} if len(blocks) else {}
         res = []
         for value in self.__index_sequences(self.sequence):
@@ -637,11 +660,8 @@ class DSC_Section:
         for seq, idx in self.sequence:
             # check duplicated block names
             if len(set(seq)) != len(seq):
-                raise ValueError('Duplicated blocks found in DSC sequence ``{}``. '\
-                                 'Iteratively executing blocks is currently disallowed. '\
-                                 'If you need to execute one routine after another in the same block '\
-                                 'please re-write your DSC script to make these routines in separate blocks'.\
-                                 format(seq))
+                raise ValueError(f'Duplicated module found in DSC sequence ``{seq}``. '\
+                                 'Iteratively executing modules is not yet supported.')
 
     @staticmethod
     def __index_sequences(input_sequences):
@@ -654,10 +674,10 @@ class DSC_Section:
 
     def consolidate_sequences(self):
         '''
-        For trivial multiple sequences, eg, "module1 * module2[1], module1 * module[2]", should be consolidated to one
+        For trivial multiple sequences, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
         This cannot be done with symbolic math logic so we have to do it here
         '''
-        sequences = dict()
+        sequences = OrderedDict()
         for sequence, idx in self.sequence:
             if sequence not in sequences:
                 sequences[sequence] = idx
@@ -668,7 +688,7 @@ class DSC_Section:
         self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
 
     def __str__(self):
-        return dict2str(strip_dict(dict([('sequences to execute', self.sequence), (
+        return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence), (
                                     'sequence ordering', list(self.sequence_ordering.keys())), (
                                         'R libraries', self.rlib), ( 'Python modules', self.pymodule)]),
-                                   mapping = dict))
+                                   mapping = OrderedDict))
