@@ -14,8 +14,8 @@ simulate: datamaker.R
     $true_beta: raw(data$meta$beta)
     $true_pi0: raw(data$meta$pi0)
     # global decoration
-    @alias: args = list()
-    @options: queue = midway
+    @ALIAS: args = list()
+    @CONF: queue = midway
 
 shrink: runash.R
     # module input

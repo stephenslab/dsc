@@ -22,6 +22,7 @@ yaml = YAML()
 
 __all__ = ['DSC_Script']
 
+
 class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
@@ -70,7 +71,7 @@ class DSC_Script:
         if block[name] is None:
             block[name] = dict()
         if exe:
-            block[name]['.exec'] = exe
+            block[name]['.EXEC'] = exe
         self.content.update(block)
 
     def set_global_vars(self, gvars):
@@ -79,9 +80,8 @@ class DSC_Script:
         for v in gvars:
             for block in self.content:
                 keys = list(find_nested_key(v, self.content[block]))
-                if len(keys):
-                    for k in keys:
-                        set_nested_value(self.content[block], k, gvars[v])
+                for k in keys:
+                    set_nested_value(self.content[block], k, gvars[v])
 
     def propagate_derived_block(self):
         '''
@@ -135,6 +135,17 @@ class DSC_Script:
     def extract_modules(self):
         if 'DSC' not in self.content:
             raise ValueError('Cannot find required section ``DSC``!')
+        res = dict()
+        for block in self.content:
+            if block == 'DSC':
+                res['DSC'] = self.content['DSC']
+                continue
+            modules = block.split(',')
+            if len(modules) != len(self.content[block]['.EXEC']) and len(self.content[block]['.EXEC']) > 1:
+                raise ValueError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['.EXEC'])}`` executables ``{self.content[block]['.EXEC']}``. " \
+                                 "Please ensure modules and executables match.")
+            if len(modules) > 1 and len(self.content[block]['.EXEC']) == 1:
+                self.content[block]['.EXEC'] = self.content[block]['.EXEC'] * len(modules)
 
     def dump(self):
         res = dict([('Blocks', self.blocks),
@@ -170,7 +181,7 @@ class DSCEntryFormatter:
             if isinstance(value, collections.Mapping):
                 self.__Transform(value, actions)
             else:
-                if key != '.logic':
+                if key != '.FILTER':
                     for a in actions:
                         value = a(value)
                 # empty list
@@ -181,11 +192,11 @@ class DSCEntryFormatter:
         return cfg
 
 
-class DSC_Step:
+class DSC_Module:
     def __init__(self, group, name):
         # block name
         self.group = group
-        # step name
+        # module name
         self.name = name
         # system seed
         self.seed = None
@@ -292,7 +303,7 @@ class DSC_Step:
                 self.plugin.set_container(k1, groups.group(2), self.p)
                 del alias[k1]
         if len(alias):
-            raise FormatError('Invalid .alias for computational routine ``{}``:\n``{}``'.\
+            raise FormatError('Invalid .ALIAS for computational routine ``{}``:\n``{}``'.\
                               format(self.name, dict2str(alias)))
 
     def apply_params_rule(self, common_rule, spec_rule):
@@ -309,9 +320,9 @@ class DSC_Step:
             ret = subprocess.check_output("python -c '''{}'''".\
                                           format(str(statement)), shell = True).decode('utf-8').strip()
         except:
-            raise FormatError("Invalid .logic: ``{}``!".format(raw_rule))
+            raise FormatError("Invalid @FILTER: ``{}``!".format(raw_rule))
         if int(ret) == 0:
-            raise FormatError("No parameter combination satisfies .logic ``{}``!".format(raw_rule))
+            raise FormatError("No parameter combination satisfies @FILTER ``{}``!".format(raw_rule))
         self.l = rule
 
     def apply_params_operator(self):
@@ -369,20 +380,20 @@ class DSC_Step:
 
 class DSC_Block:
     def __init__(self, name, content, global_options = None, script_path = None):
-        '''Populate steps in the block and keep track of block rules
+        '''Populate modules in the block and keep track of block rules
         Members are:
-          - self.steps, self.rule, self.name
+          - self.modules, self.rule, self.name
         '''
         self.name = name
         # block executable rules
-        self.rule = self.get_exec_rule(content['.logic']) if '.logic' in content else None
+        self.rule = self.get_exec_rule(content['.FILTER']) if '.FILTER' in content else None
         exes = [tuple(x.split()) if isinstance(x, str) else x for x in content['exec']]
-        if '.alias' in content:
-            for item in content['.alias']:
+        if '.ALIAS' in content:
+            for item in content['.ALIAS']:
                 if '.' in item:
                     raise FormatError("Dot ``.`` in alias ``{}`` is not allowed. "\
                                       "Please remove or replace it with underscore ``_``".format(item))
-            exe_alias = content['.alias']
+            exe_alias = content['.ALIAS']
         else:
             exe_alias = ['_'.join([os.path.splitext(os.path.basename(x))[0] if i == 0 else x \
                                    for i, x in enumerate(y) if not x.startswith('$')]) for y in exes]
@@ -395,7 +406,7 @@ class DSC_Block:
                               format(repr(exe_alias), len(exe_alias), len(exes), name))
         # block runtime options
         options = self.get_exec_options(global_options or {},
-                                        content['.options'] if '.options' in content else None, script_path)
+                                        content['.CONF'] if '.CONF' in content else None, script_path)
         # get return values
         return_vars = self.get_return_vars(content['return'], len(exe_alias))
         # get parameters
@@ -404,20 +415,20 @@ class DSC_Block:
         if len(params) and max(params.keys()) > len(exes):
             raise FormatError('``exec[{}]`` out of range, in ``params`` section of ``{}`` with {} executable routines.'.\
                               format(max(params.keys()), name, len(exes)))
-        # initialize steps
-        self.steps = [DSC_Step(name, x) for x in exe_alias]
-        for i in range(len(self.steps)):
-            self.steps[i].exe_id = i + 1
-            self.steps[i].set_options(try_get_value(options, 0), try_get_value(options, i + 1))
-            self.steps[i].set_exec(exes[i])
+        # initialize modules
+        self.modules = [DSC_Module(name, x) for x in exe_alias]
+        for i in range(len(self.modules)):
+            self.modules[i].exe_id = i + 1
+            self.modules[i].set_options(try_get_value(options, 0), try_get_value(options, i + 1))
+            self.modules[i].set_exec(exes[i])
             if 'seed' in content:
-                self.steps[i].set_seed(content['seed'])
-            self.steps[i].set_params(try_get_value(params, 0), try_get_value(params, i + 1),
+                self.modules[i].set_seed(content['seed'])
+            self.modules[i].set_params(try_get_value(params, 0), try_get_value(params, i + 1),
                                      try_get_value(params_alias, 0), try_get_value(params_alias, i + 1))
-            self.steps[i].set_return(try_get_value(return_vars, 0), try_get_value(return_vars, i + 1))
-            self.steps[i].apply_params_operator()
-            self.steps[i].apply_params_rule(try_get_value(params_rules, 0), try_get_value(params_rules, i + 1))
-            self.steps[i].check_shell(exes[i])
+            self.modules[i].set_return(try_get_value(return_vars, 0), try_get_value(return_vars, i + 1))
+            self.modules[i].apply_params_operator()
+            self.modules[i].apply_params_rule(try_get_value(params_rules, 0), try_get_value(params_rules, i + 1))
+            self.modules[i].check_shell(exes[i])
 
     def get_exec_options(self, global_options, local_options, script_path):
         options = copy.deepcopy(global_options)
@@ -499,16 +510,16 @@ class DSC_Block:
             # Parse parameter rules and alias
             for key in res:
                 res[key] = flatten_dict(res[key])
-                if '.logic' in res[key]:
-                    res_rules[key] = res[key]['.logic']
-                    del res[key]['.logic']
-                if '.alias' in res[key]:
-                    res_alias[key] = res[key]['.alias']
-                    del res[key]['.alias']
+                if '.FILTER' in res[key]:
+                    res_rules[key] = res[key]['.FILTER']
+                    del res[key]['.FILTER']
+                if '.ALIAS' in res[key]:
+                    res_alias[key] = res[key]['.ALIAS']
+                    del res[key]['.ALIAS']
         return res, res_alias, res_rules
 
-    def extract_steps(self, idxes):
-        self.steps = [y for x, y in enumerate(self.steps) if x in idxes]
+    def extract_modules(self, idxes):
+        self.modules = [y for x, y in enumerate(self.modules) if x in idxes]
 
     @staticmethod
     def swap_abs_paths(data, master_path):
@@ -526,8 +537,8 @@ class DSC_Block:
         return data
 
     def __str__(self):
-        steps = {step.name: step.dump() for step in self.steps}
-        return dict2str(strip_dict(dict([('computational routines', steps), ('rule', self.rule)]),
+        modules = {module.name: module.dump() for module in self.modules}
+        return dict2str(strip_dict(dict([('computational routines', modules), ('rule', self.rule)]),
                                    mapping = dict))
 
 class DSC_Section:
@@ -581,7 +592,7 @@ class DSC_Section:
 
     def expand_sequences(self, blocks):
         '''expand DSC sequences by index'''
-        default = {x: [i for i in range(len(blocks[x].steps))]
+        default = {x: [i for i in range(len(blocks[x].modules))]
                    for x in self.sequence_ordering.keys()} if len(blocks) else {}
         res = []
         for value in self.__index_sequences(self.sequence):
@@ -616,7 +627,7 @@ class DSC_Section:
 
     def consolidate_sequences(self):
         '''
-        For trivial multiple sequences, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
+        For trivial multiple sequences, eg, "module1 * module2[1], module1 * module[2]", should be consolidated to one
         This cannot be done with symbolic math logic so we have to do it here
         '''
         sequences = dict()

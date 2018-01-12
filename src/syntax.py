@@ -11,8 +11,7 @@ from sos.sos_syntax import LazyRegex, SOS_DIRECTIVES
 
 DSC_KW = ['DSC_AUTO_OUTPUT_', 'seed', 'DSC_TIMER'] # engineering keywords, reserved
 DSC_KW.extend(SOS_DIRECTIVES)
-DSC_BLOCKP = ['exec', 'return', 'params', 'seed', '.alias', '.options'] # module properties
-DSC_PARAMP = ['.logic', '.alias', '.options'] # parameter properties
+DSC_MODP = ['EXEC', '.FILTER', '.ALIAS', '.CONF'] # module properties
 
 DSC_DERIVED_BLOCK = LazyRegex(r'^(.*?)\((.*?)\)$', re.VERBOSE)
 DSC_BLOCK_NAME = LazyRegex(r'^[A-Za-z0-9_]+$', re.VERBOSE)

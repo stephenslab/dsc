@@ -236,7 +236,7 @@ class OperationParser(YLine):
     '''
     Parse DSC logic sequence variables by expanding them
 
-    Input: a string sequence of .logic or 'run'
+    Input: a string sequence of .FILTER or 'run'
     '''
     def __init__(self):
         YLine.__init__(self)
@@ -258,7 +258,7 @@ class OperationParser(YLine):
             raise TypeError("Argument must be string but it is %s." % type(value))
         value = value.strip()
         if value[-1] in ['+', '*', ',', '=', '/']:
-            raise FormatError('The end of logic operator ``"{}"`` cannot be operator ``{}``!'.\
+            raise FormatError('The end of @FILTER operator ``"{}"`` cannot be operator ``{}``!'.\
                               format(value, value[-1]))
         res = []
         for seq in self.split(value):

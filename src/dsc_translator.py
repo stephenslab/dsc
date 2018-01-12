@@ -14,7 +14,7 @@ class DSC_Translator:
     '''
     Translate workflow to SoS pipeline:
       * Each DSC computational routine `exec` is a sos step with name `group + command index`
-      * When there are combined routines in a block via `.logic` for `exec` then sub-steps are generated
+      * When there are combined routines in a block via `.FILTER` for `exec` then sub-steps are generated
         with name `group + super command index + command index` without alias name then
         create nested workflow named `group + combined routine index`
       * FIXME: to above, because it still produce intermediate files which is not what we want

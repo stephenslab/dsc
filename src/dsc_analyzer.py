@@ -104,7 +104,7 @@ class DSC_Analyzer:
             for step in workflow[block].steps:
                 if step.name in names and len([x[0] for x in step.depends if x[0] in names[step.name]]):
                     raise ValueError("Duplicated executable ``{}`` in block ``{}`` (already seen in {}). "\
-                                     "\nPlease use ``.alias`` to rename one of these executables".\
+                                     "\nPlease use ``@ALIAS`` to rename one of these executables".\
                                      format(step.name, block,
                                             "block ``{}``".format(names[step.name]) if names[step.name] != block
                                                    else "the same block"))
