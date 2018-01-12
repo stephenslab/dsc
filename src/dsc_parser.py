@@ -22,7 +22,6 @@ yaml = YAML()
 
 __all__ = ['DSC_Script']
 
-
 class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
@@ -134,18 +133,46 @@ class DSC_Script:
 
     def extract_modules(self):
         if 'DSC' not in self.content:
-            raise ValueError('Cannot find required section ``DSC``!')
+            raise FormatError('Cannot find required section ``DSC``!')
         res = dict()
         for block in self.content:
             if block == 'DSC':
-                res['DSC'] = self.content['DSC']
                 continue
+            # expand module executables
             modules = block.split(',')
             if len(modules) != len(self.content[block]['.EXEC']) and len(self.content[block]['.EXEC']) > 1:
-                raise ValueError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['.EXEC'])}`` executables ``{self.content[block]['.EXEC']}``. " \
+                raise FormatError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['.EXEC'])}`` executables ``{self.content[block]['.EXEC']}``. " \
                                  "Please ensure modules and executables match.")
             if len(modules) > 1 and len(self.content[block]['.EXEC']) == 1:
                 self.content[block]['.EXEC'] = self.content[block]['.EXEC'] * len(modules)
+            # collection module parameters
+            tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
+            for key in self.content[block]:
+                if key.startswith('.') and key not in DSC_MODP and key[1:] not in modules:
+                    raise FormatError(f'Undefined keyword ``{key}``.')
+                if key.startswith('.') and key[1:] in modules:
+                    tmp[key[1:]]['local'].update(self.content[block][key])
+                elif key == '.EXEC':
+                    for idx, module in enumerate(modules):
+                        tmp[module]['global'][key] = self.content[block][key][idx]
+                else:
+                    for module in modules:
+                        tmp[module]['global'][key] = self.content[block][key]
+            # parse input / output / options
+            for module in tmp:
+                if module in res:
+                    raise FormatError(f'Duplicate module definition {module}')
+                res[module] = dict([('input', dict()), ('output', dict()), ('options', dict())])
+                for item in ['global', 'local']:
+                    for key in tmp[module][item]:
+                        if key.startswith('$'):
+                            res[module]['output'][key[1:]] = tmp[module][item][key]
+                        elif key.startswith('.'):
+                            res[module]['options'][key] = tmp[module][item][key]
+                        else:
+                            res[module]['input'][key] = tmp[module][item][key]
+        res['DSC'] = self.content['DSC']
+        self.content = res
 
     def dump(self):
         res = dict([('Blocks', self.blocks),

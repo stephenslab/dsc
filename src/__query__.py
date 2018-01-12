@@ -16,7 +16,8 @@ def query(args):
     from sos.jupyter.converter import notebook_to_html
     from .query_jupyter import get_database_notebook, get_query_notebook
     from .query_engine import Query_Processor
-    from .utils import dotdict, uniq_list
+    from .utils import uniq_list
+    from .addict import Dict as dotdict
     _AM_ = AnswerMachine()
     if os.path.isfile(args.dsc_output):
         args.dsc_output = os.path.dirname(args.dsc_output)
@@ -65,7 +66,7 @@ def query(args):
             env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(fnb))
     if not args.no_html:
         html = args.output[:-6] + '.html'
-        notebook_to_html(args.output, html, dotdict({"template": "sos-report"}),
+        notebook_to_html(args.output, html, dict({"template": "sos-report"}),
                          ["--Application.log_level='CRITICAL'"])
 
 def main():

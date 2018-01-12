@@ -8,7 +8,8 @@ from collections import OrderedDict
 from multiprocessing import Process, Manager
 import pandas as pd
 from sos.utils import Error
-from .utils import flatten_list, uniq_list, no_duplicates_constructor, dotdict, chunks, n2a
+from .utils import flatten_list, uniq_list, no_duplicates_constructor, chunks, n2a
+from .addict import Dict as dotdict
 
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 

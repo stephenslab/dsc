@@ -8,7 +8,8 @@ import os, sys, re, glob
 import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env, get_traceback
-from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, dotdict, Timer
+from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, Timer
+from .addict import Dict as dotdict
 from . import VERSION
 
 class Silencer:

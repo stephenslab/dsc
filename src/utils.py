@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, copy, re, itertools, collections, time, sympy
+import os, re, itertools, collections, time, sympy
 from ruamel.yaml import YAML
 from difflib import SequenceMatcher
 from io import StringIO
@@ -315,15 +315,6 @@ def extend_dict(dict1, dict2, unique = False):
           if unique:
               dict1[key] = uniq_list(dict1[key])
      return dict1
-
-class dotdict(dict):
-    """dot.notation access to dictionary attributes"""
-    __setattr__ = dict.__setitem__
-    __getattr__ = dict.__getitem__
-    __delattr__ = dict.__delitem__
-
-    def __deepcopy__(self, memo):
-        return dotdict(copy.deepcopy(dict(self)))
 
 def sos_hash_output(values, db_name = '', prefix = None, suffix = None):
      from sos.target import textMD5
