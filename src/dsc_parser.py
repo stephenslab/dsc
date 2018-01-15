@@ -63,6 +63,13 @@ class DSC_Script:
         if self.runtime.output is None:
             # logger.warning("Using default output name ````.".format(dsc_name))
             self.runtime.output = dsc_name
+        try:
+            self.modules = OrderedDict([x, DSC_Module(x, self.content[x], self.runtime.options, script_path)
+                                       for x in self.runtime.sequence_ordering.keys()])
+        except KeyError as e:
+            raise FormatError(f"Module ``{e}`` is not defined!")
+        # FIXME: maybe this should be allowed?
+        self.runtime.check_looped_computation()
 
     def update(self, text, exe):
         block = yaml.load(''.join(text))
@@ -82,6 +89,7 @@ class DSC_Script:
                 keys = list(find_nested_key(v, self.content[block]))
                 for k in keys:
                     set_nested_value(self.content[block], k, gvars[v])
+        # FIXME: have to decide if we need to set global options, or not?
 
     def propagate_derived_block(self):
         '''
@@ -143,7 +151,7 @@ class DSC_Script:
             modules = block.split(',')
             if len(modules) != len(self.content[block]['.EXEC']) and len(self.content[block]['.EXEC']) > 1:
                 raise FormatError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['.EXEC'])}`` executables ``{self.content[block]['.EXEC']}``. " \
-                                  "Please ensure modules and executables match.")
+                                 "Please ensure modules and executables match.")
             if len(modules) > 1 and len(self.content[block]['.EXEC']) == 1:
                 self.content[block]['.EXEC'] = self.content[block]['.EXEC'] * len(modules)
             # collection module specific parameters
@@ -187,59 +195,22 @@ class DSC_Script:
               + f'\n# DSC\n```yaml\n{self.runtime}\n```'
         return res
 
-
-class DSCEntryFormatter:
-    '''
-    Run format transformation to DSC entries
-    '''
-    def __init__(self):
-        pass
-
-    def __call__(self, data, variables):
-        actions = [Str2List(),
-                   ExpandVars(variables),
-                   ExpandActions(),
-                   CastData()]
-        return self.__Transform(data, actions)
-
-    def __Transform(self, cfg, actions):
-        '''Apply actions to items'''
-        for key, value in list(cfg.items()):
-            if isinstance(value, str):
-                value = value.strip().strip(',')
-            if isinstance(value, collections.Mapping):
-                self.__Transform(value, actions)
-            else:
-                if key != '.FILTER':
-                    for a in actions:
-                        value = a(value)
-                # empty list
-                if is_null(value):
-                    del cfg[key]
-                else:
-                    cfg[key] = value
-        return cfg
-
-
 class DSC_Module:
-    def __init__(self, group, name):
-        # block name
-        self.group = group
+    def __init__(self, name, content, global_options = None, script_path = None):
         # module name
         self.name = name
         # system seed
-        self.seed = None
+        self.seed = try_get_value(content, ('input', 'seed'))
         # params: alias, value
-        self.p = dict()
-        # parameter logic:
-        self.l = None
+        self.p = OrderedDict()
+        # parameter filter:
+        self.ft = try_get_value(content, ('meta', 'filter'))
         # return variables (to plugin): alias, value
-        self.rv = dict()
+        self.rv = OrderedDict()
         # return files: alias, ext
-        self.rf = dict()
+        self.rf = OrderedDict()
         # exec
         self.exe = None
-        self.exe_id = 0
         # script plugin object
         self.plugin = None
         # runtime variables
@@ -251,16 +222,23 @@ class DSC_Module:
         self.depends = []
         # check if it runs in shell
         self.shell_run = None
-
-    def set_seed(self, seed):
-        self.seed = seed
+        # Now init these values
+        self.set_options(global_options, try_get_value(content, ('meta', 'conf')))
+        self.set_exec(content['meta']['exec'])
+        self.set_input(try_get_value(content, 'input'), try_get_value(content, ('meta', 'alias')))
+        self.set_output(content['output'])
+        self.apply_input_operator()
+        self.apply_input_filter()
+        self.check_shell()
 
     def set_exec(self, exec_var):
+        # FIXME: need to implement inline eg R()
+        exec_var = tuple(exec_var.split())
         self.exe = ' '.join([locate_file(exec_var[0], self.path)] + list(exec_var[1:]))
         self.plugin = Plugin(os.path.splitext(exec_var[0])[1].lstrip('.'), textMD5(self.exe)[:10])
                         # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
 
-    def check_shell(self, exec_var):
+    def check_shell(self):
         # FIXME: check if the exec is meant to be executed from shell
         # True only if command has $ parameters and they exist in parameter list
         # Also this conflicts with self.rv: self.shell_run == True && len(self.rv) == 0
@@ -269,29 +247,51 @@ class DSC_Module:
             # make it a list in order to readily merge with other self.rf items
             self.rf['DSC_AUTO_OUTPUT_'] = ['rds']
 
-    def set_return(self, common_return, spec_return):
-        return_var = common_return if common_return is not None else spec_return
-        for item in return_var:
-            if item[0] == item[1]:
-                # no alias, so it is possible the return is a file
-                param_return = try_get_value(self.p, item[0])
-                if param_return:
-                    # return value is found in params
-                    for p in param_return:
-                        if not isinstance(p, str):
-                            continue
-                        groups = DSC_FILE_OP.search(p)
-                        if groups:
-                            try:
-                                self.rf[item[0]].append(groups.group(1))
-                            except Exception as e:
-                                self.rf[item[0]] = [groups.group(1)]
-                    # are there remaining values not File()?
-                    if item[0] in self.rf and len(self.rf[item[0]]) < len(param_return):
-                        raise FormatError("Return ``{0}`` in ``{1}`` cannot be a mixture of File() and non-File() varables".\
-                                          format(item[0], repr(param_return)))
-                if item[0] not in self.rf:
-                    self.rv[item[0]] = item[1]
+    def set_output(self, return_var):
+        '''
+        Figure out if output is a variable, file or plugin
+        '''
+        for item in return_var.items():
+            if len(item[1]) > 1:
+                raise FormatError(f"Output ``{item[0]}`` cannot contain multiple elements ``{item[1]}``")
+            item[1] = item[1][0]
+            in_input = try_get_value(self.p, item[1])
+            if in_input:
+                # output is found in input
+                # and input is potentially a list
+                # so have to figure out if a file is involved
+                for p in in_input:
+                    if not isinstance(p, str):
+                        continue
+                    groups = DSC_FILE_OP.search(p)
+                    if groups:
+                        try:
+                            self.rf[item[0]].append(groups.group(1))
+                        except Exception as e:
+                            self.rf[item[0]] = [groups.group(1)]
+                # are there remaining values not file()?
+                if item[0] in self.rf and len(self.rf[item[0]]) < len(in_input):
+                    raise FormatError(f"Return ``{item[0]}`` in ``{in_input}`` cannot be a mixture of file() and module input")
+            if item[0] in self.rf:
+                continue
+            # now decide this new variable is a file or plugin
+            # For plugin
+            groups = DSC_LAN_OP.search(item[1])
+            if groups:
+                # have to set return alias inside plugin
+                if groups.group(1).lower() != str(self.plugin):
+                    raise FormatError(f'Output cannot be created with ``{groups.group(1).upper()}`` for this {self.plugin.upper()}-based routine.')
+                self.rv[item[0]] = groups.group(2)
+                continue
+            # For raw
+            groups = DSC_ASIS_OP.search(item[1])
+            if groups:
+                self.rv[item[0]] = groups.group(2)
+                continue
+            # For file
+            groups = DSC_FILE_OP.search(p)
+            if groups:
+                self.rf[item[0]] = [groups.group(1)]
             else:
                 self.rv[item[0]] = item[1]
 
@@ -309,16 +309,14 @@ class DSC_Module:
         self.path = path2 if path2 is not None else path1
         self.is_extern = extern2 if extern2 is not None else extern1
 
-    def set_params(self, common, spec, alias_common, alias_spec):
-        alias = {}
-        if common is not None:
-            self.p.update(common)
-        if spec is not None:
-            self.p.update(spec)
-        if alias_common is not None:
-            alias.update(dict([(x.strip() for x in item.split('=', 1)) for item in alias_common]))
-        if alias_spec is not None:
-            alias.update(dict([(x.strip() for x in item.split('=', 1)) for item in alias_spec]))
+    def set_input(self, params, alias):
+        if params is not None:
+            self.p.update(params)
+        if alias is not None:
+            # FIXME: have to ensure @ALIAS is a list
+            alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias])
+        else:
+            alias = dict()
         # Swap parameter key with alias when applicable
         for k1, k2 in list(alias.items()):
             if k2 in self.p:
@@ -332,34 +330,30 @@ class DSC_Module:
                 self.plugin.set_container(k1, groups.group(2), self.p)
                 del alias[k1]
         if len(alias):
-            raise FormatError('Invalid .ALIAS for computational routine ``{}``:\n``{}``'.\
-                              format(self.name, dict2str(alias)))
+            raise FormatError(f'Invalid @ALIAS for module ``{self.name}``:\n``{dict2str(alias)}``')
 
-    def apply_params_rule(self, common_rule, spec_rule):
-        rule = spec_rule if spec_rule else common_rule
-        if rule is None or len(rule) == 0:
+    def apply_input_filter(self):
+        if self.ft is None or len(self.ft) == 0:
             return
-        raw_rule = rule
-        rule = ' and '.join(['({})'.format(x.replace('.', '_')) for x in rule.split(',')])
-        statement = ';'.join(["{} = {}".format(k, str(self.p[k])) for k in self.p])
-        value_str = ','.join(['_{}'.format(x) for x in self.p.keys()])
-        loop_str = ' '.join(["for _{0} in {0}".format(x) for x in self.p])
-        statement += ';print(len([({}) {} if {}]))'.format(value_str, loop_str, rule)
+        raw_rule = self.ft
+        self.ft = ' and '.join([f"({x.replace('.', '_')})". for x in self.ft.split(',')])
+        statement = ';'.join([f"{k} = {str(self.p[k])}" for k in self.p])
+        value_str = ','.join([f'_{x}' for x in self.p.keys()])
+        loop_str = ' '.join([f"for _{x} in {x}" for x in self.p])
+        statement += f';print(len([({value_str}) {loop_str} if {self.ft}]))'
         try:
-            ret = subprocess.check_output("python -c '''{}'''".\
-                                          format(str(statement)), shell = True).decode('utf-8').strip()
+            ret = subprocess.check_output(f"python -c '''{str(statement)}'''", shell = True).decode('utf-8').strip()
         except:
-            raise FormatError("Invalid @FILTER: ``{}``!".format(raw_rule))
+            raise FormatError(f"Invalid @FILTER: ``{raw_rule}``!")
         if int(ret) == 0:
-            raise FormatError("No parameter combination satisfies @FILTER ``{}``!".format(raw_rule))
-        self.l = rule
+            raise FormatError(f"No parameter combination satisfies @FILTER ``{raw_rule}``!"
 
-    def apply_params_operator(self):
+    def apply_input_operator(self):
         '''
         Do the following:
         * convert string to raw string, leave alone `$` variables
-        * strip off Asis() operator
-        * Handle File() parameter based on context
+        * strip off raw() operator
+        * Handle file() parameter based on context
         '''
         for k, p in list(self.p.items()):
             values = []
@@ -373,7 +367,7 @@ class DSC_Module:
                         if k in self.rf:
                             # This file is to be saved as output
                             # FIXME: have to figure out what is the index of the output
-                            self.plugin.add_input(k, '${_output!r}')
+                            self.plugin.add_input(k, '${_output:r}')
                             continue
                         else:
                             # This file is a temp file
@@ -398,177 +392,14 @@ class DSC_Module:
         return strip_dict(dict([ ('name', self.name), ('group', self.group),
                                         ('dependencies', self.depends), ('command', self.exe),
                                         ('command_index', self.exe_id),('use replicates', self.seed),
-                                        ('parameters', self.p), ('parameter rule', self.l),
-                                        ('return variables', self.rv),
-                                        ('return files', self.rf),  ('shell status', self.shell_run),
+                                        ('input', self.p), ('input filter', self.ft),
+                                        ('output variables', self.rv),
+                                        ('output files', self.rf),  ('shell status', self.shell_run),
                                         ('plugin status', self.plugin.dump()),
                                         ('runtime options', dict([('exec path', self.path),
-                                                                         ('workdir', self.workdir),
-                                                                         ('library path', self.libpath)]))]),
-                          mapping = dict, skip_keys = ['parameters'])
-
-class DSC_Block:
-    def __init__(self, name, content, global_options = None, script_path = None):
-        '''Populate modules in the block and keep track of block rules
-        Members are:
-          - self.modules, self.rule, self.name
-        '''
-        self.name = name
-        # block executable rules
-        self.rule = self.get_exec_rule(content['.FILTER']) if '.FILTER' in content else None
-        exes = [tuple(x.split()) if isinstance(x, str) else x for x in content['exec']]
-        if '.ALIAS' in content:
-            for item in content['.ALIAS']:
-                if '.' in item:
-                    raise FormatError("Dot ``.`` in alias ``{}`` is not allowed. "\
-                                      "Please remove or replace it with underscore ``_``".format(item))
-            exe_alias = content['.ALIAS']
-        else:
-            exe_alias = ['_'.join([os.path.splitext(os.path.basename(x))[0] if i == 0 else x \
-                                   for i, x in enumerate(y) if not x.startswith('$')]) for y in exes]
-        if len(exes) == 1 and len(exe_alias) > 1:
-            exes = exes * len(exe_alias)
-        # check if any exec out of index
-        if (self.rule is None and len(exes) != len(exe_alias)) or \
-           (self.rule is not None and len(exe_alias) != len(self.rule)):
-            raise FormatError('Alias ``{}`` (length {}) does not match exec (length {}), in block ``{}``!'.\
-                              format(repr(exe_alias), len(exe_alias), len(exes), name))
-        # block runtime options
-        options = self.get_exec_options(global_options or {},
-                                        content['.CONF'] if '.CONF' in content else None, script_path)
-        # get return values
-        return_vars = self.get_return_vars(content['return'], len(exe_alias))
-        # get parameters
-        params, params_alias, params_rules = self.get_params(content['params'] if 'params' in content else None)
-        # check if exec param index is out of range
-        if len(params) and max(params.keys()) > len(exes):
-            raise FormatError('``exec[{}]`` out of range, in ``params`` section of ``{}`` with {} executable routines.'.\
-                              format(max(params.keys()), name, len(exes)))
-        # initialize modules
-        self.modules = [DSC_Module(name, x) for x in exe_alias]
-        for i in range(len(self.modules)):
-            self.modules[i].exe_id = i + 1
-            self.modules[i].set_options(try_get_value(options, 0), try_get_value(options, i + 1))
-            self.modules[i].set_exec(exes[i])
-            if 'seed' in content:
-                self.modules[i].set_seed(content['seed'])
-            self.modules[i].set_params(try_get_value(params, 0), try_get_value(params, i + 1),
-                                     try_get_value(params_alias, 0), try_get_value(params_alias, i + 1))
-            self.modules[i].set_return(try_get_value(return_vars, 0), try_get_value(return_vars, i + 1))
-            self.modules[i].apply_params_operator()
-            self.modules[i].apply_params_rule(try_get_value(params_rules, 0), try_get_value(params_rules, i + 1))
-            self.modules[i].check_shell(exes[i])
-
-    def get_exec_options(self, global_options, local_options, script_path):
-        options = copy.deepcopy(global_options)
-        if local_options:
-            options.update(local_options)
-        if len(options) == 0:
-            return {}
-        # options = self.swap_abs_paths(options, script_path)
-        res = dict()
-        res[0] = dict()
-        for key, value in options.items():
-            try:
-                # get indexed slice
-                name, idxes = get_slice(key)
-                if name != 'exec':
-                    raise FormatError('Unknown indexed option entry: {}.'.format(key))
-                for idx in idxes:
-                    idx += 1
-                    if idx == 0:
-                        raise FormatError('``[{}]`` Invalid entry: ``exec[0]``. Index must start from 1.'.\
-                                          format(self.name))
-                    if idx in res:
-                        res[idx].update(flatten_dict(value, mapping = dict))
-                    else:
-                        res[idx] = flatten_dict(value, mapping = dict)
-            except AttributeError:
-                res[0][key] = flatten_dict(value, mapping = dict)
-        return res
-
-    @staticmethod
-    def get_exec_rule(rule):
-        return rule
-
-    @staticmethod
-    def get_return_vars(return_vars, num_exec):
-        res = dict()
-        if isinstance(return_vars, collections.Mapping):
-            # exec specific return alias involved
-            for i in range(num_exec):
-                try:
-                    res[i + 1] = return_vars[f'exec[{i+1}]']
-                except KeyError:
-                    pass
-        else:
-            res[0] = return_vars
-        for k in res:
-            for kk, item in enumerate(res[k]):
-                if '=' in item:
-                    # return alias exists
-                    res[k][kk] = tuple(x.strip() for x in item.split('='))
-                else:
-                    res[k][kk] = (item.strip(), item.strip())
-        return res
-
-    def get_params(self, params):
-        if params is None:
-            return {}, {}, {}
-        res = dict()
-        res[0] = dict()
-        res_rules = dict()
-        res_alias = dict()
-        for key, value in params.items():
-            try:
-                # get indexed slice
-                name, idxes = get_slice(key)
-                if name != 'exec':
-                    raise FormatError('Unknown indexed parameter entry: {}.'.format(key))
-                for idx in idxes:
-                    idx += 1
-                    if idx == 0:
-                        raise FormatError('``[{}]`` Invalid entry: ``exec[0]``. Index must start from 1.'.\
-                                          format(self.name))
-                    if idx in res:
-                        res[idx].update(flatten_dict(value, mapping = dict))
-                    else:
-                        res[idx] = flatten_dict(value, mapping = dict)
-            except AttributeError:
-                res[0][key] = flatten_dict(value, mapping = dict)
-            # Parse parameter rules and alias
-            for key in res:
-                res[key] = flatten_dict(res[key])
-                if '.FILTER' in res[key]:
-                    res_rules[key] = res[key]['.FILTER']
-                    del res[key]['.FILTER']
-                if '.ALIAS' in res[key]:
-                    res_alias[key] = res[key]['.ALIAS']
-                    del res[key]['.ALIAS']
-        return res, res_alias, res_rules
-
-    def extract_modules(self, idxes):
-        self.modules = [y for x, y in enumerate(self.modules) if x in idxes]
-
-    @staticmethod
-    def swap_abs_paths(data, master_path):
-        if master_path is None:
-            return data
-        cwd = os.getcwd() + '/'
-        for k in ['work_dir', 'lib_path', 'exec_path']:
-            if data[k] is None:
-                continue
-            for kk, item in enumerate(data[k]):
-                item = os.path.normpath(os.path.abspath(os.path.expanduser(item)))
-                relative_path = item.replace(cwd, '')
-                if relative_path != item:
-                    data[k][kk] = os.path.join(master_path, relative_path)
-        return data
-
-    def __str__(self):
-        modules = {module.name: module.dump() for module in self.modules}
-        return dict2str(strip_dict(dict([('computational routines', modules), ('rule', self.rule)]),
-                                   mapping = dict))
+                                                                  ('workdir', self.workdir),
+                                                                  ('library path', self.libpath)]))]),
+                          mapping = dict, skip_keys = ['input'])
 
 
 class DSC_Section:
@@ -640,55 +471,64 @@ class DSC_Section:
             value = re.sub(r"\b%s\b" % lhs, rhs, value)
         return value
 
-    def expand_sequences(self, blocks):
-        '''expand DSC sequences by index'''
-        default = {x: [i for i in range(len(blocks[x].steps))]
-                   for x in self.sequence_ordering.keys()} if len(blocks) else {}
-        res = []
-        for value in self.__index_sequences(self.sequence):
-            seq = tuple([x[0] for x in value])
-            idxes = [x[1] if x[1] is not None else default[x[0]] for x in value]
-            for x, y in zip(seq, idxes):
-                self.sequence_ordering[x].extend(y)
-            res.append([seq, cartesian_list(*idxes)])
-        for x in self.sequence_ordering.keys():
-            self.sequence_ordering[x] = sorted(list(set([i for i in self.sequence_ordering[x] if i >= 0])))
-        self.sequence = res
-
     def check_looped_computation(self):
-        # check duplicate block names
+        # check duplicate modules in the same sequence
         for seq, idx in self.sequence:
-            # check duplicated block names
             if len(set(seq)) != len(seq):
                 raise ValueError(f'Duplicated module found in DSC sequence ``{seq}``. '\
                                  'Iteratively executing modules is not yet supported.')
 
-    @staticmethod
-    def __index_sequences(input_sequences):
-        '''Strip slicing symbol out of sequences and add them as index'''
-        res = []
-        for seq in input_sequences:
-            res.append(tuple([get_slice(x, mismatch_quit = False) for x in seq]))
-        return res
-
-
-    def consolidate_sequences(self):
-        '''
-        For trivial multiple sequences, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
-        This cannot be done with symbolic math logic so we have to do it here
-        '''
-        sequences = OrderedDict()
-        for sequence, idx in self.sequence:
-            if sequence not in sequences:
-                sequences[sequence] = idx
-            else:
-                for item in idx:
-                    if item not in sequences[sequence]:
-                        sequences[sequence].append(item)
-        self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
+    # def consolidate_sequences(self):
+    #     '''
+    #     FIXME: not sure if still needed
+    #     For trivial multiple sequences, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
+    #     This cannot be done with symbolic math logic so we have to do it here
+    #     '''
+    #     sequences = OrderedDict()
+    #     for sequence, idx in self.sequence:
+    #         if sequence not in sequences:
+    #             sequences[sequence] = idx
+    #         else:
+    #             for item in idx:
+    #                 if item not in sequences[sequence]:
+    #                     sequences[sequence].append(item)
+    #     self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
 
     def __str__(self):
         return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence), (
                                     'sequence ordering', list(self.sequence_ordering.keys())), (
                                         'R libraries', self.rlib), ( 'Python modules', self.pymodule)]),
                                    mapping = OrderedDict))
+
+
+class DSCEntryFormatter:
+    '''
+    Run format transformation to DSC entries
+    '''
+    def __init__(self):
+        pass
+
+    def __call__(self, data, variables):
+        actions = [Str2List(),
+                   ExpandVars(variables),
+                   ExpandActions(),
+                   CastData()]
+        return self.__Transform(data, actions)
+
+    def __Transform(self, cfg, actions):
+        '''Apply actions to items'''
+        for key, value in list(cfg.items()):
+            if isinstance(value, str):
+                value = value.strip().strip(',')
+            if isinstance(value, collections.Mapping):
+                self.__Transform(value, actions)
+            else:
+                if key != '.FILTER':
+                    for a in actions:
+                        value = a(value)
+                # empty list
+                if is_null(value):
+                    del cfg[key]
+                else:
+                    cfg[key] = value
+        return cfg
