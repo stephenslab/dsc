@@ -116,8 +116,7 @@ def execute(args):
     if args.target:
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.target).split())))
-    from .dsc_parser import DSC_Script
-    from .dsc_analyzer import DSC_Analyzer
+    from .dsc_parser import DSC_Script, DSC_Analyzer
     from .dsc_translator import DSC_Translator
     from .dsc_database import ResultDB
     script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, seeds = args.seeds,
