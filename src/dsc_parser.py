@@ -10,12 +10,9 @@ Parser for DSC script and annotation files
 import os, re, itertools, copy, collections, subprocess
 from collections import OrderedDict
 from ruamel.yaml import YAML
-from functools import reduce
-from sos.utils import logger
 from sos.target import textMD5
-from .utils import FormatError, is_null, strip_dict, flatten_list, find_nested_key, \
-     cartesian_list, get_slice, expand_slice, flatten_dict, merge_lists, \
-     try_get_value, dict2str, update_nested_dict, locate_file, uniq_list, filter_sublist
+from .utils import FormatError, is_null, strip_dict, flatten_list, find_nested_key, merge_lists, \
+     try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist
 from .syntax import *
 from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
 from .plugin import Plugin
@@ -61,10 +58,9 @@ class DSC_Script:
         self.extract_modules()
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, extern)
         if self.runtime.output is None:
-            # logger.warning("Using default output name ````.".format(dsc_name))
             self.runtime.output = dsc_name
         try:
-            self.modules = OrderedDict([x, DSC_Module(x, self.content[x], self.runtime.options, script_path)
+            self.modules = OrderedDict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path))
                                        for x in self.runtime.sequence_ordering.keys()])
         except KeyError as e:
             raise FormatError(f"Module ``{e}`` is not defined!")
@@ -336,7 +332,7 @@ class DSC_Module:
         if self.ft is None or len(self.ft) == 0:
             return
         raw_rule = self.ft
-        self.ft = ' and '.join([f"({x.replace('.', '_')})". for x in self.ft.split(',')])
+        self.ft = ' and '.join([f"({x.replace('.', '_')})" for x in self.ft.split(',')])
         statement = ';'.join([f"{k} = {str(self.p[k])}" for k in self.p])
         value_str = ','.join([f'_{x}' for x in self.p.keys()])
         loop_str = ' '.join([f"for _{x} in {x}" for x in self.p])
@@ -346,7 +342,7 @@ class DSC_Module:
         except:
             raise FormatError(f"Invalid @FILTER: ``{raw_rule}``!")
         if int(ret) == 0:
-            raise FormatError(f"No parameter combination satisfies @FILTER ``{raw_rule}``!"
+            raise FormatError(f"No parameter combination satisfies @FILTER ``{raw_rule}``!")
 
     def apply_input_operator(self):
         '''
@@ -534,134 +530,116 @@ class DSCEntryFormatter:
         return cfg
 
 
-
 class DSC_Analyzer:
     '''
     Analyzes DSC contents to determine dependencies and what exactly should be executed.
     It puts together DSC modules to sequences and continue to propagate computational routines for execution
-
-    * Handle step dependencies
-    * Merge steps: via block rule
-    * Merge blocks: via block option (NOT IMPLEMENTED)
     The output will be analyzed DSC ready to be translated to pipelines for execution
     '''
     def __init__(self, script_data):
         '''
         script_data comes from DSC_Script, having members:
-        * blocks
+        * modules
         * runtime (runtime.sequence is relevant)
         * output (output data prefix)
-        Because different combinations of blocks will lead to different
+        Because different combinations of modules will lead to different
         I/O settings particularly with plugin status, here for each
-        sequence, fresh deep copies of blocks will be made from input blocks
+        sequence, fresh deep copies of modules will be made from input modules
 
-        Every step in a workflow is a plugin, whether it be Python, R or Shell.
-        When output contain variables the default RDS format and method to save variables are
+        Every module in a pipeline is a plugin, whether it be Python, R or Shell.
+        When output contain variables the default output file format and method to save variables are
         applied.
 
-        This class provides a member called `workflow` which contains multiple workflows
+        This class provides a member called `pipelines` which contains multiple pipelines
         '''
-        self.workflows = []
+        self.pipelines = []
         for sequence in script_data.runtime.sequence:
-            self.add_workflow(sequence[0], script_data.blocks, list(script_data.runtime.sequence_ordering.keys()))
+            self.add_pipeline(sequence[0], script_data.modules, list(script_data.runtime.sequence_ordering.keys()))
 
-    def add_workflow(self, sequence, data, ordering):
-        workflow = OrderedDict()
+    def add_pipeline(self, sequence, data, ordering):
+        pipeline = OrderedDict()
         for name in sequence:
-            block = copy.deepcopy(data[name])
+            module = copy.deepcopy(data[name])
             file_dependencies = []
-            for idx, step in enumerate(block.steps):
-                for k, p in list(step.p.items()):
-                    for p1_idx, p1 in enumerate(p):
-                        if isinstance(p1, str):
-                            if p1.startswith('$'):
-                                id_dependent = self.find_dependent(p1[1:], list(workflow.values()),
-                                                                   block.name)
-                                if id_dependent[1] not in block.steps[idx].depends:
-                                    block.steps[idx].depends.append(id_dependent[1])
-                                if id_dependent[1][2] == 'var':
-                                    block.steps[idx].plugin.add_input(k, p1)
-                                else:
-                                    # FIXME: should figure out the index of previous output
-                                    file_dependencies.append((id_dependent[0], k))
-                                # FIXME: should not delete, but rather transform it, when this
-                                # can be properly bypassed on scripts
-                                # block.steps[idx].p[k][p1_idx] = repr(p1)
-                                block.steps[idx].p[k].pop(p1_idx)
-                    if len(block.steps[idx].p[k]) == 0:
-                        del block.steps[idx].p[k]
-                block.steps[idx].depends.sort(key = lambda x: ordering.index(x[0]))
-                if len(file_dependencies):
-                    file_dependencies.sort()
-                    block.steps[idx].plugin.add_input([x[1] for x in file_dependencies], '${_input!r}')
-            workflow[block.name] = block
-        self.check_duplicate_step(workflow)
-        self.workflows.append(workflow)
+            for k, p in list(module.p.items()):
+                for p1_idx, p1 in enumerate(p):
+                    if isinstance(p1, str):
+                        if p1.startswith('$'):
+                            id_dependent = self.find_dependent(p1[1:], list(pipeline.values()),
+                                                               module.name)
+                            if id_dependent[1] not in module.depends:
+                                module.depends.append(id_dependent[1])
+                            if id_dependent[1][2] == 'var':
+                                module.plugin.add_input(k, p1)
+                            else:
+                                # FIXME: should figure out the index of previous output
+                                file_dependencies.append((id_dependent[0], k))
+                            # FIXME: should not delete, but rather transform it, when this
+                            # can be properly bypassed on scripts
+                            # module.p[k][p1_idx] = repr(p1)
+                            module.p[k].pop(p1_idx)
+                if len(module.p[k]) == 0:
+                    del module.p[k]
+            module.depends.sort(key = lambda x: ordering.index(x[0]))
+            if len(file_dependencies):
+                file_dependencies.sort()
+                module.plugin.add_input([x[1] for x in file_dependencies], '${_input:r}')
+            pipeline[module.name] = module
+        # FIXME: ensure this does not happen
+        # Otherwise will have to bring this back
+        # self.check_duplicate_step(pipeline)
+        self.pipelines.append(pipeline)
 
     @staticmethod
-    def find_dependent(variable, workflow, block_name):
-        curr_idx = len(workflow)
+    def find_dependent(variable, pipeline, module_name):
+        curr_idx = len(pipeline)
         if curr_idx == 0:
-            raise FormatError('Symbol ``$`` is not allowed in the first step of a DSC sequence.')
+            raise FormatError('Pipeline variable ``$`` is not allowed in the input of the first module of a DSC sequence.')
         curr_idx = curr_idx - 1
         dependent = None
         while curr_idx >= 0:
             # Look up backwards for the corresponding block, looking at the output of the first step
-            if variable in [x for x in workflow[curr_idx].steps[0].rv]:
-                dependent = (workflow[curr_idx].name, variable, 'var')
-            if variable in [x for x in workflow[curr_idx].steps[0].rf]:
+            if variable in [x for x in pipeline[curr_idx].rv]:
+                dependent = (pipeline[curr_idx].name, variable, 'var')
+            if variable in [x for x in pipeline[curr_idx].rf]:
                 if dependent is not None:
-                    raise ValueError('[BUG]: ``{}`` cannot be both a variable and a file!'.format(variable))
-                dependent = (workflow[curr_idx].name, variable, 'file')
+                    raise ValueError(f'[BUG]: ``{variable}`` cannot be both a variable and a file!')
+                dependent = (pipeline[curr_idx].name, variable, 'file')
             if dependent is not None:
                 break
             else:
                 curr_idx = curr_idx - 1
         if dependent is None:
-            raise FormatError('Cannot find return variable for ``${}`` in any of its previous steps.'\
-                              ' This variable is quested by block ``{}``.'.format(variable, block_name))
+            raise FormatError(f'Cannot find output variable for ``${variable}`` in any of its upstream modules.'\
+                              f' This variable is required by module ``{module_name}``.')
         return curr_idx, dependent
 
-    @staticmethod
-    def check_duplicate_step(workflow):
-        names = {}
-        for block in workflow:
-            for step in workflow[block].steps:
-                if step.name in names and len([x[0] for x in step.depends if x[0] in names[step.name]]):
-                    raise ValueError("Duplicated executable ``{}`` in block ``{}`` (already seen in {}). "\
-                                     "\nPlease use ``@ALIAS`` to rename one of these executables".\
-                                     format(step.name, block,
-                                            "block ``{}``".format(names[step.name]) if names[step.name] != block
-                                                   else "the same block"))
-                else:
-                    names[step.name] = block
-
-
-    # def consolidate_workflows(self):
+    # def consolidate_pipelines(self):
     #     '''
-    #     For trivial multiple workflows, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
+          # FIXME: is there a need for it now?
+    #     For trivial multiple pipelines, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
     #     This cannot be done with symbolic math logic so we have to do it here
 
-    #     First we compare each workflow (a list of OrderedDict) and get rid of duplicate
+    #     First we compare each pipeline (a list of OrderedDict) and get rid of duplicate
     #     Second ... is there a second?
     #     '''
     #     import hashlib
     #     import pickle
     #     def get_md5(data):
     #         return hashlib.md5(pickle.dumps(data)).hexdigest()
-    #     workflows = []
+    #     pipelines = []
     #     ids = []
-    #     for workflow in self.workflows:
-    #         md5 = get_md5(workflow)
+    #     for pipeline in self.pipelines:
+    #         md5 = get_md5(pipeline)
     #         if md5 not in ids:
     #             ids.append(md5)
-    #             workflows.append(workflow)
-    #     self.workflows = workflows
+    #             pipelines.append(pipeline)
+    #     self.pipelines = pipelines
 
 
     def __str__(self):
         res = ''
-        for idx, blocks in enumerate(self.workflows):
-            res += '# Workflow {}\n'.format(idx + 1)
-            res += '## Blocks\n' + '\n'.join(['### {}\n```yaml\n{}\n```\n'.format(x, y) for x, y in blocks.items()])
+        for idx, modules in enumerate(self.pipelines):
+            res += f'# Pipeline {idx + 1}\n'
+            res += f'## Modules\n' + '\n'.join(['### {x}\n```yaml\n{y}\n```\n' for x, y in modules.items()])
         return res

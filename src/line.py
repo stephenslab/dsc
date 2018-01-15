@@ -6,7 +6,7 @@ __license__ = "MIT"
 
 '''Handle one line in a DSC file, a customized YAML parser'''
 
-import re, subprocess, collections, warnings
+import re, subprocess, collections
 from .utils import is_null, str2num, cartesian_list, \
     pairwise_list, get_slice, FormatError, do_parentheses_match
 
