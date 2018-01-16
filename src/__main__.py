@@ -116,17 +116,18 @@ def execute(args):
     if args.target:
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.target).split())))
-    from .dsc_parser import DSC_Script, DSC_Analyzer
+    from .dsc_parser import DSC_Script, DSC_Pipeline
     from .dsc_translator import DSC_Translator
     from .dsc_database import ResultDB
     script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, seeds = args.seeds,
                         extern = args.host)
     db = os.path.basename(script.runtime.output)
     env_init(args, script.runtime.output)
-    workflow = DSC_Analyzer(script)
+    pipeline_dsc = DSC_Pipeline(script).pipelines
     if args.debug:
-        workflow2html('.sos/.dsc/{}.workflow.html'.format(db), workflow.workflows, script.dump().values())
-    pipeline = DSC_Translator(workflow.workflows, script.runtime, args.__construct__ == "no",
+        workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_dsc, list(script.dump().values()))
+        return
+    pipeline = DSC_Translator(pipeline_dsc, script.runtime, args.__construct__ == "no",
                               args.__max_jobs__, args.try_catch)
     # Apply clean-up
     if args.to_remove:
@@ -144,7 +145,7 @@ def execute(args):
         ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = open(args.dsc_file).read())
         return
     # Archive scripts
-    from collections import OrderedDict
+    from .utils import OrderedDict
     lib_content = [("From <code>{}</code>".format(k), sorted(glob.glob("{}/*.*".format(k))))
                    for k in script.runtime.options['lib_path'] or []]
     exec_content = [(k, [step.exe for step in script.blocks[k].steps])

@@ -4,11 +4,11 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, glob, pickle
-from collections import OrderedDict
 import pandas as pd
 from .dsc_database import ResultDBError
 from .utils import load_rds, uniq_list, \
-     cartesian_list, filter_sublist, is_null
+     cartesian_list, filter_sublist, is_null, \
+     OrderedDict
 from .line import OperationParser
 
 SQL_KEYWORDS = set([

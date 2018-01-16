@@ -352,3 +352,36 @@ class OperationParser(YLine):
         cache_id = 'X{}'.format(self.cache_count)
         self.cache[cache_id] = cache
         return cache_id
+
+
+class EntryFormatter:
+    '''
+    Run format transformation to DSC entries
+    '''
+    def __init__(self):
+        pass
+
+    def __call__(self, data, variables):
+        actions = [Str2List(),
+                   ExpandVars(variables),
+                   ExpandActions(),
+                   CastData()]
+        return self.__Transform(data, actions)
+
+    def __Transform(self, cfg, actions):
+        '''Apply actions to items'''
+        for key, value in list(cfg.items()):
+            if isinstance(value, str):
+                value = value.strip().strip(',')
+            if isinstance(value, collections.Mapping):
+                self.__Transform(value, actions)
+            else:
+                if key != '.FILTER':
+                    for a in actions:
+                        value = a(value)
+                # empty list
+                if is_null(value):
+                    del cfg[key]
+                else:
+                    cfg[key] = value
+        return cfg

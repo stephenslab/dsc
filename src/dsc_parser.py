@@ -8,16 +8,14 @@ Parser for DSC script and annotation files
 '''
 
 import os, re, itertools, copy, collections, subprocess
-from collections import OrderedDict
-from ruamel.yaml import YAML
 from sos.target import textMD5
 from .utils import FormatError, is_null, strip_dict, flatten_list, find_nested_key, merge_lists, \
-     try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist
+     try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
+     yaml
 from .syntax import *
-from .line import OperationParser, Str2List, ExpandVars, ExpandActions, CastData
+from .line import OperationParser, EntryFormatter
 from .plugin import Plugin
-yaml = YAML()
-__all__ = ['DSC_Script', 'DSC_Analyzer']
+__all__ = ['DSC_Script', 'DSC_Pipeline']
 
 
 class DSC_Script:
@@ -54,16 +52,16 @@ class DSC_Script:
         self.propagate_derived_block()
         global_vars = try_get_value(self.content, ('DSC', 'global'))
         self.set_global_vars(global_vars)
-        self.content = DSCEntryFormatter()(self.content, global_vars)
+        self.content = EntryFormatter()(self.content, global_vars)
         self.extract_modules()
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, extern)
         if self.runtime.output is None:
             self.runtime.output = dsc_name
-        try:
-            self.modules = OrderedDict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path))
-                                       for x in self.runtime.sequence_ordering.keys()])
-        except KeyError as e:
-            raise FormatError(f"Module ``{e}`` is not defined!")
+        for k in self.runtime.sequence_ordering:
+            if k not in self.content:
+                raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
+        self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path))
+                             for x in self.runtime.sequence_ordering.keys()])
         # FIXME: maybe this should be allowed?
         self.runtime.check_looped_computation()
 
@@ -181,13 +179,13 @@ class DSC_Script:
         self.content = res
 
     def dump(self):
-        res = dict([('Blocks', self.blocks),
+        res = dict([('Modules', self.modules),
                     ('DSC', dict([("Sequence", self.runtime.sequence),
                                   ("Ordering", [(x, y) for x, y in self.runtime.sequence_ordering.items()])]))])
         return res
 
     def __str__(self):
-        res = '# Blocks\n' + '\n'.join([f'## {x}\n```yaml\n{y}\n```' for x, y in self.blocks.items()]) \
+        res = '# Modules\n' + '\n'.join([f'## {x}\n```yaml\n{y.dump()}\n```' for x, y in self.modules.items()]) \
               + f'\n# DSC\n```yaml\n{self.runtime}\n```'
         return res
 
@@ -247,11 +245,11 @@ class DSC_Module:
         '''
         Figure out if output is a variable, file or plugin
         '''
-        for item in return_var.items():
-            if len(item[1]) > 1:
-                raise FormatError(f"Output ``{item[0]}`` cannot contain multiple elements ``{item[1]}``")
-            item[1] = item[1][0]
-            in_input = try_get_value(self.p, item[1])
+        for key, value in return_var.items():
+            if len(value) > 1:
+                raise FormatError(f"Output ``{key}`` cannot contain multiple elements ``{value}``")
+            value = value[0]
+            in_input = try_get_value(self.p, value)
             if in_input:
                 # output is found in input
                 # and input is potentially a list
@@ -262,36 +260,38 @@ class DSC_Module:
                     groups = DSC_FILE_OP.search(p)
                     if groups:
                         try:
-                            self.rf[item[0]].append(groups.group(1))
+                            self.rf[key].append(groups.group(1))
                         except Exception as e:
-                            self.rf[item[0]] = [groups.group(1)]
+                            self.rf[key] = [groups.group(1)]
                 # are there remaining values not file()?
-                if item[0] in self.rf and len(self.rf[item[0]]) < len(in_input):
-                    raise FormatError(f"Return ``{item[0]}`` in ``{in_input}`` cannot be a mixture of file() and module input")
-            if item[0] in self.rf:
+                if key in self.rf and len(self.rf[key]) < len(in_input):
+                    raise FormatError(f"Return ``{key}`` in ``{in_input}`` cannot be a mixture of file() and module input")
+            if key in self.rf:
                 continue
             # now decide this new variable is a file or plugin
             # For plugin
-            groups = DSC_LAN_OP.search(item[1])
+            groups = DSC_LAN_OP.search(value)
             if groups:
                 # have to set return alias inside plugin
                 if groups.group(1).lower() != str(self.plugin):
                     raise FormatError(f'Output cannot be created with ``{groups.group(1).upper()}`` for this {self.plugin.upper()}-based routine.')
-                self.rv[item[0]] = groups.group(2)
+                self.rv[key] = groups.group(2)
                 continue
             # For raw
-            groups = DSC_ASIS_OP.search(item[1])
+            groups = DSC_ASIS_OP.search(value)
             if groups:
-                self.rv[item[0]] = groups.group(2)
+                self.rv[key] = groups.group(1)
                 continue
             # For file
-            groups = DSC_FILE_OP.search(p)
+            groups = DSC_FILE_OP.search(value)
             if groups:
-                self.rf[item[0]] = [groups.group(1)]
+                self.rf[key] = [groups.group(1)]
             else:
-                self.rv[item[0]] = item[1]
+                self.rv[key] = value
 
     def set_options(self, common_option, spec_option):
+        # FIXME: have to ensure @CONF is a list
+        spec_option = dict([(x.strip() for x in item.split('=', 1)) for item in spec_option]) if spec_option is not None else dict()
         workdir1 = try_get_value(common_option, 'work_dir')
         workdir2 = try_get_value(spec_option, 'work_dir')
         libpath1 = try_get_value(common_option, 'lib_path')
@@ -308,11 +308,8 @@ class DSC_Module:
     def set_input(self, params, alias):
         if params is not None:
             self.p.update(params)
-        if alias is not None:
-            # FIXME: have to ensure @ALIAS is a list
-            alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias])
-        else:
-            alias = dict()
+        # FIXME: have to ensure @ALIAS is a list
+        alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
         # Swap parameter key with alias when applicable
         for k1, k2 in list(alias.items()):
             if k2 in self.p:
@@ -385,16 +382,16 @@ class DSC_Module:
         return dict2str(self.dump())
 
     def dump(self):
-        return strip_dict(dict([ ('name', self.name), ('group', self.group),
-                                        ('dependencies', self.depends), ('command', self.exe),
-                                        ('command_index', self.exe_id),('use replicates', self.seed),
-                                        ('input', self.p), ('input filter', self.ft),
-                                        ('output variables', self.rv),
-                                        ('output files', self.rf),  ('shell status', self.shell_run),
-                                        ('plugin status', self.plugin.dump()),
-                                        ('runtime options', dict([('exec path', self.path),
-                                                                  ('workdir', self.workdir),
-                                                                  ('library path', self.libpath)]))]),
+        return strip_dict(dict([('name', self.name),
+                                ('dependencies', self.depends), ('command', self.exe),
+                                ('use_replicates', self.seed),
+                                ('input', self.p), ('input_filter', self.ft),
+                                ('output_variables', self.rv),
+                                ('output_files', self.rf),  ('shell_status', self.shell_run),
+                                ('plugin_status', self.plugin.dump()),
+                                ('runtime_options', dict([('exec_path', self.path),
+                                                          ('workdir', self.workdir),
+                                                          ('library_path', self.libpath)]))]),
                           mapping = dict, skip_keys = ['input'])
 
 
@@ -469,7 +466,7 @@ class DSC_Section:
 
     def check_looped_computation(self):
         # check duplicate modules in the same sequence
-        for seq, idx in self.sequence:
+        for seq in self.sequence:
             if len(set(seq)) != len(seq):
                 raise ValueError(f'Duplicated module found in DSC sequence ``{seq}``. '\
                                  'Iteratively executing modules is not yet supported.')
@@ -491,46 +488,13 @@ class DSC_Section:
     #     self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
 
     def __str__(self):
-        return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence), (
-                                    'sequence ordering', list(self.sequence_ordering.keys())), (
-                                        'R libraries', self.rlib), ( 'Python modules', self.pymodule)]),
+        return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence),
+                                                ('sequence ordering', list(self.sequence_ordering.keys())),
+                                                ('R libraries', self.rlib), ( 'Python modules', self.pymodule)]),
                                    mapping = OrderedDict))
 
 
-class DSCEntryFormatter:
-    '''
-    Run format transformation to DSC entries
-    '''
-    def __init__(self):
-        pass
-
-    def __call__(self, data, variables):
-        actions = [Str2List(),
-                   ExpandVars(variables),
-                   ExpandActions(),
-                   CastData()]
-        return self.__Transform(data, actions)
-
-    def __Transform(self, cfg, actions):
-        '''Apply actions to items'''
-        for key, value in list(cfg.items()):
-            if isinstance(value, str):
-                value = value.strip().strip(',')
-            if isinstance(value, collections.Mapping):
-                self.__Transform(value, actions)
-            else:
-                if key != '.FILTER':
-                    for a in actions:
-                        value = a(value)
-                # empty list
-                if is_null(value):
-                    del cfg[key]
-                else:
-                    cfg[key] = value
-        return cfg
-
-
-class DSC_Analyzer:
+class DSC_Pipeline:
     '''
     Analyzes DSC contents to determine dependencies and what exactly should be executed.
     It puts together DSC modules to sequences and continue to propagate computational routines for execution
@@ -554,7 +518,7 @@ class DSC_Analyzer:
         '''
         self.pipelines = []
         for sequence in script_data.runtime.sequence:
-            self.add_pipeline(sequence[0], script_data.modules, list(script_data.runtime.sequence_ordering.keys()))
+            self.add_pipeline(sequence, script_data.modules, list(script_data.runtime.sequence_ordering.keys()))
 
     def add_pipeline(self, sequence, data, ordering):
         pipeline = OrderedDict()

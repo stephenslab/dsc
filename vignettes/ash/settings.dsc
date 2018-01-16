@@ -43,7 +43,7 @@ score_pi0: score.R
 DSC:
     # module ensembles
     define:
-      score: beta_score, pi0_score
+      score: score_beta, score_pi0
     # pipelines
     run: simulate * shrink * score
     # runtime environments

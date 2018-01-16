@@ -3,15 +3,12 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, msgpack, yaml, re, glob, pickle
-from collections import OrderedDict
+import os, msgpack, re, glob, pickle
 from multiprocessing import Process, Manager
 import pandas as pd
 from sos.utils import Error
-from .utils import flatten_list, uniq_list, no_duplicates_constructor, chunks, n2a
+from .utils import flatten_list, uniq_list, chunks, n2a, OrderedDict
 from .addict import Dict as dotdict
-
-yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
 
 def remove_obsolete_output(output, additional_files = None, rerun = False):
     from sos.__main__ import cmd_remove

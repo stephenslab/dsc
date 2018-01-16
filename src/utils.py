@@ -5,13 +5,24 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import os, re, itertools, collections, time, sympy
+from collections import OrderedDict
 from ruamel.yaml import YAML
+from ruamel.yaml.compat import StringIO
 from difflib import SequenceMatcher
-from io import StringIO
 from sos.utils import env, Error
 from .constant import HTML_CSS, HTML_JS
 
-yaml = YAML()
+class DYAML(YAML):
+    def dump(self, data, stream=None, **kw):
+        inefficient = False
+        if stream is None:
+            inefficient = True
+            stream = StringIO()
+        YAML.dump(self, data, stream, **kw)
+        if inefficient:
+            return stream.getvalue()
+
+yaml = DYAML()
 
 class FormatError(Error):
     """Raised when format is illegal."""
@@ -38,6 +49,7 @@ def non_commutative_symexpand(expr_string):
     new_locals = {sym.name:sympy.Symbol(sym.name, commutative=False)
                   for sym in parsed_expr.atoms(sympy.Symbol)}
     return sympy.expand(eval(expr_string, {}, new_locals))
+
 
 class Timer(object):
     def __init__(self, verbose=False):
@@ -272,15 +284,12 @@ def find_nested_key(key, dictionary):
                     yield [k] + result
 
 def dict2str(value):
-    out = StringIO()
-    yaml.dump(strip_dict(value, into_list = True), out)
-    res = out.getvalue()
-    out.close()
-    pattern = re.compile(r'!!python/(.*?)\s')
-    for m in re.finditer(pattern, res):
-        res = res.replace(m.group(1), '', 1)
-    res = res.replace('!!python/', '')
-    res = '\n'.join([x[2:] for x in res.split('\n') if x.strip() != 'dictitems:' and x])
+    res = yaml.dump(strip_dict(value, into_list = True))
+    # pattern = re.compile(r'!!python/(.*?)\s')
+    # for m in re.finditer(pattern, res):
+    #     res = res.replace(m.group(1), '', 1)
+    # res = res.replace('!!python/', '')
+    # res = '\n'.join([x[2:] for x in res.split('\n') if x.strip() != 'dictitems:' and x])
     return res
 
 def update_nested_dict(d, u, mapping = dict):
@@ -682,54 +691,37 @@ def workflow2html(output, *multi_workflows):
         f.write('</script></head><body>\n')
         f.write('<div class="accordion">\n')
         for j, workflow_content in enumerate(multi_workflows):
-            for i, blocks in enumerate(workflow_content):
-                is_runtime = False
+            for i, modules in enumerate(workflow_content):
                 if i > 0:
                     f.write('\n<hr>\n')
-                for key, block in blocks.items():
-                    try:
-                        f.write('<div class="accodion-section">\n'
-                                '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
-                                '<div id={1} class="accordion-section-content">\n'.\
-                                format(block.name, make_html_name(block.name + str(j + 1))))
-                        f.write('<div class="tabs">\n<ul class="tab-links">\n')
-                        for idx, script in enumerate(block.steps):
-                            f.write('<li{2}><a href="#{0}">{1}</a></li>\n'.\
-                                        format(make_html_name(script.name + '_{}_'.format(j+1) + script.group),
-                                               script.name,
-                                               ' class="active"' if idx == 0 else ''))
-                        f.write('</ul>\n<div class="tab-content">\n')
-                        for idx, script in enumerate(block.steps):
-                            f.write('<div id="{0}" class="tab{1}">\n'.\
-                                    format(make_html_name(script.name + '_{}_'.format(j+1) + script.group),
-                                           ' active' if idx == 0 else ''))
-                            f.write('<pre><code class="{}line-numbers; left-trim; right-trim;">\n'.\
-                                    format("language-yaml; "))
-                            f.write(str(script))
-                            f.write('\n</code></pre></div>\n')
-                        f.write('</div></div></div></div>\n')
-                    except AttributeError:
-                        is_runtime = True
-                if is_runtime:
-                    for key, block in blocks.items():
-                        f.write('<div class="accodion-section">\n'
-                                '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
-                                '<div id={1} class="accordion-section-content">\n'.\
-                                format(key, make_html_name(key + str(j + 1))))
-                        f.write('<div class="tabs">\n<ul class="tab-links">\n')
-                        f.write('<li{2}><a href="#{0}">{1}</a></li>\n'.\
-                                        format(make_html_name(key + '_DSC_{}'.format(j+1)), key,  ' class="active"'))
-                        f.write('</ul>\n<div class="tab-content">\n')
-                        #
-                        f.write('<div id="{0}" class="tab{1}">\n'.\
-                                format(make_html_name(key + '_DSC_{}'.format(j+1)), ' active'))
-                        f.write('<pre><code class="{}line-numbers; left-trim; right-trim;">\n'.\
-                                format("language-yaml; "))
-                        f.write(str(block) if not isinstance(block, list) else '\n'.join(['- ' + str(x) for x in block]))
-                        f.write('\n</code></pre></div>\n')
-                        f.write('</div></div></div></div>\n')
+                f.write('<div class="accodion-section">\n'
+                    '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
+                    '<div id={1} class="accordion-section-content">\n'.\
+                    format('&'.join(modules.keys()), make_html_name('_'.join(modules.keys()) + f'_{j+1}')))
+                f.write('<div class="tabs">\n<ul class="tab-links">\n')
+                idx = 0
+                for key, module in modules.items():
+                    name = module.name if hasattr(module, 'name') else 'DSC_' + key
+                    f.write('<li{2}><a href="#{0}">{1}</a></li>\n'.\
+                            format(make_html_name(name + f'_{j+1}_{i+1}'),
+                                   name,
+                                   ' class="active"' if idx == 0 else ''))
+                    idx += 1
+                f.write('</ul>\n<div class="tab-content">\n')
+                idx = 0
+                for key, module in modules.items():
+                    name = module.name if hasattr(module, 'name') else 'DSC_' + key
+                    f.write('<div id="{0}" class="tab{1}">\n'.\
+                            format(make_html_name(name + f'_{j+1}_{i+1}'),
+                                   ' active' if idx == 0 else ''))
+                    f.write('<pre><code class="{}line-numbers; left-trim; right-trim;">\n'.\
+                            format("language-yaml; "))
+                    f.write(str(module) if not isinstance(module, list) else '\n'.join(['- ' + str(x) for x in module]))
+                    f.write('\n</code></pre></div>\n')
+                    idx += 1
+                f.write('</div></div></div></div>\n')
             if j + 1 != len(multi_workflows):
-                f.write('<hr size="2">\n' * 2)
+                f.write('<hr size="8">\n')
         f.write('\n</div></body></html>')
 
 def locate_file(file_name, file_path):
