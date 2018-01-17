@@ -168,15 +168,16 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                 del conf[sid][name]['input_repr']
                 del conf[sid][name]['output_repr']
         return conf
-
     #
     if os.path.isfile(map_db) and not vanilla:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
                                    object_pairs_hook = OrderedDict)
     else:
         map_data = OrderedDict()
-    data = load_mpk(input_files, jobs)
-    open(io_db, "wb").write(msgpack.packb(data))
+    # data = load_mpk(input_files, jobs)
+    # open(io_db, "wb").write(msgpack.packb(data))
+    data = msgpack.unpackb(open(io_db, 'rb').read(), encoding = 'utf-8',
+                           object_pairs_hook = OrderedDict)
     map_names = get_names()
     update_map(map_names)
     fid = os.path.dirname(str(conf_db))

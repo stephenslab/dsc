@@ -24,7 +24,8 @@ class DSC_Translator:
         self.db = os.path.basename(runtime.output)
         conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
-                      'from dsc.dsc_database import remove_obsolete_output, build_config_db\n\n\n'
+                      'from dsc.dsc_database import remove_obsolete_output, build_config_db\n' \
+                      f'\nDSC_UPDATES_ = OrderedDict()\n_output = "{self.output}/{self.db}.io.mpk"\n\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      f"parameter: IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"
@@ -49,12 +50,12 @@ class DSC_Translator:
                     self.step_map[workflow_id + 1][step.name] = name
                     # Has the core been processed?
                     if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
-                        job_translator = self.Step_Translator(step, self.db, 0, try_catch)
+                        job_translator = self.Step_Translator(step, self.db, None, try_catch)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
                         exe_signatures[step.name] = job_translator.exe_signature
                     processed_steps[(step.name, flow, depend)] = name
-                    conf_translator = self.Step_Translator(step, self.db, 1, try_catch)
+                    conf_translator = self.Step_Translator(step, self.db, self.step_map[workflow_id + 1], try_catch)
                     conf_dict[name] = conf_translator.dump()
                 else:
                     self.step_map[workflow_id + 1][step.name] = processed_steps[(step.name, flow, depend)]
@@ -72,13 +73,11 @@ class DSC_Translator:
             configured_steps.update(sqn)
             # Configuration
             if len(new_steps):
-                conf_str.append(f"[{n2a(workflow_id + 1)}]\n" \
-                                f"parameter: sequence_id = '{workflow_id + 1}'\n"\
-                                f'''parameter: sequence_name = '{"+".join([n2a(int(x[1])).lower()+"_"+x[0] for x in sqn])}'\n''' \
-                                f"input: None\noutput: '.sos/.dsc/{self.db}_{workflow_id + 1}.mpk'")
-                conf_str.append("DSC_UPDATES_ = OrderedDict()\n")
+                conf_str.append(f"###\n# [{n2a(workflow_id + 1)}]\n###\n" \
+                                f"sequence_id = '{workflow_id + 1}'\n"\
+                                f'''sequence_name = '{"+".join([n2a(int(x[1])).lower()+"_"+x[0] for x in sqn])}'\n''' \
+                                f"# output: '.sos/.dsc/{self.db}_{workflow_id + 1}.mpk'\n")
                 conf_str.extend(new_steps)
-                conf_str.append("open(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))")
                 io_info_files.append(f'.sos/.dsc/{self.db}_{workflow_id + 1}.mpk')
             # Execution pool
             ii = 1
@@ -95,7 +94,7 @@ class DSC_Translator:
                     self.last_steps.append((f'{workflow_id + 1}', y))
                 self.job_pool[(str(workflow_id + 1), y)] = '\n'.join(tmp_str)
                 ii += 1
-        self.conf_str = conf_header + '\n'.join(conf_str)
+        self.conf_str = conf_header + '\n'.join(conf_str) + "\nopen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))"
         self.job_str = job_header + f"DSC_RUTILS = '''{R_SOURCE + R_LMERGE}'''" + "\n{}".format('\n'.join(job_str))
         tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str += f"\n[default_1]\nremove_obsolete_output('{self.output}', rerun = {rerun})\n[default_2]\n" \
@@ -166,7 +165,7 @@ class DSC_Translator:
             f.write('\n'.join(installed_libs + new_libs))
 
     class Step_Translator:
-        def __init__(self, step, db, prepare, try_catch):
+        def __init__(self, step, db, step_map, try_catch):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -179,9 +178,10 @@ class DSC_Translator:
             # FIXME
             if len(flatten_list(list(step.rf.values()))) > 1:
                 raise ValueError('Multiple output files not implemented')
+            self.step_map = step_map
             self.try_catch = try_catch
             self.exe_signature = []
-            self.prepare = prepare
+            self.prepare = 0 if step_map is None else 1
             self.step = step
             self.db = db
             self.input_vars = None
@@ -233,11 +233,12 @@ class DSC_Translator:
                 if depend_steps:
                     self.input_string += f"## With variables from: {', '.join(depend_steps)}"
                 if len(depend_steps) >= 2:
-                    self.input_vars = f'{self.step.name}_input_files'
-                    self.input_string += '\n{}_input_files = sos_group_input([{}])'.\
-                       format(self.step.name, ', '.join([f'{x}_output' for x in depend_steps]))
+                    self.input_vars = f'{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_input'
+                    self.input_string += '\n{} = sos_group_input([{}])'.\
+                       format(self.input_vars,
+                              ', '.join([f'{n2a(int(self.step_map[x][1])).lower()}_{x}_output' for x in depend_steps]))
                 elif len(depend_steps) == 1:
-                    self.input_vars = f"{depend_steps[0]}_output"
+                    self.input_vars = f"{n2a(int(self.step_map[depend_steps[0]][1])).lower()}_{depend_steps[0]}_output"
                 else:
                     pass
                 if len(depend_steps):
@@ -261,7 +262,7 @@ class DSC_Translator:
         def get_output(self):
             if self.prepare:
                 format_string = '.format({})'.format(', '.join([f'_{s}' for s in reversed(self.params)]))
-                self.output_string += f"{self.step.name}_output = "
+                self.output_string += f"{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output = "
                 if self.step.depends:
                     self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}', "\
                                           "suffix = '{{}}'.format({4})) {2}]".\
@@ -286,27 +287,30 @@ class DSC_Translator:
         def get_action(self):
             if self.prepare:
                 combined_params = '[([{0}], {1}) {2}]'.\
-                                  format(', '.join([f"('exec', '{self.step.name}')"] \
+                                  format(', '.join([f"('exec', '{self.step.exe}')"] \
                                                    + [f"('{x}', _{x})" for x in reversed(self.params)]),
                                          None if '__i' not in self.loop_string else "'{}'.format(' '.join(__i))",
                                          self.loop_string + self.filter_string)
-                key = "DSC_UPDATES_['{{}}:{}'.format(sequence_id)]".format(self.step.name)
+                key = f"DSC_UPDATES_['{self.step.name}:' + str(sequence_id)]"
                 self.action += f"{key} = OrderedDict()\n"
                 if self.step.depends:
-                    self.action += "for x, y in zip({}, {}_output):\n\t{}[' '.join((y, x[1]))]"\
-                                  " = OrderedDict([('sequence_id', {}), "\
-                                  "('sequence_name', {}), ('step_name', '{}')] + x[0])\n".\
-                                  format(combined_params, self.step.name, key, 'sequence_id',
+                    self.action += "for x, y in zip({}, {}_{}_output):\n\t{}[' '.join((y, x[1]))]"\
+                                  " = dict([('sequence_id', {}), "\
+                                  "('sequence_name', {}), ('module', '{}')] + x[0])\n".\
+                                  format(combined_params, n2a(int(self.step_map[self.step.name][1])).lower(),
+                                         self.step.name, key, 'sequence_id',
                                          'sequence_name', self.step.name)
                 else:
-                    self.action += "for x, y in zip({}, {}_output):\n\t{}[y]"\
-                                   " = OrderedDict([('sequence_id', {}), "\
-                                   "('sequence_name', {}), ('step_name', '{}')] + x[0])\n".\
-                                   format(combined_params, self.step.name, key, 'sequence_id',
+                    self.action += "for x, y in zip({}, {}_{}_output):\n\t{}[y]"\
+                                   " = dict([('sequence_id', {}), "\
+                                   "('sequence_name', {}), ('module', '{}')] + x[0])\n".\
+                                   format(combined_params, n2a(int(self.step_map[self.step.name][1])).lower(),
+                                          self.step.name, key, 'sequence_id',
                                           'sequence_name', self.step.name)
                 self.action += "{0}['DSC_IO_'] = ({1}, {2})\n".\
                                format(key, '[]' if self.input_vars is None else '{0} if {0} is not None else []'.\
-                                      format(self.input_vars), f"{self.step.name}_output")
+                                      format(self.input_vars),
+                                      f"{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output")
                 # FIXME: multiple output to be implemented
                 self.action += "{0}['DSC_EXT_'] = \'{1}\'\n".\
                                format(key, flatten_list(self.step.rf.values())[0])
