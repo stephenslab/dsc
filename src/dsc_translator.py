@@ -79,16 +79,16 @@ class DSC_Translator:
             # Execution pool
             ii = 1
             for x, y in zip(sqn, sequence):
-                tmp_str = [f"[{y}_{workflow_id + 1} ({y})]"]
+                tmp_str = [f"[{n2a(workflow_id + 1).lower()}_{y} ({y})]"]
                 tmp_str.append(f"parameter: script_signature = {repr(exe_signatures[x])}")
                 if ii > 1:
-                    tmp_str.append(f"depends: [sos_step(x) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
+                    tmp_str.append(f"depends: [sos_step('{n2a(workflow_id + 1).lower()}_' + x) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
-                tmp_str.append(f"sos_run('core_{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output']"\
+                tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output']"\
                                f", {y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], "\
-                               "DSC_STEP_ID_ = script_signature)")
+                               "DSC_STEP_ID_ = '_'.join(script_signature))")
                 if ii == len(sequence):
-                    self.last_steps.append((y, f"IO_DB['{workflow_id + 1}']['{y}']['output']"))
+                    self.last_steps.append((f'{workflow_id + 1}', y))
                 self.job_pool[(str(workflow_id + 1), y)] = '\n'.join(tmp_str)
                 ii += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
@@ -129,13 +129,12 @@ class DSC_Translator:
         for x in self.job_pool:
             if x[0] in IO_DB and x[1] in IO_DB[x[0]]:
                 self.job_str += f'\n{self.job_pool[x]}'
-                included_steps.append("{}_{}".format(re.sub(r'\d+$', '', x[1]), x[0]))
+                included_steps.append(x)
         #
-        print(included_steps)
-        self.last_steps = [x for x in self.last_steps if x[0] in included_steps]
-        self.job_str += "\n[DSC]\ndepends: {}\noutput: {}".\
-                        format(', '.join(["sos_step('{}')".format(x[0]) for x in self.last_steps]),
-                               ', '.join([x[1] for x in self.last_steps]))
+        self.last_steps = [x for x in self.last_steps if x in included_steps]
+        self.job_str += "\n[default]\ndepends: {}\noutput: {}".\
+                        format(', '.join([f"sos_step('{n2a(int(x[0])).lower()}_{x[1]}')" for x in self.last_steps]),
+                               ', '.join([f"IO_DB['{x[0]}']['{x[1]}']['output']" for x in self.last_steps]))
 
     def install_libs(self, libs, lib_type):
         from .utils import install_r_lib, install_py_module
@@ -199,14 +198,14 @@ class DSC_Translator:
             self.get_action()
 
         def clean(self):
-            for item in glob.glob(f'.sos/core_{self.step.name}_*'):
+            for item in glob.glob(f'.sos/{self.step.name}_*'):
                 os.remove(item)
 
         def get_header(self):
             if self.prepare:
                 self.header = f"## Codes for {self.step.name}"
             else:
-                self.header = f"[core_{self.step.name}]\n"
+                self.header = f"[{self.step.name}]\n"
                 self.header += f"parameter: DSC_STEP_ID_ = None\nparameter: {self.step.name}_output_files = list"
 
         def get_parameters(self):
