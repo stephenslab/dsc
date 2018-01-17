@@ -4,11 +4,14 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
+# some loaded modules are used for exec()
 import os, sys, re, glob
 import warnings
 warnings.filterwarnings("ignore")
+import msgpack
 from sos.utils import env, get_traceback
-from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, Timer
+from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, Timer, \
+    sos_hash_output, sos_group_input, chunks, OrderedDict
 from .addict import Dict as dotdict
 from . import VERSION
 
@@ -159,6 +162,8 @@ def execute(args):
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
         script_to_html(script_prepare, f'.sos/.dsc/{db}.prepare.html')
+        with open(f'.sos/.dsc/{db}.prepare.py', 'w') as f:
+            f.write(pipeline.conf_str_py)
     mode = "default"
     if args.__construct__ == "no":
         mode = "force"
@@ -166,6 +171,10 @@ def execute(args):
     exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
                  for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
     exec_path = [x for x in exec_path if os.path.isdir(x)]
+    # Get raw IO database
+    exec(compile(pipeline.conf_str_py, 'prepare_io', 'exec'))
+    return
+    # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         content = {'__max_running_jobs__': args.__max_jobs__,
                    '__max_procs__': args.__max_jobs__,

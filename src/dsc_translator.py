@@ -22,10 +22,7 @@ class DSC_Translator:
         from .plugin import R_LMERGE, R_SOURCE
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
-        conf_header = 'import msgpack\nfrom collections import OrderedDict\n' \
-                      'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
-                      'from dsc.dsc_database import remove_obsolete_output, build_config_db\n' \
-                      f'\nDSC_UPDATES_ = OrderedDict()\n_output = "{self.output}/{self.db}.io.mpk"\n\n'
+        conf_header = 'from dsc.dsc_database import remove_obsolete_output, build_config_db\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      f"parameter: IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"
@@ -94,17 +91,21 @@ class DSC_Translator:
                     self.last_steps.append((f'{workflow_id + 1}', y))
                 self.job_pool[(str(workflow_id + 1), y)] = '\n'.join(tmp_str)
                 ii += 1
-        self.conf_str = conf_header + '\n'.join(conf_str) + "\nopen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))"
+        self.conf_str_py = '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
+                           '\ndef prepare_io():\n\t'+ \
+                           f'\n\tDSC_UPDATES_ = OrderedDict()\n\t_output = "{self.output}/{self.db}.io.mpk"\n\t' + \
+                           '\n\t'.join('\n'.join(conf_str).split('\n')) + \
+                           "\n\topen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))\n\nprepare_io()"
         self.job_str = job_header + f"DSC_RUTILS = '''{R_SOURCE + R_LMERGE}'''" + "\n{}".format('\n'.join(job_str))
         tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
-        self.conf_str += f"\n[default_1]\nremove_obsolete_output('{self.output}', rerun = {rerun})\n[default_2]\n" \
-                         f"parameter: vanilla = {rerun}\n"\
-                         f"depends: {tmp_dep}\n" \
-                         f"input: dynamic({repr(sorted(set(io_info_files)))})\n"\
-                         f"output: '{self.output}/{self.db}.io.mpk', '{self.output}/{self.db}.map.mpk', "\
-                         f"'{self.output}/{self.db}.conf.mpk'"\
-                         "\nbuild_config_db(_input, _output[0], _output[1], "\
-                         f"_output[2], vanilla = vanilla, jobs = {n_cpu})"
+        self.conf_str_sos = conf_header + \
+                            f"\n[default_1]\nremove_obsolete_output('{self.output}', rerun = {rerun})\n[default_2]\n" \
+                            f"parameter: vanilla = {rerun}\n"\
+                            f"input: '{self.output}/{self.db}.io.mpk'\n"\
+                            f"output: '{self.output}/{self.db}.map.mpk', "\
+                            f"'{self.output}/{self.db}.conf.mpk'"\
+                            "\nbuild_config_db(_input, _output[0], "\
+                            f"_output[1], vanilla = vanilla, jobs = {n_cpu})"
         #
         self.install_libs(runtime.rlib, "R_library")
         self.install_libs(runtime.pymodule, "Python_Module")
@@ -113,8 +114,7 @@ class DSC_Translator:
         import tempfile
         res = []
         if pipeline_id == 1:
-            res.extend([f'## {x}' for x in dict2str(self.step_map).split('\n')])
-            res.append(self.conf_str)
+            res.append(self.conf_str_sos)
         else:
             res.append(self.job_str)
         output = dest if dest is not None else (tempfile.NamedTemporaryFile().name + '.sos')

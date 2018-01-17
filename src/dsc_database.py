@@ -69,7 +69,7 @@ def load_mpk(mpk_files, jobs):
         job.join()
     return OrderedDict([(x, d[x]) for x in sorted(d.keys(), key = lambda x: int(x.split(':')[0]))])
 
-def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs = 4):
+def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     '''
     - collect all output file names in md5 style
     - check if map file should be loaded, and load it
