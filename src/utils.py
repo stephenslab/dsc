@@ -534,7 +534,7 @@ def round_print(text, sep, pc = None):
                         for x in line]).strip())
 
 def install_r_lib(lib):
-    from sos.R.target import R_library
+    from sos_r.targets import R_library
     groups = re.search('(.*?)\((.*?)\)', lib)
     if groups is not None:
         lib = groups.group(1).strip()
@@ -542,12 +542,12 @@ def install_r_lib(lib):
     else:
         versions = None
     env.logger.info("Checking R library ``{}`` ...".format(lib))
-    return R_library(lib, versions).exists()
+    return R_library(lib, versions).target_exists()
 
 def install_py_module(lib):
-    from sos.Python.target import Py_Module
+    from sos_python.targets import Py_Module
     env.logger.info("Checking Python module ``{}`` ...".format(lib))
-    return Py_Module(lib).exists()
+    return Py_Module(lib).target_exists()
 
 def make_html_name(value):
     return "".join(x for x in value.replace(' ', '-') if x.isalnum() or x in ['-', '_']).lower()

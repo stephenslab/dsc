@@ -160,7 +160,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                             if name == k:
                                 continue
                             if item in conf[sid2][k]['output_repr']:
-                                conf[sid][name]['depends'].append("{}_{}".format(re.sub(r'\d+$', '', k), n2a(int(sid2))))
+                                conf[sid][name]['depends'].append(k)
                 if len(conf[sid][name]['depends']) > len(set(conf[sid][name]['depends'])):
                     raise ValueError("Dependent files not unique for sequence {} step {}".format(sid, name))
         for sid in conf:
@@ -179,7 +179,7 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
     open(io_db, "wb").write(msgpack.packb(data))
     map_names = get_names()
     update_map(map_names)
-    fid = os.path.dirname(conf_db)
+    fid = os.path.dirname(str(conf_db))
     conf = OrderedDict()
     for k in data:
         sid, name = k.split(':')

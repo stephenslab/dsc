@@ -9,22 +9,16 @@ This file defines methods to translate DSC into pipeline in SoS language
 import re, os, msgpack, glob
 from sos.target import fileMD5, executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
+__all__ = ['DSC_Translator']
 
 class DSC_Translator:
     '''
-    Translate workflow to SoS pipeline:
-      * Each DSC computational routine `exec` is a sos step with name `group + command index`
-      * When there are combined routines in a block via `.FILTER` for `exec` then sub-steps are generated
-        with name `group + super command index + command index` without alias name then
-        create nested workflow named `group + combined routine index`
-      * FIXME: to above, because it still produce intermediate files which is not what we want
-      * Parameters utilize `for_each`. `paired_with` is not supported
-      * Final workflow also use nested workflow structure,
-        with workflow name "DSC" for each sequence, indexed by
-        the possible ways to combine exec routines. The possible ways are pre-determined and passed here.
+    Translate preprocessed DSC to SoS pipelines:
+      * Each DSC module's name translates to SoS step name
+      * Pipelines are executed via nested SoS workflows
     '''
     def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False):
-        #
+        # FIXME: to be replaced by the R utils package
         from .plugin import R_LMERGE, R_SOURCE
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
@@ -32,95 +26,82 @@ class DSC_Translator:
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' \
                       'from dsc.dsc_database import remove_obsolete_output, build_config_db\n\n\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
-                     "parameter: IO_DB = msgpack.unpackb(open('{}/{}.conf.mpk'"\
-                     ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n".\
-                     format(self.output, self.db)
-        processed_steps = []
-        conf_dict = {}
+                     f"parameter: IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
+                     ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"
+        processed_steps = dict()
+        conf_dict = dict()
         conf_str = []
         job_str = []
-        exe_signatures = {}
+        exe_signatures = dict()
         # name map for steps
-        self.step_map = {}
+        self.step_map = dict()
         # Get workflow steps
         for workflow_id, workflow in enumerate(workflows):
-            self.step_map[workflow_id] = {}
+            self.step_map[workflow_id] = dict()
             keys = list(workflow.keys())
-            for block in workflow.values():
-                for step in block.steps:
-                    flow = "_".join(['_'.join(keys[:keys.index(step.group)]), step.group, str(step.exe_id)])
-                    depend = "_".join(['_'.join(uniq_list([i[0] for i in step.depends])), step.group, str(step.exe_id)])
-                    # either different flow or different dependency will create a new entry
-                    if (flow, depend) not in processed_steps:
-                        processed_steps.append((flow, depend))
-                        pattern = re.compile("^{0}_{1}[0-9]+$".\
-                                             format(step.group, n2a(step.exe_id)))
-                        cnt = len([k for k in
-                                   set(flatten_list([list(self.step_map[i].values()) for i in range(workflow_id)]))
-                                   if pattern.match(k)])
-                        name2 = "{}_{}{}".format(step.group, n2a(step.exe_id), cnt)
-                        self.step_map[workflow_id]["{}_{}".format(step.group, step.exe_id)] = name2
-                        step.exe_id = n2a(step.exe_id)
-                        if cnt == 0:
-                            job_translator = self.Step_Translator(step, self.db, 0, try_catch)
-                            job_str.append(job_translator.dump())
-                            job_translator.clean()
-                        step.exe_id = "{}{}".format(step.exe_id, cnt)
-                        conf_translator = self.Step_Translator(step, self.db, 1, try_catch)
-                        conf_dict[name2] = conf_translator.dump()
-                        exe_signatures[name2] = job_translator.exe_signature
+            for step in workflow.values():
+                flow = "_".join(['_'.join(keys[:keys.index(step.name)]), step.name]).strip('_')
+                depend = '_'.join(uniq_list([i[0] for i in step.depends]))
+                # either different flow or different dependency will create a new entry
+                if (flow, depend) not in processed_steps:
+                    pattern = re.compile(f"^{step.name}_[0-9]+$")
+                    cnt = len([k for k in
+                               set(flatten_list([list(self.step_map[i].values()) for i in range(workflow_id)]))
+                               if pattern.match(k)])
+                    name2 = f"{step.name}_{cnt}"
+                    self.step_map[workflow_id][step.name] = name2
+                    processed_steps[(flow, depend)] = name2
+                    if cnt == 0:
+                        job_translator = self.Step_Translator(step, self.db, 0, try_catch)
+                        job_str.append(job_translator.dump())
+                        job_translator.clean()
+                    conf_translator = self.Step_Translator(step, self.db, 1, try_catch)
+                    conf_dict[name2] = conf_translator.dump()
+                    exe_signatures[name2] = job_translator.exe_signature
+                else:
+                    self.step_map[workflow_id][step.name] = processed_steps[(flow, depend)]
         # Get workflows executions
-        i = 1
         io_info_files = []
         self.last_steps = []
         # Execution steps, unfiltered
         self.job_pool = OrderedDict()
         for workflow_id, sequence in enumerate(runtime.sequence):
-            sequence, step_ids = sequence
-            for step_id in step_ids:
-                sqn = ['{}_{}0'.format(x, n2a(y + 1))
-                       if '{}_{}'.format(x, y + 1) not in self.step_map[workflow_id]
-                       else self.step_map[workflow_id]['{}_{}'.format(x, y + 1)]
-                       for x, y in zip(sequence, step_id)]
-                # Configuration
-                conf_str.append("[{0}]\n" \
-                                "parameter: sequence_id = '{1}'\nparameter: sequence_name = '{2}'\n" \
-                                "input: None\noutput: '{3}'".\
-                                format(n2a(i), i, '+'.join(sqn), '.sos/.dsc/{1}_{0}.mpk'.format(i, self.db)))
-                conf_str.append("DSC_UPDATES_ = OrderedDict()\n")
-                conf_str.extend([conf_dict[x] for x in sqn])
-                conf_str.append("open(output[0], 'wb').write(msgpack.packb(DSC_UPDATES_))")
-                io_info_files.append('.sos/.dsc/{1}_{0}.mpk'.format(i, self.db))
-                # Execution pool
-                ii = 1
-                for x in sqn:
-                    # remove trailing number
-                    y = re.sub(r'\d+$', '', x)
-                    tmp_str = ["[{0}_{1} ({0}[{2}])]".format(y, n2a(i), i)]
-                    tmp_str.append("parameter: script_signature = {}".format(repr(exe_signatures[x])))
-                    if ii > 1:
-                        tmp_str.append("depends: [sos_step(x) for x in IO_DB['{1}']['{0}']['depends']]".\
-                                       format(x, i))
-                    tmp_str.append("output: IO_DB['{1}']['{0}']['output']".format(x, i))
-                    tmp_str.append("sos_run('core_{0}', output_files = IO_DB['{2}']['{1}']['output']"\
-                                   ", input_files = IO_DB['{2}']['{1}']['input'], "\
-                                   "DSC_STEP_ID_ = script_signature)".format(y, x, i))
-                    if ii == len(sqn):
-                        self.last_steps.append(("{0}_{1}".format(y, n2a(i)), "IO_DB['{1}']['{0}']['output']".\
-                                               format(x, i)))
-                    self.job_pool[(str(i), x)] = '\n'.join(tmp_str)
-                    ii += 1
-                i += 1
+            sqn = [self.step_map[workflow_id][x] for x in sequence]
+            # Configuration
+            conf_str.append(f"[{n2a(workflow_id + 1)}]\n" \
+                            f"parameter: sequence_id = '{workflow_id + 1}'\n"\
+                            f'''parameter: sequence_name = '{"+".join(sqn)}'\n''' \
+                            f"input: None\noutput: '.sos/.dsc/{self.db}_{workflow_id + 1}.mpk'")
+            conf_str.append("DSC_UPDATES_ = OrderedDict()\n")
+            conf_str.extend([conf_dict[x] for x in sqn])
+            conf_str.append("open(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))")
+            io_info_files.append(f'.sos/.dsc/{self.db}_{workflow_id + 1}.mpk')
+            # Execution pool
+            ii = 1
+            for x, y in zip(sqn, sequence):
+                tmp_str = [f"[{y}_{workflow_id + 1} ({y})]"]
+                tmp_str.append(f"parameter: script_signature = {repr(exe_signatures[x])}")
+                if ii > 1:
+                    tmp_str.append(f"depends: [sos_step(x) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
+                tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
+                tmp_str.append(f"sos_run('core_{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output']"\
+                               f", {y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], "\
+                               "DSC_STEP_ID_ = script_signature)")
+                if ii == len(sequence):
+                    self.last_steps.append((y, f"IO_DB['{workflow_id + 1}']['{y}']['output']"))
+                self.job_pool[(str(workflow_id + 1), y)] = '\n'.join(tmp_str)
+                ii += 1
         self.conf_str = conf_header + '\n'.join(conf_str)
-        self.job_str = job_header + "DSC_RUTILS = '''{}'''\n".format(R_SOURCE + R_LMERGE) + '\n'.join(job_str)
-        self.conf_str += "\n[default_1]\nremove_obsolete_output('{0}', rerun = {2})\n[default_2]\n" \
-                         "parameter: vanilla = {2}\ndepends: {4}\n" \
-                         "input: dynamic({3})\noutput: '{0}/{1}.io.mpk', '{0}/{1}.map.mpk', '{0}/{1}.conf.mpk'"\
-                         "\nbuild_config_db(input, output[0], output[1], "\
-                         "output[2], vanilla = vanilla, jobs = {5})".\
-                         format(self.output, self.db, rerun, repr(sorted(set(io_info_files))),
-                                ", ".join(["sos_step('{}')".format(n2a(x+1)) for x, y in enumerate(set(io_info_files))]),
-                                n_cpu)
+        self.job_str = job_header + f"DSC_RUTILS = '''{R_SOURCE + R_LMERGE}'''" + "\n{}".format('\n'.join(job_str))
+        tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
+        self.conf_str += f"\n[default_1]\nremove_obsolete_output('{self.output}', rerun = {rerun})\n[default_2]\n" \
+                         f"parameter: vanilla = {rerun}\n"\
+                         f"depends: {tmp_dep}\n" \
+                         f"input: dynamic({repr(sorted(set(io_info_files)))})\n"\
+                         f"output: '{self.output}/{self.db}.io.mpk', '{self.output}/{self.db}.map.mpk', "\
+                         f"'{self.output}/{self.db}.conf.mpk'"\
+                         "\nbuild_config_db(_input, _output[0], _output[1], "\
+                         f"_output[2], vanilla = vanilla, jobs = {n_cpu})"
         #
         self.install_libs(runtime.rlib, "R_library")
         self.install_libs(runtime.pymodule, "Python_Module")
@@ -129,7 +110,7 @@ class DSC_Translator:
         import tempfile
         res = []
         if pipeline_id == 1:
-            res.extend(['## {}'.format(x) for x in dict2str(self.step_map).split('\n')])
+            res.extend([f'## {x}' for x in dict2str(self.step_map).split('\n')])
             res.append(self.conf_str)
         else:
             res.append(self.job_str)
@@ -142,14 +123,15 @@ class DSC_Translator:
 
     def filter_execution(self):
         '''Filter steps removing the ones having common input and output'''
-        IO_DB = msgpack.unpackb(open('{}/{}.conf.mpk'.format(self.output, self.db), 'rb').\
+        IO_DB = msgpack.unpackb(open(f'{self.output}/{self.db}.conf.mpk', 'rb').\
                                 read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
         included_steps = []
         for x in self.job_pool:
             if x[0] in IO_DB and x[1] in IO_DB[x[0]]:
-                self.job_str += '\n{}'.format(self.job_pool[x])
-                included_steps.append('{}_{}'.format(re.sub(r'\d+$', '', x[1]), n2a(int(x[0]))))
+                self.job_str += f'\n{self.job_pool[x]}'
+                included_steps.append("{}_{}".format(re.sub(r'\d+$', '', x[1]), x[0]))
         #
+        print(included_steps)
         self.last_steps = [x for x in self.last_steps if x[0] in included_steps]
         self.job_str += "\n[DSC]\ndepends: {}\noutput: {}".\
                         format(', '.join(["sos_step('{}')".format(x[0]) for x in self.last_steps]),
@@ -161,14 +143,14 @@ class DSC_Translator:
             raise ValueError("Invalid library type ``{}``.".format(lib_type))
         if libs is None:
             return
-        fn = '.sos/.dsc/{}.lib-info'.format(self.db)
+        fn = f'.sos/.dsc/{self.db}.lib-info'
         if os.path.exists(fn):
             installed_libs = [x.strip() for x in open(fn).readlines() if x.strip().split()[1] in libs]
         else:
             installed_libs = []
         new_libs = []
         for lib in libs:
-            if '{} {}'.format(lib_type, lib) in installed_libs:
+            if f'{lib_type} {lib}' in installed_libs:
                 continue
             else:
                 if lib_type == 'R_library':
@@ -176,7 +158,7 @@ class DSC_Translator:
                 if lib_type == 'Python_Module':
                     ret = install_py_module(lib)
                 if ret:
-                    new_libs.append('{} {}'.format(lib_type, lib))
+                    new_libs.append(f'{lib_type} {lib}')
         with open(fn, 'w') as f:
             f.write('\n'.join(installed_libs + new_libs))
 
@@ -209,7 +191,6 @@ class DSC_Translator:
             self.input_option = []
             self.step_option = ''
             self.action = ''
-            self.name = '{}_{}'.format(self.step.group, self.step.exe_id)
             self.get_header()
             self.get_parameters()
             self.get_input()
@@ -218,17 +199,15 @@ class DSC_Translator:
             self.get_action()
 
         def clean(self):
-            for item in glob.glob('.sos/core_{0}*'.format(self.name)):
+            for item in glob.glob(f'.sos/core_{self.step.name}_*'):
                 os.remove(item)
 
         def get_header(self):
             if self.prepare:
-                self.header = "## Codes for {1} ({0})".format(self.step.group, self.name)
+                self.header = f"## Codes for {self.step.name}"
             else:
-                self.header = "[core_{0} ({1})]\n".\
-                               format(self.name, self.step.name)
-                self.header += "parameter: DSC_STEP_ID_ = None\nparameter: output_files = list"
-                # FIXME: using [step.exe] for now as super step has not yet been ported over
+                self.header = f"[core_{self.step.name}]\n"
+                self.header += f"parameter: DSC_STEP_ID_ = None\nparameter: {self.step.name}_output_files = list"
 
         def get_parameters(self):
             # Set params, make sure each time the ordering is the same
@@ -241,60 +220,61 @@ class DSC_Translator:
                 self.params.append('seed')
                 self.param_string += '{}seed = {}'.format('' if self.prepare else "parameter: ", repr(self.step.seed))
             if self.params:
-                self.loop_string = ' '.join(['for _{0} in {0}'.format(s) for s in reversed(self.params)])
-            if self.step.l:
-                self.filter_string = ' if ' + self.step.l
+                self.loop_string = ' '.join([f'for _{s} in {s}' for s in reversed(self.params)])
+            if self.step.ft:
+                self.filter_string = ' if ' + self.step.ft
 
         def get_input(self):
             depend_steps = uniq_list([x[0] for x in self.step.depends]) if self.step.depends else []
             if self.prepare:
                 if depend_steps:
-                    self.input_string += "## With variables from: {}".format(', '.join(depend_steps))
+                    self.input_string += f"## With variables from: {', '.join(depend_steps)}"
                 if len(depend_steps) >= 2:
-                    self.input_vars = 'input_files'
-                    self.input_string += '\ninput_files = sos_group_input([{}])'.\
-                       format(', '.join(['{}_output'.format(x) for x in depend_steps]))
+                    self.input_vars = f'{self.step.name}_input_files'
+                    self.input_string += '\n{}_input_files = sos_group_input([{}])'.\
+                       format(self.step.name, ', '.join([f'{x}_output' for x in depend_steps]))
                 elif len(depend_steps) == 1:
-                    self.input_vars = "{}_output".format(depend_steps[0])
+                    self.input_vars = f"{depend_steps[0]}_output"
                 else:
                     pass
                 if len(depend_steps):
-                    self.loop_string += ' for __i in chunks({}, {})'.format(self.input_vars, len(depend_steps))
+                    self.loop_string += f' for __i in chunks({self.input_vars}, {len(depend_steps)})'
             else:
                 if len(depend_steps):
-                    self.input_string += "parameter: input_files = list\ninput: dynamic(input_files)"
-                    self.input_option.append('group_by = {}'.format(len(depend_steps)))
+                    self.input_string += "parameter: {0}_input_files = list\ninput: dynamic({0}_input_files)".\
+                                         format(self.step.name)
+                    self.input_option.append(f'group_by = {len(depend_steps)}')
                 else:
                     self.input_string += "input:"
                 if len(self.params):
                     if self.filter_string:
                         self.input_option.append("for_each = {{'{0}':[({0}) {1}{2}]}}".\
-                                                 format(','.join(['_{}'.format(x) for x in self.params]),
-                                                        ' '.join(['for _{0} in {0}'.format(s)
-                                                                  for s in reversed(self.params)]),
+                                                 format(','.join([f'_{x}' for x in self.params]),
+                                                        ' '.join([f'for _{s} in {s}' for s in reversed(self.params)]),
                                                         self.filter_string))
                     else:
-                        self.input_option.append('for_each = %s' % repr(self.params))
+                        self.input_option.append(f'for_each = {repr(self.params)}')
 
         def get_output(self):
             if self.prepare:
-                format_string = '.format({})'.format(', '.join(['_{}'.format(s) for s in reversed(self.params)]))
-                self.output_string += "{}_output = ".format(self.step.group)
+                format_string = '.format({})'.format(', '.join([f'_{s}' for s in reversed(self.params)]))
+                self.output_string += f"{self.step.name}_output = "
                 if self.step.depends:
                     self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}', "\
                                           "suffix = '{{}}'.format({4})) {2}]".\
-                                          format(' '.join([self.step.name, str(self.step.exe), self.step.group] \
-                                                          + ['{0}:{{}}'.format(x) for x in reversed(self.params)]),
-                                                 format_string, self.loop_string + self.filter_string, self.step.name, "':'.join(__i)")
+                                          format(' '.join([self.step.name, str(self.step.exe)] \
+                                                          + [f'{x}:{{}}' for x in reversed(self.params)]),
+                                                 format_string, self.loop_string + self.filter_string,
+                                                 self.step.name, "':'.join(__i)")
                 else:
                     self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
-                                      format(' '.join([self.step.name, str(self.step.exe), self.step.group] \
-                                                      + ['{0}:{{}}'.format(x) for x in reversed(self.params)]),
+                                      format(' '.join([self.step.name, str(self.step.exe)] \
+                                                      + [f'{x}:{{}}' for x in reversed(self.params)]),
                                              format_string, self.loop_string + self.filter_string, self.step.name)
             else:
                 # FIXME
                 output_group_by = 1
-                self.output_string += "output: output_files, group_by = {}".format(output_group_by)
+                self.output_string += f"output: {self.step.name}_output_files, group_by = {output_group_by}"
 
         def get_step_option(self):
             if not self.prepare and self.step.is_extern:
@@ -303,27 +283,27 @@ class DSC_Translator:
         def get_action(self):
             if self.prepare:
                 combined_params = '[([{0}], {1}) {2}]'.\
-                                  format(', '.join(["('exec', '{}')".format(self.step.name)] \
-                                                   + ["('{0}', _{0})".format(x) for x in reversed(self.params)]),
+                                  format(', '.join([f"('exec', '{self.step.name}')"] \
+                                                   + [f"('{x}', _{x})" for x in reversed(self.params)]),
                                          None if '__i' not in self.loop_string else "'{}'.format(' '.join(__i))",
                                          self.loop_string + self.filter_string)
-                key = "DSC_UPDATES_['{{}}:{}'.format(sequence_id)]".format(self.name)
-                self.action += "{} = OrderedDict()\n".format(key)
+                key = "DSC_UPDATES_['{{}}:{}'.format(sequence_id)]".format(self.step.name)
+                self.action += f"{key} = OrderedDict()\n"
                 if self.step.depends:
                     self.action += "for x, y in zip({}, {}_output):\n\t{}[' '.join((y, x[1]))]"\
                                   " = OrderedDict([('sequence_id', {}), "\
                                   "('sequence_name', {}), ('step_name', '{}')] + x[0])\n".\
-                                  format(combined_params, self.step.group, key, 'sequence_id',
-                                         'sequence_name', self.name)
+                                  format(combined_params, self.step.name, key, 'sequence_id',
+                                         'sequence_name', self.step.name)
                 else:
                     self.action += "for x, y in zip({}, {}_output):\n\t{}[y]"\
                                    " = OrderedDict([('sequence_id', {}), "\
                                    "('sequence_name', {}), ('step_name', '{}')] + x[0])\n".\
-                                   format(combined_params, self.step.group, key, 'sequence_id',
-                                          'sequence_name', self.name)
+                                   format(combined_params, self.step.name, key, 'sequence_id',
+                                          'sequence_name', self.step.name)
                 self.action += "{0}['DSC_IO_'] = ({1}, {2})\n".\
                                format(key, '[]' if self.input_vars is None else '{0} if {0} is not None else []'.\
-                                      format(self.input_vars), "{}_output".format(self.step.group))
+                                      format(self.input_vars), f"{self.step.name}_output")
                 # FIXME: multiple output to be implemented
                 self.action += "{0}['DSC_EXT_'] = \'{1}\'\n".\
                                format(key, flatten_list(self.step.rf.values())[0])
@@ -331,7 +311,7 @@ class DSC_Translator:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
-                    self.action += '{}: workdir = {}\n'.format(plugin.name, repr(self.step.workdir))
+                    self.action += f'{plugin.name}: workdir = {repr(self.step.workdir)}, expand = "${{ }}"\n'
                     # Add action
                     if not self.step.shell_run:
                         script_begin = plugin.get_input(self.params, len(self.step.depends),
@@ -354,16 +334,15 @@ class DSC_Translator:
                             cmd_text = [x.rstrip() for x in open(cmd.split()[0], 'r').readlines()
                                         if x.strip() and not x.strip().startswith('#')]
                         except IOError:
-                            raise IOError("Cannot find script ``{}``!".format(cmd.split()[0]))
+                            raise IOError(f"Cannot find script ``{cmd.split()[0]}``!")
                         if plugin.name == 'R':
-                            cmd_text = ["suppressMessages({})".format(x.strip())
+                            cmd_text = [f"suppressMessages({x.strip()})"
                                         if re.search(r'^(library|require)\((.*?)\)$', x.strip())
                                         else x for x in cmd_text]
                         script = '\n'.join([script_begin, '\n'.join(cmd_text), script_end])
                         if self.try_catch:
                             script = plugin.add_try(script, len(flatten_list([self.step.rf.values()])))
-                        script = """## {0} script UUID: ${{DSC_STEP_ID_}}\n{1}""".\
-                                 format(str(plugin), script)
+                        script = f"""## {str(plugin)} script UUID: ${{DSC_STEP_ID_}}\n{script}"""
                         self.action += script
                         self.exe_signature.append(fileMD5(self.step.exe.split()[0], partial = False)
                                                   if os.path.isfile(self.step.exe.split()[0])
@@ -377,7 +356,7 @@ class DSC_Translator:
         def dump(self):
             return '\n'.join([x for x in
                               [self.header,
-                               self.param_string,
+                               self.param_string.strip(),
                                ' '.join([self.input_string,
                                          (', ' if self.input_string != 'input:' else '') + ', '.join(self.input_option)])
                                if not self.prepare else self.input_string,

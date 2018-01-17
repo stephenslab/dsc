@@ -4,8 +4,9 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 '''
-Parser for DSC script and annotation files
+This file defines methods to load and preprocess DSC scripts
 '''
+
 
 import os, re, itertools, copy, collections, subprocess
 from sos.target import textMD5

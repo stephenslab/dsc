@@ -126,7 +126,6 @@ def execute(args):
     pipeline_dsc = DSC_Pipeline(script).pipelines
     if args.debug:
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_dsc, list(script.dump().values()))
-        return
     pipeline = DSC_Translator(pipeline_dsc, script.runtime, args.__construct__ == "no",
                               args.__max_jobs__, args.try_catch)
     # Apply clean-up
@@ -135,31 +134,31 @@ def execute(args):
         return
     # Recover DSC from existing files
     if args.__construct__ in ["full", "partial"] and not \
-       (os.path.isfile('{1}/{0}.map.mpk'.format(db, script.runtime.output)) \
-        and os.path.isfile('{1}/{0}.io.mpk'.format(db, script.runtime.output))):
+       (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk') \
+        and os.path.isfile(f'{script.runtime.output}/{db}.io.mpk')):
         raise RuntimeError('Project cannot be safely recovered because no meta-data can be found under\n``{}``'.\
                            format(os.path.abspath(script.runtime.output)))
     if args.__construct__ == "partial":
         # FIXME: need test
         master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
-        ResultDB('{}/{}'.format(script.runtime.output, db), master).Build(script = open(args.dsc_file).read())
+        ResultDB(f'{script.runtime.output}/{db}', master).Build(script = open(args.dsc_file).read())
         return
     # Archive scripts
     from .utils import OrderedDict
-    lib_content = [("From <code>{}</code>".format(k), sorted(glob.glob("{}/*.*".format(k))))
+    lib_content = [(f"From <code>{k}</code>", sorted(glob.glob(f"{k}/*.*")))
                    for k in script.runtime.options['lib_path'] or []]
-    exec_content = [(k, [step.exe for step in script.blocks[k].steps])
+    exec_content = [(k, [script.modules[k].exe])
                     for k in script.runtime.sequence_ordering]
     dsc2html(open(args.dsc_file).read(), script.runtime.output,
              section_content = OrderedDict(lib_content + exec_content))
-    env.logger.info("DSC script exported to ``{}.html``".format(script.runtime.output))
-    env.logger.info("Constructing DSC from ``{}`` ...".format(args.dsc_file))
+    env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
+    env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
     # Setup
     from sos.__main__ import cmd_run
     from sos.converter import script_to_html
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
-        script_to_html(script_prepare, '.sos/.dsc/{}.prepare.html'.format(db))
+        script_to_html(script_prepare, f'.sos/.dsc/{db}.prepare.html')
     mode = "default"
     if args.__construct__ == "no":
         mode = "force"
@@ -176,12 +175,12 @@ def execute(args):
                    'workflow': "default"}
         cmd_run(prepare_args(db + '.prepare', content), [])
     # Run
-    env.logger.debug("Running command ``{}``".format(' '.join(sys.argv)))
+    env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info("Building execution graph ...")
     pipeline.filter_execution()
     script_run = pipeline.write_pipeline(2)
     if args.debug:
-        script_to_html(script_run, '.sos/.dsc/{}.run.html'.format(db))
+        script_to_html(script_run, f'.sos/.dsc/{db}.run.html')
         return
     if args.__construct__ == "full":
         # For this mode, since file names are properly determined by the `cmd_run` above,

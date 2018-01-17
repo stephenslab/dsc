@@ -79,9 +79,9 @@ class BasePlug:
         return dict([
             ('ID', self.identifier),
             ('container', self.container),
-                ('container variables', self.container_vars),
+                ('container_variables', self.container_vars),
                 ('input_alias', self.input_alias),
-                ('temp file', self.tempfile)])
+                ('temp_file', self.tempfile)])
     @staticmethod
     def add_try(content, n_output):
         return ''
@@ -102,10 +102,10 @@ class Shell(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0}=\'${{_output[0]!bn}}.{0}\''.format(lhs))
+            self.tempfile.append('{0}=\'${{_output[0]:bn}}.{0}\''.format(lhs))
         else:
             self.tempfile.append('TMP_{}=`mktemp -d`'.format(self.identifier))
-            temp_var = ['$TMP_{0}/${{_output[0]!bn}}.{1}.{2}'.\
+            temp_var = ['$TMP_{0}/${{_output[0]:bn}}.{1}.{2}'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{}="{}"'.format(lhs, ' '.join(temp_var)))
 
@@ -139,7 +139,7 @@ class RPlug(BasePlug):
             # single value input add
             self.input_alias.append('{} <- {}'.format(lhs,
                                                       rhs if (not rhs.startswith('$'))
-                                                      or rhs in ('${_output!r}', '${_input!r}')
+                                                      or rhs in ('${_output:r}', '${_input:r}')
                                                       else '{}{}'.format(self.identifier, rhs)))
         elif isinstance(lhs, (list, tuple)):
             # multiple value input add
@@ -149,14 +149,14 @@ class RPlug(BasePlug):
                 elif not rhs.startswith("$"):
                     self.input_alias.append('{} <- {}'.format(x, rhs))
                 else:
-                    self.input_alias.append('{} <- {}'.format(x, rhs.replace('!r', '[{}]!r'.format(idx))))
+                    self.input_alias.append('{} <- {}'.format(x, rhs.replace(':r', '[{}]:r'.format(idx))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0} <- \'${{_output[0]!bn}}.{0}\''.format(lhs))
+            self.tempfile.append('{0} <- \'${{_output[0]:bn}}.{0}\''.format(lhs))
         else:
             self.tempfile.append('TMP_{} <- tempdir()'.format(self.identifier))
-            temp_var = ['paste0(TMP_{0}, "/${{_output[0]!bn}}.{1}.{2}")'.\
+            temp_var = ['paste0(TMP_{0}, "/${{_output[0]:bn}}.{1}.{2}")'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
 
@@ -168,7 +168,7 @@ class RPlug(BasePlug):
         res += '\noptions(warn=1)\n${DSC_RUTILS}'
         # load files
         load_multi_in = '\n{} <- list()'.format(self.identifier) + \
-          '\ninput.files <- c(${{_input!r,}})\nfor (i in 1:length(input.files)) ' \
+          '\ninput.files <- c(${{_input:r,}})\nfor (i in 1:length(input.files)) ' \
           '{0} <- DSC_LMERGE({0}, readRDS(input.files[i]))'.format(self.identifier)
         load_single_in = '\n{} <- readRDS("${{_input}}")'.format(self.identifier)
         load_out = '\nattach(readRDS("${_output}"), warn.conflicts = F)'
@@ -219,7 +219,7 @@ class RPlug(BasePlug):
     def get_return(self, output_vars):
         if len(output_vars) == 0:
             return ''
-        res = '\nsaveRDS(list({}), ${{_output!r}})'.\
+        res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
                            ['DSC_TIMER = proc.time() - {}_tic_pt'.format(self.identifier)]))
         return res.strip()
@@ -248,7 +248,7 @@ class RPlug(BasePlug):
         content += '    script <- sub(".*=", "", commandArgs()[4])\n'
         content += '    script <- readChar(script, file.info(script)$size)\n'
         for i in range(n_output):
-            content += '    cat(script, file = ${_output[%s]!r})\n' % i
+            content += '    cat(script, file = ${_output[%s]:r})\n' % i
         content += '})'
         return content
 
@@ -269,7 +269,7 @@ class PyPlug(BasePlug):
             # single value input add
             self.input_alias.append('{} = {}'.format(lhs,
                                                      rhs if (not rhs.startswith('$'))
-                                                     or rhs in ('${_output!r}', '${_input!r}')
+                                                     or rhs in ('${_output:r}', '${_input:r}')
                                                      else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
         elif isinstance(lhs, (list, tuple)):
             # multiple value input add
@@ -279,14 +279,14 @@ class PyPlug(BasePlug):
                 elif not rhs.startswith("$"):
                     self.input_alias.append('{} = {}'.format(x, rhs))
                 else:
-                    self.input_alias.append('{} = {}'.format(x, rhs.replace('!r', '[{}]!r'.format(idx))))
+                    self.input_alias.append('{} = {}'.format(x, rhs.replace(':r', '[{}]:r'.format(idx))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0} = \'${{_output[0]!bn}}.{0}\''.format(lhs))
+            self.tempfile.append('{0} = \'${{_output[0]:bn}}.{0}\''.format(lhs))
         else:
             self.tempfile.append('TMP_{} = tempfile.gettempdir()'.format(self.identifier))
-            temp_var = ['"{{}}/${{_output[0]!bn}}.{1}.{2}".format(TMP_{0})'.\
+            temp_var = ['"{{}}/${{_output[0]:bn}}.{1}.{2}".format(TMP_{0})'.\
                         format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
 
@@ -298,7 +298,7 @@ class PyPlug(BasePlug):
         # load files
         res += '\nfrom dsc.utils import save_rds, load_rds'
         load_multi_in = '\n{} = {{}}'.format(self.identifier) + \
-          '\nfor item in [${{_input!r,}}]:\n\t{}.update(load_rds(item))'.format(self.identifier)
+          '\nfor item in [${{_input:r,}}]:\n\t{}.update(load_rds(item))'.format(self.identifier)
         load_single_in = '\n{} = load_rds("${{_input}}")'.format(self.identifier)
         load_out = '\nglobals().update(load_rds("${_output}"))'
         flag = False
@@ -347,7 +347,7 @@ class PyPlug(BasePlug):
     def get_return(self, output_vars):
         if len(output_vars) == 0:
             return ''
-        res = '\nsave_rds({{{}}}, ${{_output!r}})'.\
+        res = '\nsave_rds({{{}}}, ${{_output:r}})'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
                            ['"DSC_TIMER" : timeit.default_timer() - {}_tic_pt'.format(self.identifier)]))
         # res += '\nfrom os import _exit; _exit(0)'
@@ -371,7 +371,7 @@ class PyPlug(BasePlug):
                   "\nexcept Exception as e:\n"
         content += '    import sys\nscript = open(sys.argv[len(sys.argv)-1]).read()\n'
         for i in range(n_output):
-            content += '    open(${_output[%s]!r}).write(script)\n' % i
+            content += '    open(${_output[%s]:r}).write(script)\n' % i
         return content
 
     @staticmethod
