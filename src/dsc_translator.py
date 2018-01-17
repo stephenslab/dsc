@@ -33,54 +33,58 @@ class DSC_Translator:
         conf_str = []
         job_str = []
         exe_signatures = dict()
-        # name map for steps
+        # name map for steps, very important
+        # to be used to expand IO_DB after load
         self.step_map = dict()
         # Get workflow steps
         for workflow_id, workflow in enumerate(workflows):
-            self.step_map[workflow_id] = dict()
+            self.step_map[workflow_id + 1] = dict()
             keys = list(workflow.keys())
             for step in workflow.values():
                 flow = "_".join(['_'.join(keys[:keys.index(step.name)]), step.name]).strip('_')
                 depend = '_'.join(uniq_list([i[0] for i in step.depends]))
                 # either different flow or different dependency will create a new entry
-                if (flow, depend) not in processed_steps:
-                    pattern = re.compile(f"^{step.name}_[0-9]+$")
-                    cnt = len([k for k in
-                               set(flatten_list([list(self.step_map[i].values()) for i in range(workflow_id)]))
-                               if pattern.match(k)])
-                    name2 = f"{step.name}_{cnt}"
-                    self.step_map[workflow_id][step.name] = name2
-                    processed_steps[(flow, depend)] = name2
-                    if cnt == 0:
+                if (step.name, flow, depend) not in processed_steps:
+                    name = (f"{step.name}", f"{workflow_id + 1}")
+                    self.step_map[workflow_id + 1][step.name] = name
+                    # Has the core been processed?
+                    if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
                         job_translator = self.Step_Translator(step, self.db, 0, try_catch)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
+                        exe_signatures[step.name] = job_translator.exe_signature
+                    processed_steps[(step.name, flow, depend)] = name
                     conf_translator = self.Step_Translator(step, self.db, 1, try_catch)
-                    conf_dict[name2] = conf_translator.dump()
-                    exe_signatures[name2] = job_translator.exe_signature
+                    conf_dict[name] = conf_translator.dump()
                 else:
-                    self.step_map[workflow_id][step.name] = processed_steps[(flow, depend)]
+                    self.step_map[workflow_id + 1][step.name] = processed_steps[(step.name, flow, depend)]
         # Get workflows executions
         io_info_files = []
         self.last_steps = []
         # Execution steps, unfiltered
         self.job_pool = OrderedDict()
+        print(self.step_map)
+        # Do not document steps that has been configured already in its unique context
+        configured_steps = set()
         for workflow_id, sequence in enumerate(runtime.sequence):
-            sqn = [self.step_map[workflow_id][x] for x in sequence]
+            sqn = [self.step_map[workflow_id + 1][x] for x in sequence]
+            new_steps = [conf_dict[x] for x in sqn if x not in configured_steps]
+            configured_steps.update(sqn)
             # Configuration
-            conf_str.append(f"[{n2a(workflow_id + 1)}]\n" \
-                            f"parameter: sequence_id = '{workflow_id + 1}'\n"\
-                            f'''parameter: sequence_name = '{"+".join(sqn)}'\n''' \
-                            f"input: None\noutput: '.sos/.dsc/{self.db}_{workflow_id + 1}.mpk'")
-            conf_str.append("DSC_UPDATES_ = OrderedDict()\n")
-            conf_str.extend([conf_dict[x] for x in sqn])
-            conf_str.append("open(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))")
-            io_info_files.append(f'.sos/.dsc/{self.db}_{workflow_id + 1}.mpk')
+            if len(new_steps):
+                conf_str.append(f"[{n2a(workflow_id + 1)}]\n" \
+                                f"parameter: sequence_id = '{workflow_id + 1}'\n"\
+                                f'''parameter: sequence_name = '{"+".join([n2a(int(x[1])).lower()+"_"+x[0] for x in sqn])}'\n''' \
+                                f"input: None\noutput: '.sos/.dsc/{self.db}_{workflow_id + 1}.mpk'")
+                conf_str.append("DSC_UPDATES_ = OrderedDict()\n")
+                conf_str.extend(new_steps)
+                conf_str.append("open(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))")
+                io_info_files.append(f'.sos/.dsc/{self.db}_{workflow_id + 1}.mpk')
             # Execution pool
             ii = 1
-            for x, y in zip(sqn, sequence):
+            for y in sequence:
                 tmp_str = [f"[{n2a(workflow_id + 1).lower()}_{y} ({y})]"]
-                tmp_str.append(f"parameter: script_signature = {repr(exe_signatures[x])}")
+                tmp_str.append(f"parameter: script_signature = {repr(exe_signatures[y])}")
                 if ii > 1:
                     tmp_str.append(f"depends: [sos_step('{n2a(workflow_id + 1).lower()}_' + x) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")

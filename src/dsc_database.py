@@ -101,9 +101,9 @@ def build_config_db(input_files, io_db, map_db, conf_db, vanilla = False, jobs =
                     continue
                 k1 = k1.split()[0]
                 # step_key example:
-                # [('rcauchy.R', '71c60831e6ac5e824cb845171bd19933'),
-                # ('mean.R', 'dfb0dd672bf5d91dd580ac057daa97b9'),
-                # ('MSE.R', '0657f03051e0103670c6299f9608e939')]
+                # [('rcauchy', '71c60831e6ac5e824cb845171bd19933'),
+                # ('mean', 'dfb0dd672bf5d91dd580ac057daa97b9'),
+                # ('MSE', '0657f03051e0103670c6299f9608e939')]
                 step_key = uniq_list(reversed([x for x in chunks(k1.split(":"), 2)]))
                 if k1 in map_data:
                     k_tmp = tuple([x[0] for x in step_key])
