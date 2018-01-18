@@ -77,44 +77,33 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     - create conf file based on map file and io file
     '''
     def get_names():
-        '''Get map names. Also dedup data object'''
+        '''Get map names.'''
         # names has to be ordered dict to make sure
         # map_data is updated non-randomly
         # return is a list of original name and new name mapping
         names = OrderedDict()
         lookup = {}
-        seen = set()
         base_ids = {}
         # 1. collect exec names and ID
         for k in list(data.keys()):
-            # handle duplicate output
-            # FIXME: what if there is partial overlap?
-            # Maybe I should prevent this via checking input script
-            tmp_output = str(sorted(data[k]['DSC_IO_'][1]))
-            if tmp_output in seen:
-                del data[k]
-                continue
-            else:
-                seen.add(tmp_output)
             for k1 in data[k]:
                 if k1 in ["DSC_EXT_", "DSC_IO_"]:
                     continue
                 k1 = k1.split()[0]
-                # step_key example:
+                if k1 in names:
+                    raise ValueError(f'\nIdentical modules found: ``{k1}``!')
+                # names[k1] from "k1" example:
                 # [('rcauchy', '71c60831e6ac5e824cb845171bd19933'),
                 # ('mean', 'dfb0dd672bf5d91dd580ac057daa97b9'),
                 # ('MSE', '0657f03051e0103670c6299f9608e939')]
-                step_key = uniq_list(reversed([x for x in chunks(k1.split(":"), 2)]))
+                names[k1] = uniq_list(reversed([x for x in chunks(k1.split(":"), 2)]))
                 if k1 in map_data:
-                    k_tmp = tuple([x[0] for x in step_key])
+                    k_tmp = tuple([x[0] for x in names[k1]])
                     if not k_tmp in base_ids:
                         base_ids[k_tmp] = {x:set() for x in k_tmp}
-                    for x, y in zip(k_tmp, step_key):
+                    for x, y in zip(k_tmp, names[k1]):
                         base_ids[k_tmp][x].add(y[1])
                     continue
-                if k1 in names:
-                    raise ValueError('\nIdentical computational procedures found: ``{}``!'.format(k1))
-                names[k1] = step_key
                 for x in names[k1]:
                     if x[0] not in lookup:
                         lookup[x[0]] = []
@@ -129,7 +118,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                                    (len(base_id[x[0]]) if x[0] in base_id and x[1] not in base_id[x[0]] else 0))]
                         for x in names[k][:-1]] + [names[k][-1]]
             # 3. construct name map
-            names[k] = '_'.join(flatten_list(names[k][:-1])) + '.{}'.format(names[k][-1])
+            names[k] = '_'.join(flatten_list(names[k][:-1])) + f'.{names[k][-1]}'
         return names
 
     def update_map(names):

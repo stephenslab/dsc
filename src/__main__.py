@@ -172,7 +172,9 @@ def execute(args):
                  for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
     exec_path = [x for x in exec_path if os.path.isdir(x)]
     # Get raw IO database
-    exec(compile(pipeline.conf_str_py, 'prepare_io', 'exec'))
+    gdict = globals()
+    gdict['step_map'] = pipeline.step_map
+    exec(compile(pipeline.conf_str_py, 'prepare_io', 'exec'), gdict)
     return
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):

@@ -92,10 +92,12 @@ class DSC_Translator:
                 self.job_pool[(str(workflow_id + 1), y)] = '\n'.join(tmp_str)
                 ii += 1
         self.conf_str_py = '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
-                           '\ndef prepare_io():\n\t'+ \
+                           '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
                            f'\n\tDSC_UPDATES_ = OrderedDict()\n\t_output = "{self.output}/{self.db}.io.mpk"\n\t' + \
                            '\n\t'.join('\n'.join(conf_str).split('\n')) + \
-                           "\n\topen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))\n\nprepare_io()"
+                           "\n\topen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))\n" + \
+                           "\n\topen(_output[:-3] + 'meta.mpk', 'wb').write(msgpack.packb(step_map))\n\n" + \
+                           "prepare_io()"
         self.job_str = job_header + f"DSC_RUTILS = '''{R_SOURCE + R_LMERGE}'''" + "\n{}".format('\n'.join(job_str))
         tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \

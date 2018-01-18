@@ -9,13 +9,13 @@ simulate: datamaker.R
     max_pi0: 1
     nsamp: 1000
     betahatsd: 1
+    # module decoration
+    @ALIAS: args = list()
+    @CONF: queue = midway
     # module output
     $data: data
     $true_beta: raw(data$meta$beta)
     $true_pi0: raw(data$meta$pi0)
-    # global decoration
-    @ALIAS: args = list()
-    @CONF: queue = midway
 
 shrink: runash.R
     # module input and variables
