@@ -5,6 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import os, re, itertools, collections, time, sympy
+from itertools import cycle, chain, islice
 from collections import OrderedDict
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
@@ -370,7 +371,7 @@ def sos_pair_input(value):
                 value = list(zip(*[x for x in chunks(value, 2)]))
     return flatten_list(value)
 
-def sos_group_input(value):
+def sos_group_input_safe(value):
     '''
     Input is a list of lists or tuples. Lists are ordered such that
     the length of the next list is always multiples of the previous
@@ -389,6 +390,22 @@ def sos_group_input(value):
         if multiplier > 1:
             value[idx - 1] = flatten_list([value[idx - 1] for i in range(multiplier)])
     return flatten_list(list(zip(*value)))
+
+def sos_group_input_adam(*lsts):
+    '''
+    https://stackoverflow.com/questions/48346169/fast-zip-list-of-lists-while-completing-shorter-lists-by-cycling
+    '''
+    n = len(lsts) - 1
+    cyclic = [lst if i == n else itertools.cycle(lst) for i, lst in enumerate(lsts)]
+    return list(itertools.chain.from_iterable(zip(*cyclic)))
+
+def sos_group_input(*lsts):
+    '''
+    https://stackoverflow.com/questions/48346169/fast-zip-list-of-lists-while-completing-shorter-lists-by-cycling
+    '''
+    return list(chain(*islice(
+        zip(*(cycle(l) for l in lsts)),
+        0, len(lsts[-1]))))
 
 def load_rds(filename, types = None):
     import pandas as pd

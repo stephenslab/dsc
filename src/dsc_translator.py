@@ -245,7 +245,7 @@ class DSC_Translator:
                     self.input_string += f"## With variables from: {', '.join(self.current_depends)}"
                 if len(self.current_depends) >= 2:
                     self.input_vars = f'{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_input'
-                    self.input_string += '\n{} = sos_group_input([{}])'.\
+                    self.input_string += '\n{} = sos_group_input({})'.\
                        format(self.input_vars,
                               ', '.join([f'{n2a(int(self.step_map[x][1])).lower()}_{x}_output' for x in self.current_depends]))
                 elif len(self.current_depends) == 1:
