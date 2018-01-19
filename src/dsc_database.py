@@ -10,6 +10,13 @@ from sos.utils import Error
 from .utils import flatten_list, uniq_list, chunks, n2a, OrderedDict
 from .addict import Dict as dotdict
 
+
+class DBError(Error):
+    """Raised when there is a problem building the database."""
+    def __init__(self, msg):
+        Error.__init__(self, msg)
+        self.args = (msg, )
+
 def remove_obsolete_output(output, additional_files = None, rerun = False):
     from sos.__main__ import cmd_remove
     map_db = '{}/{}.map.mpk'.format(output, os.path.basename(output))
@@ -89,7 +96,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
             for k1 in data[k]:
                 if k1 in ["DSC_EXT_", "DSC_IO_"]:
                     continue
-                k1 = k1.split()[0]
+                k1 = k1.split(' ')[0]
                 if k1 in names:
                     raise ValueError(f'\nIdentical modules found: ``{k1}``!')
                 # names[k1] from "k1" example:
@@ -142,6 +149,8 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     def find_dependent(conf):
         for sid in conf:
             for name in conf[sid]:
+                if isinstance(conf[sid][name], tuple):
+                    continue
                 conf[sid][name]["depends"] = []
                 for item in conf[sid][name]['input_repr']:
                     for sid2 in conf:
@@ -154,8 +163,9 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                     raise ValueError("Dependent files not unique for sequence {} step {}".format(sid, name))
         for sid in conf:
             for name in conf[sid]:
-                del conf[sid][name]['input_repr']
-                del conf[sid][name]['output_repr']
+                if 'input_repr' in conf[sid][name]:
+                    del conf[sid][name]['input_repr']
+                    del conf[sid][name]['output_repr']
         return conf
     #
     if os.path.isfile(map_db) and not vanilla:
@@ -167,33 +177,38 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     # open(io_db, "wb").write(msgpack.packb(data))
     data = msgpack.unpackb(open(io_db, 'rb').read(), encoding = 'utf-8',
                            object_pairs_hook = OrderedDict)
+    meta_data = msgpack.unpackb(open(io_db[:-4] + '.meta.mpk', 'rb').read(), encoding = 'utf-8',
+                                object_pairs_hook = OrderedDict)
     map_names = get_names()
     update_map(map_names)
     fid = os.path.dirname(str(conf_db))
     conf = OrderedDict()
-    for k in data:
-        sid, name = k.split(':')
-        if sid not in conf:
-            conf[sid] = OrderedDict()
-        if name not in conf[sid]:
-            conf[sid][name] = OrderedDict()
-        conf[sid][name]['input'] = [os.path.join(fid, map_data[item]) \
-                                    for item in data[k]['DSC_IO_'][0]]
-        conf[sid][name]['output'] = [os.path.join(fid, map_data[item]) \
-                                     for item in data[k]['DSC_IO_'][1]]
-        conf[sid][name]['input_repr'] = [os.path.join(fid, map_data[item]) \
-                                         for item in find_representative(data[k]['DSC_IO_'][0])]
-        conf[sid][name]['output_repr'] = [os.path.join(fid, map_data[item]) \
-                                          for item in find_representative(data[k]['DSC_IO_'][1])]
+    for key in meta_data:
+        workflow_id = str(key)
+        if workflow_id not in conf:
+            conf[workflow_id] = OrderedDict()
+        for module in meta_data[key]:
+            k = f'{module}:{key}'
+            if k not in data:
+                k = ':'.join(meta_data[key][module])
+                # FIXME: this will be a bug if ever triggered
+                if k not in data:
+                    raise DBError(f"Cannot find key ``{k}`` in DSC I/O records.")
+                conf[workflow_id][module] = (meta_data[key][module][1], meta_data[key][module][0])
+                continue
+            if module not in conf[workflow_id]:
+                conf[workflow_id][module] = OrderedDict()
+            conf[workflow_id][module]['input'] = [os.path.join(fid, map_data[item]) \
+                                        for item in data[k]['DSC_IO_'][0]]
+            conf[workflow_id][module]['output'] = [os.path.join(fid, map_data[item]) \
+                                         for item in data[k]['DSC_IO_'][1]]
+            conf[workflow_id][module]['input_repr'] = [os.path.join(fid, map_data[item]) \
+                                             for item in find_representative(data[k]['DSC_IO_'][0])]
+            conf[workflow_id][module]['output_repr'] = [os.path.join(fid, map_data[item]) \
+                                              for item in find_representative(data[k]['DSC_IO_'][1])]
     conf = find_dependent(conf)
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
-
-class ResultDBError(Error):
-    """Raised when there is a problem building the database."""
-    def __init__(self, msg):
-        Error.__init__(self, msg)
-        self.args = (msg, )
 
 class ResultDB:
     def __init__(self, db_prefix, master_names):
@@ -213,7 +228,7 @@ class ResultDB:
             self.maps = msgpack.unpackb(open(self.db_prefix + '.map.mpk', 'rb').read(), encoding = 'utf-8',
                                         object_pairs_hook = OrderedDict)
         else:
-            raise ResultDBError("DSC filename database is corrupted!")
+            raise DBError("DSC filename database is corrupted!")
 
     def load_parameters(self):
         #
@@ -224,19 +239,19 @@ class ResultDB:
                     res = ii + 1
                     break
             if res is None:
-                raise ResultDBError('Cannot find dependency step for output ``{}``!'.format(x))
+                raise DBError('Cannot find dependency step for output ``{}``!'.format(x))
             return res
         #
         def find_namemap(x):
             if x in self.maps:
                 return os.path.splitext(self.maps[x])[0]
-            raise ResultDBError('Cannot find name map for ``{}``'.format(x))
+            raise DBError('Cannot find name map for ``{}``'.format(x))
         #
         try:
             data_all = msgpack.unpackb(open(self.db_prefix + ".io.mpk", "rb").read(),
                                     encoding = 'utf-8', object_pairs_hook = OrderedDict)
         except:
-            raise ResultDBError('Cannot load source data to build database!')
+            raise DBError('Cannot load source data to build database!')
         seen = []
         data = OrderedDict()
         for k0 in data_all.keys():
@@ -278,7 +293,7 @@ class ResultDB:
                 keys2 = repr(sorted([x for x in self.data[table].keys() if not x in
                                      ['ID', 'FILE', 'parent']]))
                 if keys1 != keys2:
-                    raise ResultDBError('Inconsistent keys between step '\
+                    raise DBError('Inconsistent keys between step '\
                                               '``{0} (value {2})`` and ``{1} (value {3})``.'.\
                                               format(idx + 1, keys1, self.data[table]['ID'], keys2))
             self.data[table]['ID'].append(idx + 1)
@@ -296,7 +311,7 @@ class ResultDB:
         for k in self.groups:
             if step in self.groups[k]:
                 return k
-        raise ResultDBError('Cannot find ``{}`` in any blocks!'.format(step))
+        raise DBError('Cannot find ``{}`` in any blocks!'.format(step))
 
     def __get_sequence(self, step, step_id, step_idx, res):
         '''Input are last step name, ID, and corresponding index (in its data frame)'''
@@ -314,7 +329,7 @@ class ResultDB:
                     step = k
                     break
             if idx is None or step is None:
-                raise ResultDBError('Cannot find step_id ``{}`` in any tables!'.format(depend_id))
+                raise DBError('Cannot find step_id ``{}`` in any tables!'.format(depend_id))
             self.__get_sequence(step, depend_id, idx, res)
 
     def write_master_table(self, block):

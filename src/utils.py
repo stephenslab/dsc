@@ -799,3 +799,8 @@ def do_parentheses_match(input_string, l = '(', r = ')'):
                 s.pop()
         index += 1
     return balanced and len(s) == 0
+
+def remove_multiple_strings(cur_string, replace_list):
+    for cur_word in sorted(set(replace_list), key=len):
+        cur_string = cur_string.replace(cur_word, '')
+    return cur_string
