@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import re, os, msgpack, glob
+import re, os, sys, msgpack, glob
 from sos.target import fileMD5, executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
 __all__ = ['DSC_Translator']
@@ -91,17 +91,23 @@ class DSC_Translator:
                     self.last_steps.append((f'{workflow_id + 1}', y))
                 self.job_pool[(str(workflow_id + 1), y)] = '\n'.join(tmp_str)
                 ii += 1
-        self.conf_str_py = '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
+        self.conf_str_py = 'import msgpack\nfrom collections import OrderedDict\n' + \
+                           'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' + \
+                           '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
                            '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
                            f'\n\tDSC_UPDATES_ = OrderedDict()\n\t_output = "{self.output}/{self.db}.io.mpk"\n\t' + \
                            '\n\t'.join('\n'.join(conf_str).split('\n')) + \
-                           "\n\topen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))\n" + \
-                           "\n\topen(_output[:-3] + 'meta.mpk', 'wb').write(msgpack.packb(step_map))\n\n" + \
+                           "\n\topen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))\n\n" + \
                            "prepare_io()"
         self.job_str = job_header + f"DSC_RUTILS = '''{R_SOURCE + R_LMERGE}'''" + "\n{}".format('\n'.join(job_str))
-        tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
+        # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
-                            f"\n[default_1]\nremove_obsolete_output('{self.output}', rerun = {rerun})\n[default_2]\n" \
+                            "\n[default_1 (Hashing output files)]" + \
+                            f"\ninput: '.sos/.dsc/{self.db}.prepare.py'\noutput: '{self.output}/{self.db}.io.mpk'" + \
+                            "\ntask:\nrun: expand = True\n{} {{_input}}".format(sys.executable) + \
+                            "\n[default_2 (Removing obsolete output)]" + \
+                            f"\nremove_obsolete_output('{self.output}', rerun = {rerun})" + \
+                            " \n[default_3 (Configuring output filenames)]\n" \
                             f"parameter: vanilla = {rerun}\n"\
                             f"input: '{self.output}/{self.db}.io.mpk'\n"\
                             f"output: '{self.output}/{self.db}.map.mpk', "\
@@ -109,6 +115,7 @@ class DSC_Translator:
                             "\nbuild_config_db(_input, _output[0], "\
                             f"_output[1], vanilla = vanilla, jobs = {n_cpu})"
         #
+        open(f'{self.output}/{self.db}.io.meta.mpk', 'wb').write(msgpack.packb(self.step_map))
         self.install_libs(runtime.rlib, "R_library")
         self.install_libs(runtime.pymodule, "Python_Module")
 
@@ -117,6 +124,8 @@ class DSC_Translator:
         res = []
         if pipeline_id == 1:
             res.append(self.conf_str_sos)
+            with open(f'.sos/.dsc/{self.db}.prepare.py', 'w') as f:
+                f.write(self.conf_str_py)
         else:
             res.append(self.job_str)
         output = dest if dest is not None else (tempfile.NamedTemporaryFile().name + '.sos')

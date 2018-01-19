@@ -10,7 +10,7 @@ This file defines methods to load and preprocess DSC scripts
 
 import os, re, itertools, copy, collections, subprocess
 from xxhash import xxh64
-from .utils import FormatError, is_null, strip_dict, flatten_list, find_nested_key, merge_lists, \
+from .utils import FormatError, strip_dict, flatten_list, find_nested_key, merge_lists, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
 from .syntax import *

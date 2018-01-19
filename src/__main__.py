@@ -8,10 +8,8 @@ __license__ = "MIT"
 import os, sys, re, glob
 import warnings
 warnings.filterwarnings("ignore")
-import msgpack
 from sos.utils import env, get_traceback
-from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, Timer, \
-    sos_hash_output, sos_group_input, chunks, OrderedDict
+from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, Timer
 from .addict import Dict as dotdict
 from . import VERSION
 
@@ -133,7 +131,7 @@ def execute(args):
                               args.__max_jobs__, args.try_catch)
     # Apply clean-up
     if args.to_remove:
-        remove(workflow.workflows, rm_objects, script.runtime.output, args.debug, args.to_remove == 'replace')
+        remove(pipeline_dsc, rm_objects, script.runtime.output, args.debug, args.to_remove == 'replace')
         return
     # Recover DSC from existing files
     if args.__construct__ in ["full", "partial"] and not \
@@ -143,7 +141,7 @@ def execute(args):
                            format(os.path.abspath(script.runtime.output)))
     if args.__construct__ == "partial":
         # FIXME: need test
-        master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
+        master = list(set([x[list(x.keys())[-1]].name for x in pipeline_dsc]))
         ResultDB(f'{script.runtime.output}/{db}', master).Build(script = open(args.dsc_file).read())
         return
     # Archive scripts
@@ -162,8 +160,6 @@ def execute(args):
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
         script_to_html(script_prepare, f'.sos/.dsc/{db}.prepare.html')
-        with open(f'.sos/.dsc/{db}.prepare.py', 'w') as f:
-            f.write(pipeline.conf_str_py)
     mode = "default"
     if args.__construct__ == "no":
         mode = "force"
@@ -171,11 +167,6 @@ def execute(args):
     exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
                  for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
     exec_path = [x for x in exec_path if os.path.isdir(x)]
-    # Get raw IO database
-    gdict = globals()
-    gdict['step_map'] = pipeline.step_map
-    exec(compile(pipeline.conf_str_py, 'prepare_io', 'exec'), gdict)
-    return
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         content = {'__max_running_jobs__': args.__max_jobs__,
@@ -221,7 +212,7 @@ def execute(args):
                                format(db))
         sys.exit(1)
     # Build database
-    master = list(set([x[list(x.keys())[-1]].name for x in workflow.workflows]))
+    master = list(set([x[list(x.keys())[-1]].name for x in pipeline_dsc]))
     env.logger.info("Writing output database ...")
     ResultDB('{}/{}'.format(script.runtime.output, db), master).\
         Build(script = open(script.runtime.output + '.html').read())

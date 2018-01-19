@@ -3,11 +3,11 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, msgpack, re, glob, pickle
+import os, msgpack, glob, pickle
 from multiprocessing import Process, Manager
 import pandas as pd
 from sos.utils import Error
-from .utils import flatten_list, uniq_list, chunks, n2a, OrderedDict
+from .utils import flatten_list, uniq_list, chunks, OrderedDict, remove_multiple_strings, extend_dict
 from .addict import Dict as dotdict
 
 
