@@ -52,4 +52,4 @@ DSC:
     output: dsc_result
     # pipeline variables, will overwrite any module variables of the same variable name
     global:
-      seed: R(1:5000) 
+      seed: R(1:3)

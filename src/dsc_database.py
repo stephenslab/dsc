@@ -41,7 +41,7 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
         else:
             x_ext = ''
         if os.path.basename(x) not in map_data.values() and \
-           x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['io', 'conf', 'map']] and \
+           x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['conf', 'map']] and \
            x != '{}/{}.db'.format(output, os.path.basename(output)):
             to_remove.append(x + x_ext)
     # Additional files to remove
@@ -123,18 +123,18 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                     lookup = extend_dict(lookup, dict(content))
                     names[kk] = content
                     names[kk].append(data[k]["DSC_EXT_"])
-
         for k in names:
             # existing items in map_data, skip them
             if isinstance(names[k], str):
                 continue
             # new items to be processed
             k_core = dict(names[k][:-1])
+            key = tuple(k_core.keys())
             # 2. replace the hash with an ID
             new_name = []
             for kk in k_core:
-                base_ids[k_core][kk] += lookup[kk].index(k_core[kk]) + 1
-                new_name.append(f'{kk}_{base_ids[k_core][kk]}')
+                base_ids[key][kk] += lookup[kk].index(k_core[kk]) + 1
+                new_name.append(f'{kk}_{base_ids[key][kk]}')
             # 3. construct name map
             names[k] = '_'.join(new_name) + f'.{names[k][-1]}'
         return names
@@ -143,41 +143,6 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
         '''Update maps and write to disk'''
         map_data.update(names)
         open(map_db, "wb").write(msgpack.packb(map_data))
-
-    def find_representative(files):
-        '''Input files are exec1:id1:exec2:id2:exec3:id3:....rds
-        need to return a list of non-random representative files having unique pattern
-        '''
-        seen = set()
-        res = []
-        for fn in files:
-            keys = tuple([x[0] for x in chunks(fn.split(":"), 2)])
-            if keys not in seen:
-                res.append(fn)
-                seen.add(keys)
-        return res
-
-    def find_dependent(conf):
-        for sid in conf:
-            for name in conf[sid]:
-                if isinstance(conf[sid][name], tuple):
-                    continue
-                conf[sid][name]["depends"] = []
-                for item in conf[sid][name]['input_repr']:
-                    for sid2 in conf:
-                        for k in conf[sid2]:
-                            if name == k:
-                                continue
-                            if item in conf[sid2][k]['output_repr']:
-                                conf[sid][name]['depends'].append(k)
-                if len(conf[sid][name]['depends']) > len(set(conf[sid][name]['depends'])):
-                    raise ValueError("Dependent files not unique for sequence {} step {}".format(sid, name))
-        for sid in conf:
-            for name in conf[sid]:
-                if 'input_repr' in conf[sid][name]:
-                    del conf[sid][name]['input_repr']
-                    del conf[sid][name]['output_repr']
-        return conf
 
     #
     if os.path.isfile(map_db) and not vanilla:
@@ -214,11 +179,8 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                                         for item in data[k]['DSC_IO_'][0]]
             conf[workflow_id][module]['output'] = [os.path.join(fid, map_data[item]) \
                                          for item in data[k]['DSC_IO_'][1]]
-            conf[workflow_id][module]['input_repr'] = [os.path.join(fid, map_data[item]) \
-                                             for item in find_representative(data[k]['DSC_IO_'][0])]
-            conf[workflow_id][module]['output_repr'] = [os.path.join(fid, map_data[item]) \
-                                              for item in find_representative(data[k]['DSC_IO_'][1])]
-    conf = find_dependent(conf)
+            # eg. score_beta:6cf79a4c4bf191ea:simulate:90d846d054f4b5d1:shrink:fde60bc16e1728c7:simulate:90d846d054f4b5d1
+            conf[workflow_id][module]['depends'] = uniq_list(data[k]['DSC_IO_'][1][0].split(':')[::2][1:])
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
 
