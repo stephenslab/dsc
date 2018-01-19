@@ -194,6 +194,7 @@ class DSC_Translator:
             self.exe_signature = []
             self.prepare = 0 if step_map is None else 1
             self.step = step
+            self.current_depends = uniq_list([x[0] for x in step.depends]) if step.depends else []
             self.db = db
             self.input_vars = None
             self.header = ''
@@ -239,26 +240,28 @@ class DSC_Translator:
                 self.filter_string = ' if ' + self.step.ft
 
         def get_input(self):
-            depend_steps = uniq_list([x[0] for x in self.step.depends]) if self.step.depends else []
             if self.prepare:
-                if depend_steps:
-                    self.input_string += f"## With variables from: {', '.join(depend_steps)}"
-                if len(depend_steps) >= 2:
+                if self.current_depends:
+                    self.input_string += f"## With variables from: {', '.join(self.current_depends)}"
+                if len(self.current_depends) >= 2:
                     self.input_vars = f'{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_input'
                     self.input_string += '\n{} = sos_group_input([{}])'.\
                        format(self.input_vars,
-                              ', '.join([f'{n2a(int(self.step_map[x][1])).lower()}_{x}_output' for x in depend_steps]))
-                elif len(depend_steps) == 1:
-                    self.input_vars = f"{n2a(int(self.step_map[depend_steps[0]][1])).lower()}_{depend_steps[0]}_output"
+                              ', '.join([f'{n2a(int(self.step_map[x][1])).lower()}_{x}_output' for x in self.current_depends]))
+                elif len(self.current_depends) == 1:
+                    self.input_vars = f"{n2a(int(self.step_map[self.current_depends[0]][1])).lower()}_{self.current_depends[0]}_output"
                 else:
                     pass
-                if len(depend_steps):
-                    self.loop_string[1] = f'for __i in chunks({self.input_vars}, {len(depend_steps)})'
+                if len(self.current_depends):
+                    if len(self.current_depends) > 1:
+                        self.loop_string[1] = f'for __i in chunks({self.input_vars}, {len(self.current_depends)})'
+                    else:
+                        self.loop_string[1] = f'for __i in {self.input_vars}'
             else:
-                if len(depend_steps):
+                if len(self.current_depends):
                     self.input_string += "parameter: {0}_input_files = list\ninput: dynamic({0}_input_files)".\
                                          format(self.step.name)
-                    self.input_option.append(f'group_by = {len(depend_steps)}')
+                    self.input_option.append(f'group_by = {len(self.current_depends)}')
                 else:
                     self.input_string += "input:"
                 if len(self.params):
@@ -278,9 +281,10 @@ class DSC_Translator:
                                       format(' '.join([self.step.name, str(self.step.exe)] \
                                                       + [f'{x}:{{}}' for x in reversed(self.params)]),
                                              format_string, self.loop_string[0] + self.filter_string, output_lhs)
-                if self.step.depends:
-                    self.output_string += "\n{0} = ['{1}:{{}}:{{}}'.format(item, ':'.join(__i)) " \
-                                          "for item in {0} {2}]".format(output_lhs, self.step.name, self.loop_string[1])
+                if len(self.current_depends):
+                    self.output_string += "\n{0} = ['{1}:{{}}:{{}}'.format(item, {3}) " \
+                                          "for item in {0} {2}]".format(output_lhs, self.step.name, self.loop_string[1],
+                                                                        "':'.join(__i)" if len(self.current_depends) > 1 else "__i")
                 else:
                     self.output_string += "\n{0} = ['{1}:{{}}'.format(item) for item in {0}]".\
                                           format(output_lhs, self.step.name)
@@ -298,7 +302,7 @@ class DSC_Translator:
                 combined_params = '[([{0}], {1}) {2}]'.\
                                   format(', '.join([f"('exec', '{self.step.exe}')"] \
                                                    + [f"('{x}', _{x})" for x in reversed(self.params)]),
-                                         None if self.loop_string[1] is '' else "'{}'.format(' '.join(__i))",
+                                         None if self.loop_string[1] is '' else ("'{}'.format(' '.join(__i))" if len(self.current_depends) > 1 else "'{}'.format(__i)"),
                                          ' '.join(self.loop_string) + self.filter_string)
                 key = f"DSC_UPDATES_['{self.step.name}:' + str(sequence_id)]"
                 self.action += f"{key} = OrderedDict()\n"

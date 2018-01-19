@@ -335,8 +335,7 @@ def sos_hash_output(values, jobs = 1):
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
-    for i in range(0, len(l), n):
-        yield l[i:i+n]
+    return [l[i:i + n] for i in range(0, len(l), n)]
 
 def sos_pair_input(value):
     '''Input must be a list of two lists,
