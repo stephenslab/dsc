@@ -89,43 +89,54 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
         # map_data is updated non-randomly
         # return is a list of original name and new name mapping
         names = OrderedDict()
-        lookup = {}
-        base_ids = {}
-        # 1. collect exec names and ID
+        lookup = dict()
+        base_ids = dict()
+        # 1. collect sequence names and hash
         for k in list(data.keys()):
-            for k1 in data[k]:
-                if k1 in ["DSC_EXT_", "DSC_IO_"]:
+            for kk in data[k]:
+                if kk in ["DSC_EXT_", "DSC_IO_"]:
                     continue
-                k1 = k1.split(' ')[0]
-                if k1 in names:
-                    raise ValueError(f'\nIdentical modules found: ``{k1}``!')
-                # names[k1] from "k1" example:
+                kk = kk.split(' ')[0]
+                if kk in names:
+                    raise ValueError(f'\nIdentical modules found: ``{kk}``!')
+                content = uniq_list(reversed([x for x in chunks(kk.split(":"), 2)]))
+                # content example:
                 # [('rcauchy', '71c60831e6ac5e824cb845171bd19933'),
                 # ('mean', 'dfb0dd672bf5d91dd580ac057daa97b9'),
                 # ('MSE', '0657f03051e0103670c6299f9608e939')]
-                names[k1] = uniq_list(reversed([x for x in chunks(k1.split(":"), 2)]))
-                if k1 in map_data:
-                    k_tmp = tuple([x[0] for x in names[k1]])
-                    if not k_tmp in base_ids:
-                        base_ids[k_tmp] = {x:set() for x in k_tmp}
-                    for x, y in zip(k_tmp, names[k1]):
-                        base_ids[k_tmp][x].add(y[1])
-                    continue
-                for x in names[k1]:
-                    if x[0] not in lookup:
-                        lookup[x[0]] = []
-                    if x[1] not in lookup[x[0]]:
-                        lookup[x[0]].append(x[1])
-                names[k1].append(data[k]["DSC_EXT_"])
+                k_core = tuple([x[0] for x in content])
+                if not k_core in base_ids:
+                    base_ids[k_core] = dict([(x, 0) for x in k_core])
+                if kk in map_data:
+                    # same module signature already exist
+                    # will not work on the name map of these
+                    # but will have to find their max ids
+                    # so that we know how to properly name new comers
+                    # ie we count how many times each of the module has occured
+                    # in this particular sequence
+                    ids = os.path.splitext(remove_multiple_strings(map_data[kk], kk.split(':')[::2]))[0]
+                    ids = [int(s) for s in ids.split('_') if s.isdigit()]
+                    for i, x in enumerate(base_ids[k_core].keys()):
+                        base_ids[k_core][x] = max(base_ids[k_core][x], ids[i])
+                    names[kk] = map_data[kk]
+                else:
+                    lookup = extend_dict(lookup, dict(content))
+                    names[kk] = content
+                    names[kk].append(data[k]["DSC_EXT_"])
+
         for k in names:
-            k_tmp = tuple([x[0] for x in names[k][:-1]])
-            base_id = base_ids[k_tmp] if k_tmp in base_ids else {}
-            # 2. replace the UUID of executable environment with a unique index
-            names[k] = [[x[0], str(lookup[x[0]].index(x[1]) + 1 + \
-                                   (len(base_id[x[0]]) if x[0] in base_id and x[1] not in base_id[x[0]] else 0))]
-                        for x in names[k][:-1]] + [names[k][-1]]
+            # existing items in map_data, skip them
+            if isinstance(names[k], str):
+                continue
+            # new items to be processed
+            k_core = dict(names[k][:-1])
+            # 2. replace the hash with an ID
+            new_name = []
+            for kk in k_core:
+                base_ids[k_core][kk] += lookup[kk].index(k_core[kk]) + 1
+                new_name.append(f'{kk}_{base_ids[k_core][kk]}')
             # 3. construct name map
-            names[k] = '_'.join(flatten_list(names[k][:-1])) + f'.{names[k][-1]}'
+            names[k] = '_'.join(new_name) + f'.{names[k][-1]}'
         return names
 
     def update_map(names):
@@ -167,6 +178,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                     del conf[sid][name]['input_repr']
                     del conf[sid][name]['output_repr']
         return conf
+
     #
     if os.path.isfile(map_db) and not vanilla:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
