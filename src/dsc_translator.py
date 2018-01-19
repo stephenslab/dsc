@@ -188,7 +188,7 @@ class DSC_Translator:
             self.db = db
             self.input_vars = None
             self.header = ''
-            self.loop_string = ''
+            self.loop_string = ['', '']
             self.filter_string = ''
             self.param_string = ''
             self.input_string = ''
@@ -225,7 +225,7 @@ class DSC_Translator:
                 self.params.append('seed')
                 self.param_string += '{}seed = {}'.format('' if self.prepare else "parameter: ", repr(self.step.seed))
             if self.params:
-                self.loop_string = ' '.join([f'for _{s} in {s}' for s in reversed(self.params)])
+                self.loop_string[0] = ' '.join([f'for _{s} in {s}' for s in reversed(self.params)])
             if self.step.ft:
                 self.filter_string = ' if ' + self.step.ft
 
@@ -244,7 +244,7 @@ class DSC_Translator:
                 else:
                     pass
                 if len(depend_steps):
-                    self.loop_string += f' for __i in chunks({self.input_vars}, {len(depend_steps)})'
+                    self.loop_string[1] = f'for __i in chunks({self.input_vars}, {len(depend_steps)})'
             else:
                 if len(depend_steps):
                     self.input_string += "parameter: {0}_input_files = list\ninput: dynamic({0}_input_files)".\
@@ -264,19 +264,17 @@ class DSC_Translator:
         def get_output(self):
             if self.prepare:
                 format_string = '.format({})'.format(', '.join([f'_{s}' for s in reversed(self.params)]))
-                self.output_string += f"{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output = "
-                if self.step.depends:
-                    self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}', "\
-                                          "suffix = '{{}}'.format({4})) {2}]".\
-                                          format(' '.join([self.step.name, str(self.step.exe)] \
-                                                          + [f'{x}:{{}}' for x in reversed(self.params)]),
-                                                 format_string, self.loop_string + self.filter_string,
-                                                 self.step.name, "':'.join(__i)")
-                else:
-                    self.output_string += "[sos_hash_output('{0}'{1}, prefix = '{3}') {2}]".\
+                output_lhs = f"{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output"
+                self.output_string += "{3} = sos_hash_output(['{0}'{1} {2}])".\
                                       format(' '.join([self.step.name, str(self.step.exe)] \
                                                       + [f'{x}:{{}}' for x in reversed(self.params)]),
-                                             format_string, self.loop_string + self.filter_string, self.step.name)
+                                             format_string, self.loop_string[0] + self.filter_string, output_lhs)
+                if self.step.depends:
+                    self.output_string += "\n{0} = ['{1}:{{}}:{{}}'.format(item, ':'.join(__i)) " \
+                                          "for item in {0} {2}]".format(output_lhs, self.step.name, self.loop_string[1])
+                else:
+                    self.output_string += "\n{0} = ['{1}:{{}}'.format(item) for item in {0}]".\
+                                          format(output_lhs, self.step.name)
             else:
                 # FIXME
                 output_group_by = 1
@@ -291,8 +289,8 @@ class DSC_Translator:
                 combined_params = '[([{0}], {1}) {2}]'.\
                                   format(', '.join([f"('exec', '{self.step.exe}')"] \
                                                    + [f"('{x}', _{x})" for x in reversed(self.params)]),
-                                         None if '__i' not in self.loop_string else "'{}'.format(' '.join(__i))",
-                                         self.loop_string + self.filter_string)
+                                         None if self.loop_string[1] is '' else "'{}'.format(' '.join(__i))",
+                                         ' '.join(self.loop_string) + self.filter_string)
                 key = f"DSC_UPDATES_['{self.step.name}:' + str(sequence_id)]"
                 self.action += f"{key} = OrderedDict()\n"
                 if self.step.depends:

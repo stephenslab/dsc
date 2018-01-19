@@ -9,7 +9,7 @@ This file defines methods to load and preprocess DSC scripts
 
 
 import os, re, itertools, copy, collections, subprocess
-from sos.target import textMD5
+from xxhash import xxh64
 from .utils import FormatError, is_null, strip_dict, flatten_list, find_nested_key, merge_lists, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
@@ -230,7 +230,7 @@ class DSC_Module:
         # FIXME: need to implement inline eg R()
         exec_var = tuple(exec_var.split())
         self.exe = ' '.join([locate_file(exec_var[0], self.path)] + list(exec_var[1:]))
-        self.plugin = Plugin(os.path.splitext(exec_var[0])[1].lstrip('.'), textMD5(self.exe)[:10])
+        self.plugin = Plugin(os.path.splitext(exec_var[0])[1].lstrip('.'), xxh64(self.exe).hexdigest()[:10])
                         # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
 
     def check_shell(self):
@@ -309,6 +309,8 @@ class DSC_Module:
     def set_input(self, params, alias):
         if params is not None:
             self.p.update(params)
+        if 'seed' in self.p:
+            del self.p['seed']
         # FIXME: have to ensure @ALIAS is a list
         alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
         # Swap parameter key with alias when applicable

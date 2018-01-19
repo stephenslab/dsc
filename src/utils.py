@@ -11,6 +11,7 @@ from ruamel.yaml.compat import StringIO
 from difflib import SequenceMatcher
 from sos.utils import env, Error
 from .constant import HTML_CSS, HTML_JS
+from xxhash import xxh64
 
 class DYAML(YAML):
     def dump(self, data, stream=None, **kw):
@@ -325,26 +326,12 @@ def extend_dict(dict1, dict2, unique = False):
               dict1[key] = uniq_list(dict1[key])
      return dict1
 
-def sos_hash_output(values, db_name = '', prefix = None, suffix = None):
-     from sos.target import textMD5
-     if not isinstance(values, list):
-          md5 = textMD5(values)
-          if isinstance(prefix, str):
-               md5 = '{}:{}'.format(prefix, md5)
-          if isinstance(suffix, str):
-               md5 = '{}:{}'.format(md5, suffix)
-          res = os.path.join(db_name, md5)
-          return res
-     else:
-          res = []
-          for value in values:
-               md5 = textMD5(value)
-               if isinstance(prefix, str):
-                    md5 = '{}:{}'.format(prefix, md5)
-               if isinstance(suffix, str):
-                    md5 = '{}:{}'.format(md5, suffix)
-               res.append(os.path.join(db_name, md5))
-          return res
+def sos_hash_output(values, jobs = 1):
+    '''
+    Parallel hash
+    FIXME: parallel not implemented for now
+    '''
+    return [xxh64(value).hexdigest() for value in values]
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
