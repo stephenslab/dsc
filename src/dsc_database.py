@@ -168,11 +168,11 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
         for module in meta_data[key]:
             k = f'{module}:{key}'
             if k not in data:
-                k = ':'.join(meta_data[key][module])
+                k = f'{meta_data[key][module][0]}:{meta_data[key][module][1]}'
                 # FIXME: this will be a bug if ever triggered
                 if k not in data:
                     raise DBError(f"Cannot find key ``{k}`` in DSC I/O records.")
-                conf[workflow_id][module] = (meta_data[key][module][1], meta_data[key][module][0])
+                conf[workflow_id][module] = (str(meta_data[key][module][1]), meta_data[key][module][0])
                 continue
             if module not in conf[workflow_id]:
                 conf[workflow_id][module] = OrderedDict()

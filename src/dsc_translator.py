@@ -43,7 +43,7 @@ class DSC_Translator:
                 depend = '_'.join(uniq_list([i[0] for i in step.depends]))
                 # either different flow or different dependency will create a new entry
                 if (step.name, flow, depend) not in processed_steps:
-                    name = (f"{step.name}", f"{workflow_id + 1}")
+                    name = (step.name, workflow_id + 1)
                     self.step_map[workflow_id + 1][step.name] = name
                     # Has the core been processed?
                     if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
@@ -71,7 +71,7 @@ class DSC_Translator:
             if len(new_steps):
                 conf_str.append(f"###\n# [{n2a(workflow_id + 1)}]\n###\n" \
                                 f"sequence_id = '{workflow_id + 1}'\n"\
-                                f'''sequence_name = '{"+".join([n2a(int(x[1])).lower()+"_"+x[0] for x in sqn])}'\n''' \
+                                f'''sequence_name = '{"+".join([n2a(x[1]).lower()+"_"+x[0] for x in sqn])}'\n''' \
                                 f"# output: '.sos/.dsc/{self.db}_{workflow_id + 1}.mpk'\n")
                 conf_str.extend(new_steps)
                 io_info_files.append(f'.sos/.dsc/{self.db}_{workflow_id + 1}.mpk')
@@ -87,8 +87,8 @@ class DSC_Translator:
                                f", {y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], "\
                                "DSC_STEP_ID_ = '_'.join(script_signature))")
                 if ii == len(sequence):
-                    self.last_steps.append((f'{workflow_id + 1}', y))
-                self.job_pool[(str(workflow_id + 1), y)] = '\n'.join(tmp_str)
+                    self.last_steps.append((y, workflow_id + 1))
+                self.job_pool[(y, workflow_id + 1)] = '\n'.join(tmp_str)
                 ii += 1
         self.conf_str_py = 'import msgpack\nfrom collections import OrderedDict\n' + \
                            'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' + \
@@ -101,12 +101,12 @@ class DSC_Translator:
         self.job_str = job_header + f"DSC_RUTILS = '''{R_SOURCE + R_LMERGE}'''" + "\n{}".format('\n'.join(job_str))
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
-                            "\n[default_1 (Hashing output files)]" + \
+                            "\n[deploy_1 (Hashing output files)]" + \
                             f"\ninput: '.sos/.dsc/{self.db}.prepare.py'\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
                             "\ntask:\nrun: expand = True\n{} {{_input}}".format(sys.executable) + \
-                            "\n[default_2 (Removing obsolete output)]" + \
+                            "\n[deploy_2 (Removing obsolete output)]" + \
                             f"\nremove_obsolete_output('{self.output}', rerun = {rerun})" + \
-                            " \n[default_3 (Configuring output filenames)]\n" \
+                            " \n[deploy_3 (Configuring output filenames)]\n" \
                             f"parameter: vanilla = {rerun}\n"\
                             f"input: '.sos/.dsc/{self.db}.io.mpk'\n"\
                             f"output: '{self.output}/{self.db}.map.mpk', "\
@@ -136,18 +136,16 @@ class DSC_Translator:
 
     def filter_execution(self):
         '''Filter steps removing the ones having common input and output'''
-        IO_DB = msgpack.unpackb(open(f'{self.output}/{self.db}.conf.mpk', 'rb').\
-                                read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
         included_steps = []
         for x in self.job_pool:
-            if x[0] in IO_DB and x[1] in IO_DB[x[0]]:
+            if self.step_map[x[1]][x[0]] == x:
                 self.job_str += f'\n{self.job_pool[x]}'
                 included_steps.append(x)
         #
         self.last_steps = [x for x in self.last_steps if x in included_steps]
         self.job_str += "\n[default]\ndepends: {}\noutput: {}".\
-                        format(', '.join([f"sos_step('{n2a(int(x[0])).lower()}_{x[1]}')" for x in self.last_steps]),
-                               ', '.join([f"IO_DB['{x[0]}']['{x[1]}']['output']" for x in self.last_steps]))
+                        format(', '.join([f"sos_step('{n2a(x[1]).lower()}_{x[0]}')" for x in self.last_steps]),
+                               ', '.join([f"IO_DB['{x[1]}']['{x[0]}']['output']" for x in self.last_steps]))
 
     def install_libs(self, libs, lib_type):
         from .utils import install_r_lib, install_py_module

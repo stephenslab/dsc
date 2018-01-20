@@ -174,7 +174,7 @@ def execute(args):
                    '__sig_mode__': mode,
                    '__bin_dirs__': exec_path,
                    'script': script_prepare,
-                   'workflow': "default"}
+                   'workflow': "deploy"}
         cmd_run(prepare_args(db + '.prepare', content), [])
     # Run
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
