@@ -107,6 +107,8 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                 k_core = tuple([x[0] for x in content])
                 if not k_core in base_ids:
                     base_ids[k_core] = dict([(x, 0) for x in k_core])
+                if not k_core in lookup:
+                    lookup[k_core] = dict()
                 if kk in map_data:
                     # same module signature already exist
                     # will not work on the name map of these
@@ -120,7 +122,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                         base_ids[k_core][x] = max(base_ids[k_core][x], ids[i])
                     names[kk] = map_data[kk]
                 else:
-                    lookup = extend_dict(lookup, dict(content))
+                    lookup[k_core] = extend_dict(lookup[k_core], dict(content), unique = True)
                     names[kk] = content
                     names[kk].append(data[k]["DSC_EXT_"])
         for k in names:
@@ -133,8 +135,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
             # 2. replace the hash with an ID
             new_name = []
             for kk in k_core:
-                base_ids[key][kk] += lookup[kk].index(k_core[kk]) + 1
-                new_name.append(f'{kk}_{base_ids[key][kk]}')
+                new_name.append(f'{kk}_{base_ids[key][kk] + lookup[key][kk].index(k_core[kk]) + 1}')
             # 3. construct name map
             names[k] = '_'.join(new_name) + f'.{names[k][-1]}'
         return names

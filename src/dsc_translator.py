@@ -61,7 +61,6 @@ class DSC_Translator:
         self.last_steps = []
         # Execution steps, unfiltered
         self.job_pool = OrderedDict()
-        print(self.step_map)
         # Do not document steps that has been configured already in its unique context
         configured_steps = set()
         for workflow_id, sequence in enumerate(runtime.sequence):
@@ -112,8 +111,8 @@ class DSC_Translator:
                             f"input: '.sos/.dsc/{self.db}.io.mpk'\n"\
                             f"output: '{self.output}/{self.db}.map.mpk', "\
                             f"'{self.output}/{self.db}.conf.mpk'"\
-                            "\nbuild_config_db(_input, _output[0], "\
-                            f"_output[1], vanilla = vanilla, jobs = {n_cpu})"
+                            "\nbuild_config_db(str(_input[0]), str(_output[0]), "\
+                            f"str(_output[1]), vanilla = vanilla, jobs = {n_cpu})"
         #
         self.install_libs(runtime.rlib, "R_library")
         self.install_libs(runtime.pymodule, "Python_Module")
