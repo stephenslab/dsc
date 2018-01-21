@@ -7,6 +7,7 @@ __license__ = "MIT"
 import os, re, itertools, collections, time, sympy
 from itertools import cycle, chain, islice
 from collections import OrderedDict
+from multiprocessing import Process, Manager
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
 from difflib import SequenceMatcher
@@ -810,3 +811,18 @@ def remove_multiple_strings(cur_string, replace_list):
     for cur_word in sorted(set(replace_list), key=len):
         cur_string = cur_string.replace(cur_word, '')
     return cur_string
+
+def load_mpk(mpk_files, jobs):
+    d = Manager().dict()
+    def f(d, x):
+        for xx in x:
+            d.update(msgpack.unpackb(open(xx, "rb").read(), encoding = 'utf-8',
+                                     object_pairs_hook = OrderedDict))
+    #
+    mpk_files = [x for x in chunks(mpk_files, int(len(mpk_files) / jobs) + 1)]
+    job_pool = [Process(target = f, args = (d, x)) for x in mpk_files]
+    for job in job_pool:
+        job.start()
+    for job in job_pool:
+        job.join()
+    return OrderedDict([(x, d[x]) for x in sorted(d.keys(), key = lambda x: int(x.split(':')[0]))])

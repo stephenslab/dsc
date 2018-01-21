@@ -4,7 +4,6 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, msgpack, glob, pickle
-from multiprocessing import Process, Manager
 import pandas as pd
 from sos.utils import Error
 from .utils import flatten_list, uniq_list, chunks, OrderedDict, remove_multiple_strings, extend_dict
@@ -60,21 +59,6 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
                             "size": None, "age": None, "dryrun": False}), [])
     if rerun and os.path.isfile('.sos/.dsc/{}.lib-info'.format(os.path.basename(output))):
         os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(output)))
-
-def load_mpk(mpk_files, jobs):
-    d = Manager().dict()
-    def f(d, x):
-        for xx in x:
-            d.update(msgpack.unpackb(open(xx, "rb").read(), encoding = 'utf-8',
-                                     object_pairs_hook = OrderedDict))
-    #
-    mpk_files = [x for x in chunks(mpk_files, int(len(mpk_files) / jobs) + 1)]
-    job_pool = [Process(target = f, args = (d, x)) for x in mpk_files]
-    for job in job_pool:
-        job.start()
-    for job in job_pool:
-        job.join()
-    return OrderedDict([(x, d[x]) for x in sorted(d.keys(), key = lambda x: int(x.split(':')[0]))])
 
 def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     '''
@@ -151,8 +135,6 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                                    object_pairs_hook = OrderedDict)
     else:
         map_data = OrderedDict()
-    # data = load_mpk(input_files, jobs)
-    # open(io_db, "wb").write(msgpack.packb(data))
     data = msgpack.unpackb(open(io_db, 'rb').read(), encoding = 'utf-8',
                            object_pairs_hook = OrderedDict)
     meta_data = msgpack.unpackb(open(io_db[:-4] + '.meta.mpk', 'rb').read(), encoding = 'utf-8',
@@ -193,18 +175,18 @@ class ResultDB:
         # As master table
         self.master_names = master_names
         # different tables; one exec per table
-        self.data = {}
+        self.data = dict()
         # master tables
-        self.master = {}
+        self.master = dict()
         # list of exec names that are the last step in sequence
         self.last_block = []
         # key = block name, item = exec name
-        self.groups = {}
-        if os.path.isfile(self.db_prefix + '.map.mpk'):
+        self.groups = dict()
+        if os.path.isfile(f"{self.db_prefix}.map.mpk"):
             self.maps = msgpack.unpackb(open(f"{self.db_prefix}.map.mpk", "rb").read(), encoding = 'utf-8',
                                         object_pairs_hook = OrderedDict)
         else:
-            raise DBError("DSC filename database is corrupted!")
+            raise DBError(f"Cannot build DSC meta-data: hash table ``{self.db_prefix}.map.mpk`` is missing!")
 
     def load_parameters(self):
         #
@@ -224,7 +206,7 @@ class ResultDB:
             raise DBError('Cannot find name map for ``{}``'.format(x))
         #
         try:
-            data_all = msgpack.unpackb(open(f'.sos/.dsc/{self.db_prefix}.io.mpk', 'rb').read(),
+            data_all = msgpack.unpackb(open(f'.sos/.dsc/{os.path.basename(self.db_prefix)}.io.mpk', 'rb').read(),
                                     encoding = 'utf-8', object_pairs_hook = OrderedDict)
         except:
             raise DBError('Cannot load source data to build database!')

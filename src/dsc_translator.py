@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import re, os, sys, msgpack, glob
+import re, os, sys, msgpack, glob, datetime
 from sos.target import fileMD5, executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
 __all__ = ['DSC_Translator']
@@ -153,11 +153,13 @@ class DSC_Translator:
             raise ValueError("Invalid library type ``{}``.".format(lib_type))
         if libs is None:
             return
-        fn = f'.sos/.dsc/{self.db}.lib-info'
-        if os.path.exists(fn):
-            installed_libs = [x.strip() for x in open(fn).readlines() if x.strip().split()[1] in libs]
-        else:
-            installed_libs = []
+        installed_libs = []
+        fn = f'.sos/.dsc/{self.db}.{datetime.datetime.today().strftime("%Y%m%d")}.lib-info'
+        for item in glob.glob(f'.sos/.dsc/{self.db}.*.lib-info'):
+            if item == fn:
+                installed_libs = [x.strip() for x in open(fn).readlines() if x.strip().split(' ', 1)[1] in libs]
+            else:
+                os.remove(item)
         new_libs = []
         for lib in libs:
             if f'{lib_type} {lib}' in installed_libs:
