@@ -9,9 +9,9 @@ This file defines DSC syntax templates
 import re
 from sos.sos_syntax import LazyRegex, SOS_DIRECTIVES
 
-DSC_KW = ['DSC_AUTO_OUTPUT_', 'seed', 'DSC_TIMER'] # engineering keywords, reserved
+DSC_KW = ['DSC_AUTO_OUTPUT_', 'DSC_TIMER'] # engineering keywords, reserved
 DSC_KW.extend(SOS_DIRECTIVES)
-DSC_MODP = ['.EXEC', '.FILTER', '.ALIAS', '.CONF'] # module properties
+DSC_MODP = ['.EXEC', '.FILTER', '.ALIAS', '.CONF', '.RNG'] # module properties
 
 DSC_DERIVED_BLOCK = LazyRegex(r'^(.*?)\((.*?)\)$', re.VERBOSE)
 DSC_BLOCK_NAME = LazyRegex(r'^[A-Za-z0-9_]+$', re.VERBOSE)

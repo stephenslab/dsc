@@ -201,7 +201,7 @@ class ResultDB:
         # key = block name, item = exec name
         self.groups = {}
         if os.path.isfile(self.db_prefix + '.map.mpk'):
-            self.maps = msgpack.unpackb(open(self.db_prefix + '.map.mpk', 'rb').read(), encoding = 'utf-8',
+            self.maps = msgpack.unpackb(open(f"{self.db_prefix}.map.mpk", "rb").read(), encoding = 'utf-8',
                                         object_pairs_hook = OrderedDict)
         else:
             raise DBError("DSC filename database is corrupted!")
@@ -224,7 +224,7 @@ class ResultDB:
             raise DBError('Cannot find name map for ``{}``'.format(x))
         #
         try:
-            data_all = msgpack.unpackb(open(self.db_prefix + ".io.mpk", "rb").read(),
+            data_all = msgpack.unpackb(open(f'.sos/.dsc/{self.db_prefix}.io.mpk', 'rb').read(),
                                     encoding = 'utf-8', object_pairs_hook = OrderedDict)
         except:
             raise DBError('Cannot load source data to build database!')

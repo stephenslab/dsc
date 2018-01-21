@@ -211,6 +211,7 @@ class DSC_Translator:
             self.get_action()
 
         def clean(self):
+            # Remove temp scripts
             for item in glob.glob(f'.sos/{self.step.name}_*'):
                 os.remove(item)
 

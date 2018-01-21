@@ -1,7 +1,6 @@
 # module alias and executables
 simulate: datamaker.R
     # module input and variables
-    seed: R(1:5)
     g: raw(ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))),
        raw(ashr::normalmix(rep(1/7,7),c(-1.5,-1,-0.5,0,0.5,1,1.5),rep(0.5,7))),
        raw(ashr::normalmix(c(1/4,1/4,1/3,1/6),c(-2,-1,0,1),c(2,1.5,1,1)))
@@ -10,6 +9,7 @@ simulate: datamaker.R
     nsamp: 1000
     betahatsd: 1
     # module decoration
+    @RNG: R(1:5)
     @ALIAS: args = list()
     @CONF: queue = midway
     # module output
@@ -52,4 +52,4 @@ DSC:
     output: dsc_result
     # pipeline variables, will overwrite any module variables of the same variable name
     global:
-      seed: R(1:3)
+      @RNG: R(1:3)

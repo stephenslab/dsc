@@ -195,7 +195,7 @@ class DSC_Module:
         # module name
         self.name = name
         # system seed
-        self.seed = try_get_value(content, ('input', 'seed'))
+        self.seed = try_get_value(content, ('meta', 'rng'))
         # params: alias, value
         self.p = OrderedDict()
         # parameter filter:
@@ -309,8 +309,6 @@ class DSC_Module:
     def set_input(self, params, alias):
         if params is not None:
             self.p.update(params)
-        if 'seed' in self.p:
-            del self.p['seed']
         # FIXME: have to ensure @ALIAS is a list
         alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
         # Swap parameter key with alias when applicable
