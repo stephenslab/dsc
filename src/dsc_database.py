@@ -181,7 +181,8 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
             conf[workflow_id][module]['output'] = [os.path.join(fid, map_data[item]) \
                                          for item in data[k]['DSC_IO_'][1]]
             # eg. score_beta:6cf79a4c4bf191ea:simulate:90d846d054f4b5d1:shrink:fde60bc16e1728c7:simulate:90d846d054f4b5d1
-            conf[workflow_id][module]['depends'] = uniq_list(data[k]['DSC_IO_'][1][0].split(':')[::2][1:])
+            conf[workflow_id][module]['depends'] = [meta_data[key][x]
+                                                    for x in uniq_list(data[k]['DSC_IO_'][1][0].split(':')[::2][1:])]
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
 

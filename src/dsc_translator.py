@@ -23,7 +23,7 @@ class DSC_Translator:
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
         conf_header = 'from dsc.dsc_database import remove_obsolete_output, build_config_db\n'
-        job_header = "import msgpack\nfrom collections import OrderedDict\n"\
+        job_header = "import msgpack\nfrom collections import OrderedDict\nfrom dsc.utils import n2a\n"\
                      f"parameter: IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"
         processed_steps = dict()
@@ -81,7 +81,7 @@ class DSC_Translator:
                 tmp_str = [f"[{n2a(workflow_id + 1).lower()}_{y} ({y})]"]
                 tmp_str.append(f"parameter: script_signature = {repr(exe_signatures[y])}")
                 if ii > 1:
-                    tmp_str.append(f"depends: [sos_step('{n2a(workflow_id + 1).lower()}_' + x) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
+                    tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output']"\
                                f", {y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], "\
@@ -143,7 +143,7 @@ class DSC_Translator:
                 included_steps.append(x)
         #
         self.last_steps = [x for x in self.last_steps if x in included_steps]
-        self.job_str += "\n[default]\ndepends: {}\noutput: {}".\
+        self.job_str += "\n[DSC]\ndepends: {}\noutput: {}".\
                         format(', '.join([f"sos_step('{n2a(x[1]).lower()}_{x[0]}')" for x in self.last_steps]),
                                ', '.join([f"IO_DB['{x[1]}']['{x[0]}']['output']" for x in self.last_steps]))
 
@@ -328,7 +328,7 @@ class DSC_Translator:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
-                    self.action += f'{plugin.name}: workdir = {repr(self.step.workdir)}, expand = "${{ }}"\n'
+                    self.action += f'task: concurrent = True, workdir = {repr(self.step.workdir)}\n{plugin.name}: expand = "${{ }}"\n'
                     # Add action
                     if not self.step.shell_run:
                         script_begin = plugin.get_input(self.params, len(self.step.depends),
