@@ -186,6 +186,7 @@ class ResultDB:
                                         object_pairs_hook = OrderedDict)
         else:
             raise DBError(f"Cannot build DSC meta-data: hash table ``{self.prefix}.map.mpk`` is missing!")
+        self.meta_kws = ['ID', 'MID', 'FILE', 'PARENT']
 
     def load_parameters(self):
         #
@@ -247,21 +248,20 @@ class ResultDB:
                     # avoid name conflict
                     # FIXME: make these DSC keywords
                     # and therefore remove this line because there should be no worry about name conflicts
-                    for x in ['ID', 'MID', 'FILE', 'PARENT']:
+                    for x in self.meta_kws:
                         if x in v.keys():
                             v['.{}'.format(x)] = v.pop(x)
                     #
                     if module in self.data:
                         keys1 = repr(sorted([x for x in v.keys() if not x in KWS]))
-                        keys2 = repr(sorted([x for x in self.data[module].keys() if not x in
-                                             ['ID', 'MID', 'FILE', 'PARENT']]))
+                        keys2 = repr(sorted([x for x in self.data[module].keys() if not x in self.meta_kws]))
                         if keys1 != keys2:
                             raise DBError('Inconsistent keys between module '\
                                           '``{0} (value {2})`` and ``{1} (value {3})``.'.\
                                           format(inst_cnts, keys1, self.data[module]['ID'], keys2))
                     else:
                         self.data[module] = dict()
-                        for x in ['MID', 'ID', 'FILE', 'PARENT']:
+                        for x in self.meta_kws:
                             self.data[module][x] = []
                     # ID numbers all module instances
                     self.data[module]['ID'].append(inst_cnts)
@@ -282,72 +282,65 @@ class ResultDB:
                                 self.data[module][kk] = []
                             self.data[module][kk].append(vv)
 
-    def __find_block(self, step):
-        for k in self.groups:
-            if step in self.groups[k]:
-                return k
-        raise DBError('Cannot find ``{}`` in any blocks!'.format(step))
-
-    def __get_sequence(self, step, step_id, step_idx, res):
-        '''Input are last step name, ID, and corresponding index (in its data frame)'''
-        res.append((step, step_id))
-        depend_id = self.data[step]['PARENT'][step_idx]
+    def __get_pipeline(self, module, module_id, module_idx, iteres):
+        '''Input are last module name, ID, and coriteresponding index (in its data frame)'''
+        iteres.append((module, module_id))
+        depend_id = self.data[module]['PARENT'][module_idx]
         if depend_id == -9:
             return
         else:
             idx = None
-            step = None
+            module = None
             for k in self.data:
                 # try get some idx
-                if depend_id in self.data[k]['ID']:
+                try:
                     idx = self.data[k]['ID'].index(depend_id)
-                    step = k
+                    module = k
                     break
-            if idx is None or step is None:
-                raise DBError('Cannot find step_id ``{}`` in any tables!'.format(depend_id))
-            self.__get_sequence(step, depend_id, idx, res)
+                except ValueError:
+                    continue
+            if idx is None or module is None:
+                raise DBError('Cannot find module instance ID ``{}`` in any tables!'.format(depend_id))
+            self.__get_pipeline(module, depend_id, idx, iteres)
 
-    def write_master_table(self, block):
+    def write_master_table(self, module):
         '''
         Create a master table in DSCR flavor. Columns are:
-        name, block1, block1_ID, block2, block2_ID, ...
-        I'll create multiple master tables for as many as last steps.
-        Also extend the master table to include information from the
-        output of last step
-        (step -> id -> depend_id -> step ... )_n
+        name, module1, module1_instance_ID, module2, module2_instance_ID, ...
+        I'll create multiple master tables for as many as in self.end_modules.
         '''
-        res = []
-        for step in self.groups[block]:
-            for step_idx, step_id in enumerate(self.data[step]['ID']):
+        pipelines = []
+        # A pipeline instance can be retrieved via:
+        # (module -> depend_id -> id -> module ... )_n
+        for module in self.data:
+            for module_idx, module_id in enumerate(self.data[module]['ID']):
                 tmp = []
-                self.__get_sequence(step, step_id, step_idx, tmp)
-                res.append(list(reversed(tmp)))
+                self.__get_pipeline(module, module_id, module_idx, tmp)
+                pipelines.append(tuple(reversed(tmp)))
         data = OrderedDict()
-        for item in res:
-            key = tuple([self.__find_block(x[0]) for x in item])
+        for pipeline in pipelines:
+            key = tuple(x[0] for x in pipeline)
             if key not in data:
-                data[key] = [flatten_list([('{}_name'.format(x), '{}_id'.format(x)) for x in key])]
-            data[key].append(flatten_list(item))
+                data[key] = [flatten_list([(f'{x}_name', f'{x}_id') for x in key])]
+            data[key].append(flatten_list(pipeline))
         for key in data:
             header = data[key].pop(0)
             data[key] = pd.DataFrame(data[key], columns = header)
-        captain = [x for x in data.keys()]
         data = pd.concat([data[key] for key in data], ignore_index = True)
         id_cols = [k for k in data.keys() if k.endswith("_id")]
         name_cols = [k for k in data.keys() if not k.endswith("_id")]
         data[id_cols] = data[id_cols].fillna(-9, downcast = int)
         data[name_cols] = data[name_cols].fillna("-")
-        return data, captain
+        return data, list(data.keys())
 
     def Build(self, script = None):
         self.load_parameters()
-        for block in self.last_block:
-            self.master['pipeline_{}'.format(block)], \
-                self.master['pipeline_{}.captain'.format(block)] = self.write_master_table(block)
-        tmp = ['ID', 'PARENT', 'FILE']
-        for table in self.data:
-            cols = tmp + [x for x in self.data[table].keys() if x not in tmp]
-            self.data[table] = pd.DataFrame(self.data[table], columns = cols)
+        for module in self.end_modules:
+            self.master[f'pipeline_{module}'], \
+                self.master[f'pipeline_{module}.name'] = self.write_master_table(module)
+        for module in self.data:
+            cols = ['ID', 'PARENT', 'FILE'] + [x for x in self.data[module].keys() if x not in self.meta_kws]
+            self.data[module] = pd.DataFrame(self.data[module], columns = cols)
         self.data.update(self.master)
         if script is not None:
             self.data['.html'] = script
