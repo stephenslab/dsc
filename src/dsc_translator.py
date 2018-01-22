@@ -6,7 +6,8 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import re, os, sys, msgpack, glob, datetime
+import re, os, sys, msgpack, glob
+from xxhash import xxh64
 from sos.target import fileMD5, executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
 __all__ = ['DSC_Translator']
@@ -154,7 +155,7 @@ class DSC_Translator:
         if libs is None:
             return
         installed_libs = []
-        fn = f'.sos/.dsc/{self.db}.{datetime.datetime.today().strftime("%Y%m%d")}.lib-info'
+        fn = f'.sos/.dsc/{self.db}.{xxh64("".join(libs)).hexdigest()}.lib-info'
         for item in glob.glob(f'.sos/.dsc/{self.db}.*.lib-info'):
             if item == fn:
                 installed_libs = [x.strip() for x in open(fn).readlines() if x.strip().split(' ', 1)[1] in libs]

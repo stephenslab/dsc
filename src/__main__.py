@@ -191,6 +191,7 @@ def execute(args):
         # For files having different parameter + code new file names should be generated and used for them
         # The new files should not conflict with existing files, due to the use of `remove_obsolete_output`
         mode = "build"
+    env.logger.info("DSC in progress ...")
     try:
         with Silencer(args.verbosity if args.host else min(1, args.verbosity)):
             content = {'__max_running_jobs__': args.__max_jobs__,
@@ -213,7 +214,7 @@ def execute(args):
         sys.exit(1)
     # Build database
     master = list(set([x[list(x.keys())[-1]].name for x in pipeline_dsc]))
-    env.logger.info("Writing output database ...")
+    env.logger.info("Building DSC database ...")
     ResultDB('{}/{}'.format(script.runtime.output, db), master).\
         Build(script = open(script.runtime.output + '.html').read())
     env.logger.info("DSC complete!")

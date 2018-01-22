@@ -5,6 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, msgpack, glob, pickle
 import pandas as pd
+from collections import Counter
 from sos.utils import Error
 from .utils import flatten_list, uniq_list, chunks, OrderedDict, remove_multiple_strings, extend_dict
 from .addict import Dict as dotdict
@@ -169,35 +170,36 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     open(conf_db, "wb").write(msgpack.packb(conf))
 
 class ResultDB:
-    def __init__(self, db_prefix, master_names):
-        self.db_prefix = db_prefix
-        # If this is None, then the last block will be used
-        # As master table
-        self.master_names = master_names
-        # different tables; one exec per table
-        self.data = dict()
+    def __init__(self, prefix, targets):
+        self.prefix = prefix
+        # when set to None uses the last modules of pipelines
+        # as master tables
+        self.targets = targets
         # master tables
-        self.master = dict()
-        # list of exec names that are the last step in sequence
-        self.last_block = []
-        # key = block name, item = exec name
-        self.groups = dict()
-        if os.path.isfile(f"{self.db_prefix}.map.mpk"):
-            self.maps = msgpack.unpackb(open(f"{self.db_prefix}.map.mpk", "rb").read(), encoding = 'utf-8',
+        self.master = OrderedDict()
+        # data: every module is a table
+        self.data = OrderedDict()
+        # modules that appear at the end of pipelines
+        self.end_modules = []
+        if os.path.isfile(f"{self.prefix}.map.mpk"):
+            self.maps = msgpack.unpackb(open(f"{self.prefix}.map.mpk", "rb").read(), encoding = 'utf-8',
                                         object_pairs_hook = OrderedDict)
         else:
-            raise DBError(f"Cannot build DSC meta-data: hash table ``{self.db_prefix}.map.mpk`` is missing!")
+            raise DBError(f"Cannot build DSC meta-data: hash table ``{self.prefix}.map.mpk`` is missing!")
 
     def load_parameters(self):
         #
         def search_dependent_index(x):
             res = None
-            for ii, kk in enumerate(data.keys()):
-                if kk.split()[0] == x:
-                    res = ii + 1
+            for vv in self.data.values():
+                try:
+                    # FIXME: maybe slow here
+                    res = vv['ID'][vv['MID'].index(x)]
                     break
+                except ValueError:
+                    continue
             if res is None:
-                raise DBError('Cannot find dependency step for output ``{}``!'.format(x))
+                raise DBError(f'Cannot find the queried dependency module instance ``{x}``!')
             return res
         #
         def find_namemap(x):
@@ -206,64 +208,79 @@ class ResultDB:
             raise DBError('Cannot find name map for ``{}``'.format(x))
         #
         try:
-            data_all = msgpack.unpackb(open(f'.sos/.dsc/{os.path.basename(self.db_prefix)}.io.mpk', 'rb').read(),
-                                    encoding = 'utf-8', object_pairs_hook = OrderedDict)
+            self.rawdata = msgpack.unpackb(open(f'.sos/.dsc/{os.path.basename(self.prefix)}.io.mpk', 'rb').read(),
+                                                encoding = 'utf-8', object_pairs_hook = OrderedDict)
+            self.metadata = msgpack.unpackb(open(f'.sos/.dsc/{os.path.basename(self.prefix)}.io.meta.mpk', 'rb').read(),
+                                                encoding = 'utf-8', object_pairs_hook = OrderedDict)
         except:
             raise DBError('Cannot load source data to build database!')
-        seen = []
-        data = OrderedDict()
-        for k0 in data_all.keys():
-            for k in list(data_all[k0].keys()):
-                if k == 'DSC_IO_' or k == 'DSC_EXT_':
-                    continue
-                if not k in seen:
-                    data[k] = data_all[k0][k]
-                    seen.append(k)
-        for idx, (k, v) in enumerate(data.items()):
-            # each v is a dict
-            # collect some meta info
-            table = v['exec']
-            block_name = v['step_name'].split("_")[:-1]
-            block_name = '_'.join(block_name[:-1]) if (block_name[-1].isdigit() and len(block_name) > 1) \
-                         else '_'.join(block_name)
-            if block_name not in self.groups:
-                self.groups[block_name] = []
-            if table not in self.groups[block_name]:
-                self.groups[block_name].append(table)
-            is_last_block = (v['step_name'] == v['sequence_name'].split('+')[-1])
-            if self.master_names is not None:
-                is_last_block = block_name in self.master_names or is_last_block
-            if not block_name in self.last_block and is_last_block:
-                self.last_block.append(block_name)
-            #
-            for x in ['ID', 'FILE', 'parent']:
-                if x in v.keys():
-                    v['.{}'.format(x)] = v.pop(x)
-            #
-            if not table in self.data:
-                self.data[table] = {}
-                for x in list(v.keys()) + ['ID', 'FILE', 'parent']:
-                    if x not in ['sequence_id', 'sequence_name', 'step_name', 'exec']:
-                        self.data[table][x] = []
-            else:
-                keys1 = repr(sorted([x for x in v.keys() if not x in
-                                     ['sequence_id', 'sequence_name', 'step_name', 'exec']]))
-                keys2 = repr(sorted([x for x in self.data[table].keys() if not x in
-                                     ['ID', 'FILE', 'parent']]))
-                if keys1 != keys2:
-                    raise DBError('Inconsistent keys between step '\
-                                              '``{0} (value {2})`` and ``{1} (value {3})``.'.\
-                                              format(idx + 1, keys1, self.data[table]['ID'], keys2))
-            self.data[table]['ID'].append(idx + 1)
-            k = k.split()
-            self.data[table]['FILE'].append(find_namemap(k[0]))
-            if len(k) > 1:
-                self.data[table]['parent'].append(search_dependent_index(k[-1]))
-            else:
-                self.data[table]['parent'].append(-9)
-            for k1, v1 in v.items():
-                if k1 not in ['sequence_id', 'sequence_name', 'step_name', 'exec']:
-                    self.data[table][k1].append(v1)
+        # FIXME: make these to DSC keywords and check DSC keywords
+        # by just loading it not redefining it here
+        KWS = ['sequence_id', 'sequence_name', 'module', 'exec']
+        # flatten dictionary removing duplicate keys because those keys are just `DSC_IO` and `DSC_EXT`
+        # All other info in counts should be unique
+        # counts =  Counter(key for sub in self.rawdata.values() for key in sub)
+        # data = OrderedDict([(key, value) for sub in self.rawdata.values() for key, value in sub.items() if counts[key] == 1])
+        #
+        # total number of module instances involved
+        # some instances can be identical
+        inst_cnts = 0
+        for workflow_id in self.metadata:
+            workflow_len = len(self.metadata[workflow_id])
+            for m_id, module in enumerate(self.metadata[workflow_id].keys()):
+                data = self.rawdata['{}:{}'.format(self.metadata[workflow_id][module][0], self.metadata[workflow_id][module][1])]
+                is_end_module = (m_id + 1) == workflow_len
+                if self.targets is not None:
+                    # For given target we must treat it as if it is end of a pipeline
+                    # so that we can query from it
+                    is_end_module = module in self.targets or is_end_module
+                if not module in self.end_modules and is_end_module:
+                    self.end_modules.append(module)
+                #
+                for k, v in data.items():
+                    if k in ['DSC_IO_', 'DSC_EXT_']:
+                        continue
+                    inst_cnts += 1
+                    # each v is a dict of a module instances
+                    # each k reads like
+                    # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
+                    # avoid name conflict
+                    # FIXME: make these DSC keywords
+                    # and therefore remove this line because there should be no worry about name conflicts
+                    for x in ['ID', 'MID', 'FILE', 'PARENT']:
+                        if x in v.keys():
+                            v['.{}'.format(x)] = v.pop(x)
+                    #
+                    if module in self.data:
+                        keys1 = repr(sorted([x for x in v.keys() if not x in KWS]))
+                        keys2 = repr(sorted([x for x in self.data[module].keys() if not x in
+                                             ['ID', 'MID', 'FILE', 'PARENT']]))
+                        if keys1 != keys2:
+                            raise DBError('Inconsistent keys between module '\
+                                          '``{0} (value {2})`` and ``{1} (value {3})``.'.\
+                                          format(inst_cnts, keys1, self.data[module]['ID'], keys2))
+                    else:
+                        self.data[module] = dict()
+                        for x in ['MID', 'ID', 'FILE', 'PARENT']:
+                            self.data[module][x] = []
+                    # ID numbers all module instances
+                    self.data[module]['ID'].append(inst_cnts)
+                    k = k.split(' ')
+                    self.data[module]['MID'].append(k[0])
+                    self.data[module]['FILE'].append(find_namemap(k[0]))
+                    if len(k) > 1:
+                        # Have to fine its ID ...
+                        # If I trust the order of io.meta.mpk then I just search which
+                        # module has MID == k[-1] and return its ID
+                        self.data[module]['PARENT'].append(search_dependent_index(k[-1]))
+                    else:
+                        self.data[module]['PARENT'].append(-9)
+                    # Assign other parameters
+                    for kk, vv in v.items():
+                        if kk not in KWS:
+                            if kk not in self.data[module]:
+                                self.data[module][kk] = []
+                            self.data[module][kk].append(vv)
 
     def __find_block(self, step):
         for k in self.groups:
@@ -274,7 +291,7 @@ class ResultDB:
     def __get_sequence(self, step, step_id, step_idx, res):
         '''Input are last step name, ID, and corresponding index (in its data frame)'''
         res.append((step, step_id))
-        depend_id = self.data[step]['parent'][step_idx]
+        depend_id = self.data[step]['PARENT'][step_idx]
         if depend_id == -9:
             return
         else:
@@ -327,14 +344,14 @@ class ResultDB:
         for block in self.last_block:
             self.master['pipeline_{}'.format(block)], \
                 self.master['pipeline_{}.captain'.format(block)] = self.write_master_table(block)
-        tmp = ['ID', 'parent', 'FILE']
+        tmp = ['ID', 'PARENT', 'FILE']
         for table in self.data:
             cols = tmp + [x for x in self.data[table].keys() if x not in tmp]
             self.data[table] = pd.DataFrame(self.data[table], columns = cols)
         self.data.update(self.master)
         if script is not None:
             self.data['.html'] = script
-        pickle.dump(self.data, open(self.db_prefix + '.db', 'wb'))
+        pickle.dump(self.data, open(self.prefix + '.db', 'wb'))
 
 if __name__ == '__main__':
     import sys
