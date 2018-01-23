@@ -226,10 +226,15 @@ class ResultDB:
         # total number of module instances involved
         # some instances can be identical
         inst_cnts = 0
+        seen = []
         for workflow_id in self.metadata:
             workflow_len = len(self.metadata[workflow_id])
             for m_id, module in enumerate(self.metadata[workflow_id].keys()):
-                data = self.rawdata['{}:{}'.format(self.metadata[workflow_id][module][0], self.metadata[workflow_id][module][1])]
+                pipeline_module = '{}:{}'.format(self.metadata[workflow_id][module][0], self.metadata[workflow_id][module][1])
+                if pipeline_module in seen:
+                    continue
+                seen.append(pipeline_module)
+                data = self.rawdata[pipeline_module]
                 is_end_module = (m_id + 1) == workflow_len
                 if self.targets is not None:
                     # For given target we must treat it as if it is end of a pipeline
