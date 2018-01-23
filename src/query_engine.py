@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, glob, pickle
 import pandas as pd
-from .dsc_database import ResultDBError
+from .dsc_database import DBError
 from .utils import load_rds, uniq_list, \
      cartesian_list, filter_sublist, is_null, \
      OrderedDict
@@ -92,15 +92,15 @@ class Query_Processor:
         self.db = db
         self.target = target
         self.condition = condition or []
-        self.target_tables = self.parse_tables(self.target, allow_null = True)
-        self.condition_tables = self.parse_tables(self.condition, allow_null = False)
+        self.target_tables = self.get_table_fields(self.target, allow_null = True)
+        self.condition_tables = self.get_table_fields(self.condition, allow_null = False)
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
         # 1. only keep tables that do exist in database
         self.target_tables = self.filter_tables(self.target_tables)
         self.condition_tables = self.filter_tables(self.condition_tables)
         # 2. identify all pipelines in database
-        self.pipelines = self.find_pipelines()
-        # 3. identify which pipelines are minimally involved, based on tables in target / condition
+        self.pipelines = self.get_pipelines()
+        # 3. identify which parts of each pipeline are involved, based on tables in target / condition
         self.pipelines = self.filter_pipelines()
         # 4. make inner join, the FROM clause
         from_clauses = self.get_from_clause()
@@ -120,7 +120,7 @@ class Query_Processor:
             output = '_' + output
         return output
 
-    def parse_tables(self, values, allow_null):
+    def get_table_fields(self, values, allow_null):
         '''
         input is lists of strings
         output should be lists of tuples
@@ -141,20 +141,14 @@ class Query_Processor:
         return uniq_list([x for x in tables if x[0].lower() in
                           [y.lower() for y in self.data.keys() if not y.startswith('pipeline_')]])
 
-    def find_pipelines(self):
+    def get_pipelines(self):
         '''
         example output:
         [('rnorm', 'mean', 'MSE'), ('rnorm', 'median', 'MSE'), ... ('rt', 'winsor', 'MSE')]
         '''
-        masters = {k[:-8] : self.data[k] for k in self.data.keys()
-                   if k.startswith("pipeline_") and k.endswith('.captain')}
-        res = []
-        for key in masters:
-            for pipeline in masters[key]:
-                new_pipeline = []
-                for item in pipeline:
-                    new_pipeline.append([x for x in uniq_list(self.data[key][item + '_name'].tolist()) if x != '-'])
-                res.extend(cartesian_list(*new_pipeline))
+        masters = {k : self.data[k] for k in self.data.keys()
+                   if k.startswith("pipeline_")}
+        res = [tuple(masters[x].keys()) for x in masters]
         return res
 
     def filter_pipelines(self):
@@ -171,8 +165,6 @@ class Query_Processor:
             for idx, item in enumerate(x):
                 if item:
                     tmp.append(y[idx])
-                else:
-                    break
             res.append(tuple(tmp))
         return filter_sublist(res)
 
@@ -230,7 +222,7 @@ class Query_Processor:
                                 for k in self.data:
                                     if k.lower() == x:
                                         if not y.lower() in [i.lower() for i in self.data[k].keys()]:
-                                            raise ResultDBError("``{}`` is invalid query: cannot find column ``{}`` in table ``{}``".\
+                                            raise DBError("``{}`` is invalid query: cannot find column ``{}`` in table ``{}``".\
                                                                 format(value, y, k))
                 if counts[0] >= 1 and counts[1] == 0:
                     tmp.append(value)
