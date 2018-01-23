@@ -312,32 +312,26 @@ class ResultDB:
         pipelines = []
         # A pipeline instance can be retrieved via:
         # (module -> depend_id -> id -> module ... )_n
-        for module in self.data:
-            for module_idx, module_id in enumerate(self.data[module]['ID']):
-                tmp = []
-                self.__get_pipeline(module, module_id, module_idx, tmp)
-                pipelines.append(tuple(reversed(tmp)))
+        for module_idx, module_id in enumerate(self.data[module]['ID']):
+            tmp = []
+            self.__get_pipeline(module, module_id, module_idx, tmp)
+            pipelines.append(tuple(reversed(tmp)))
         data = OrderedDict()
         for pipeline in pipelines:
             key = tuple(x[0] for x in pipeline)
             if key not in data:
-                data[key] = [flatten_list([(f'{x}_name', f'{x}_id') for x in key])]
-            data[key].append(flatten_list(pipeline))
+                data[key] = [key]
+            data[key].append([x[1] for x in pipeline])
         for key in data:
             header = data[key].pop(0)
             data[key] = pd.DataFrame(data[key], columns = header)
-        data = pd.concat([data[key] for key in data], ignore_index = True)
-        id_cols = [k for k in data.keys() if k.endswith("_id")]
-        name_cols = [k for k in data.keys() if not k.endswith("_id")]
-        data[id_cols] = data[id_cols].fillna(-9, downcast = int)
-        data[name_cols] = data[name_cols].fillna("-")
-        return data, list(data.keys())
+        data = pd.concat([data[key] for key in data], ignore_index = True).fillna(-9, downcast = int)
+        return data
 
     def Build(self, script = None):
         self.load_parameters()
         for module in self.end_modules:
-            self.master[f'pipeline_{module}'], \
-                self.master[f'pipeline_{module}.name'] = self.write_master_table(module)
+            self.master[f'pipeline_{module}'] = self.write_master_table(module)
         for module in self.data:
             cols = ['ID', 'PARENT', 'FILE'] + [x for x in self.data[module].keys() if x not in self.meta_kws]
             self.data[module] = pd.DataFrame(self.data[module], columns = cols)
