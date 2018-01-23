@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-__version__ = "0.2.2"
+__version__ = "0.2.5"
 import sys
 _py_ver = sys.version_info
 if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) < (6, 0)):
@@ -35,6 +35,7 @@ setup(name        = "dsc",
       install_requires = ['sos>=0.9.10.18', 'sos-r>=0.9.10.3',
                           'sos-matlab>=0.9.10.3', 'sos-bash>=0.9.10.1',
                           'sos-python>=0.9.10.1', 'sos-pbs>=0.9.10.3',
+                          'sos-notebook',
                           'feather-format', 'pyarrow>=0.5.0',
                           'sqlalchemy', 'msgpack-python', 'xxhash>=1.0.1',
                           'ruamel.yaml>=0.15', 'pandas>=0.22.0',
