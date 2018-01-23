@@ -40,11 +40,6 @@ def prepare_args(name, content):
     out.dryrun = False
     # FIXME
     out.__dag__ = '.sos/.dsc/{}.dot'.format(name)
-    # FIXME: use config info
-    out.__config__ = '.sos/.dsc/{}.conf.yml'.format(name)
-    if not os.path.isfile(out.__config__):
-        with open(out.__config__, 'w') as f:
-            f.write('name: dsc')
     # FIXME: port the entire resume related features
     out.__resume__ = False
     out.update(content)

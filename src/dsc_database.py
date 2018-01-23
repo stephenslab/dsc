@@ -205,7 +205,7 @@ class ResultDB:
         #
         def find_namemap(x):
             if x in self.maps:
-                return os.path.splitext(self.maps[x])[0]
+                return self.maps[x][:-len_ext]
             raise DBError('Cannot find name map for ``{}``'.format(x))
         #
         try:
@@ -243,6 +243,7 @@ class ResultDB:
                 if not module in self.end_modules and is_end_module:
                     self.end_modules.append(module)
                 #
+                len_ext = len(data['DSC_EXT_']) + 1
                 for k, v in data.items():
                     if k in ['DSC_IO_', 'DSC_EXT_']:
                         continue

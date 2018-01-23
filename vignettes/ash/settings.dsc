@@ -50,6 +50,7 @@ DSC:
     R_libs: stephens999/ashr (2.0.0+)
     exec_path: bin
     output: dsc_result
-    # pipeline variables, will overwrite any module variables of the same variable name
+    # pipeline variables, will overwrite any module variables of the same name
+    # it is also place to config the global random number generator
     global:
-      @RNG: R(1:3)
+      @RNG: R(1:5)
