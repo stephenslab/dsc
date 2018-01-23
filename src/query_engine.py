@@ -88,11 +88,11 @@ def expand_logic(string):
     return res
 
 class Query_Processor:
-    def __init__(self, db, target, condition = None):
+    def __init__(self, db, target, condition = None, groups = None):
         self.db = db
-        self.target = target
         self.condition = condition or []
-        self.target_tables = self.get_table_fields(self.target, allow_null = True)
+        self.groups = self.get_grouped_fields(groups)
+        self.target_tables = self.get_table_fields(target, allow_null = True)
         self.condition_tables = self.get_table_fields(self.condition, allow_null = False)
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
         # 1. only keep tables that do exist in database
@@ -110,6 +110,8 @@ class Query_Processor:
 
     @staticmethod
     def legalize_name(name, kw = False):
+        if name is None:
+            return name
         output = ''
         for x in name:
             if re.match(r'^[a-zA-Z0-9_]+$', x):
@@ -120,6 +122,24 @@ class Query_Processor:
             output = '_' + output
         return output
 
+    def get_grouped_fields(self, groups):
+        '''
+        input is g: m1, m2
+        output is {g: [m1, m2]}
+        '''
+        if groups is None:
+            return []
+        res = dict()
+        for g in groups:
+            if len(g.split(':')) != 2:
+                raise ValueError(f"Illegal module group option ``{g}``. Please use format ``group: module1, module2``")
+            g = tuple(x.strip() for x in g.split(':'))
+            v = uniq_list([x.strip() for x in g[1].split(',')])
+            if g[0] in v:
+                raise ValueError(f"Invalid group option: module group name ``{g[0]}``conflicts with module name ``{g[0]}``.")
+            res[g[0]] = v
+        return res
+
     def get_table_fields(self, values, allow_null):
         '''
         input is lists of strings
@@ -129,12 +149,18 @@ class Query_Processor:
         res = []
         for item in re.sub('[^0-9a-zA-Z_.]+', ' ', ' '.join(values)).split():
             if re.search('^\w+\.\w+$', item):
-                x, y = item.split('.')
-                if x == self.legalize_name(x) and y == self.legalize_name(y):
-                    res.append((x, y))
+                item, y = item.split('.')
+                if not y:
+                    raise ValueError(f"Field for module ``{item}`` is empty.")
             else:
-                if allow_null and item == self.legalize_name(item, kw = True):
-                    res.append((item, None))
+                y = None
+            if item in self.groups:
+                item = self.groups[item]
+            else:
+                item = [item]
+            for x in item:
+                if x == self.legalize_name(x) and y == self.legalize_name(y) and (allow_null or y):
+                    res.append((x, y))
         return res
 
     def filter_tables(self, tables):
@@ -159,13 +185,7 @@ class Query_Processor:
         indic = []
         for pipeline in self.pipelines:
             indic.append([x.lower() in tables for x in pipeline])
-        res = []
-        for x, y in zip(indic, self.pipelines):
-            tmp = []
-            for idx, item in enumerate(x):
-                if item:
-                    tmp.append(y[idx])
-            res.append(tuple(tmp))
+        res = [tuple(y for x, y in zip(indicator, pipeline) if x) for indicator, pipeline in zip(indic, self.pipelines)]
         return filter_sublist(res)
 
     def get_from_clause(self):
