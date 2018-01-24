@@ -5,68 +5,63 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import os, sys
-import warnings
-warnings.filterwarnings("ignore")
+import pandas as pd
 from sos.utils import env, get_traceback
 from . import VERSION
 
 def query(args):
     env.logger.info("Loading database ...")
     from sos.__main__ import AnswerMachine
-    from sos.jupyter.converter import notebook_to_html
+    from sos_notebook.converter import notebook_to_html
     from .query_jupyter import get_database_notebook, get_query_notebook
     from .query_engine import Query_Processor
     from .utils import uniq_list
     from .addict import Dict as dotdict
-    _AM_ = AnswerMachine()
+    am = AnswerMachine()
     if os.path.isfile(args.dsc_output):
         args.dsc_output = os.path.dirname(args.dsc_output)
     db = os.path.join(args.dsc_output, os.path.basename(args.dsc_output) + '.db')
     if args.target is None:
         if not args.output.endswith('.ipynb'):
             args.output = args.output.strip('.') + '.ipynb'
-        if os.path.isfile(args.output) and not _AM_.get("Overwrite existing file \"{}\"?".format(args.output)):
+        if os.path.isfile(args.output) and not am.get("Overwrite existing file \"{}\"?".format(args.output)):
             sys.exit("Aborted!")
         env.logger.info("Exporting database ...")
         get_database_notebook(db, args.output, args.title, args.description, args.limit)
     else:
         env.logger.info("Running queries ...")
-        from .yhat_sqldf import sqldf, PandaSQLException as SQLError
-        _QP_ = Query_Processor(db, args.target, args.condition)
-        for query in _QP_.get_queries():
+        qp = Query_Processor(db, args.target, args.condition, args.groups)
+        for query in qp.get_queries():
             env.logger.debug(query)
-        globals().update(**(_QP_.get_data()))
-        try:
-            output = {'pipeline_{}'.format(i+1) : _QP_.populate_table(sqldf(query)) \
-                      for i, query in enumerate(_QP_.get_queries())}
-        except SQLError as e:
-            raise(e)
         # write output
-        if not args.output.endswith('.rds') and not args.output.endswith('.ipynb'):
+        if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb'):
             args.output = args.output.strip('.') + '.ipynb'
-        if args.output.endswith('.rds'):
-            frds = args.output
+        if args.output.endswith('.xlsx'):
+            fxlsx = args.output
             fnb = None
             args.no_html = True
         else:
-            frds = args.output[:-6] + '.rds'
+            fxlsx = args.output[:-6] + '.xlsx'
             fnb = args.output
-        if os.path.isfile(frds) and not _AM_.get("Overwrite existing file \"{}\"?".format(frds)):
+        if os.path.isfile(fxlsx) and not am.get(f"Overwrite existing file \"{fxlsx}\"?"):
             sys.exit("Aborted!")
-        from .utils import save_rds
-        save_rds(output, frds)
-        env.logger.info("Query results saved to R compatible format ``{}``".format(frds))
+        writer = pd.ExcelWriter(fxlsx)
+        qp.output_table.to_excel(writer, 'Sheet1', index = False)
+        for table in qp.output_tables:
+            qp.output_tables[table].to_excel(writer, table, index = False)
+        writer.save()
+        env.logger.info(f"Query results saved to spread sheet ``{fxlsx}``".format(fxlsx))
         if fnb is not None:
-            if os.path.isfile(fnb) and not _AM_.get("Overwrite existing file \"{}\"?".format(fnb)):
+            if os.path.isfile(fnb) and not am.get("Overwrite existing file \"{}\"?".format(fnb)):
                 sys.exit("Aborted!")
             desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
                                                    format(repr(args.target), repr(args.condition))]
-            get_query_notebook(frds, _QP_.get_queries(), fnb, args.title, desc, args.language,
+            get_query_notebook(fxlsx, qp.get_queries(), fnb, args.title, desc, args.language,
                                uniq_list(args.addon or []), args.limit)
             env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(fnb))
     if not args.no_html:
         html = args.output[:-6] + '.html'
-        notebook_to_html(args.output, html, dict({"template": "sos-report"}),
+        notebook_to_html(args.output, html, dotdict([("template", "sos-report")]),
                          ["--Application.log_level='CRITICAL'"])
 
 def main():
@@ -88,7 +83,7 @@ def main():
     p.add_argument('--limit', metavar = 'N', type = int, default = -1,
                    help='''Number of rows to display for tables. Default is to display it for all rows
                    (will result in very large HTML output for large benchmarks).''')
-    p.add_argument('--title', metavar = 'str', required = True,
+    p.add_argument('--title', metavar = 'str', default = 'DSC summary & query',
                    help='''Title for notebook file.''')
     p.add_argument('--description', metavar = 'str', nargs = '+',
                    help='''Text to add under notebook title. Each string is a standalone paragraph.''')
@@ -96,6 +91,8 @@ def main():
                    help = '''Query targets.''')
     p.add_argument('-c', '--condition', metavar = "WHERE", nargs = '+',
                    help = '''Query conditions.''')
+    p.add_argument('-g', '--groups', metavar = "G:A,B", nargs = '+',
+                   help = '''Definition of module groups.''')
     p.add_argument('--language', metavar = 'str', choices = ['R', 'Python3'],
                    help='''Language kernel to switch to for follow up analysis in notebook generated.''')
     p.add_argument('--addon', metavar = 'str', nargs = '+',

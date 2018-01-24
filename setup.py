@@ -36,7 +36,7 @@ setup(name        = "dsc",
                           'sos-matlab>=0.9.10.3', 'sos-bash>=0.9.10.1',
                           'sos-python>=0.9.10.1', 'sos-pbs>=0.9.10.3',
                           'sos-notebook',
-                          'feather-format', 'pyarrow>=0.5.0',
+                          'openpyxl>=2.2', 'pyarrow>=0.5.0',
                           'sqlalchemy', 'msgpack-python', 'xxhash>=1.0.1',
                           'ruamel.yaml>=0.15', 'pandas>=0.22.0',
                           'sympy', 'numexpr', 'numpy']

@@ -6,10 +6,11 @@ __license__ = "MIT"
 import os, re, glob, pickle
 import pandas as pd
 from .dsc_database import DBError
-from .utils import load_rds, uniq_list, \
+from .utils import uniq_list, \
      cartesian_list, filter_sublist, is_null, \
      OrderedDict
 from .line import OperationParser
+from .yhat_sqldf import sqldf, PandaSQLException as SQLError
 
 SQL_KEYWORDS = set([
     'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
@@ -88,25 +89,30 @@ def expand_logic(string):
     return res
 
 class Query_Processor:
-    def __init__(self, db, target, condition = None, groups = None):
+    def __init__(self, db, targets, condition = None, groups = None):
         self.db = db
-        self.condition = condition or []
-        self.groups = self.get_grouped_fields(groups)
-        self.target_tables = self.get_table_fields(target, allow_null = True)
-        self.condition_tables = self.get_table_fields(self.condition, allow_null = False)
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
+        self.condition = condition or []
+        self.targets = targets
+        self.groups = self.get_grouped_tables(groups)
+        self.target_tables = self.get_table_fields(targets)
+        self.condition_tables = self.get_table_fields(self.condition)
         # 1. only keep tables that do exist in database
         self.target_tables = self.filter_tables(self.target_tables)
         self.condition_tables = self.filter_tables(self.condition_tables)
         # 2. identify all pipelines in database
         self.pipelines = self.get_pipelines()
-        # 3. identify which parts of each pipeline are involved, based on tables in target / condition
+        # 3. identify and extract which part of each pipeline are involved, based on tables in target / condition
         self.pipelines = self.filter_pipelines()
         # 4. make inner join, the FROM clause
         from_clauses = self.get_from_clause()
         # 5. make select / where clause
         select_clauses, where_clauses = self.get_select_where_clause()
         self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
+        # 6. run queries
+        self.output_tables = self.run_queries()
+        # 7. merge table
+        self.output_table = self.merge_tables()
 
     @staticmethod
     def legalize_name(name, kw = False):
@@ -122,7 +128,7 @@ class Query_Processor:
             output = '_' + output
         return output
 
-    def get_grouped_fields(self, groups):
+    def get_grouped_tables(self, groups):
         '''
         input is g: m1, m2
         output is {g: [m1, m2]}
@@ -140,7 +146,7 @@ class Query_Processor:
             res[g[0]] = v
         return res
 
-    def get_table_fields(self, values, allow_null):
+    def get_table_fields(self, values):
         '''
         input is lists of strings
         output should be lists of tuples
@@ -153,13 +159,13 @@ class Query_Processor:
                 if not y:
                     raise ValueError(f"Field for module ``{item}`` is empty.")
             else:
-                y = None
+                y = 'FILE'
             if item in self.groups:
                 item = self.groups[item]
             else:
                 item = [item]
             for x in item:
-                if x == self.legalize_name(x) and y == self.legalize_name(y) and (allow_null or y):
+                if x == self.legalize_name(x) and y == self.legalize_name(y):
                     res.append((x, y))
         return res
 
@@ -179,13 +185,14 @@ class Query_Processor:
 
     def filter_pipelines(self):
         '''
-        for each pipeline, label whether or not each item is involved
+        for each pipeline extract the sub pipeline that the query involves
         '''
+        res = []
         tables = [x[0].lower() for x in self.target_tables] + [x[0].lower() for x in self.condition_tables]
-        indic = []
         for pipeline in self.pipelines:
-            indic.append([x.lower() in tables for x in pipeline])
-        res = [tuple(y for x, y in zip(indicator, pipeline) if x) for indicator, pipeline in zip(indic, self.pipelines)]
+            pidx = [l[0] for l in enumerate(pipeline) if l[1] in tables]
+            if len(pidx):
+                res.append(pipeline[pidx[0]:pidx[-1]+1])
         return filter_sublist(res)
 
     def get_from_clause(self):
@@ -253,95 +260,62 @@ class Query_Processor:
             return ''
 
     def populate_table(self, table):
-        '''Dig into RDS files generated and get values out of them when possible'''
-        import rpy2.robjects.vectors as RV
-        import rpy2.rinterface as RI
-        targets = {name:[] for name in table.keys() if '_FILE_' in name}
-        loadables = {name: None for name in targets}
-        # try if the column is loadable
-        for name in targets:
-            loadable = None
-            rds = os.path.join(os.path.dirname(self.db), table[name][0]) + '.rds'
-            fns = glob.glob(os.path.join(os.path.dirname(self.db), table[name][0]) + '.*')
-            if rds in fns:
-                field = name.split('_FILE_')[1]
-                rdata = load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
-                                               RV.BoolVector, RV.FloatVector, RV.StrVector,
-                                               RI.RNULLType))
-                if field in rdata:
-                    if is_null(rdata[field]) or len(rdata[field]) == 0:
-                        loadable = -9
-                    elif len(rdata[field].shape) > 1:
-                        loadable = 0
-                    elif len(rdata[field]) == 1:
-                        # should be straightforward append
-                        # a single number
-                        loadable = 1
-                    else:
-                        # should be a vector
-                        loadable = 2
-            if loadable not in [1, 2]:
-                ext = [os.path.basename(x)[len(table[name][0])+1:] for x in fns]
-                if len(ext) == 1:
-                    targets[name] = [os.path.join(os.path.dirname(self.db), x) + '.{}'.format(ext[0]) \
-                                     for x in table[name]]
-                else:
-                    targets[name] = [os.path.join(os.path.dirname(self.db), x) + '.{%s}' % ','.join(ext) \
-                                     for x in table[name]]
-            loadables[name] = loadable
-        # start loading
-        for name in list(targets.keys()):
-            if len(targets[name]):
-                continue
-            field = name.split('_FILE_')[1]
-            for row in table[name]:
-            # FIXME: should implement a parallel processing version
-                rds = os.path.join(os.path.dirname(self.db), row) + '.rds'
-                data = load_rds(rds, types = (RV.Array, RV.IntVector, RV.FactorVector,
-                                              RV.BoolVector, RV.FloatVector, RV.StrVector,
-                                              RI.RNULLType))[field]
-                if loadables[name] == 1:
-                    targets[name].append(data[0])
-                else:
-                    targets[name].append(data)
-        # expand columns and change column names
-        for name in loadables:
-            if loadables[name] in [1,2]:
-                newname = name.replace('_FILE_', '_')
-                if loadables[name] == 2:
-                    num = len(str(len(targets[name][0])))
-                    for idx, item in enumerate(list(zip(*targets[name]))):
-                        targets['{}_{}'.format(newname, '{0:0>{width}}'.format(idx+1, width = num))] = list(item)
-                    del targets[name]
-                else:
-                    targets[newname] = targets.pop(name)
-        # finally merge to data
-        table = table.drop(loadables.keys(), axis = 1).to_dict(orient='list')
+        '''Dig into RDS files generated and get values out of them when possible
+        FIXME: load from RDS has been removed for now due to poor ryp2 support
+        '''
+        targets = {name: [os.path.join(os.path.dirname(self.db), x) for x in table[name]] for name in table.keys() if '_FILE_' in name}
         table.update(targets)
-        # do some formatting here before return the result: reorder keys & remove _FILE_ from names
-        # 1. regular fields
-        # 2. fields with index _01 etc
-        # 3. fields with _FILE_
-        keys = {1:[],2:[],3:[]}
-        for k in table:
-            if '_FILE_' in k:
-                keys[3].append(k)
-            elif k.rsplit('_', 1)[-1].isdigit():
-                keys[2].append(k)
+        table = pd.DataFrame(table)
+        table = table[sorted([x for x in table if not "_FILE_" in x]) + sorted([x for x in table if "_FILE_" in x])]
+        rename = {x: x if not "_FILE_" in x else x.replace('_FILE', '') for x in table}
+        return table.rename(columns = rename)
+
+    def merge_tables(self):
+        common_keys = [t.columns for t in self.output_tables.values()]
+        common_keys = list(set(common_keys[0]).intersection(*common_keys))
+        table = pd.concat(self.output_tables.values(), join = 'outer', ignore_index = True)
+        for g in self.groups:
+            # For each group, find common fields to merge
+            to_merge = dict()
+            for col in table.columns:
+                k = col.rsplit('_',1)
+                if not k[0] in self.groups[g]:
+                    continue
+                if not k[1] in to_merge:
+                    to_merge[k[1]] = []
+                to_merge[k[1]].append(col)
+            for k in to_merge:
+                table[f'{g}_{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
+                if not all(table[f'{g}_{k}'].apply(len) == 1):
+                    raise ValueError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}_k`` due to collating  entries.')
+                table[f'{g}_{k}'] = table[f'{g}_{k}'].apply(lambda x: x[0])
+                if not g in table:
+                    table[g] = None
+                    for col in to_merge[k]:
+                        table[g] = table.apply(lambda row: col.rsplit('_',1)[0] if not row[col] == row[col] else row[g], axis = 1)
+                table.drop(to_merge[k], axis=1, inplace=True)
+        # Adjust column ordering
+        targets = []
+        for x in self.targets:
+            x = x.rsplit('.')
+            if len(x) == 1:
+                x.append('FILE')
+            if x[0] in self.groups:
+                targets.extend([x[0], '_'.join(x)])
             else:
-                keys[1].append(k)
-        res = OrderedDict()
-        for k in sorted(keys[1]) + sorted(keys[2]):
-            res[k] = table[k]
-        for k in sorted(keys[3]):
-            res[k.replace('_FILE_', '_')] = table[k]
-        return pd.DataFrame(res, columns = res.keys())
+                targets.append('_'.join(x))
+        table = table[uniq_list(targets)]
+        return table
 
     def get_queries(self):
         return self.queries
 
     def get_data(self):
         return self.data
+
+    def run_queries(self):
+        return dict([(pipeline[-1], self.populate_table(sqldf(query, self.data))) \
+                     for pipeline, query in zip(self.pipelines, self.queries)])
 
 if __name__ == '__main__':
     import sys
