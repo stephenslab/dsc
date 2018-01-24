@@ -38,17 +38,18 @@ data = pickle.load(open("{}", 'rb'))
     jc.add("## Pipelines")
     for key in data:
         if key.startswith('pipeline_'):
-            jc.add(f"### {key[7:]}")
+            jc.add(f"### {key[9:]}")
             for kk in data[key]:
-                jc.add(f"{kk}")
+                jc.add(f"**{' -> '.join(kk.split('+'))}**")
                 jc.add(f"%preview -n data['{key}']['{kk}'] --limit {limit}", cell = "code")
     jc.add("## Modules")
     for key in data:
         if not key.startswith("pipeline_") and not key.startswith('.'):
             jc.add("### module `{}`".format(key))
             jc.add(f"%preview -n data['{key}'] --limit {limit}", cell = "code")
-    with open(os.path.basename(db)[:-3] + '.html', 'w') as f:
-        f.write(data['.html'])
+    if '.html' in data:
+        with open(os.path.basename(db)[:-3] + '.html', 'w') as f:
+            f.write(data['.html'])
     write_notebook(jc.dump(), output)
 
 def get_query_notebook(db, queries, output, title, description = None, language = None, addon = None, limit = -1):
@@ -61,10 +62,12 @@ import pandas as pd
 xls = pd.ExcelFile('{}')
 info = [xls.parse(x) for x in xls.sheet_names]
     '''.format(os.path.expanduser(db)), cell = "code", out = False)
+    jc.add("## Merged")
+    jc.add(f"%preview -n info[0] --limit {limit}", cell = "code")
     for i, q in enumerate(queries):
         jc.add("## Pipeline {}".format(i + 1))
         jc.add("```sql\n{}\n```".format(q), out = False)
-        jc.add(f"%preview -n info[{0}] --limit {limit}", cell = "code")
+        jc.add(f"%preview -n info[{i+1}] --limit {limit}", cell = "code")
     if language is not None:
         if language == 'R':
             jc.add("%use R\ninfo <- readxl::read_excel('{}')".format(db), cell = "code", out = False)
