@@ -46,8 +46,9 @@ def query(args):
             sys.exit("Aborted!")
         writer = pd.ExcelWriter(fxlsx)
         qp.output_table.to_excel(writer, 'Sheet1', index = False)
-        for table in qp.output_tables:
-            qp.output_tables[table].to_excel(writer, table, index = False)
+        if len(qp.output_tables) > 1:
+            for table in qp.output_tables:
+                qp.output_tables[table].to_excel(writer, table, index = False)
         writer.save()
         env.logger.info(f"Query results saved to spread sheet ``{fxlsx}``".format(fxlsx))
         if os.path.isfile(args.output) and not am.get("Overwrite existing file \"{}\"?".format(args.output)):

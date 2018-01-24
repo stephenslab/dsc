@@ -62,12 +62,13 @@ import pandas as pd
 xls = pd.ExcelFile('{}')
 info = [xls.parse(x) for x in xls.sheet_names]
     '''.format(os.path.expanduser(db)), cell = "code", out = False)
-    jc.add("## Merged")
-    jc.add(f"%preview -n info[0] --limit {limit}", cell = "code")
+    if len(queries) > 1:
+        jc.add("## Merged")
+        jc.add(f"%preview -n info[0] --limit {limit}", cell = "code")
     for i, q in enumerate(queries):
-        jc.add("## Pipeline {}".format(i + 1))
+        jc.add(f"## Pipeline {i+1}" if len(queries) > 1 else "## Merged")
         jc.add("```sql\n{}\n```".format(q), out = False)
-        jc.add(f"%preview -n info[{i+1}] --limit {limit}", cell = "code")
+        jc.add(f"%preview -n info[{i+1 if len(queries) > 1 else 0}] --limit {limit}", cell = "code")
     if language is not None:
         if language == 'R':
             jc.add("%use R\ninfo <- readxl::read_excel('{}')".format(db), cell = "code", out = False)
