@@ -775,7 +775,7 @@ def is_sublist(sub, lst):
             return True
     return False
 
-def filter_sublist(lists):
+def filter_sublist(lists, ordered = True):
     '''remove lists who are sublist of other lists'''
     lists = uniq_list(lists)
     max_lists = []
@@ -784,9 +784,14 @@ def filter_sublist(lists):
         for y in lists:
             if x == y:
                 continue
-            if is_sublist(x, y):
-                include = False
-                break
+            if ordered:
+                if is_sublist(x, y):
+                    include = False
+                    break
+            else:
+                if all([xx in y for xx in x]):
+                    include = False
+                    break
         if include:
             max_lists.append(x)
     return max_lists

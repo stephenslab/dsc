@@ -289,7 +289,7 @@ class ResultDB:
                             self.data[module][kk].append(vv)
 
     def __get_pipeline(self, module, module_id, module_idx, iteres):
-        '''Input are last module name, ID, and coriteresponding index (in its data frame)'''
+        '''Input are last module name, ID, and its index (in its data frame)'''
         iteres.append((module, module_id))
         depend_id = self.data[module]['PARENT'][module_idx]
         if depend_id == -9:
@@ -328,10 +328,10 @@ class ResultDB:
             if key not in data:
                 data[key] = [key]
             data[key].append([x[1] for x in pipeline])
-        for key in data:
+        for key in list(data.keys()):
             header = data[key].pop(0)
             data[key] = pd.DataFrame(data[key], columns = header)
-        data = pd.concat([data[key] for key in data], ignore_index = True).fillna(-9, downcast = int)
+            data['+'.join(key)] = data.pop(key)
         return data
 
     def Build(self, script = None):

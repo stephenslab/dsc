@@ -38,9 +38,10 @@ data = pickle.load(open("{}", 'rb'))
     jc.add("## Pipelines")
     for key in data:
         if key.startswith('pipeline_'):
-            captain = data[key].columns
-            jc.add(f"### {' + '.join(data[key].columns)}")
-            jc.add(f"%preview -n data['{key}'] --limit {limit}", cell = "code")
+            jc.add(f"### {key[7:]}")
+            for kk in data[key]:
+                jc.add(f"{kk}")
+                jc.add(f"%preview -n data['{key}']['{kk}'] --limit {limit}", cell = "code")
     jc.add("## Modules")
     for key in data:
         if not key.startswith("pipeline_") and not key.startswith('.'):

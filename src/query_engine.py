@@ -103,7 +103,6 @@ class Query_Processor:
         self.condition_tables = self.filter_tables(self.condition_tables)
         # 2. identify all pipelines in database
         self.pipelines = self.get_pipelines()
-        print(self.pipelines)
         # 3. identify and extract which part of each pipeline are involved, based on tables in target / condition
         self.pipelines = self.filter_pipelines()
         # 4. make inner join, the FROM clause
@@ -113,7 +112,6 @@ class Query_Processor:
         self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
         # 6. run queries
         self.output_tables = self.run_queries()
-        print(self.queries)
         # 7. merge table
         self.output_table = self.merge_tables()
 
@@ -217,7 +215,7 @@ class Query_Processor:
                     tmp.append((tokens[0], tokens[1].replace("==", "="), tokens[2]))
                 else:
                     # will be connected by OR logic
-                    tmp.append([((x, tokens[0][1]), tokens[1].replace("==","="), tokens[2])
+                    tmp.append([((x, tokens[0][1]), tokens[1].replace("==", "="), tokens[2])
                                 for x in self.groups[tokens[0][0]]])
             res.append(tmp)
         return cond_tables, res
@@ -231,10 +229,9 @@ class Query_Processor:
         example output:
         [('rnorm', 'mean', 'MSE'), ('rnorm', 'median', 'MSE'), ... ('rt', 'winsor', 'MSE')]
         '''
-        masters = {k : self.data[k] for k in self.data.keys()
-                   if k.startswith("pipeline_")}
-        res = [tuple(masters[x].keys()) for x in masters]
-        return res
+        res = [[tuple(kk.split('+')) for kk in self.data[k].keys()] \
+               for k in self.data.keys() if k.startswith("pipeline_")]
+        return sum(res, [])
 
     def filter_pipelines(self):
         '''
@@ -258,9 +255,11 @@ class Query_Processor:
     def get_select_where_clause(self):
         select = []
         where = []
+        select_fields = []
         for pipeline in self.pipelines:
             tmp1 = []
             tmp2 = []
+            tmp3 = []
             for item in self.target_tables:
                 if len([x for x in pipeline if x.lower() == item[0].lower()]) == 0:
                     continue
@@ -275,6 +274,12 @@ class Query_Processor:
                     tmp1.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))
             select.append("SELECT " + ', '.join(tmp1))
             where.append(self.get_one_where_clause([x[0].lower() for x in tmp2]))
+            select_fields.append(['.'.join(x) for x in tmp2])
+        # not all pipelines will be used
+        # because of `-t` option logic, if a new
+        output_fields = filter_sublist(select_fields, ordered = False)
+        select = [x for i, x in enumerate(select) if select_fields[i] in output_fields]
+        where = [x for i, x in enumerate(where) if select_fields[i] in output_fields]
         return select, where
 
     def get_one_where_clause(self, tables):
@@ -289,41 +294,44 @@ class Query_Processor:
         for each_and in self.condition:
             tmp = []
             for value in each_and:
-                counts = [0,0]
                 if isinstance(value, tuple):
                     self.check_table_field(value[0], True)
                     value = [value]
                 else:
                     for vv in value:
                         self.check_table_field(vv[0])
-                for vv in value:
-                    if vv[0][0].lower() not in tables:
-                        # FIXME: give a warning here
-                        counts[1] += 1
-                    else:
-                        counts[0] += 1
-                if counts[0] >= 1 and counts[1] == 0:
-                    if len(value) > 1:
-                        value = ' OR '.join([f"{'.'.join(vv[0])} {vv[1].replace('==', '=')} {vv[2]}" for vv in value])
+                valid_idx = [idx for idx, vv in enumerate(value) if vv[0][0].lower() in tables]
+                if len(valid_idx) >= 1:
+                    value = ' OR '.join([f"{'.'.join(value[i][0])} {value[i][1].replace('==', '=')} {value[i][2]}"
+                                         for i in valid_idx])
+                    if len(valid_idx) > 1:
                         tmp.append(f"({value})")
                     else:
-                        tmp.append(f"{'.'.join(value[0][0])} {value[0][1].replace('==', '=')} {value[0][2]}")
+                        tmp.append(value)
+                else:
+                    pass
             condition.append(tmp)
         if len(condition) > 0:
             return "WHERE " + ' OR '.join(['(' + ' AND '.join(["({})".format(y) for y in x]) + ')' for x in condition])
         else:
             return ''
 
-    def populate_table(self, table):
+    def populate_table(self, table, ordering = None):
         '''Dig into RDS files generated and get values out of them when possible
         FIXME: load from RDS has been removed for now due to poor ryp2 support
         '''
-        targets = {name: [os.path.join(os.path.dirname(self.db), x) for x in table[name]] for name in table.keys() if '_FILE_' in name}
+        targets = {name: [os.path.join(os.path.dirname(self.db), x) for x in table[name]]
+                   for name in table.keys() if '_FILE_' in name}
         table.update(targets)
         table = pd.DataFrame(table)
-        table = table[sorted([x for x in table if not "_FILE_" in x]) + sorted([x for x in table if "_FILE_" in x])]
         rename = {x: x if not "_FILE_" in x else x.replace('_FILE', '') for x in table}
-        return table.rename(columns = rename)
+        if ordering is None:
+            table = table[sorted([x for x in table if not "_FILE_" in x]) + \
+                          sorted([x for x in table if "_FILE_" in x])].rename(columns = rename)
+        else:
+            table = table.rename(columns = rename)
+            table = table[sorted(table.columns, key = lambda x: ordering.index(x.rsplit('_',1)[0]))]
+        return table
 
     def merge_tables(self):
         common_keys = [t.columns for t in self.output_tables.values()]
@@ -340,15 +348,21 @@ class Query_Processor:
                     to_merge[k[1]] = []
                 to_merge[k[1]].append(col)
             for k in to_merge:
-                table[f'{g}_{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
-                if not all(table[f'{g}_{k}'].apply(len) == 1):
-                    raise ValueError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}_k`` due to collating  entries.')
-                table[f'{g}_{k}'] = table[f'{g}_{k}'].apply(lambda x: x[0])
-                if not g in table:
-                    table[g] = None
-                    for col in to_merge[k]:
-                        table[g] = table.apply(lambda row: col.rsplit('_',1)[0] if not row[col] == row[col] else row[g], axis = 1)
-                table.drop(to_merge[k], axis=1, inplace=True)
+                if len(to_merge[k]) > 1:
+                    table[f'{g}_{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
+                    if not all(table[f'{g}_{k}'].apply(len) == 1):
+                        raise ValueError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}_k`` due to collating  entries.')
+                    table[f'{g}_{k}'] = table[f'{g}_{k}'].apply(lambda x: x[0])
+                    if not g in table:
+                        table[g] = None
+                        for col in to_merge[k]:
+                            table[g] = table.apply(lambda row: col.rsplit('_',1)[0]
+                                                   if not row[col] == row[col] else row[g], axis = 1)
+                    table.drop(to_merge[k], axis=1, inplace=True)
+                else:
+                    # simply rename it
+                    table = table.rename(columns = {to_merge[k][0]: f'{g}_{k}'})
+                    table[g] = to_merge[k][0].rsplit('_',1)[0]
         # Adjust column ordering
         targets = []
         for x in self.targets:
@@ -369,7 +383,7 @@ class Query_Processor:
         return self.data
 
     def run_queries(self):
-        return dict([(pipeline[-1], self.populate_table(sqldf(query, self.data))) \
+        return dict([('+'.join(pipeline), self.populate_table(sqldf(query, self.data), pipeline)) \
                      for pipeline, query in zip(self.pipelines, self.queries)])
 
 if __name__ == '__main__':
