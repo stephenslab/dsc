@@ -12,7 +12,7 @@ from . import VERSION
 def query(args):
     env.logger.info("Loading database ...")
     from sos.__main__ import AnswerMachine
-    from sos_notebook.converter import notebook_to_html
+    # from sos_notebook.converter import notebook_to_html
     from .query_jupyter import get_database_notebook, get_query_notebook
     from .query_engine import Query_Processor
     from .utils import uniq_list
@@ -38,8 +38,7 @@ def query(args):
             args.output = args.output.strip('.') + '.ipynb'
         if args.output.endswith('.xlsx'):
             fxlsx = args.output
-            fnb = None
-            args.no_html = True
+            args.output = args.output[:-5] + '.ipynb'
         else:
             fxlsx = args.output[:-6] + '.xlsx'
             fnb = args.output
@@ -51,18 +50,20 @@ def query(args):
             qp.output_tables[table].to_excel(writer, table, index = False)
         writer.save()
         env.logger.info(f"Query results saved to spread sheet ``{fxlsx}``".format(fxlsx))
-        if fnb is not None:
-            if os.path.isfile(fnb) and not am.get("Overwrite existing file \"{}\"?".format(fnb)):
-                sys.exit("Aborted!")
-            desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
-                                                   format(repr(args.target), repr(args.condition))]
-            get_query_notebook(fxlsx, qp.get_queries(), fnb, args.title, desc, args.language,
-                               uniq_list(args.addon or []), args.limit)
-            env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it.".format(fnb))
-    if not args.no_html:
-        html = args.output[:-6] + '.html'
-        notebook_to_html(args.output, html, dotdict([("template", "sos-report")]),
-                         ["--Application.log_level='CRITICAL'"])
+        if os.path.isfile(args.output) and not am.get("Overwrite existing file \"{}\"?".format(args.output)):
+            sys.exit("Aborted!")
+        desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
+                                               format(repr(args.target), repr(args.condition))]
+        get_query_notebook(fxlsx, qp.get_queries(), args.output, args.title, desc, args.language,
+                           uniq_list(args.addon or []), args.limit)
+    env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it and run all cells, "\
+                    "or run it from command line with ``jupyter nbconvert --to notebook --execute {0}`` "\
+                    "first, then use ``jupyter notebook {1}.nbconvert.ipynb`` to open it.".\
+                    format(args.output, args.output[:-6]))
+    # if not args.no_html:
+    #     html = args.output[:-6] + '.html'
+    #     notebook_to_html(args.output, html, dotdict([("template", "sos-report")]),
+    #                      ["--Application.log_level='CRITICAL'"])
 
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
@@ -98,8 +99,8 @@ def main():
     p.add_argument('--addon', metavar = 'str', nargs = '+',
                    help='''Scripts to load to the notebooks for follow up analysis.
                    Only usable in conjunction with "--language".''')
-    p.add_argument('--no-html', action = 'store_true', dest = 'no_html',
-                   help='''Do not export to HTML format.''')
+    # p.add_argument('--no-html', action = 'store_true', dest = 'no_html',
+    #                help='''Do not export to HTML format.''')
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')

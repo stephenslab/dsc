@@ -5,6 +5,8 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, glob, pickle
 import pandas as pd
+from io import StringIO
+import tokenize
 from .dsc_database import DBError
 from .utils import uniq_list, \
      cartesian_list, filter_sublist, is_null, \
@@ -91,17 +93,17 @@ def expand_logic(string):
 class Query_Processor:
     def __init__(self, db, targets, condition = None, groups = None):
         self.db = db
-        self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
-        self.condition = condition or []
         self.targets = targets
+        self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
         self.groups = self.get_grouped_tables(groups)
         self.target_tables = self.get_table_fields(targets)
-        self.condition_tables = self.get_table_fields(self.condition)
+        self.condition_tables, self.condition = self.get_condition(condition)
         # 1. only keep tables that do exist in database
         self.target_tables = self.filter_tables(self.target_tables)
         self.condition_tables = self.filter_tables(self.condition_tables)
         # 2. identify all pipelines in database
         self.pipelines = self.get_pipelines()
+        print(self.pipelines)
         # 3. identify and extract which part of each pipeline are involved, based on tables in target / condition
         self.pipelines = self.filter_pipelines()
         # 4. make inner join, the FROM clause
@@ -111,11 +113,13 @@ class Query_Processor:
         self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
         # 6. run queries
         self.output_tables = self.run_queries()
+        print(self.queries)
         # 7. merge table
         self.output_table = self.merge_tables()
 
     @staticmethod
     def legalize_name(name, kw = False):
+        # FIXME: have to ensure keywords conflict is supported
         if name is None:
             return name
         output = ''
@@ -127,6 +131,22 @@ class Query_Processor:
         if re.match(r'^[0-9][a-zA-Z0-9_]+$', output) or (output.upper() in SQL_KEYWORDS and kw):
             output = '_' + output
         return output
+
+    def check_table_field(self, value, check_field = False):
+        '''
+        Input is (table, field)
+        output is if they are valid
+        '''
+        x, y = value
+        if x != self.legalize_name(x):
+            raise DBError(f"Invalid module specification ``{x}``")
+        keys_lower = [k.lower() for k in self.data.keys()]
+        if not x.lower() in keys_lower:
+            raise DBError(f"Cannot find module ``{x}`` in DSC results ``{self.db}``.")
+        k = list(self.data.keys())[keys_lower.index(x.lower())]
+        if check_field and not y.lower() in [i.lower() for i in self.data[k]]:
+                    raise DBError(f"``{'.'.join(value)}`` is invalid query: cannot find column ``{y}`` in table ``{k}``")
+        return
 
     def get_grouped_tables(self, groups):
         '''
@@ -153,7 +173,7 @@ class Query_Processor:
         [(table, field), (table, field) ...]
         '''
         res = []
-        for item in re.sub('[^0-9a-zA-Z_.]+', ' ', ' '.join(values)).split():
+        for item in ' '.join(values).split():
             if re.search('^\w+\.\w+$', item):
                 item, y = item.split('.')
                 if not y:
@@ -165,9 +185,42 @@ class Query_Processor:
             else:
                 item = [item]
             for x in item:
-                if x == self.legalize_name(x) and y == self.legalize_name(y):
-                    res.append((x, y))
+                self.check_table_field((x, y))
+                res.append((x, y))
         return res
+
+    def get_condition(self, condition):
+        '''
+        parse condition statement
+        output:
+
+        '''
+        # FIXME: check legalize names
+        if condition is None:
+            return []
+        # After expanding, condition is a list of list
+        # the outer lists are connected by OR
+        # the inner lists are connected by AND
+        res = []
+        cond_tables = []
+        for and_list in expand_logic(' AND '.join(condition)):
+            tmp = []
+            for value in and_list:
+                tokens = [token[1] for token in tokenize.generate_tokens(StringIO(value.replace('.', '__DOT__')).readline) if token[1]]
+                if not (len(tokens) == 3 and tokens[1] in ['=', '==', '!=', '>', '<', '>=', '<=']):
+                    raise ValueError(f"Condition ``{value}`` is not a valid math expression.")
+                tokens[0] = tokens[0].replace('__DOT__', '.').split('.')
+                if len(tokens[0]) != 2:
+                    raise ValueError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
+                cond_tables.append((tokens[0][0], tokens[0][1]))
+                if not tokens[0][0] in self.groups:
+                    tmp.append((tokens[0], tokens[1].replace("==", "="), tokens[2]))
+                else:
+                    # will be connected by OR logic
+                    tmp.append([((x, tokens[0][1]), tokens[1].replace("==","="), tokens[2])
+                                for x in self.groups[tokens[0][0]]])
+            res.append(tmp)
+        return cond_tables, res
 
     def filter_tables(self, tables):
         return uniq_list([x for x in tables if x[0].lower() in
@@ -233,26 +286,28 @@ class Query_Processor:
         # to decide which part of the conditions is relevant to which pipeline we have to
         # dissect it to reveal table/field names
         condition = []
-        for each_and in expand_logic(' AND '.join(self.condition)):
+        for each_and in self.condition:
             tmp = []
             for value in each_and:
-                # [valid, invalid]
                 counts = [0,0]
-                for item in re.sub('[^0-9a-zA-Z_.]+', ' ', value).split():
-                    if re.search('^\w+\.\w+$', item):
-                        x, y = item.split('.')
-                        if x == self.legalize_name(x) and y == self.legalize_name(y):
-                            if x.lower() not in tables:
-                                counts[1] += 1
-                            else:
-                                counts[0] += 1
-                                for k in self.data:
-                                    if k.lower() == x:
-                                        if not y.lower() in [i.lower() for i in self.data[k].keys()]:
-                                            raise DBError("``{}`` is invalid query: cannot find column ``{}`` in table ``{}``".\
-                                                                format(value, y, k))
+                if isinstance(value, tuple):
+                    self.check_table_field(value[0], True)
+                    value = [value]
+                else:
+                    for vv in value:
+                        self.check_table_field(vv[0])
+                for vv in value:
+                    if vv[0][0].lower() not in tables:
+                        # FIXME: give a warning here
+                        counts[1] += 1
+                    else:
+                        counts[0] += 1
                 if counts[0] >= 1 and counts[1] == 0:
-                    tmp.append(value)
+                    if len(value) > 1:
+                        value = ' OR '.join([f"{'.'.join(vv[0])} {vv[1].replace('==', '=')} {vv[2]}" for vv in value])
+                        tmp.append(f"({value})")
+                    else:
+                        tmp.append(f"{'.'.join(value[0][0])} {value[0][1].replace('==', '=')} {value[0][2]}")
             condition.append(tmp)
         if len(condition) > 0:
             return "WHERE " + ' OR '.join(['(' + ' AND '.join(["({})".format(y) for y in x]) + ')' for x in condition])
