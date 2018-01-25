@@ -152,10 +152,14 @@ class DSC_Script:
             # collection module specific parameters
             tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
             for key in self.content[block]:
-                if key.startswith('.') and key not in DSC_MODP and key[1:] not in modules:
-                    raise FormatError(f'Undefined keyword ``{key}``.')
-                if key.startswith('.') and key[1:] in modules:
-                    tmp[key[1:]]['local'].update(self.content[block][key])
+                if key.startswith('.') and key not in DSC_MODP:
+                    # then possibly it is executables
+                    # we'll update executable specific information
+                    for m in key[1:].split(','):
+                        if m.strip() not in modules:
+                            raise FormatError(f'Undefined decoration ``@{key}``.')
+                        else:
+                            tmp[m.strip()]['local'].update(self.content[block][key])
                 elif key == '.EXEC':
                     for idx, module in enumerate(modules):
                         tmp[module]['global'][key] = self.content[block][key][idx]

@@ -351,7 +351,7 @@ class Query_Processor:
                 if len(to_merge[k]) > 1:
                     table[f'{g}_{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
                     if not all(table[f'{g}_{k}'].apply(len) == 1):
-                        raise ValueError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}_k`` due to collating  entries.')
+                        raise ValueError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}_k`` due to collating entries.')
                     table[f'{g}_{k}'] = table[f'{g}_{k}'].apply(lambda x: x[0])
                     if not g in table:
                         table[g] = None
