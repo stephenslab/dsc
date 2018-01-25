@@ -403,22 +403,11 @@ class DSC_Section:
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
         self.OP = OperationParser()
-        self.sequence = []
-        if isinstance(self.content['run'], collections.Mapping):
-            self.named_sequence = self.content['run']
-        else:
-            self.named_sequence = None
+        # FIXME: check if sequence input is of the right type
+        # and are valid modules
+        self.sequence = self.content['run']
         if sequence is not None:
-            for item in sequence:
-                if isinstance(self.content['run'], collections.Mapping) and item in self.content['run']:
-                    self.sequence.extend(self.content['run'][item])
-                else:
-                    self.sequence.append(item)
-        else:
-            if isinstance(self.content['run'], collections.Mapping):
-                self.sequence = flatten_list(self.content['run'].values())
-            else:
-                self.sequence = self.content['run']
+            self.sequence = sequence
         self.sequence = [(x,) if isinstance(x, str) else x
                          for x in sum([self.OP(self.expand_ensemble(y)) for y in self.sequence], [])]
         self.sequence = filter_sublist(self.sequence)
