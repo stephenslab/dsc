@@ -407,6 +407,7 @@ class DSC_Section:
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
         self.OP = OperationParser()
+        self.regularize_ensemble()
         # FIXME: check if sequence input is of the right type
         # and are valid modules
         self.sequence = self.content['run']
@@ -415,6 +416,7 @@ class DSC_Section:
         self.sequence = [(x,) if isinstance(x, str) else x
                          for x in sum([self.OP(self.expand_ensemble(y)) for y in self.sequence], [])]
         self.sequence = filter_sublist(self.sequence)
+        # FIXME: check if modules involved in sequence are indeed defined.
         self.sequence_ordering = self.__merge_sequences(self.sequence)
         self.options = dict()
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
@@ -438,6 +440,28 @@ class DSC_Section:
         values = OrderedDict([(x, [-9]) for x in values])
         return values
 
+    def regularize_ensemble(self):
+        '''
+        For definitions such as:
+        ```
+        preprocess: method1 * method2
+        analyze: preprocess * (method3, method4)
+        ```
+        we will need to convert `analyze` into:
+        analyze: method1 * method2 * (method3, method4)
+
+        we also should handle exceptions here such that after this step,
+        everything on the rhs should be whatever we've already have defined
+        (but we can check this eventually after sequences have been generated)
+        '''
+        if 'define' not in self.content:
+            return
+        res = OrderedDict()
+        for lhs in self.content["define"]:
+            pass
+
+
+
     def expand_ensemble(self, value):
         '''
         input
@@ -445,6 +469,9 @@ class DSC_Section:
         define:
             preprocess: filter * (norm1, norm2)
         run: data * preprocess * analyze
+
+        where `define` is in self.content['define']
+        `run` is in value
 
         output
         ======
