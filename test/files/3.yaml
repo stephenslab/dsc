@@ -1,7 +1,0 @@
-simulate:
-    exec: ForEach(datamaker.R, (1,2,3,4))
-    return: data
-
-DSC:
-    run: simulate
-    output: dsc_result
