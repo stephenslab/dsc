@@ -410,6 +410,7 @@ class DSC_Section:
         self.regularize_ensemble()
         # FIXME: check if sequence input is of the right type
         # and are valid modules
+        self.groups = dict()
         self.sequence = self.content['run']
         if sequence is not None:
             self.sequence = sequence
@@ -457,10 +458,13 @@ class DSC_Section:
         if 'define' not in self.content:
             return
         res = OrderedDict()
-        for lhs in self.content["define"]:
-            pass
-
-
+        replace_list = []
+        for lhs, rhs in self.content['define'].items():
+            rhs = f"({', '.join(rhs)})"
+            for item in reversed(replace_list):
+                rhs =  re.sub(r"\b%s\b" % item[0], item[1], rhs)
+            self.content['define'][lhs] = rhs
+            replace_list.append((lhs, rhs))
 
     def expand_ensemble(self, value):
         '''
@@ -479,8 +483,11 @@ class DSC_Section:
         '''
         if 'define' not in self.content:
             return value
-        for lhs in self.content["define"]:
-            rhs = f'({", ".join(self.content["define"][lhs])})'
+        for lhs, rhs in self.content["define"].items():
+            if not '*' in rhs:
+                # is a valid group
+                # that is, only exists alternating modules not concatenate modules
+                self.groups[lhs] = rhs.replace(',','').replace(')','').replace('(','').split()
             # http://www.regular-expressions.info/wordboundaries.html
             value = re.sub(r"\b%s\b" % lhs, rhs, value)
         return value
