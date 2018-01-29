@@ -95,7 +95,11 @@ class Query_Processor:
         self.db = db
         self.targets = targets
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
-        self.groups = self.get_grouped_tables(groups)
+        if '.groups' in self.data:
+            self.groups = self.data['.groups']
+        else:
+            self.groups = dict()
+        self.groups.update(self.get_grouped_tables(groups))
         self.target_tables = self.get_table_fields(targets)
         self.condition_tables, self.condition = self.get_condition(condition)
         # 1. only keep tables that do exist in database
@@ -222,7 +226,8 @@ class Query_Processor:
 
     def filter_tables(self, tables):
         return uniq_list([x for x in tables if x[0].lower() in
-                          [y.lower() for y in self.data.keys() if not y.startswith('pipeline_')]])
+                          [y.lower() for y in self.data.keys()
+                           if not y.startswith('pipeline_') and not y.startswith('.')]])
 
     def get_pipelines(self):
         '''

@@ -334,7 +334,7 @@ class ResultDB:
             data['+'.join(key)] = data.pop(key)
         return data
 
-    def Build(self, script = None):
+    def Build(self, script = None, groups = None):
         self.load_parameters()
         for module in self.end_modules:
             self.master[f'pipeline_{module}'] = self.write_master_table(module)
@@ -344,6 +344,8 @@ class ResultDB:
         self.data.update(self.master)
         if script is not None:
             self.data['.html'] = script
+        if groups is not None:
+            self.data['.groups'] = groups
         pickle.dump(self.data, open(self.prefix + '.db', 'wb'))
 
 if __name__ == '__main__':

@@ -57,7 +57,8 @@ def remove(workflows, steps, db, debug, replace = False):
     steps = [x for x in steps if x not in to_remove]
     filename = '{}/{}.db'.format(db, os.path.basename(db))
     if not os.path.isfile(filename):
-        env.logger.warning('Cannot remove ``{}``, due to missing output database ``{}``.'.format(repr(steps), filename))
+        env.logger.warning('Cannot remove ``{}``, due to missing output database ``{}``.'.\
+                           format(repr(steps), filename))
     else:
         remove_steps = []
         for item in steps:
@@ -216,7 +217,7 @@ def execute(args):
     master = list(set([x[list(x.keys())[-1]].name for x in pipeline_dsc]))
     env.logger.info("Building DSC database ...")
     ResultDB('{}/{}'.format(script.runtime.output, db), master).\
-        Build(script = open(script.runtime.output + '.html').read())
+        Build(script = open(script.runtime.output + '.html').read(), script.groups)
     env.logger.info("DSC complete!")
 
 def main():
