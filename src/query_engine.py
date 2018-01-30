@@ -7,6 +7,7 @@ import os, re, glob, pickle
 import pandas as pd
 from io import StringIO
 import tokenize
+from sos.utils import env
 from .dsc_database import DBError
 from .utils import uniq_list, \
      cartesian_list, filter_sublist, is_null, \
@@ -136,10 +137,11 @@ class Query_Processor:
             output = '_' + output
         return output
 
-    def check_table_field(self, value, check_field = False):
+    def check_table_field(self, value, check_field = 0):
         '''
         Input is (table, field)
         output is if they are valid
+        check_field: zero for not check, 1 for check with warning, 2 for check and raise error
         '''
         x, y = value
         if x != self.legalize_name(x):
@@ -148,8 +150,12 @@ class Query_Processor:
         if not x.lower() in keys_lower:
             raise DBError(f"Cannot find module ``{x}`` in DSC results ``{self.db}``.")
         k = list(self.data.keys())[keys_lower.index(x.lower())]
-        if check_field and not y.lower() in [i.lower() for i in self.data[k]]:
-                    raise DBError(f"``{'.'.join(value)}`` is invalid query: cannot find column ``{y}`` in table ``{k}``")
+        if not y.lower() in [i.lower() for i in self.data[k]]:
+            if check_field == 2:
+                raise DBError(f"``{'.'.join(value)}`` is invalid query: cannot find column ``{y}`` in table ``{k}``")
+            if check_field == 1:
+                env.logger.warning(f"Cannot find parameter ``{y}`` in module ``{k}``."\
+                                   " The output filenames from this module is kept instead.")
         return
 
     def get_grouped_tables(self, groups):
@@ -189,7 +195,7 @@ class Query_Processor:
             else:
                 item = [item]
             for x in item:
-                self.check_table_field((x, y))
+                self.check_table_field((x, y), 1)
                 res.append((x, y))
         return res
 
@@ -303,11 +309,11 @@ class Query_Processor:
             tmp = []
             for value in each_and:
                 if isinstance(value, tuple):
-                    self.check_table_field(value[0], True)
+                    self.check_table_field(value[0], 2)
                     value = [value]
                 else:
                     for vv in value:
-                        self.check_table_field(vv[0])
+                        self.check_table_field(vv[0], 1)
                 valid_idx = [idx for idx, vv in enumerate(value) if vv[0][0].lower() in tables]
                 if len(valid_idx) >= 1:
                     value = ' OR '.join([f"{'.'.join(value[i][0])} {value[i][1]} {value[i][2]}"
