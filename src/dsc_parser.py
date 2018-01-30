@@ -7,7 +7,6 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-
 import os, re, itertools, copy, collections, subprocess
 from xxhash import xxh64
 from .utils import FormatError, strip_dict, flatten_list, find_nested_key, merge_lists, \
@@ -44,7 +43,8 @@ class DSC_Script:
                     res = exe = ''
                 text = line.split(':')
                 if len(text) != 2 or (len(text[1].strip()) == 0 and text[0].strip() != 'DSC'):
-                    raise FormatError(f'Invalid syntax ``{line}``. Should be in the format of ``module names: module executables``')
+                    raise FormatError(f'Invalid syntax ``{line}``. '\
+                                      'Should be in the format of ``module names: module executables``')
                 res += f'{text[0]}:\n'
                 exe = text[1].strip()
             else:

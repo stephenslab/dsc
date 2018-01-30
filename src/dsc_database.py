@@ -7,7 +7,7 @@ import os, msgpack, glob, pickle
 import pandas as pd
 from collections import Counter
 from sos.utils import Error
-from .utils import flatten_list, uniq_list, chunks, OrderedDict, remove_multiple_strings, extend_dict
+from .utils import flatten_list, uniq_list, chunks, OrderedDict, remove_multiple_strings, extend_dict, remove_quotes
 from .addict import Dict as dotdict
 
 
@@ -286,7 +286,7 @@ class ResultDB:
                         if kk not in KWS:
                             if kk not in self.data[module]:
                                 self.data[module][kk] = []
-                            self.data[module][kk].append(vv)
+                            self.data[module][kk].append(remove_quotes(vv))
 
     def __get_pipeline(self, module, module_id, module_idx, iteres):
         '''Input are last module name, ID, and its index (in its data frame)'''

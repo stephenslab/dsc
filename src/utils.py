@@ -831,3 +831,12 @@ def load_mpk(mpk_files, jobs):
     for job in job_pool:
         job.join()
     return OrderedDict([(x, d[x]) for x in sorted(d.keys(), key = lambda x: int(x.split(':')[0]))])
+
+def remove_quotes(value):
+    if not isinstance(value, str):
+        return value
+    if value.startswith("'") and value.endswith("'"):
+        return value[1:-1]
+    if value.startswith('"') and value.endswith('"'):
+        return value[1:-1]
+    return value

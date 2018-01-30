@@ -29,7 +29,7 @@ def get_database_notebook(db, output, title = "Database Summary", description = 
     jc = JupyterComposer()
     jc.add("# {}\n{}".format(title, get_home_doc(db, description)))
     nn = '\n'
-    jc.add(f"Pipelines:\n\n{nn.join(['* ' + ' -> '.join(data[key].keys()) for key in data if key.startswith('pipeline_')])}")
+    jc.add(f"Pipelines:\n\n{nn.join([nn.join(['* ' + kk.replace('+', ' -> ') for kk in data[key]]) for key in data if key.startswith('pipeline_')])}")
     jc.add(f"Modules:\n\n{nn.join(['* ' + key for key in data if not key.startswith('pipeline_') and not key.startswith('.')])}")
     jc.add('''
 import pickle
@@ -38,8 +38,9 @@ data = pickle.load(open("{}", 'rb'))
     jc.add("## Pipelines")
     for key in data:
         if key.startswith('pipeline_'):
-            jc.add(f"### pipeline `{' -> '.join(data[key].keys())}`")
-            jc.add(f"%preview -n data['{key}'] --limit {limit}", cell = "code")
+            for kk in data[key]:
+                jc.add(f"### pipeline ``{' -> '.join(kk.split('+'))}``")
+                jc.add(f"%preview -n data['{key}']['{kk}'] --limit {limit}", cell = "code")
     jc.add("## Modules")
     for key in data:
         if not key.startswith("pipeline_") and not key.startswith('.'):

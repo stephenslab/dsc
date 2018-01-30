@@ -10,7 +10,7 @@ import tokenize
 from .dsc_database import DBError
 from .utils import uniq_list, \
      cartesian_list, filter_sublist, is_null, \
-     OrderedDict
+     OrderedDict, FormatError
 from .line import OperationParser
 from .yhat_sqldf import sqldf, PandaSQLException as SQLError
 
@@ -107,7 +107,8 @@ class Query_Processor:
         self.condition_tables = self.filter_tables(self.condition_tables)
         # 2. identify all pipelines in database
         self.pipelines = self.get_pipelines()
-        # 3. identify and extract which part of each pipeline are involved, based on tables in target / condition
+        # 3. identify and extract which part of each pipeline are involved
+        # based on tables in target / condition
         self.pipelines = self.filter_pipelines()
         # 4. make inner join, the FROM clause
         from_clauses = self.get_from_clause()
@@ -205,21 +206,22 @@ class Query_Processor:
         # the inner lists are connected by AND
         res = []
         cond_tables = []
+        symbols = ['=', '==', '!=', '>', '<', '>=', '<=']
         for and_list in expand_logic(' AND '.join(condition)):
             tmp = []
             for value in and_list:
                 tokens = [token[1] for token in tokenize.generate_tokens(StringIO(value.replace('.', '__DOT__')).readline) if token[1]]
-                if not (len(tokens) == 3 and tokens[1] in ['=', '==', '!=', '>', '<', '>=', '<=']):
-                    raise ValueError(f"Condition ``{value}`` is not a valid math expression.")
+                if not (len(tokens) == 3 and tokens[1] in symbols):
+                    raise FormatError(f"Condition ``{value}`` is not a supported math expression.\nSupported expressions are ``{symbols}``")
                 tokens[0] = tokens[0].replace('__DOT__', '.').split('.')
                 if len(tokens[0]) != 2:
-                    raise ValueError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
+                    raise FormatError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
                 cond_tables.append((tokens[0][0], tokens[0][1]))
                 if not tokens[0][0] in self.groups:
-                    tmp.append((tokens[0], tokens[1].replace("==", "="), tokens[2]))
+                    tmp.append((tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
                 else:
                     # will be connected by OR logic
-                    tmp.append([((x, tokens[0][1]), tokens[1].replace("==", "="), tokens[2])
+                    tmp.append([((x, tokens[0][1]), "==" if tokens[1] == "=" else token[1], tokens[2])
                                 for x in self.groups[tokens[0][0]]])
             res.append(tmp)
         return cond_tables, res
@@ -234,7 +236,7 @@ class Query_Processor:
         example output:
         [('rnorm', 'mean', 'MSE'), ('rnorm', 'median', 'MSE'), ... ('rt', 'winsor', 'MSE')]
         '''
-        res = [[tuple(kk.split('+')) for kk in self.data[k].keys()] \
+        res = [[tuple(kk.split('+')) for kk in self.data[k].keys()]
                for k in self.data.keys() if k.startswith("pipeline_")]
         return sum(res, [])
 
@@ -243,10 +245,10 @@ class Query_Processor:
         for each pipeline extract the sub pipeline that the query involves
         '''
         res = []
-        tables = [x[0].lower() for x in self.target_tables] + [x[0].lower() for x in self.condition_tables]
+        tables = uniq_list([x[0].lower() for x in self.target_tables] + [x[0].lower() for x in self.condition_tables])
         for pipeline in self.pipelines:
             pidx = [l[0] for l in enumerate(pipeline) if l[1] in tables]
-            if len(pidx):
+            if len(pidx) and not pipeline[pidx[0]:pidx[-1]+1] in res:
                 res.append(pipeline[pidx[0]:pidx[-1]+1])
         return filter_sublist(res)
 
@@ -307,7 +309,7 @@ class Query_Processor:
                         self.check_table_field(vv[0])
                 valid_idx = [idx for idx, vv in enumerate(value) if vv[0][0].lower() in tables]
                 if len(valid_idx) >= 1:
-                    value = ' OR '.join([f"{'.'.join(value[i][0])} {value[i][1].replace('==', '=')} {value[i][2]}"
+                    value = ' OR '.join([f"{'.'.join(value[i][0])} {value[i][1]} {value[i][2]}"
                                          for i in valid_idx])
                     if len(valid_idx) > 1:
                         tmp.append(f"({value})")

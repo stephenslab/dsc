@@ -217,7 +217,7 @@ def execute(args):
     master = list(set([x[list(x.keys())[-1]].name for x in pipeline_dsc]))
     env.logger.info("Building DSC database ...")
     ResultDB('{}/{}'.format(script.runtime.output, db), master).\
-        Build(script = open(script.runtime.output + '.html').read(), script.groups)
+        Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
     env.logger.info("DSC complete!")
 
 def main():
