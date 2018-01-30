@@ -16,7 +16,6 @@ def query(args):
     from .query_jupyter import get_database_notebook, get_query_notebook
     from .query_engine import Query_Processor
     from .utils import uniq_list
-    from .addict import Dict as dotdict
     am = AnswerMachine()
     if os.path.isfile(args.dsc_output):
         args.dsc_output = os.path.dirname(args.dsc_output)
@@ -41,7 +40,6 @@ def query(args):
             args.output = args.output[:-5] + '.ipynb'
         else:
             fxlsx = args.output[:-6] + '.xlsx'
-            fnb = args.output
         if os.path.isfile(fxlsx) and not am.get(f"Overwrite existing file \"{fxlsx}\"?"):
             sys.exit("Aborted!")
         writer = pd.ExcelWriter(fxlsx)
@@ -95,7 +93,7 @@ def main():
                    help = '''Query conditions.''')
     p.add_argument('-g', '--groups', metavar = "G:A,B", nargs = '+',
                    help = '''Definition of module groups.''')
-    p.add_argument('--add-path', metavar = 'add_path', action='store_true',
+    p.add_argument('--add-path', dest = 'add_path', action='store_true',
                    help='''Save the complete path of data files, not just the base name of file.''')
     p.add_argument('--language', metavar = 'str', choices = ['R', 'Python3'],
                    help='''Language kernel to switch to for follow up analysis in notebook generated.''')

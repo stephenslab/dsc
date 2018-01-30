@@ -7,9 +7,9 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-import os, re, itertools, copy, collections, subprocess
+import os, re, itertools, copy, subprocess
 from xxhash import xxh64
-from .utils import FormatError, strip_dict, flatten_list, find_nested_key, merge_lists, \
+from .utils import FormatError, strip_dict, find_nested_key, merge_lists, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
 from .syntax import *
@@ -457,7 +457,6 @@ class DSC_Section:
         '''
         if 'define' not in self.content:
             return
-        res = OrderedDict()
         replace_list = []
         for lhs, rhs in self.content['define'].items():
             rhs = f"({', '.join(rhs)})"

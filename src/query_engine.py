@@ -3,17 +3,14 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, re, glob, pickle
+import os, re, pickle
 import pandas as pd
 from io import StringIO
 import tokenize
 from sos.utils import env
-from .dsc_database import DBError
-from .utils import uniq_list, \
-     cartesian_list, filter_sublist, is_null, \
-     OrderedDict, FormatError
+from .utils import uniq_list, filter_sublist, FormatError, DBError
 from .line import OperationParser
-from .yhat_sqldf import sqldf, PandaSQLException as SQLError
+from .yhat_sqldf import sqldf
 
 SQL_KEYWORDS = set([
     'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
@@ -232,7 +229,7 @@ class Query_Processor:
                     tmp.append((tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
                 else:
                     # will be connected by OR logic
-                    tmp.append([((x, tokens[0][1]), "==" if tokens[1] == "=" else token[1], tokens[2])
+                    tmp.append([((x, tokens[0][1]), "==" if tokens[1] == "=" else tokens[1], tokens[2])
                                 for x in self.groups[tokens[0][0]]])
             res.append(tmp)
         return cond_tables, res
@@ -277,7 +274,6 @@ class Query_Processor:
         for pipeline in self.pipelines:
             tmp1 = []
             tmp2 = []
-            tmp3 = []
             for item in self.target_tables:
                 if len([x for x in pipeline if x.lower() == item[0].lower()]) == 0:
                     continue

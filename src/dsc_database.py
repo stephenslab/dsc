@@ -5,17 +5,8 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, msgpack, glob, pickle
 import pandas as pd
-from collections import Counter
-from sos.utils import Error
-from .utils import flatten_list, uniq_list, chunks, OrderedDict, remove_multiple_strings, extend_dict, remove_quotes
+from .utils import uniq_list, chunks, OrderedDict, remove_multiple_strings, extend_dict, remove_quotes, DBError
 from .addict import Dict as dotdict
-
-
-class DBError(Error):
-    """Raised when there is a problem building the database."""
-    def __init__(self, msg):
-        Error.__init__(self, msg)
-        self.args = (msg, )
 
 def remove_obsolete_output(output, additional_files = None, rerun = False):
     from sos.__main__ import cmd_remove
@@ -220,6 +211,8 @@ class ResultDB:
         KWS = ['sequence_id', 'sequence_name', 'module', 'exec']
         # flatten dictionary removing duplicate keys because those keys are just `DSC_IO` and `DSC_EXT`
         # All other info in counts should be unique
+
+        # from collections import Counter
         # counts =  Counter(key for sub in self.rawdata.values() for key in sub)
         # data = OrderedDict([(key, value) for sub in self.rawdata.values() for key, value in sub.items() if counts[key] == 1])
         #

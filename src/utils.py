@@ -33,6 +33,13 @@ class FormatError(Error):
         Error.__init__(self, msg)
         self.args = (msg, )
 
+class DBError(Error):
+    """Raised when there is a problem building the database."""
+    def __init__(self, msg):
+        Error.__init__(self, msg)
+        self.args = (msg, )
+
+
 Expr_mul = sympy.Expr.__mul__
 
 def mymul(a,b):
@@ -818,6 +825,7 @@ def remove_multiple_strings(cur_string, replace_list):
     return cur_string
 
 def load_mpk(mpk_files, jobs):
+    import msgpack
     d = Manager().dict()
     def f(d, x):
         for xx in x:
