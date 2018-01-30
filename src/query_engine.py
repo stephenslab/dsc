@@ -92,11 +92,13 @@ def expand_logic(string):
     return res
 
 class Query_Processor:
-    def __init__(self, db, targets, condition = None, groups = None):
+    def __init__(self, db, targets, condition = None, groups = None, add_path = False):
         self.db = db
         self.targets = targets
         self.raw_condition = condition
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
+        # table: msg map
+        self.field_warnings = {}
         if '.groups' in self.data:
             self.groups = self.data['.groups']
         else:
@@ -118,9 +120,11 @@ class Query_Processor:
         select_clauses, where_clauses = self.get_select_where_clause()
         self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
         # 6. run queries
-        self.output_tables = self.run_queries()
+        self.output_tables = self.run_queries(add_path)
         # 7. merge table
         self.output_table = self.merge_tables()
+        # 8. show warnings
+        self.warn()
 
     @staticmethod
     def legalize_name(name, kw = False):
@@ -154,8 +158,8 @@ class Query_Processor:
             if check_field == 2:
                 raise DBError(f"``{'.'.join(value)}`` is invalid query: cannot find column ``{y}`` in table ``{k}``")
             if check_field == 1:
-                env.logger.warning(f"Cannot find parameter ``{y}`` in module ``{k}``."\
-                                   " The output filenames from this module is kept instead.")
+                self.field_warnings[k] = f"Cannot find parameter ``{y}`` in module ``{k}``."\
+                                         " The output filenames from this module is kept instead."
         return
 
     def get_grouped_tables(self, groups):
@@ -330,13 +334,13 @@ class Query_Processor:
         else:
             return ''
 
-    def populate_table(self, table, ordering = None):
+    def populate_table(self, table, ordering = None, add_path = False):
         '''Dig into RDS files generated and get values out of them when possible
         FIXME: load from RDS has been removed for now due to poor ryp2 support
         '''
         if len(table) == 0:
             return None
-        targets = {name: [os.path.join(os.path.dirname(self.db), x) for x in table[name]]
+        targets = {name: [os.path.join(os.path.dirname(self.db), x) if add_path else x for x in table[name]]
                    for name in table.keys() if '_FILE_' in name}
         table.update(targets)
         table = pd.DataFrame(table)
@@ -347,12 +351,17 @@ class Query_Processor:
         else:
             table = table.rename(columns = rename)
             table = table[sorted(table.columns, key = lambda x: ordering.index(x.rsplit('_',1)[0]))]
+        if add_path:
+            for x in table:
+                if x.endswith("_FILE"):
+                    table[x] = table[x].apply(lambda i: os.path.join(os.path.dirname(self.db), i))
         return table
 
     def merge_tables(self):
         common_keys = [t.columns for t in self.output_tables.values()]
         common_keys = list(set(common_keys[0]).intersection(*common_keys))
         table = pd.concat(self.output_tables.values(), join = 'outer', ignore_index = True)
+        to_drop = []
         for g in self.groups:
             # For each group, find common fields to merge
             to_merge = dict()
@@ -374,11 +383,13 @@ class Query_Processor:
                         for col in to_merge[k]:
                             table[g] = table.apply(lambda row: col.rsplit('_',1)[0]
                                                    if not row[col] == row[col] else row[g], axis = 1)
-                    table.drop(to_merge[k], axis=1, inplace=True)
                 else:
                     # simply rename it
-                    table = table.rename(columns = {to_merge[k][0]: f'{g}_{k}'})
+                    table[f'{g}_{k}'] = table[to_merge[k][0]]
                     table[g] = to_merge[k][0].rsplit('_',1)[0]
+            to_drop.extend(to_merge.values())
+        #
+        table.drop(set(sum(to_drop, [])), axis=1, inplace=True)
         # Adjust column ordering
         targets = []
         for x in self.targets:
@@ -390,6 +401,8 @@ class Query_Processor:
             else:
                 targets.append('_'.join(x))
         table = table[uniq_list(targets)]
+        table = table.rename(columns = {g: f'{g}_identifier' for g in self.groups})
+        table = table.rename(columns = {x: x if not x.endswith('_FILE') else x[:-5] for x in table})
         return table
 
     def get_queries(self):
@@ -398,8 +411,8 @@ class Query_Processor:
     def get_data(self):
         return self.data
 
-    def run_queries(self):
-        res = [('+'.join(pipeline), self.populate_table(sqldf(query, self.data), pipeline)) \
+    def run_queries(self, add_path = False):
+        res = [('+'.join(pipeline), self.populate_table(sqldf(query, self.data), pipeline, add_path)) \
                      for pipeline, query in zip(self.pipelines, self.queries)]
         res = [x for x in res if x[1] is not None]
         if len(res) == 0:
@@ -408,6 +421,12 @@ class Query_Processor:
                                  f' under condition ``{" AND ".join(["(%s)" % x for x in self.raw_condition])}``' if self.raw_condition is not None else ''))
         return dict(res)
 
+    def warn(self):
+        end_modules = [x[-1] for x in self.pipelines]
+        for k in self.field_warnings:
+            if k in end_modules:
+                continue
+            env.logger.warning(self.field_warnings[k])
 
 if __name__ == '__main__':
     import sys

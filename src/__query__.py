@@ -30,7 +30,7 @@ def query(args):
         get_database_notebook(db, args.output, args.title, args.description, args.limit)
     else:
         env.logger.info("Running queries ...")
-        qp = Query_Processor(db, args.target, args.condition, args.groups)
+        qp = Query_Processor(db, args.target, args.condition, args.groups, args.add_path)
         for query in qp.get_queries():
             env.logger.debug(query)
         # write output
@@ -95,6 +95,8 @@ def main():
                    help = '''Query conditions.''')
     p.add_argument('-g', '--groups', metavar = "G:A,B", nargs = '+',
                    help = '''Definition of module groups.''')
+    p.add_argument('--add-path', metavar = 'add_path', action='store_true',
+                   help='''Save the complete path of data files, not just the base name of file.''')
     p.add_argument('--language', metavar = 'str', choices = ['R', 'Python3'],
                    help='''Language kernel to switch to for follow up analysis in notebook generated.''')
     p.add_argument('--addon', metavar = 'str', nargs = '+',
