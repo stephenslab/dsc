@@ -94,6 +94,7 @@ class Query_Processor:
     def __init__(self, db, targets, condition = None, groups = None):
         self.db = db
         self.targets = targets
+        self.raw_condition = condition
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
         if '.groups' in self.data:
             self.groups = self.data['.groups']
@@ -327,6 +328,8 @@ class Query_Processor:
         '''Dig into RDS files generated and get values out of them when possible
         FIXME: load from RDS has been removed for now due to poor ryp2 support
         '''
+        if len(table) == 0:
+            return None
         targets = {name: [os.path.join(os.path.dirname(self.db), x) for x in table[name]]
                    for name in table.keys() if '_FILE_' in name}
         table.update(targets)
@@ -390,8 +393,15 @@ class Query_Processor:
         return self.data
 
     def run_queries(self):
-        return dict([('+'.join(pipeline), self.populate_table(sqldf(query, self.data), pipeline)) \
-                     for pipeline, query in zip(self.pipelines, self.queries)])
+        res = [('+'.join(pipeline), self.populate_table(sqldf(query, self.data), pipeline)) \
+                     for pipeline, query in zip(self.pipelines, self.queries)]
+        res = [x for x in res if x[1] is not None]
+        if len(res) == 0:
+            raise DBError("No results found for targets ``{}``{}".\
+                          format(', '.join(self.targets),
+                                 f' under condition ``{" AND ".join(["(%s)" % x for x in self.raw_condition])}``' if self.raw_condition is not None else ''))
+        return dict(res)
+
 
 if __name__ == '__main__':
     import sys
