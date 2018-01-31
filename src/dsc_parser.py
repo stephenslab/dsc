@@ -12,6 +12,7 @@ from xxhash import xxh64
 from .utils import FormatError, strip_dict, find_nested_key, merge_lists, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
+from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter
 from .plugin import Plugin
@@ -22,7 +23,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, seeds = None, extern = None):
+    def __init__(self, content, output = None, sequence = None, extern = None):
         self.content = dict()
         if os.path.isfile(content):
             dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -183,6 +184,42 @@ class DSC_Script:
         res['DSC'] = self.content['DSC']
         self.content = res
 
+    def get_sos_options(self, name, content):
+        # FIXME: should use wait when local host
+        out = dotdict()
+        out.verbosity = env.verbosity
+        # no-wait when extern task
+        out.__wait__ = True
+        out.__no_wait__ = False
+        out.__targets__ = []
+        # FIXME: add more options here
+        out.__queue__ = 'localhost'
+        # FIXME: when remote is used should make it `no_wait`
+        # Yet to observe the behavior there
+        out.__remote__ = None
+        out.dryrun = False
+        # FIXME
+        out.__dag__ = '.sos/.dsc/{}.dot'.format(name)
+        # FIXME: port the entire resume related features
+        out.__resume__ = False
+        # FIXME: use config info
+        out.__config__ = '.sos/.dsc/{}.conf.yml'.format(name)
+        if not os.path.isfile(out.__config__):
+            with open(out.__config__, 'w') as f:
+                f.write('name: dsc')
+        out.update(content)
+        return out
+
+    def init_dsc(self, args, env):
+        os.makedirs('.sos/.dsc', exist_ok = True)
+        if os.path.dirname(self.runtime.output):
+            os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)
+        env.logfile = os.path.basename(self.runtime.output) + '.log'
+        if os.path.isfile(env.logfile):
+            os.remove(env.logfile)
+        if os.path.isfile('.sos/transcript.txt'):
+            os.remove('.sos/transcript.txt')
+
     def dump(self):
         res = dict([('Modules', self.modules),
                     ('DSC', dict([("Sequence", self.runtime.sequence),
@@ -198,8 +235,6 @@ class DSC_Module:
     def __init__(self, name, content, global_options = None, script_path = None):
         # module name
         self.name = name
-        # system seed
-        self.seed = try_get_value(content, ('meta', 'rng'))
         # params: alias, value
         self.p = OrderedDict()
         # parameter filter:
@@ -389,7 +424,6 @@ class DSC_Module:
     def dump(self):
         return strip_dict(dict([('name', self.name),
                                 ('dependencies', self.depends), ('command', self.exe),
-                                ('use_replicates', self.seed),
                                 ('input', self.p), ('input_filter', self.ft),
                                 ('output_variables', self.rv),
                                 ('output_files', self.rf),  ('shell_status', self.shell_run),

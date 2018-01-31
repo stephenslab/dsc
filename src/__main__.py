@@ -9,7 +9,7 @@ import os, sys, re, glob
 import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env, get_traceback
-from .utils import get_slice, flatten_list, workflow2html, dsc2html, transcript2html, Timer
+from .utils import get_slice, flatten_list, workflow2html, dsc2html, Timer
 from .addict import Dict as dotdict
 from . import VERSION
 
@@ -24,31 +24,6 @@ class Silencer:
     def __exit__(self, etype, value, traceback):
         env.verbosity = self.env_verbosity
 
-def prepare_args(name, content):
-    out = dotdict()
-    out.verbosity = env.verbosity
-    # FIXME: should wait when local host
-    # no-wait when extern task
-    out.__wait__ = True
-    out.__no_wait__ = False
-    out.__targets__ = []
-    # FIXME: add more options here
-    out.__queue__ = 'localhost'
-    # FIXME: when remote is used should make it `no_wait`
-    # Yet to observe the behavior there
-    out.__remote__ = None
-    out.dryrun = False
-    # FIXME
-    out.__dag__ = '.sos/.dsc/{}.dot'.format(name)
-    # FIXME: port the entire resume related features
-    out.__resume__ = False
-    # FIXME: use config info
-    out.__config__ = '.sos/.dsc/{}.conf.yml'.format(name)
-    if not os.path.isfile(out.__config__):
-        with open(out.__config__, 'w') as f:
-            f.write('name: dsc')
-    out.update(content)
-    return out
 
 def remove(workflows, steps, db, debug, replace = False):
     import pickle
@@ -99,16 +74,6 @@ def remove(workflows, steps, db, debug, replace = False):
         env.logger.warning("No files found to {}. Please check your ``--target`` option".\
                            format('replace' if replace else 'purge'))
 
-def env_init(args, output):
-    os.makedirs('.sos/.dsc', exist_ok = True)
-    if os.path.dirname(output):
-        os.makedirs(os.path.dirname(output), exist_ok = True)
-    env.logfile = os.path.basename(output) + '.log'
-    if os.path.isfile(env.logfile):
-        os.remove(env.logfile)
-    if os.path.isfile('.sos/transcript.txt'):
-        os.remove('.sos/transcript.txt')
-
 def execute(args):
     if args.to_remove:
         if args.target is None:
@@ -121,48 +86,47 @@ def execute(args):
     from .dsc_parser import DSC_Script, DSC_Pipeline
     from .dsc_translator import DSC_Translator
     from .dsc_database import ResultDB
-    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, seeds = args.seeds,
-                        extern = args.host)
+    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, extern = args.host)
+    script.init_dsc(args, env)
     db = os.path.basename(script.runtime.output)
-    env_init(args, script.runtime.output)
-    pipeline_dsc = DSC_Pipeline(script).pipelines
+    pipeline_obj = DSC_Pipeline(script).pipelines
     if args.debug:
-        workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_dsc, list(script.dump().values()))
-    pipeline = DSC_Translator(pipeline_dsc, script.runtime, args.__construct__ == "no",
+        workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
+    # FIXME: make sure try_catch works, or justify that it is not necessary to have.
+    pipeline = DSC_Translator(pipeline_obj, script.runtime, args.replicates, args.__construct__ == "none",
                               args.__max_jobs__, args.try_catch)
     # Apply clean-up
     if args.to_remove:
-        remove(pipeline_dsc, rm_objects, script.runtime.output, args.debug, args.to_remove == 'replace')
-        return
-    # Recover DSC from existing files
-    if args.__construct__ in ["full", "partial"] and not \
-       (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk') \
-        and os.path.isfile(f'{script.runtime.output}/{db}.io.mpk')):
-        raise RuntimeError('Project cannot be safely recovered because no meta-data can be found under\n``{}``'.\
-                           format(os.path.abspath(script.runtime.output)))
-    if args.__construct__ == "partial":
-        # FIXME: need test
-        master = list(set([x[list(x.keys())[-1]].name for x in pipeline_dsc]))
-        ResultDB(f'{script.runtime.output}/{db}', master).Build(script = open(args.dsc_file).read())
+        remove(pipeline_obj, rm_objects, script.runtime.output, args.debug, args.to_remove == 'replace')
         return
     # Archive scripts
-    from .utils import OrderedDict
     lib_content = [(f"From <code>{k}</code>", sorted(glob.glob(f"{k}/*.*")))
                    for k in script.runtime.options['lib_path'] or []]
     exec_content = [(k, [script.modules[k].exe])
                     for k in script.runtime.sequence_ordering]
     dsc2html(open(args.dsc_file).read(), script.runtime.output,
-             section_content = OrderedDict(lib_content + exec_content))
+             section_content = dict(lib_content + exec_content))
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
-    env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
+    # Recover DSC from existing files
+    if args.__construct__ == "all":
+        if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
+                 and os.path.isfile(f'{script.runtime.output}/{db}.io.mpk'))):
+            raise RuntimeError('Project cannot be safely recovered because no meta-data can be found under\n``{}``'.\
+                               format(os.path.abspath(script.runtime.output)))
+        # FIXME: need test
+        master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
+        ResultDB(f'{script.runtime.output}/{db}', master).Build(script = open(script.runtime.output + '.html').read(),
+                                                                groups = script.runtime.groups)
+        return
     # Setup
+    env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
     from sos.__main__ import cmd_run
     from sos.converter import script_to_html
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
         script_to_html(script_prepare, f'.sos/.dsc/{db}.prepare.html')
     mode = "default"
-    if args.__construct__ == "no":
+    if args.__construct__ == "none":
         mode = "force"
     import platform
     exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
@@ -176,7 +140,7 @@ def execute(args):
                    '__bin_dirs__': exec_path,
                    'script': script_prepare,
                    'workflow': "deploy"}
-        cmd_run(prepare_args(db + '.prepare', content), [])
+        cmd_run(script.get_sos_options(db + '.prepare', content), [])
     # Run
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info("Building execution graph ...")
@@ -185,13 +149,6 @@ def execute(args):
     if args.debug:
         script_to_html(script_run, f'.sos/.dsc/{db}.run.html')
         return
-    if args.__construct__ == "full":
-        # For this mode, since file names are properly determined by the `cmd_run` above,
-        # then the fact that file name remains the same should be a result of same unique parameter + code
-        # in that case it is safe to simply build signatures for them
-        # For files having different parameter + code new file names should be generated and used for them
-        # The new files should not conflict with existing files, due to the use of `remove_obsolete_output`
-        mode = "build"
     env.logger.info("DSC in progress ...")
     try:
         with Silencer(args.verbosity if args.host else min(1, args.verbosity)):
@@ -201,20 +158,13 @@ def execute(args):
                        '__bin_dirs__': exec_path,
                        'script': script_run,
                        'workflow': "DSC"}
-            cmd_run(prepare_args(db + '.run', content), [])
+            cmd_run(script.get_sos_options(db + '.run', content), [])
     except Exception as e:
         if env.verbosity > 2:
             sys.stderr.write(get_traceback())
-        if args.host is None:
-            transcript2html('.sos/transcript.txt', '{}.transcript.html'.format(db), title = db)
-            env.logger.error(e)
-            env.logger.warning("If needed, you can open ``{}.transcript.html`` and "\
-                               "use ``ctrl-F`` to search by ``output file name`` "\
-                               "for the problematic chunk of code.".\
-                               format(db))
         sys.exit(1)
     # Build database
-    master = list(set([x[list(x.keys())[-1]].name for x in pipeline_dsc]))
+    master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
     env.logger.info("Building DSC database ...")
     ResultDB('{}/{}'.format(script.runtime.output, db), master).\
         Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
@@ -235,36 +185,30 @@ def main():
                    help = '''Benchmark output. It overwrites "DSC::run::output" defined in configuration file.''')
     p.add_argument('--target', metavar = "str", nargs = '+',
                    help = '''This argument can be used in two contexts:
-                   1) When used without "--remove" it specifies DSC sequences to execute.
-                   It overwrites "DSC::run" defined in configuration file.
-                   Multiple sequences are allowed. Each input should be a quoted string defining
-                   a valid DSC sequence, or referring to the key of an existing
-                   sequence in the DSC script. Multiple such strings should be separated by space.
+                   1) When used without "--remove" it specifies "DSC::run" in DSC file.
+                   Input should be quoted string(s) defining one or multiple valid DSC pipelines
+                   (multiple pipelines should be separated by space).
                    2) When used along with "--remove" it specifies one or more computational modules,
-                   separated by space, whose output are to be removed. They should be 1) valid DSC modules
-                   in the format of "module[index]", or 2) "module" for all routines in the module,
-                   or 3) simply path to files that needs to be removed.''')
-    p.add_argument('--seed', metavar = "values", nargs = '+', dest = 'seeds',
-                   help = '''It overwrites any "seed" property in the DSC script. This feature
-                   is useful for running a quick test with small number of replicates.
-                   Example: `--seed 1`, `--seed 1 2 3 4`, `--seed {1..10}`, `--seed "R(1:10)"`''')
-    p.add_argument('--recover', metavar = "option", choices = ["default", "no", "full", "partial"],
+                   separated by space, whose output are to be removed. Alternatively one can specify
+                   path(s) of particular DSC output files that needs to be removed.''')
+    p.add_argument('--replicates', metavar = "N", type = int, default = 1,
+                   help = '''Number of replicates to be executed for every pipeline.''')
+    p.add_argument('--skip', metavar = "option", choices = ["default", "none", "all"],
                    dest = '__construct__', default = "default",
-                   help = '''Behavior of how DSC is executed in the presence of existing files.
-                   "default" recover will check file signature and skip the ones that matches expected signature.
-                   "no" recover will run everything from scratch ignoring any existing file.
-                   "full" recover will reconstruct signature for existing files that matches expected input
-                   environment, and run jobs to generate non-existing files, to complete the benchmark.
-                   "partial" recover will use existing files directly to construct output metadata,
-                   making it possible to explore partial benchmark results without having to wait until
-                   completion of entire benchmark.''')
+                   help = '''Behavior of how DSC is executed in the presence of existing results.
+                   "default": skips modules whose "environment" has not been changed since previous execution.
+                   "none": executes DSC from scratch.
+                   "all": skips all execution and attempts to build DSC database using existing results.
+                   making it possible to explore partial benchmark results without having to complete the entire
+                   benchmark.''')
     p.add_argument('--remove', metavar = "option", choices = ["purge", "replace"],
                    dest = 'to_remove',
-                   help = '''Behavior of how DSC removes files. "purge" deletes specified files
+                   help = '''Behavior of how DSC removes files specified by "--target".
+                   "purge" deletes specified files
                    or files generated by specified modules. "replace" replaces these files by
-                   dummy files with "*.zapped" extension, instead of removing them
-                   (useful to swap out large intermediate files).
-                   Files to operate on should be specified by "--target".''')
+                   dummy files with "*.zapped" extension, instead of removing them, so that
+                   pipelines involving these files will continue to run until these files
+                   are required by other modules. This is useful to swap out large intermediate files.''')
     p.add_argument('--host', metavar='str',
                    help='''Name of host computer to send tasks to.''')
     p.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
@@ -287,13 +231,13 @@ def main():
         sys.exit(1)
     #
     env.verbosity = args.verbosity
-    with Timer(verbose = True if ('verbosity' in vars(args) and args.verbosity > 0) else False) as t:
+    with Timer(verbose = True if (env.verbosity > 0) else False) as t:
         try:
             args.func(args)
         except Exception as e:
             if args.debug:
                 raise
-            if env.verbosity and env.verbosity > 2:
+            if env.verbosity > 2:
                 sys.stderr.write(get_traceback())
             env.logger.error(e)
             t.disable()
