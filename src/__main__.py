@@ -109,16 +109,16 @@ def execute(args):
     dsc2html(open(args.dsc_file).read(), script.runtime.output,
              section_content = dict(lib_content + exec_content))
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
-    # Recover DSC from existing files
+    # Recover DSC database alone from meta-file
     if args.__construct__ == "all":
         if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
-                 and os.path.isfile(f'{script.runtime.output}/{db}.io.mpk'))):
-            raise RuntimeError('Project cannot be safely recovered because no meta-data can be found under\n``{}``'.\
-                               format(os.path.abspath(script.runtime.output)))
-        # FIXME: need test
-        master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
-        ResultDB(f'{script.runtime.output}/{db}', master).Build(script = open(script.runtime.output + '.html').read(),
-                                                                groups = script.runtime.groups)
+                 and os.path.isfile(f'.sos/.dsc/{db}.io.mpk'))):
+            env.logger.warning('Cannot skip to building DSC database because meta-data for this project is corrupted.')
+        else:
+            master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
+            env.logger.info("Building DSC database ...")
+            ResultDB(f'{script.runtime.output}/{db}', master).\
+                Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
         return
     # Setup
     env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
