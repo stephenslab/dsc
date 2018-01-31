@@ -9,7 +9,7 @@ import os, sys, re, glob
 import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env, get_traceback
-from .utils import get_slice, flatten_list, workflow2html, dsc2html, Timer
+from .utils import uniq_list, flatten_list, workflow2html, dsc2html, Timer
 from .addict import Dict as dotdict
 from . import VERSION
 
@@ -25,48 +25,38 @@ class Silencer:
         env.verbosity = self.env_verbosity
 
 
-def remove(workflows, steps, db, debug, replace = False):
+def remove(workflows, groups, modules, db, debug, replace = False):
     import pickle
     from sos.__main__ import cmd_remove
-    to_remove = [x for x in steps if os.path.isfile(x)]
-    steps = [x for x in steps if x not in to_remove]
+    to_remove = [x for x in modules if os.path.isfile(x)]
+    modules = [x for x in modules if x not in to_remove]
+    modules = uniq_list(flatten_list([x if x not in groups else groups[x] for x in modules]))
     filename = '{}/{}.db'.format(db, os.path.basename(db))
     if not os.path.isfile(filename):
         env.logger.warning('Cannot remove ``{}``, due to missing output database ``{}``.'.\
-                           format(repr(steps), filename))
+                           format(repr(modules), filename))
     else:
-        remove_steps = []
-        for item in steps:
-            name, step_idx = get_slice(item, mismatch_quit = False)
+        remove_modules = []
+        for module in modules:
             removed = False
             for workflow in workflows:
-                for block in workflow:
-                    for step in workflow[block].steps:
-                        proceed = False
-                        if step.group == name:
-                            if step_idx is None:
-                                proceed = True
-                            else:
-                                for idx in step_idx:
-                                    if idx + 1 == step.exe_id:
-                                        proceed = True
-                                        break
-                        if proceed:
-                            tmp = re.sub(r'[^\w' + '_.' + ']', '_', step.name)
-                            if tmp not in remove_steps:
-                                remove_steps.append(tmp)
-                            removed = True
-            if removed is False:
+                if module in workflow:
+                    remove_modules.append(module)
+                    removed = True
+                    break
+            if removed:
+                remove_modules.append(module)
+            else:
                 env.logger.warning("Cannot remove target ``{}`` because it is neither files nor " \
                                    "modules defined in \"DSC::run\".".format(item))
         #
         data = pickle.load(open(filename, 'rb'))
         to_remove.extend(flatten_list([[glob.glob(os.path.join(db, '{}.*'.format(x)))
-                                        for x in data[item]['return']]
-                                       for item in remove_steps if item in data]))
+                                        for x in data[item]['FILE']]
+                                       for item in remove_modules if item in data]))
     if len(to_remove):
         cmd_remove(dotdict({"tracked": False, "untracked": False,
-                            "targets": to_remove, "external": True,
+                            "targets": uniq_list(to_remove), "external": True,
                             "__confirm__": True, "signature": False,
                             "verbosity": env.verbosity, "zap": True if replace else False,
                             "size": None, "age": None, "dryrun": debug}), [])
@@ -97,7 +87,9 @@ def execute(args):
                               args.__max_jobs__, args.try_catch)
     # Apply clean-up
     if args.to_remove:
-        remove(pipeline_obj, rm_objects, script.runtime.output, args.debug, args.to_remove == 'replace')
+        remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
+               rm_objects, script.runtime.output,
+               args.debug, args.to_remove == 'replace')
         return
     # Archive scripts
     lib_content = [(f"From <code>{k}</code>", sorted(glob.glob(f"{k}/*.*")))
@@ -177,7 +169,7 @@ def main():
         def error(self, message):
             raise ArgumentParserError(message)
     #
-    p = MyArgParser(description = __doc__, allow_abbrev = False, formatter_class = ArgumentDefaultsHelpFormatter)
+    p = MyArgParser(description = __doc__, formatter_class = ArgumentDefaultsHelpFormatter)
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('dsc_file', metavar = "DSC script", help = 'DSC script to execute.')

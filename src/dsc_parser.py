@@ -9,6 +9,7 @@ This file defines methods to load and preprocess DSC scripts
 
 import os, re, itertools, copy, subprocess
 from xxhash import xxh64
+from sos.utils import env
 from .utils import FormatError, strip_dict, find_nested_key, merge_lists, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
@@ -445,6 +446,7 @@ class DSC_Section:
         # FIXME: check if sequence input is of the right type
         # and are valid modules
         self.groups = dict()
+        self.concats = dict()
         self.sequence = self.content['run']
         if sequence is not None:
             self.sequence = sequence
@@ -521,6 +523,8 @@ class DSC_Section:
                 # is a valid group
                 # that is, only exists alternating modules not concatenate modules
                 self.groups[lhs] = rhs.replace(',','').replace(')','').replace('(','').split()
+            else:
+                self.concats[lhs] = rhs.replace(',','').replace(')','').replace('(','').replace('*').split()
             # http://www.regular-expressions.info/wordboundaries.html
             value = re.sub(r"\b%s\b" % lhs, rhs, value)
         return value
