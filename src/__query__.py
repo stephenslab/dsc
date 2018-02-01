@@ -71,7 +71,7 @@ def main():
         def error(self, message):
             raise ArgumentParserError(message)
     #
-    p = MyArgParser(description = __doc__, allow_abbrev = False, formatter_class = ArgumentDefaultsHelpFormatter)
+    p = MyArgParser(description = __doc__, formatter_class = ArgumentDefaultsHelpFormatter)
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
     p.add_argument('dsc_output', metavar = "DSC output folder", help = 'Path to DSC output.')

@@ -1,5 +1,4 @@
 normal, t: rnorm.R, rt.R
-    @RNG: R(1:5)
     n: 1000
     true_mean: 0, 1
     $x: x
