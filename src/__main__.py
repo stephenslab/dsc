@@ -93,7 +93,7 @@ def execute(args):
     if args.debug:
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
     # FIXME: make sure try_catch works, or justify that it is not necessary to have.
-    pipeline = DSC_Translator(pipeline_obj, script.runtime, args.replicates, args.__construct__ == "none",
+    pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none",
                               args.__max_jobs__, args.try_catch)
     # Apply clean-up
     if args.to_remove:
@@ -193,8 +193,6 @@ def main():
                    2) When used along with "--remove" it specifies one or more computational modules,
                    separated by space, whose output are to be removed. Alternatively one can specify
                    path(s) of particular DSC output files that needs to be removed.''')
-    p.add_argument('--replicates', metavar = "N", type = int, default = 1,
-                   help = '''Number of replicates to be executed for every pipeline.''')
     p.add_argument('--skip', metavar = "option", choices = ["default", "none", "all"],
                    dest = '__construct__', default = "default",
                    help = '''Behavior of how DSC is executed in the presence of existing results.

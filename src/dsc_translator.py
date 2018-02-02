@@ -18,7 +18,7 @@ class DSC_Translator:
       * Each DSC module's name translates to SoS step name
       * Pipelines are executed via nested SoS workflows
     '''
-    def __init__(self, workflows, runtime, replicates = 1, rerun = False, n_cpu = 4, try_catch = False):
+    def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False):
         # FIXME: to be replaced by the R utils package
         from .plugin import R_LMERGE, R_SOURCE
         self.output = runtime.output
@@ -48,14 +48,14 @@ class DSC_Translator:
                     self.step_map[workflow_id + 1][step.name] = name
                     # Has the core been processed?
                     if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
-                        job_translator = self.Step_Translator(step, self.db, None, try_catch, replicates)
+                        job_translator = self.Step_Translator(step, self.db, None, try_catch)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
                         exe_signatures[step.name] = job_translator.exe_signature
                     processed_steps[(step.name, flow, depend)] = name
                     conf_translator = self.Step_Translator(step, self.db,
                                                            self.step_map[workflow_id + 1],
-                                                           try_catch, replicates)
+                                                           try_catch)
                     conf_dict[name] = conf_translator.dump()
                 else:
                     self.step_map[workflow_id + 1][step.name] = processed_steps[(step.name, flow, depend)]
@@ -178,7 +178,7 @@ class DSC_Translator:
             f.write('\n'.join(installed_libs + new_libs))
 
     class Step_Translator:
-        def __init__(self, step, db, step_map, try_catch, replicates):
+        def __init__(self, step, db, step_map, try_catch):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -193,7 +193,6 @@ class DSC_Translator:
                 raise ValueError('Multiple output files not implemented')
             self.step_map = step_map
             self.try_catch = try_catch
-            self.replicates = replicates
             self.exe_signature = []
             self.prepare = 0 if step_map is None else 1
             self.step = step
@@ -235,10 +234,6 @@ class DSC_Translator:
                 self.param_string += '{}{} = {}\n'.\
                                      format('' if self.prepare else "parameter: ", key,
                                             repr([convert_null(x, self.step.plugin.name) for x in self.step.p[key]]))
-            # if self.replicates > 1:
-            #     # FIXME NOT IMPLEMENTED!
-            #     self.params.append('DSC_REPLICATE')
-            #     self.param_string += f'DSC_REPLICATE = [i+1 for i in range({self.replicates})]'
             if self.params:
                 self.loop_string[0] = ' '.join([f'for _{s} in {s}' for s in reversed(self.params)])
             if self.step.ft:
