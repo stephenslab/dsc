@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines DSC syntax templates
 '''
 import re
-from sos.sos_syntax import LazyRegex, SOS_DIRECTIVES
+from sos.syntax import LazyRegex, SOS_DIRECTIVES
 
 DSC_KW = ['DSC_AUTO_OUTPUT_', 'DSC_TIMER'] # engineering keywords, reserved
 DSC_KW.extend(SOS_DIRECTIVES)

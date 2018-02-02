@@ -396,7 +396,9 @@ class Query_Processor:
                 targets.extend([x[0], '_'.join(x)])
             else:
                 targets.append('_'.join(x))
-        table = table[uniq_list(targets)]
+        #print(table.columns)
+        #print(uniq_list(targets))
+        #table = table[uniq_list(targets)]
         table = table.rename(columns = {g: f'{g}_identifier' for g in self.groups})
         table = table.rename(columns = {x: x if not x.endswith('_FILE') else x[:-5] for x in table})
         return table
