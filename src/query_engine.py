@@ -169,11 +169,11 @@ class Query_Processor:
         res = dict()
         for g in groups:
             if len(g.split(':')) != 2:
-                raise ValueError(f"Illegal module group option ``{g}``. Please use format ``group: module1, module2``")
+                raise FormatError(f"Illegal module group option ``{g}``. Please use format ``group: module1, module2``")
             g = tuple(x.strip() for x in g.split(':'))
             v = uniq_list([x.strip() for x in g[1].split(',')])
             if g[0] in v:
-                raise ValueError(f"Invalid group option: module group name ``{g[0]}``conflicts with module name ``{g[0]}``.")
+                raise FormatError(f"Invalid group option: module group name ``{g[0]}``conflicts with module name ``{g[0]}``.")
             res[g[0]] = v
         return res
 
@@ -188,7 +188,7 @@ class Query_Processor:
             if re.search('^\w+\.\w+$', item):
                 item, y = item.split('.')
                 if not y:
-                    raise ValueError(f"Field for module ``{item}`` is empty.")
+                    raise FormatError(f"Field for module ``{item}`` is empty.")
             else:
                 y = 'FILE'
             if item in self.groups:
@@ -372,7 +372,7 @@ class Query_Processor:
                 if len(to_merge[k]) > 1:
                     table[f'{g}_{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
                     if not all(table[f'{g}_{k}'].apply(len) == 1):
-                        raise ValueError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}_k`` due to collating entries.')
+                        raise DBError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}_k`` due to collating entries.')
                     table[f'{g}_{k}'] = table[f'{g}_{k}'].apply(lambda x: x[0])
                     if not g in table:
                         table[g] = None
