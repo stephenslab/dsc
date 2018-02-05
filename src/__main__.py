@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 # some loaded modules are used for exec()
-import os, sys, re, glob
+import os, sys, glob
 import warnings
 warnings.filterwarnings("ignore")
 from sos.utils import env, get_traceback
@@ -119,6 +119,8 @@ def execute(args):
     mode = "default"
     if args.__construct__ == "none":
         mode = "force"
+    if args.__recover__:
+        mode = "build"
     import platform
     exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
                  for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
@@ -201,6 +203,10 @@ def main():
                    "all": skips all execution and attempts to build DSC database using existing results.
                    making it possible to explore partial benchmark results without having to complete the entire
                    benchmark.''')
+    p.add_argument('--touch', action='store_true', dest='__recover__',
+                   help = '''"Touch" output files if exist, to mark them "executed" instead of running their commands.
+                   This option is useful when executed benchmark files are transferred from one computer to another
+                   during which file signatures are lost.''')
     p.add_argument('--clean', metavar = "option", choices = ["remove", "replace", "purge"],
                    dest = 'to_remove',
                    help = '''Behavior of how DSC removes files specified by "--target".
