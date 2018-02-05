@@ -272,6 +272,7 @@ class DSC_Translator:
                                                         self.filter_string))
                     else:
                         self.input_option.append(f'for_each = {repr(self.params)}')
+                self.input_option.append('concurrent = True')
 
         def get_output(self):
             if self.prepare:
@@ -331,7 +332,7 @@ class DSC_Translator:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
-                    self.action += f'task: concurrent = True, workdir = {repr(self.step.workdir)}\n{plugin.name}: expand = "${{ }}"\n'
+                    self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}\n'
                     # Add action
                     if not self.step.shell_run:
                         script_begin = plugin.get_input(self.params, len(self.step.depends),
