@@ -332,7 +332,7 @@ class DSC_Translator:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
-                    self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}\n'
+                    self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = None, stdout = None\n'
                     # Add action
                     if not self.step.shell_run:
                         script_begin = plugin.get_input(self.params, len(self.step.depends),
@@ -356,10 +356,6 @@ class DSC_Translator:
                                         if x.strip() and not x.strip().startswith('#')]
                         except IOError:
                             raise IOError(f"Cannot find script ``{cmd.split()[0]}``!")
-                        if plugin.name == 'R':
-                            cmd_text = [f"suppressMessages({x.strip()})"
-                                        if re.search(r'^(library|require)\((.*?)\)$', x.strip())
-                                        else x for x in cmd_text]
                         script = '\n'.join([script_begin, '\n'.join(cmd_text), script_end])
                         if self.try_catch:
                             script = plugin.add_try(script, len(flatten_list([self.step.rf.values()])))
