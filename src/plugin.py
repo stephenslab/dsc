@@ -247,8 +247,9 @@ class RPlug(BasePlug):
                   "\n}, error = function(e) {\n"
         content += '    script <- sub(".*=", "", commandArgs()[4])\n'
         content += '    script <- readChar(script, file.info(script)$size)\n'
+        content += '    script <- paste0(e, "\\n-----------\\n", script)\n'
         for i in range(n_output):
-            content += '    cat(script, file = ${_output[%s]:r})\n' % i
+            content += '    cat(script, file = "${_output[%s]}.failed")\n    saveRDS(NULL, ${_output[%s]:r})\n' % (i, i)
         content += '})'
         return content
 
@@ -371,7 +372,7 @@ class PyPlug(BasePlug):
                   "\nexcept Exception as e:\n"
         content += '    import sys\nscript = open(sys.argv[len(sys.argv)-1]).read()\n'
         for i in range(n_output):
-            content += '    open(${_output[%s]:r}).write(script)\n' % i
+            content += '    open(${_output[%s]:r}).write("")\n    open("${_output[%s]}.failed").write(str(e) + "\\n-----------\\n" + script)\n' % (i, i)
         return content
 
     @staticmethod
