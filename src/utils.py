@@ -624,11 +624,14 @@ def md2html(content, to_file):
     with open(to_file, 'w') as f:
         f.write(output)
 
-def dsc2html(dsc_conf, output, section_content = None, dsc_ann = None):
+def dsc2html(dsc_conf, output, sequences, modules, lib_content = [], dsc_ann = None):
     '''
     section_content: ordered dictionary of lists,
     {'section 1': ['exec1.R', 'exec2.py']}
     '''
+    modules = dict(modules)
+    section_content = [('->'.join(x), flatten_list([modules[i] for i in x])) for x in sequences]
+    section_content = dict(lib_content + section_content)
     languages = {'py': 'python', 'sh': 'bash', 'rb': 'ruby', 'r': 'r', 'm': 'matlab', 'pl': 'perl'}
     if os.path.isfile(dsc_conf):
         dsc_conf = open(dsc_conf).read()
@@ -656,7 +659,6 @@ def dsc2html(dsc_conf, output, section_content = None, dsc_ann = None):
           f.write(dsc_ann)
           f.write('\n</code></pre></div></div><div class="accordion">\n')
         # DSC sections with executable scripts
-        section_content = section_content or {}
         for name, commands in section_content.items():
             # get section scripts
             scripts = []

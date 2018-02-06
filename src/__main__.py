@@ -107,7 +107,7 @@ def execute(args):
     exec_content = [(k, [script.modules[k].exe])
                     for k in script.runtime.sequence_ordering]
     dsc2html(open(args.dsc_file).read(), script.runtime.output,
-             section_content = dict(lib_content + exec_content))
+             script.runtime.sequence, exec_content, lib_content)
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
     # Setup
     env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
