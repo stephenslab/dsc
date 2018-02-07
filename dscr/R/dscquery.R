@@ -8,7 +8,7 @@
 #' \code{targets = c("simulate.n","estimate","mse.score")}. These will
 #' be the names of the columns in the returned data frame.
 #'
-#' @param condition The default \code{NULL} means "no condition", in
+#' @param conditions The default \code{NULL} means "no conditions", in
 #' which case the results for all DSC pipelines are returned.
 #'
 #' @param groups Definition of module groups. Currently
@@ -29,7 +29,7 @@
 #' // Add an example here.
 #' 
 #' @export
-dscquery <- function (dsc.outdir, targets, condition = NULL, groups,
+dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
                       add.path = FALSE, exec = "dsc-query",
                       verbose = TRUE) {
 
@@ -43,20 +43,21 @@ dscquery <- function (dsc.outdir, targets, condition = NULL, groups,
   if (!(is.character(targets) & is.vector(targets)))
     stop("Argument \"targets\" should be a character vector")
 
-  # Check input argument "condition".
-  if (!is.null(condition))
-    if (!(is.character(condition) & length(condition) == 1))
-      stop(paste("Argument \"condition\" should be NULL or a single",
-                 "character string"))
+  # Check input argument "conditions".
+  if (!is.null(conditions))
+    if (!(is.character(conditions) & length(conditions) == 1))
+      stop("Argument \"conditions\" should be NULL or a character vector")
     
   # Check input argument "groups".
-  if (!is.missing(groups))
+  if (!missing(groups))
     stop("Argument \"groups\" is not yet implemented")
 
   # Check input argument "add.path".
   if (!(is.logical(add.path) & length(add.path) == 1))
     stop("Argument \"add.path\" should be TRUE or FALSE")
-
+  if (add.path)
+    stop("\"add.path = TRUE\" not currently implemented")
+    
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
     stop("Argument \"exec\" should be a character string")
@@ -67,15 +68,36 @@ dscquery <- function (dsc.outdir, targets, condition = NULL, groups,
 
   # RUN DSC QUERY COMMAND
   # ---------------------
-  # Generate a temporary file.
-  outfile <- tempfile("dsc.query.out",fileext = ".xlsx")
+  # Generate a temporary directory where the query output will be
+  # stored.
+  #
+  # NOTE: It may be important at some point to use internal "absolute"
+  # function from workflowr package to specify the pathnames.
+  # 
+  outdir  <- file.path(tempdir(),"dsc")
+  outfile <- file.path(outdir,"query")
+  dir.create(outdir,showWarnings = FALSE,recursive = TRUE)
+  
+  # If something fails in subsequent steps, delete the temporary
+  # directory.
+  on.exit(unlink(outdir,recursive = TRUE),add = TRUE)
   
   # Build the command based on the inputs.
-  cmd.str <- paste(exec,"-o",outfile,"--add-path",add.path,"--targets",
-                   paste(targets,collapse = " "))
-  if (!is.null(condition))
-    cmd.str <- paste(cmd.str,"--condition",condition)
-  cmd.str <- paste(cmd.str,dsc.outdir)
-  browser()
-  system(cmd.str)
+  cmd.str <- paste(exec,dsc.outdir,"-o",outfile,
+                   "--target",paste(targets,collapse = " "))
+  if (length(conditions) > 1)
+    conditions <- paste(conditions,collapse = " & ")
+  if (!is.null(conditions))
+    cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
+  if (verbose) {
+    cat("Running shell command:\n")
+    cat(cmd.str,"\n")
+  }
+  out <- system(cmd.str,ignore.stdout = !verbose)
+  if (out != 0)
+    stop("Error when running dsc-query command")
+  
+  # LOAD DSC QUERY RESULT
+  # ---------------------
+  # TO DO.
 }
