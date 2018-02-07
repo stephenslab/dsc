@@ -2,7 +2,7 @@
 #'
 #' @description Add more detailed (paragraph-length) description here.
 #' 
-#' @param dsc.output.dir Directory where DSC output is stored.
+#' @param dsc.outdir Directory where DSC output is stored.
 #' 
 #' @param targets Query targets specified as a character vector, e.g.,
 #' \code{targets = c("simulate.n","estimate","mse.score")}. These will
@@ -23,18 +23,21 @@
 #'
 #' @return Add description of return value here.
 #'
+#' @note May not work in Windows.
+#'
 #' @examples
 #' // Add an example here.
 #' 
 #' @export
-dscquery <- function (dsc.output.dir, targets, condition = NULL, groups,
-                      add.path = FALSE, exec = "dsc-query", verbose = TRUE) {
+dscquery <- function (dsc.outdir, targets, condition = NULL, groups,
+                      add.path = FALSE, exec = "dsc-query",
+                      verbose = TRUE) {
 
   # CHECK INPUTS
   # ------------
-  # Check input argument "dsc.output.dir".
-  if (!(is.character(exec) & length(exec) == 1))
-    stop("Argument \"dsc.output.dir\" should be a character string")
+  # Check input argument "dsc.outdir".
+  if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
+    stop("Argument \"dsc.outdir\" should be a character string")
     
   # Check input argument "targets".
   if (!(is.character(targets) & is.vector(targets)))
@@ -64,5 +67,12 @@ dscquery <- function (dsc.output.dir, targets, condition = NULL, groups,
 
   # RUN DSC QUERY COMMAND
   # ---------------------
-  # TO DO.
+  # Build the command based on the inputs.
+  cmd.str <- paste(exec,"--add-path",add.path,"--targets",
+                   paste(targets,collapse = " "))
+  if (!is.null(condition))
+    cmd.str <- paste(cmd.str,"--condition",condition)
+  cmd.str <- paste(cmd.str,dsc.outdir)
+  browser
+  system(cmd.str)
 }
