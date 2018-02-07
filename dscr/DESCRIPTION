@@ -1,0 +1,20 @@
+Package: dscr
+Encoding: UTF-8
+Type: Package
+Version: 0.2.5
+Date: 2018-02-07
+Title: Dynamic Statistical Comparisons R Interface
+Authors@R: c(person("Gao","Wang",role=c("aut","cre"),
+                    email="wangow@gmail.com"),
+             person("Peter","Carbonetto",role="aut"),
+             person("Matthew","Stephens",role="aut"))
+Maintainer: Gao Wang <wangow@gmail.com>
+Description: Various R functions for interacting with and analyzing the
+    results of a Dynamic Statistical Comparison (DSC) experiment.
+Depends: R (>= 3.4.0)
+License: MIT + file LICENSE
+NeedsCompilation: no
+LazyData: true
+URL: https://github.com/stephenslab/dsc2
+BugReports: https://github.com/stephenslab/dsc2/issues
+
