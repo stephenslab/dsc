@@ -67,12 +67,15 @@ dscquery <- function (dsc.outdir, targets, condition = NULL, groups,
 
   # RUN DSC QUERY COMMAND
   # ---------------------
+  # Generate a temporary file.
+  outfile <- tempfile("dsc.query.out",fileext = ".xlsx")
+  
   # Build the command based on the inputs.
-  cmd.str <- paste(exec,"--add-path",add.path,"--targets",
+  cmd.str <- paste(exec,"-o",outfile,"--add-path",add.path,"--targets",
                    paste(targets,collapse = " "))
   if (!is.null(condition))
     cmd.str <- paste(cmd.str,"--condition",condition)
   cmd.str <- paste(cmd.str,dsc.outdir)
-  browser
+  browser()
   system(cmd.str)
 }
