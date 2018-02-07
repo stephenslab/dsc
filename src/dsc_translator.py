@@ -25,7 +25,7 @@ class DSC_Translator:
         self.db = os.path.basename(runtime.output)
         conf_header = 'from dsc.dsc_database import remove_obsolete_output, build_config_db\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\nfrom dsc.utils import n2a\n"\
-                     f"parameter: IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
+                     f"IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"
         processed_steps = dict()
         conf_dict = dict()
@@ -81,8 +81,8 @@ class DSC_Translator:
             # Execution pool
             ii = 1
             for y in sequence:
-                tmp_str = [f"[{n2a(workflow_id + 1).lower()}_{y} ({y})]"]
-                tmp_str.append(f"parameter: script_signature = {repr(exe_signatures[y])}")
+                tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y})]"]
+                tmp_str.append(f"script_signature = {repr(exe_signatures[y])}")
                 if ii > 1:
                     tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
@@ -224,7 +224,7 @@ class DSC_Translator:
             if self.prepare:
                 self.header = f"## Codes for {self.step.name}"
             else:
-                self.header = f"[{self.step.name}]\n"
+                self.header = f"\n[{self.step.name}]\n"
                 self.header += f"parameter: DSC_STEP_ID_ = None\nparameter: {self.step.name}_output_files = list"
 
         def get_parameters(self):
