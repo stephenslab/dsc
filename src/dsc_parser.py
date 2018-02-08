@@ -215,7 +215,8 @@ class DSC_Script:
         os.makedirs('.sos/.dsc', exist_ok = True)
         if os.path.dirname(self.runtime.output):
             os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)
-        env.logfile = os.path.basename(self.runtime.output) + '.log'
+        if env.verbosity > 2:
+            env.logfile = os.path.basename(self.runtime.output) + '.log'
         if os.path.isfile(env.logfile):
             os.remove(env.logfile)
         if os.path.isfile('.sos/transcript.txt'):

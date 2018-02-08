@@ -39,6 +39,16 @@ class DBError(Error):
         Error.__init__(self, msg)
         self.args = (msg, )
 
+class Silencer:
+    def __init__(self, verbosity):
+        self.verbosity = verbosity
+        self.env_verbosity = env.verbosity
+
+    def __enter__(self):
+        env.verbosity = self.verbosity
+
+    def __exit__(self, etype, value, traceback):
+        env.verbosity = self.env_verbosity
 
 Expr_mul = sympy.Expr.__mul__
 
