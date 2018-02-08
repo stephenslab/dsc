@@ -24,7 +24,6 @@
    help(package = "dscrutils")
    ```
 
-
 ## More detailed installation instructions
 
 To install the package from a local copy of the git repository, run
