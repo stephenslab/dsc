@@ -17,7 +17,8 @@ be the names of the columns in the returned data frame.}
 \item{conditions}{The default \code{NULL} means "no conditions", in
 which case the results for all DSC pipelines are returned.}
 
-\item{groups}{Definition of module groups. Currently}
+\item{groups}{Definition of module groups. This feature is not yet
+implemented.}
 
 \item{add.path}{If TRUE, the returned data frame will contain full
 pathnames, not just the base filenames.}
