@@ -21,12 +21,15 @@
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
-#' @return Add description of return value here.
+#' @return A data frame containing the result of the DSC query, with
+#' columns corresponding to the query target.
 #'
 #' @note May not work in Windows.
 #'
 #' @examples
 #' // Add an example here.
+#'
+#' @importFrom readxl read_excel
 #' 
 #' @export
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
@@ -94,11 +97,19 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
     cat("Running shell command:\n")
     cat(cmd.str,"\n")
   }
-  out <- system(cmd.str,ignore.stdout = !verbose)
+  out <- system(cmd.str,ignore.stdout = !verbose,ignore.stderr = !verbose)
   if (out != 0)
     stop("Error when running dsc-query command")
-  
+
   # LOAD DSC QUERY
   # --------------
+  dat        <- read_excel(outxlsx,col_names = TRUE)
+  class(dat) <- "data.frame"
+
+  # PROCESS THE DSC QUERY RESULT
+  # ----------------------------
   # TO DO.
+  
+  # Output the query result stored in a data frame.
+  return(dat)
 }
