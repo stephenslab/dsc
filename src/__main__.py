@@ -4,26 +4,10 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-# some loaded modules are used for exec()
 import os, sys, glob
-import warnings
-warnings.filterwarnings("ignore")
-from sos.utils import env, get_traceback
-from .utils import uniq_list, flatten_list, workflow2html, dsc2html, Timer
-from .addict import Dict as dotdict
 from . import VERSION
-
-class Silencer:
-    def __init__(self, verbosity):
-        self.verbosity = verbosity
-        self.env_verbosity = env.verbosity
-
-    def __enter__(self):
-        env.verbosity = self.verbosity
-
-    def __exit__(self, etype, value, traceback):
-        env.verbosity = self.env_verbosity
-
+from sos.utils import env, get_traceback
+from .utils import Timer
 
 def remove(workflows, groups, modules, db, debug, replace = False, purge = False):
     filename = '{}/{}.db'.format(db, os.path.basename(db))
@@ -35,8 +19,10 @@ def remove(workflows, groups, modules, db, debug, replace = False, purge = False
                 cnt += 1
         env.logger.info(f"{cnt} files purged")
         return
-    import pickle
     from sos.__main__ import cmd_remove
+    import pickle
+    from .addict import Dict as dotdict
+    from .utils import uniq_list, flatten_list
     to_remove = [x for x in modules if os.path.isfile(x)]
     modules = [x for x in modules if x not in to_remove]
     modules = uniq_list(flatten_list([x if x not in groups else groups[x] for x in modules]))
@@ -75,6 +61,7 @@ def remove(workflows, groups, modules, db, debug, replace = False, purge = False
                            format('replace' if replace else 'remove'))
 
 def execute(args):
+    from .utils import workflow2html, dsc2html, transcript2html, Silencer
     if args.to_remove:
         if args.target is None and args.to_remove != 'purge':
             raise ValueError("``--remove`` must be specified with ``--target``.")
@@ -166,6 +153,13 @@ def execute(args):
     except Exception as e:
         if env.verbosity > 2:
             sys.stderr.write(get_traceback())
+        if args.host is None:
+            transcript2html('.sos/transcript.txt', f'{db}.transcript.html', title = db)
+            env.logger.error(e)
+            env.logger.warning("If needed, you can open ``{}.transcript.html`` and "\
+                               "use ``ctrl-F`` to search by ``output file name`` "\
+                               "for the problematic chunk of code.".\
+                               format(db))
         sys.exit(1)
     # Build database
     master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))

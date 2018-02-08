@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import re, os, sys, msgpack, glob
+import os, sys, msgpack, glob
 from xxhash import xxh64
 from sos.targets import fileMD5, executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
