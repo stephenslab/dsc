@@ -19,46 +19,64 @@ def query(args):
     am = AnswerMachine()
     if os.path.isfile(args.dsc_output):
         args.dsc_output = os.path.dirname(args.dsc_output)
+    args.output = args.output.strip('.')
     db = os.path.join(args.dsc_output, os.path.basename(args.dsc_output) + '.db')
     if args.target is None:
         if not args.output.endswith('.ipynb'):
-            args.output = args.output.strip('.') + '.ipynb'
-        if os.path.isfile(args.output) and not am.get("Overwrite existing file \"{}\"?".format(args.output)):
+            fnb = args.output + '.ipynb'
+        else:
+            fnb = args.output
+        if os.path.isfile(fnb) and not am.get("Overwrite existing file \"{}\"?".format(fnb)):
             sys.exit("Aborted!")
         logger.info("Exporting database ...")
-        get_database_notebook(db, args.output, args.title, args.description, args.limit)
+        get_database_notebook(db, fnb, args.title, args.description, args.limit)
     else:
         logger.info("Running queries ...")
         qp = Query_Processor(db, args.target, args.condition, args.groups, args.add_path)
         for query in qp.get_queries():
             logger.debug(query)
         # write output
-        if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb'):
-            args.output = args.output.strip('.') + '.ipynb'
-        if args.output.endswith('.xlsx'):
+        if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb') and not args.output.endswith('.csv'):
+            fnb = args.output + '.ipynb'
+            fxlsx = args.output + '.xlsx'
+            fcsv = None
+        elif args.output.endswith('.xlsx'):
             fxlsx = args.output
-            args.output = args.output[:-5] + '.ipynb'
+            fnb = fcsv = None
+        elif args.output.endswith('.csv'):
+            fcsv = args.output
+            fnb = fxlsx = None
         else:
+            fnb = args.output
+            fcsv = None
             fxlsx = args.output[:-6] + '.xlsx'
-        if os.path.isfile(fxlsx) and not am.get(f"Overwrite existing file \"{fxlsx}\"?"):
+        if fxlsx is not None and os.path.isfile(fxlsx) and not am.get(f"Overwrite existing file \"{fxlsx}\"?"):
             sys.exit("Aborted!")
-        writer = pd.ExcelWriter(fxlsx)
-        qp.output_table.to_excel(writer, 'Sheet1', index = False)
-        if len(qp.output_tables) > 1:
-            for table in qp.output_tables:
-                qp.output_tables[table].to_excel(writer, table, index = False)
-        writer.save()
-        logger.info(f"Query results saved to spread sheet ``{fxlsx}``".format(fxlsx))
-        if os.path.isfile(args.output) and not am.get("Overwrite existing file \"{}\"?".format(args.output)):
+        if fnb is not None and os.path.isfile(fnb) and not am.get(f"Overwrite existing file \"{fnb}\"?"):
             sys.exit("Aborted!")
-        desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
+        if fcsv is not None and os.path.isfile(fcsv) and not am.get(f"Overwrite existing file \"{fcsv}\"?"):
+            sys.exit("Aborted!")
+        if fxlsx is not None:
+            writer = pd.ExcelWriter(fxlsx)
+            qp.output_table.to_excel(writer, 'Sheet1', index = False)
+            if len(qp.output_tables) > 1:
+                for table in qp.output_tables:
+                    qp.output_tables[table].to_excel(writer, table, index = False)
+            writer.save()
+            logger.info(f"Query results saved to spread sheet ``{fxlsx}``".format(fxlsx))
+        if fnb is not None:
+            desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
                                                format(repr(args.target), repr(args.condition))]
-        get_query_notebook(fxlsx, qp.get_queries(), args.output, args.title, desc, args.language,
-                           uniq_list(args.addon or []), args.limit)
-    logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it and run all cells, "\
-                    "or run it from command line with ``jupyter nbconvert --to notebook --execute {0}`` "\
-                    "first, then use ``jupyter notebook {1}.nbconvert.ipynb`` to open it.".\
-                    format(args.output, args.output[:-6]))
+            get_query_notebook(fxlsx, qp.get_queries(), fnb, args.title, desc, args.language,
+                               uniq_list(args.addon or []), args.limit)
+        if fcsv is not None:
+            qp.output_table.to_csv(fcsv, index = False)
+    logger.info("Extraction complete!")
+    if os.path.isfile(args.output + '.ipynb'):
+        logger.info("You can use ``jupyter notebook {0}.ipynb`` to open it and run all cells, "\
+                    "or run it from command line with ``jupyter nbconvert --to notebook --execute {0}.ipynb`` "\
+                    "first, then use ``jupyter notebook {0}.nbconvert.ipynb`` to open it.".\
+                    format(args.output))
     # if not args.no_html:
     #     html = args.output[:-6] + '.html'
     #     notebook_to_html(args.output, html, dotdict([("template", "sos-report")]),
