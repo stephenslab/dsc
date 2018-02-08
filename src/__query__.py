@@ -6,11 +6,11 @@ __license__ = "MIT"
 
 import os, sys
 import pandas as pd
-from sos.utils import env, get_traceback
+from .utils import logger
 from . import VERSION
 
 def query(args):
-    env.logger.info("Loading database ...")
+    logger.info("Loading database ...")
     from sos.__main__ import AnswerMachine
     # from sos_notebook.converter import notebook_to_html
     from .query_jupyter import get_database_notebook, get_query_notebook
@@ -25,13 +25,13 @@ def query(args):
             args.output = args.output.strip('.') + '.ipynb'
         if os.path.isfile(args.output) and not am.get("Overwrite existing file \"{}\"?".format(args.output)):
             sys.exit("Aborted!")
-        env.logger.info("Exporting database ...")
+        logger.info("Exporting database ...")
         get_database_notebook(db, args.output, args.title, args.description, args.limit)
     else:
-        env.logger.info("Running queries ...")
+        logger.info("Running queries ...")
         qp = Query_Processor(db, args.target, args.condition, args.groups, args.add_path)
         for query in qp.get_queries():
-            env.logger.debug(query)
+            logger.debug(query)
         # write output
         if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb'):
             args.output = args.output.strip('.') + '.ipynb'
@@ -48,14 +48,14 @@ def query(args):
             for table in qp.output_tables:
                 qp.output_tables[table].to_excel(writer, table, index = False)
         writer.save()
-        env.logger.info(f"Query results saved to spread sheet ``{fxlsx}``".format(fxlsx))
+        logger.info(f"Query results saved to spread sheet ``{fxlsx}``".format(fxlsx))
         if os.path.isfile(args.output) and not am.get("Overwrite existing file \"{}\"?".format(args.output)):
             sys.exit("Aborted!")
         desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
                                                format(repr(args.target), repr(args.condition))]
         get_query_notebook(fxlsx, qp.get_queries(), args.output, args.title, desc, args.language,
                            uniq_list(args.addon or []), args.limit)
-    env.logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it and run all cells, "\
+    logger.info("Export complete. You can use ``jupyter notebook {0}`` to open it and run all cells, "\
                     "or run it from command line with ``jupyter nbconvert --to notebook --execute {0}`` "\
                     "first, then use ``jupyter notebook {1}.nbconvert.ipynb`` to open it.".\
                     format(args.output, args.output[:-6]))
@@ -108,22 +108,18 @@ def main():
     p.set_defaults(func = query)
     try:
         args = p.parse_args()
+        logger.verbosity = args.verbosity
     except Exception as e:
-        env.logger.error(e)
-        env.logger.info("Please type ``{} -h`` to view available options".\
+        logger.info("Please type ``{} -h`` to view available options".\
                         format(os.path.basename(sys.argv[0])))
-        sys.exit(1)
+        logger.error(e)
     #
-    env.verbosity = args.verbosity
     try:
         args.func(args)
     except Exception as e:
         if args.debug:
             raise
-        if env.verbosity and env.verbosity > 2:
-            sys.stderr.write(get_traceback())
-        env.logger.error(e)
-        sys.exit(1)
+        logger.error(e)
 
 if __name__ == '__main__':
     main()

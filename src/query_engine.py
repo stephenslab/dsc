@@ -7,8 +7,7 @@ import os, re, pickle
 import pandas as pd
 from io import StringIO
 import tokenize
-from sos.utils import env
-from .utils import uniq_list, filter_sublist, FormatError, DBError
+from .utils import uniq_list, filter_sublist, FormatError, DBError, logger
 from .line import OperationParser
 from .yhat_sqldf import sqldf
 
@@ -424,7 +423,7 @@ class Query_Processor:
         for k in self.field_warnings:
             if k in end_modules:
                 continue
-            env.logger.warning(self.field_warnings[k])
+            logger.error(self.field_warnings[k], exit = False)
 
 if __name__ == '__main__':
     import sys

@@ -4,10 +4,37 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, glob
+import os, sys, glob, time
 from . import VERSION
 from sos.utils import env, get_traceback
-from .utils import Timer
+
+class Silencer:
+    def __init__(self, verbosity):
+        self.verbosity = verbosity
+        self.env_verbosity = env.verbosity
+
+    def __enter__(self):
+        env.verbosity = self.verbosity
+
+    def __exit__(self, etype, value, traceback):
+        env.verbosity = self.env_verbosity
+
+class Timer(object):
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+
+    def __enter__(self):
+        self.start = time.time()
+        return self
+
+    def __exit__(self, *args):
+        self.end = time.time()
+        self.secs = self.end - self.start
+        self.msecs = self.secs * 1000  # millisecs
+        if self.verbose:
+            env.logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
+    def disable(self):
+        self.verbose = False
 
 def remove(workflows, groups, modules, db, debug, replace = False, purge = False):
     filename = '{}/{}.db'.format(db, os.path.basename(db))
@@ -61,7 +88,7 @@ def remove(workflows, groups, modules, db, debug, replace = False, purge = False
                            format('replace' if replace else 'remove'))
 
 def execute(args):
-    from .utils import workflow2html, dsc2html, transcript2html, Silencer
+    from .utils import workflow2html, dsc2html, transcript2html
     if args.to_remove:
         if args.target is None and args.to_remove != 'purge':
             raise ValueError("``--remove`` must be specified with ``--target``.")

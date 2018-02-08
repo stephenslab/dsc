@@ -4,16 +4,68 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, re, itertools, collections, time, sympy
+import sys, os, re, itertools, collections, sympy
 from itertools import cycle, chain, islice
 from collections import OrderedDict
 from multiprocessing import Process, Manager
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
 from difflib import SequenceMatcher
-from sos.utils import env, Error
 from .constant import HTML_CSS, HTML_JS
 from xxhash import xxh64
+
+class Logger:
+    def __init__(self):
+        self.__width_cache = 1
+        self.verbosity = 2
+
+    def error(self, msg = None, exit = True):
+        if msg is None:
+            sys.stderr.write('\n')
+            return
+        if type(msg) is list:
+            msg = ' '.join(map(str, msg))
+        else:
+            msg = str(msg)
+        start = '\n' if msg.startswith('\n') else ''
+        end = '\n' if msg.endswith('\n') else ''
+        msg = msg.strip()
+        if exit:
+            sys.stderr.write(start + "\033[1;40;33mERROR: {}\033[0m\n".format(msg) + end)
+            sys.exit()
+        else:
+            sys.stderr.write(start + "\033[1;40;35mWARNING: {}\033[0m\n".format(msg) + end)
+
+    def log(self, msg = None, flush=False, debug=False):
+        if msg is None:
+            sys.stderr.write('\n')
+            return
+        if type(msg) is list:
+            msg = ' '.join(map(str, msg))
+        else:
+            msg = str(msg)
+        start = "{0:{width}}".format('\r', width = self.__width_cache + 10) + "\r" if flush else ''
+        end = '' if flush else '\n'
+        start = '\n' + start if msg.startswith('\n') else start
+        end = end + '\n' if msg.endswith('\n') else end
+        msg = msg.strip()
+        if debug:
+            sys.stderr.write(start + "\033[1;40;34mDEBUG: {}\033[0m".format(msg) + end)
+        else:
+            sys.stderr.write(start + "\033[1;40;32mINFO: {}\033[0m".format(msg) + end)
+        self.__width_cache = len(msg)
+
+    def debug(self, msg = None, flush = False):
+        if self.verbosity < 3:
+            return
+        self.log(msg, flush, True)
+
+    def info(self, msg = None, flush = False):
+        if self.verbosity < 2:
+            return
+        self.log(msg, flush)
+
+logger = Logger()
 
 class DYAML(YAML):
     def dump(self, data, stream=None, **kw):
@@ -27,28 +79,17 @@ class DYAML(YAML):
 
 yaml = DYAML()
 
-class FormatError(Error):
+class FormatError(Exception):
     """Raised when format is illegal."""
     def __init__(self, msg):
-        Error.__init__(self, msg)
+        Exception.__init__(self, msg)
         self.args = (msg, )
 
-class DBError(Error):
+class DBError(Exception):
     """Raised when there is a problem building the database."""
     def __init__(self, msg):
-        Error.__init__(self, msg)
+        Exception.__init__(self, msg)
         self.args = (msg, )
-
-class Silencer:
-    def __init__(self, verbosity):
-        self.verbosity = verbosity
-        self.env_verbosity = env.verbosity
-
-    def __enter__(self):
-        env.verbosity = self.verbosity
-
-    def __exit__(self, etype, value, traceback):
-        env.verbosity = self.env_verbosity
 
 Expr_mul = sympy.Expr.__mul__
 
@@ -69,24 +110,6 @@ def non_commutative_symexpand(expr_string):
     new_locals = {sym.name:sympy.Symbol(sym.name, commutative=False)
                   for sym in parsed_expr.atoms(sympy.Symbol)}
     return sympy.expand(eval(expr_string, {}, new_locals))
-
-
-class Timer(object):
-    def __init__(self, verbose=False):
-        self.verbose = verbose
-
-    def __enter__(self):
-        self.start = time.time()
-        return self
-
-    def __exit__(self, *args):
-        self.end = time.time()
-        self.secs = self.end - self.start
-        self.msecs = self.secs * 1000  # millisecs
-        if self.verbose:
-            env.logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
-    def disable(self):
-        self.verbose = False
 
 def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
     level_start += 1
@@ -128,7 +151,7 @@ def str2num(var):
             This variable will be treated as string, not Boolean data. \n\
             It may cause problems to your jobs. \n\
             Please set this variable to ``{}`` if it is indeed Boolean data.'.format(var, bmap[var.lower()])
-            env.logger.warning('\n\t'.join([x.strip() for x in msg.split('\n')]))
+            logger.error('\n\t'.join([x.strip() for x in msg.split('\n')]), exit = False)
         try:
             return int(var)
         except ValueError:
@@ -565,12 +588,12 @@ def install_r_lib(lib):
         versions = [x.strip() for x in groups.group(2).split(',')]
     else:
         versions = None
-    env.logger.info("Checking R library ``{}`` ...".format(lib))
+    logger.info("Checking R library ``{}`` ...".format(lib), flush = True)
     return R_library(lib, versions).target_exists()
 
 def install_py_module(lib):
     from sos_python.targets import Py_Module
-    env.logger.info("Checking Python module ``{}`` ...".format(lib))
+    logger.info("Checking Python module ``{}`` ...".format(lib), flush = True)
     return Py_Module(lib).target_exists()
 
 def make_html_name(value):
