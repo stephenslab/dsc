@@ -38,6 +38,6 @@ Add more detailed (paragraph-length) description here.
 May not work in Windows.
 }
 \examples{
-// Add an example here.
+# Add an example here.
 
 }
