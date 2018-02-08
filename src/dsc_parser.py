@@ -163,22 +163,22 @@ class DSC_Script:
                     # we'll update executable specific information
                     for m in key[1:].split(','):
                         if m.strip() not in modules:
-                            raise FormatError(f'Undefined decoration ``@{key}``.')
+                            raise FormatError(f'Undefined decoration ``@{m.strip()}``.')
                         else:
                             for kk, ii in self.content[block][key].items():
                                 if isinstance(ii, collections.Mapping):
                                     if not kk.startswith('.'):
-                                        raise FormatError(f'Variable grouping ``{kk}`` is not allowed')
-                                    elif kk not in DSC_MODP:
-                                        raise FormatError(f'Undefined decoration ``@{kk}``.')
+                                        raise FormatError(f'Invalid decoration ``{kk}``. Decorations must start with ``@`` symbol.')
+                                    if kk not in DSC_MODP:
+                                        raise FormatError(f'Undefined decoration ``@{kk[1:]}``.')
                                     else:
                                         continue
                             tmp[m.strip()]['local'].update(self.content[block][key])
                 elif key == '.EXEC':
                     for idx, module in enumerate(modules):
                         tmp[module]['global'][key] = self.content[block][key][idx]
-                elif isinstance(self.content[block][key], collections.Mapping):
-                    raise FormatError(f'Unrecognized decoration ``{key}``. Decorations must start with ``@`` symbol.')
+                elif key not in DSC_MODP:
+                    raise FormatError(f'Invalid decoration ``{key}``. Decorations must start with ``@`` symbol.')
                 else:
                     for module in modules:
                         tmp[module]['global'][key] = self.content[block][key]
