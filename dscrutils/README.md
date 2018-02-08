@@ -11,9 +11,10 @@
 
    See below for additional installation options.
 
-2. Run the `dscquery` example:
+2. Load the package, and run the `dscquery` example:
 
    ```R
+   library(dscrutils)
    example("dscquery")
    ```
 
