@@ -27,11 +27,12 @@
 #' @note May not work in Windows.
 #'
 #' @examples
-#' dsc.dir <- system.file("inst","datafiles","one_sample_location",
-#'                        "dsc_result","dsc_result.db",package = "dscrutils")
+#' dsc.dir <- system.file("datafiles","one_sample_location",
+#'                        "dsc_result",package = "dscrutils")
 #' dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
 #'                 condition = "simulate.true_mean = 1")
-#'
+#' print(dat)
+#' 
 #' @importFrom readxl read_excel
 #' 
 #' @export

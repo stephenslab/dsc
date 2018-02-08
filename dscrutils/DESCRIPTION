@@ -19,4 +19,4 @@ NeedsCompilation: no
 LazyData: true
 URL: https://github.com/stephenslab/dsc2
 BugReports: https://github.com/stephenslab/dsc2/issues
-RoxygenNote: 6.0.1
+RoxygenNote: 6.0.1.9000

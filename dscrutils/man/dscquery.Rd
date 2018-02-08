@@ -38,6 +38,10 @@ Add more detailed (paragraph-length) description here.
 May not work in Windows.
 }
 \examples{
-# Add an example here.
+dsc.dir <- system.file("datafiles","one_sample_location",
+                       "dsc_result",package = "dscrutils")
+dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
+                condition = "simulate.true_mean = 1")
+print(dat)
 
 }
