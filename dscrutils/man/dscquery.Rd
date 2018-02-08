@@ -4,7 +4,7 @@
 \alias{dscquery}
 \title{SQL-like interface for querying DSC output.}
 \usage{
-dscquery(dsc.outdir, targets, condition = NULL, groups, add.path = FALSE,
+dscquery(dsc.outdir, targets, conditions = NULL, groups, add.path = FALSE,
   exec = "dsc-query", verbose = TRUE)
 }
 \arguments{
@@ -14,7 +14,7 @@ dscquery(dsc.outdir, targets, condition = NULL, groups, add.path = FALSE,
 \code{targets = c("simulate.n","estimate","mse.score")}. These will
 be the names of the columns in the returned data frame.}
 
-\item{condition}{The default \code{NULL} means "no condition", in
+\item{conditions}{The default \code{NULL} means "no conditions", in
 which case the results for all DSC pipelines are returned.}
 
 \item{groups}{Definition of module groups. Currently}
@@ -28,7 +28,8 @@ pathnames, not just the base filenames.}
 query command to the console.}
 }
 \value{
-Add description of return value here.
+A data frame containing the result of the DSC query, with
+columns corresponding to the query target.
 }
 \description{
 Add more detailed (paragraph-length) description here.
