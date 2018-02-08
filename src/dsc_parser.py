@@ -165,6 +165,9 @@ class DSC_Script:
                         if m.strip() not in modules:
                             raise FormatError(f'Undefined decoration ``@{key}``.')
                         else:
+                            for kk, ii in self.content[block][key].items():
+                                if isinstance(ii, collections.Mapping):
+                                    raise FormatError(f'Variable grouping ``{kk}`` is not allowed')
                             tmp[m.strip()]['local'].update(self.content[block][key])
                 elif key == '.EXEC':
                     for idx, module in enumerate(modules):
