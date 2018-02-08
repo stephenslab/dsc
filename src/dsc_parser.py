@@ -8,6 +8,7 @@ This file defines methods to load and preprocess DSC scripts
 '''
 
 import os, re, itertools, copy, subprocess
+import collections
 from xxhash import xxh64
 from sos.utils import env
 from .utils import FormatError, strip_dict, find_nested_key, merge_lists, \
@@ -31,8 +32,11 @@ class DSC_Script:
             script_path = os.path.dirname(os.path.expanduser(content))
             content = open(content).readlines()
         else:
-            if len(content.split('\n')) == 1:
-                raise ValueError(f"Cannot find file ``{content}``")
+            content = [x.rstrip() + '\n' for x in content.split('\n') if x.strip()]
+            if len(content) == 0:
+                raise IOError(f"Invalid DSC script input!")
+            if len(content) == 1:
+                raise IOError(f"Cannot find file ``{content[0]}``")
             dsc_name = 'DSCStringIO'
             script_path = None
         res = exe = ''
@@ -165,6 +169,8 @@ class DSC_Script:
                 elif key == '.EXEC':
                     for idx, module in enumerate(modules):
                         tmp[module]['global'][key] = self.content[block][key][idx]
+                elif isinstance(self.content[block][key], collections.Mapping):
+                    raise FormatError(f'Unrecognized decoration ``{key}``. Decorations must start with ``@`` symbol.')
                 else:
                     for module in modules:
                         tmp[module]['global'][key] = self.content[block][key]
