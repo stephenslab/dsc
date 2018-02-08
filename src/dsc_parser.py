@@ -167,7 +167,12 @@ class DSC_Script:
                         else:
                             for kk, ii in self.content[block][key].items():
                                 if isinstance(ii, collections.Mapping):
-                                    raise FormatError(f'Variable grouping ``{kk}`` is not allowed')
+                                    if not kk.startswith('.'):
+                                        raise FormatError(f'Variable grouping ``{kk}`` is not allowed')
+                                    elif kk not in DSC_MODP:
+                                        raise FormatError(f'Undefined decoration ``@{kk}``.')
+                                    else:
+                                        continue
                             tmp[m.strip()]['local'].update(self.content[block][key])
                 elif key == '.EXEC':
                     for idx, module in enumerate(modules):
@@ -360,6 +365,8 @@ class DSC_Module:
         if params is not None:
             self.p.update(params)
         # FIXME: have to ensure @ALIAS is a list
+        if isinstance(alias, collections.Mapping):
+            raise FormatError(f"Invalid @ALIAS format for module ``{self.name}`` (has to be formatted `alias = variable`).")
         alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
         # Swap parameter key with alias when applicable
         for k1, k2 in list(alias.items()):
