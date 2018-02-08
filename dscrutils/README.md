@@ -6,13 +6,33 @@
    from Github:
 
    ```R
-   library(devtools)
-   install_github("stephenslab/dsc2",)
+   devtools::install_github("stephenslab/dsc2",subdir = "dscrutils")
    ```
 
-## Installing the dscrutils R package
+   See below for additional installation options.
 
-*Add instructions here for installing (and checking) the R package.*
+2. Run the `dscquery` example:
+
+   ```R
+   example("dscquery")
+   ```
+
+3. Explore the package documentation:
+
+   ```R
+   help(package = "dscrutils")
+   ```
+
+
+## More detailed installation instructions
+
+To install the package from a local copy of the git repository, run
+the following command in R with the working directory set to the
+repository root:
+
+```R
+devtools::install_local("dscrutils")
+```
 
 ## Development notes
 
