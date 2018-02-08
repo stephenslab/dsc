@@ -33,6 +33,7 @@ class Timer(object):
         self.msecs = self.secs * 1000  # millisecs
         if self.verbose:
             env.logger.info('Elapsed time ``%.03f`` seconds.' % self.secs)
+
     def disable(self):
         self.verbose = False
 

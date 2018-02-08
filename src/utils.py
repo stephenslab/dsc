@@ -63,7 +63,7 @@ class Logger:
     def info(self, msg = None, flush = False):
         if self.verbosity < 2:
             return
-        self.log(msg, flush)
+        self.log(msg, flush, False)
 
 logger = Logger()
 
@@ -151,7 +151,7 @@ def str2num(var):
             This variable will be treated as string, not Boolean data. \n\
             It may cause problems to your jobs. \n\
             Please set this variable to ``{}`` if it is indeed Boolean data.'.format(var, bmap[var.lower()])
-            logger.error('\n\t'.join([x.strip() for x in msg.split('\n')]), exit = False)
+            logger.error('\n\t'.join([x.strip() for x in msg.split('\n')]), False)
         try:
             return int(var)
         except ValueError:
@@ -588,12 +588,12 @@ def install_r_lib(lib):
         versions = [x.strip() for x in groups.group(2).split(',')]
     else:
         versions = None
-    logger.info("Checking R library ``{}`` ...".format(lib), flush = True)
+    logger.info("Checking R library {} ...".format(lib))
     return R_library(lib, versions).target_exists()
 
 def install_py_module(lib):
     from sos_python.targets import Py_Module
-    logger.info("Checking Python module ``{}`` ...".format(lib), flush = True)
+    logger.info("Checking Python module {} ...".format(lib))
     return Py_Module(lib).target_exists()
 
 def make_html_name(value):

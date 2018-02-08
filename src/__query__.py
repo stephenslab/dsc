@@ -102,8 +102,8 @@ def main():
                    Only usable in conjunction with "--language".''')
     # p.add_argument('--no-html', action = 'store_true', dest = 'no_html',
     #                help='''Do not export to HTML format.''')
-    p.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
-                   help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
+    p.add_argument('-v', '--verbosity', type = int, choices = list(range(4)), default = 2,
+                   help='''Output error (0), warning (1), info (2) and debug (3)
                    information.''')
     p.set_defaults(func = query)
     try:
