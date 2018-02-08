@@ -76,6 +76,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   # 
   outdir  <- file.path(tempdir(),"dsc")
   outfile <- file.path(outdir,"query")
+  outxlsx <- file.path(outdir,"query.xlsx")
   dir.create(outdir,showWarnings = FALSE,recursive = TRUE)
   
   # If something fails in subsequent steps, delete the temporary
@@ -97,7 +98,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   if (out != 0)
     stop("Error when running dsc-query command")
   
-  # LOAD DSC QUERY RESULT
-  # ---------------------
+  # LOAD DSC QUERY
+  # --------------
   # TO DO.
 }
