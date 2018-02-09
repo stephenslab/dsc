@@ -36,25 +36,25 @@ def query(args):
         for query in qp.get_queries():
             logger.debug(query)
         # write output
-        if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb') and not args.output.endswith('.csv'):
+        if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb') and not args.output.endswith('.tsv'):
             fnb = args.output + '.ipynb'
             fxlsx = args.output + '.xlsx'
-            fcsv = None
+            ftsv = None
         elif args.output.endswith('.xlsx'):
             fxlsx = args.output
-            fnb = fcsv = None
-        elif args.output.endswith('.csv'):
-            fcsv = args.output
+            fnb = ftsv = None
+        elif args.output.endswith('.tsv'):
+            ftsv = args.output
             fnb = fxlsx = None
         else:
             fnb = args.output
-            fcsv = None
+            ftsv = None
             fxlsx = args.output[:-6] + '.xlsx'
         if fxlsx is not None and os.path.isfile(fxlsx) and not am.get(f"Overwrite existing file \"{fxlsx}\"?"):
             sys.exit("Aborted!")
         if fnb is not None and os.path.isfile(fnb) and not am.get(f"Overwrite existing file \"{fnb}\"?"):
             sys.exit("Aborted!")
-        if fcsv is not None and os.path.isfile(fcsv) and not am.get(f"Overwrite existing file \"{fcsv}\"?"):
+        if ftsv is not None and os.path.isfile(ftsv) and not am.get(f"Overwrite existing file \"{ftsv}\"?"):
             sys.exit("Aborted!")
         if fxlsx is not None:
             writer = pd.ExcelWriter(fxlsx)
@@ -69,8 +69,8 @@ def query(args):
                                                format(repr(args.target), repr(args.condition))]
             get_query_notebook(fxlsx, qp.get_queries(), fnb, args.title, desc, args.language,
                                uniq_list(args.addon or []), args.limit)
-        if fcsv is not None:
-            qp.output_table.to_csv(fcsv, index = False)
+        if ftsv is not None:
+            qp.output_table.to_csv(ftsv, index = False, sep='\t')
     logger.info("Extraction complete!")
     if os.path.isfile(args.output + '.ipynb'):
         logger.info("You can use ``jupyter notebook {0}.ipynb`` to open it and run all cells, "\
