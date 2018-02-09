@@ -177,7 +177,7 @@ class DSC_Script:
                 elif key == '.EXEC':
                     for idx, module in enumerate(modules):
                         tmp[module]['global'][key] = self.content[block][key][idx]
-                elif key not in DSC_MODP:
+                elif key not in DSC_MODP and isinstance(self.content[block][key], collections.Mapping):
                     raise FormatError(f'Invalid decoration ``{key}``. Decorations must start with ``@`` symbol.')
                 else:
                     for module in modules:
