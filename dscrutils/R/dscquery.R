@@ -34,8 +34,6 @@
 #'                 condition = "simulate.true_mean = 1")
 #' print(dat)
 #' 
-#' @importFrom readxl read_excel
-#' 
 #' @export
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
                       add.path = FALSE, exec = "dsc-query",
@@ -83,8 +81,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   # function from workflowr package to specify the pathnames.
   # 
   outdir  <- file.path(tempdir(),"dsc")
-  outfile <- file.path(outdir,"query")
-  outxlsx <- file.path(outdir,"query.xlsx")
+  outfile <- file.path(outdir,"query.csv")
   dir.create(outdir,showWarnings = FALSE,recursive = TRUE)
   
   # If something fails in subsequent steps, delete the temporary
@@ -108,8 +105,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
 
   # LOAD DSC QUERY
   # --------------
-  dat        <- read_excel(outxlsx,col_names = TRUE)
-  class(dat) <- "data.frame"
+  dat <- read.csv(outfile,header = TRUE,quote = "",stringsAsFactors = FALSE,
+                  check.names = FALSE,comment.char = "",na.strings = "")
 
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------

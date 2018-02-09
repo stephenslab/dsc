@@ -12,7 +12,6 @@ Maintainer: Gao Wang <wangow@gmail.com>
 Description: Various R functions for interacting with and analyzing the
     results of a Dynamic Statistical Comparison (DSC) experiment.
 Depends: R (>= 3.4.0)
-Imports: readxl
 Suggests: testthat
 License: MIT + file LICENSE
 NeedsCompilation: no
