@@ -81,7 +81,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   # function from workflowr package to specify the pathnames.
   # 
   outdir  <- file.path(tempdir(),"dsc")
-  outfile <- file.path(outdir,"query.tsv")
+  outfile <- file.path(outdir,"query.csv")
   dir.create(outdir,showWarnings = FALSE,recursive = TRUE)
   
   # If something fails in subsequent steps, delete the temporary
@@ -105,7 +105,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
 
   # LOAD DSC QUERY
   # --------------
-  dat <- read.csv(outfile,header = TRUE,sep='\t',quote = "",stringsAsFactors = FALSE,
+  dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
                   check.names = FALSE,comment.char = "",na.strings = "")
 
   # PROCESS THE DSC QUERY RESULT
