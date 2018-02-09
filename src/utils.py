@@ -65,6 +65,11 @@ class Logger:
             return
         self.log(msg, flush, False)
 
+    def warning(self, msg = None):
+        if self.verbosity == 0:
+            return
+        self.error(msg, False)
+
 logger = Logger()
 
 class DYAML(YAML):
@@ -581,7 +586,7 @@ def round_print(text, sep, pc = None):
                         for x in line]).strip())
 
 def install_r_lib(lib):
-    from sos_r.targets import R_library
+    from sos.targets_r import R_library
     groups = re.search('(.*?)\((.*?)\)', lib)
     if groups is not None:
         lib = groups.group(1).strip()
@@ -592,7 +597,7 @@ def install_r_lib(lib):
     return R_library(lib, versions).target_exists()
 
 def install_py_module(lib):
-    from sos_python.targets import Py_Module
+    from sos.targets_python import Py_Module
     logger.info("Checking Python module {} ...".format(lib))
     return Py_Module(lib).target_exists()
 

@@ -420,7 +420,7 @@ class Query_Processor:
         for k in self.field_warnings:
             if k in end_modules:
                 continue
-            logger.error(self.field_warnings[k], exit = False)
+            logger.warning(self.field_warnings[k])
 
 if __name__ == '__main__':
     import sys
