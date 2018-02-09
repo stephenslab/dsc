@@ -364,7 +364,15 @@ class DSC_Module:
     def set_input(self, params, alias):
         if params is not None:
             self.p.update(params)
-        # FIXME: have to ensure @ALIAS is a list
+        if isinstance(alias, collections.Mapping):
+            valid = False
+            for module in alias:
+                if module == self.name:
+                    alias = alias[module]
+                    valid = True
+                    break
+            if not valid:
+                raise FormatError(f"Cannot find module ``{self.name}`` in @ALIAS specification ``{list(alias.keys())}``.")
         if isinstance(alias, collections.Mapping):
             raise FormatError(f"Invalid @ALIAS format for module ``{self.name}`` (has to be formatted `alias = variable`).")
         alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
