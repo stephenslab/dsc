@@ -73,7 +73,13 @@ class DSC_Script:
         self.runtime.check_looped_computation()
 
     def update(self, text, exe):
-        block = yaml.load(''.join(text))
+        try:
+            block = yaml.load(''.join(text))
+        except Exception as e:
+            if type(e).__name__ == 'DuplicateKeyError':
+                raise FormatError(f"Duplicate keys found in\n``{''.join(text)}``")
+            else:
+                raise FormatError(e)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
         block[name] = block.pop(list(block.keys())[0])
         if block[name] is None:

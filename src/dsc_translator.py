@@ -20,7 +20,6 @@ class DSC_Translator:
     '''
     def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False):
         # FIXME: to be replaced by the R utils package
-        from .plugin import R_LMERGE, R_SOURCE
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
         conf_header = 'from dsc.dsc_database import remove_obsolete_output, build_config_db\n'
@@ -101,12 +100,12 @@ class DSC_Translator:
                            '\n\t'.join('\n'.join(conf_str).split('\n')) + \
                            "\n\topen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))\n\n" + \
                            "prepare_io()"
-        self.job_str = job_header + f"DSC_RUTILS = '''{R_SOURCE + R_LMERGE}'''" + "\n{}".format('\n'.join(job_str))
+        self.job_str = job_header + "\n{}".format('\n'.join(job_str))
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
                             f"\ninput: '.sos/.dsc/{self.db}.prepare.py'\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
-                            "\ntask:\nrun: expand = True\n{} {{_input}}".format(sys.executable) + \
+                            "\nrun: expand = True\n{} {{_input}}".format(sys.executable) + \
                             "\n[deploy_2 (Removing obsolete output)]" + \
                             f"\nremove_obsolete_output('{self.output}', rerun = {rerun})" + \
                             " \n[deploy_3 (Configuring output filenames)]\n" \

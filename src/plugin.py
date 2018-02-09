@@ -27,20 +27,6 @@ source <- function(x) {
 }
 '''
 
-R_LMERGE = '''
-DSC_LMERGE <-
-function(x, y, ...)
-{
-  if(length(x) == 0)
-    return(y)
-  if(length(y) == 0)
-    return(x)
-  for (i in 1:length(names(y)))
-    x[names(y)[i]] = y[i]
-  return(x)
-}
-'''
-
 class BasePlug:
     def __init__(self, name = 'run', identifier = ''):
         self.name = name
@@ -162,14 +148,13 @@ class RPlug(BasePlug):
 
     def get_input(self, params, input_num, lib, index, cmd_args, autoload):
         if lib is not None:
-            res = 'DSC_LIBPATH <- c({})'.format(','.join([repr(x) for x in lib]))
+            res = 'DSC_LIBPATH <- c({})\n'.format(','.join([repr(x) for x in lib])) + R_SOURCE
         else:
-            res = 'DSC_LIBPATH <- NULL'
-        res += '\noptions(warn=1)\n${DSC_RUTILS}'
+            res = ''
         # load files
         load_multi_in = '\n{} <- list()'.format(self.identifier) + \
           '\ninput.files <- c(${{_input:r,}})\nfor (i in 1:length(input.files)) ' \
-          '{0} <- DSC_LMERGE({0}, readRDS(input.files[i]))'.format(self.identifier)
+          '{0} <- dscrutils:::merge_lists({0}, readRDS(input.files[i]))'.format(self.identifier)
         load_single_in = '\n{} <- readRDS("${{_input}}")'.format(self.identifier)
         load_out = '\nattach(readRDS("${_output}"), warn.conflicts = F)'
         flag = False
