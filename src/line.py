@@ -365,7 +365,6 @@ class LogicParser(OperationParser):
         self.operators = ['(', ')', '|', '&', '~']
 
     def reconstruct(self, value):
-        print(value)
         from .utils import bool_symexpand
         res = []
         for x in str(bool_symexpand(value)).split('|'):
@@ -425,3 +424,45 @@ def expand_logic(string):
             x = (x,)
         res.append(x)
     return res
+
+def parse_filter(condition, groups = {}, dotted = True):
+    '''
+    parse condition statement
+    After expanding, condition is a list of list
+    - the outer lists are connected by OR
+    - the inner lists are connected by AND
+    '''
+    # FIXME: check legalize names
+    if condition is None:
+        return (None, None)
+    res = []
+    cond_tables = []
+    symbols = ['=', '==', '!=', '>', '<', '>=', '<=', 'in']
+    for and_list in expand_logic(' and '.join(condition)):
+        tmp = []
+        for value in and_list:
+            if value.strip().lower().startswith('not '):
+                value = value.strip()[4:]
+                is_not = True
+            else:
+                value = value.strip()
+                is_not = False
+            tokens = [token[1] for token in tokenize.generate_tokens(StringIO(value.replace('.', '__DSC_DOT__')).readline) if token[1]]
+            if not (len(tokens) == 3 and tokens[1] in symbols):
+                raise FormatError(f"Condition ``{value}`` is not a supported math expression.\nSupported expressions are ``{symbols}``")
+            tokens[0] = tokens[0].replace('__DSC_DOT__', '.').split('.')
+            if len(tokens[0]) != 2:
+                if dotted:
+                    raise FormatError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
+                else:
+                    tokens[0] = [''] + tokens[0]
+            cond_tables.append((tokens[0][0], tokens[0][1]))
+            tokens[2] = tokens[2].replace('__DSC_DOT__', '.')
+            if not tokens[0][0] in groups:
+                tmp.append(('not' if is_not else '', tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
+            else:
+                # will be connected by OR logic
+                tmp.append([(('not' if is_not else '', x, tokens[0][1]), "==" if tokens[1] == "=" else tokens[1], tokens[2])
+                            for x in groups[tokens[0][0]]])
+        res.append(tmp)
+    return res, cond_tables

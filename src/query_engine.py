@@ -9,7 +9,7 @@ from io import StringIO
 import tokenize
 from .utils import uniq_list, filter_sublist, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
-from .line import expand_logic
+from .line import parse_filter
 
 SQL_KEYWORDS = set([
     'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
@@ -70,7 +70,7 @@ class Query_Processor:
             self.groups = dict()
         self.groups.update(self.get_grouped_tables(groups))
         self.target_tables = self.get_table_fields(targets)
-        self.condition_tables, self.condition = self.get_condition(condition)
+        self.condition, self.condition_tables = parse_filter(condition, groups = self.groups)
         # 1. only keep tables that do exist in database
         self.target_tables = self.filter_tables(self.target_tables)
         self.condition_tables = self.filter_tables(self.condition_tables)
@@ -168,40 +168,6 @@ class Query_Processor:
                 res.append((x, y))
         return res
 
-    def get_condition(self, condition):
-        '''
-        parse condition statement
-        output:
-
-        '''
-        # FIXME: check legalize names
-        if condition is None:
-            return []
-        # After expanding, condition is a list of list
-        # the outer lists are connected by OR
-        # the inner lists are connected by AND
-        res = []
-        cond_tables = []
-        symbols = ['=', '==', '!=', '>', '<', '>=', '<=', 'in']
-        for and_list in expand_logic(' AND '.join(condition)):
-            tmp = []
-            for value in and_list:
-                tokens = [token[1] for token in tokenize.generate_tokens(StringIO(value.replace('.', '__DOT__')).readline) if token[1]]
-                if not (len(tokens) == 3 and tokens[1] in symbols):
-                    raise FormatError(f"Condition ``{value}`` is not a supported math expression.\nSupported expressions are ``{symbols}``")
-                tokens[0] = tokens[0].replace('__DOT__', '.').split('.')
-                if len(tokens[0]) != 2:
-                    raise FormatError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
-                cond_tables.append((tokens[0][0], tokens[0][1]))
-                if not tokens[0][0] in self.groups:
-                    tmp.append((tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
-                else:
-                    # will be connected by OR logic
-                    tmp.append([((x, tokens[0][1]), "==" if tokens[1] == "=" else tokens[1], tokens[2])
-                                for x in self.groups[tokens[0][0]]])
-            res.append(tmp)
-        return cond_tables, res
-
     def filter_tables(self, tables):
         return uniq_list([x for x in tables if x[0].lower() in
                           [y.lower() for y in self.data.keys()
@@ -277,14 +243,14 @@ class Query_Processor:
             tmp = []
             for value in each_and:
                 if isinstance(value, tuple):
-                    self.check_table_field(value[0], 2)
+                    self.check_table_field(value[1], 2)
                     value = [value]
                 else:
                     for vv in value:
-                        self.check_table_field(vv[0], 1)
-                valid_idx = [idx for idx, vv in enumerate(value) if vv[0][0].lower() in tables]
+                        self.check_table_field(vv[1], 1)
+                valid_idx = [idx for idx, vv in enumerate(value) if vv[1][0].lower() in tables]
                 if len(valid_idx) >= 1:
-                    value = ' OR '.join([f"{'.'.join(value[i][0])} {value[i][1]} {value[i][2]}"
+                    value = ' OR '.join([f"value[i][0] ({'.'.join(value[i][1])} {value[i][2]} {value[i][3]})"
                                          for i in valid_idx])
                     if len(valid_idx) > 1:
                         tmp.append(f"({value})")
@@ -294,7 +260,7 @@ class Query_Processor:
                     pass
             condition.append(tmp)
         if len(condition) > 0:
-            return "WHERE " + ' OR '.join(['(' + ' AND '.join(["({})".format(y) for y in x]) + ')' for x in condition])
+            return "WHERE " + ' OR '.join(['(' + ' AND '.join([f"({y})" for y in x]) + ')' for x in condition])
         else:
             return ''
 
