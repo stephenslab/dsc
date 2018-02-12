@@ -433,6 +433,10 @@ def parse_filter(condition, groups = {}, dotted = True):
     After expanding, condition is a list of list
     - the outer lists are connected by OR
     - the inner lists are connected by AND
+    eg: input 'x in 0 and not (y < x and y > 0)'
+    output:
+    [('', ['', 'x'], 'in', '0'), ('not', ['', 'y'], '<', 'x')]
+    [('', ['', 'x'], 'in', '0'), ('not', ['', 'y'], '>', '0')]
     '''
     # FIXME: check legalize names
     if condition is None:
