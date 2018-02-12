@@ -217,7 +217,7 @@ def main():
                    2) When used along with "--remove" it specifies one or more computational modules,
                    separated by space, whose output are to be removed. Alternatively one can specify
                    path(s) of particular DSC output files that needs to be removed.''')
-    p.add_argument('--skip', metavar = "option", choices = ["default", "none", "all"],
+    p.add_argument('-s', '--skip', metavar = "option", choices = ["default", "none", "all"],
                    dest = '__construct__', default = "default",
                    help = '''Behavior of how DSC is executed in the presence of existing results.
                    "default": skips modules whose "environment" has not been changed since previous execution.

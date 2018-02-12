@@ -9,7 +9,7 @@ This file defines methods to load and preprocess DSC scripts
 
 import os, re, itertools, copy, subprocess
 import collections
-from xxhash import xxh64
+from xxhash import xxh32 as xxh
 from sos.utils import env
 from .utils import FormatError, strip_dict, find_nested_key, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
@@ -296,7 +296,7 @@ class DSC_Module:
         # FIXME: need to implement inline eg R()
         exec_var = tuple(exec_var.split())
         self.exe = ' '.join([locate_file(exec_var[0], self.path)] + list(exec_var[1:]))
-        self.plugin = Plugin(os.path.splitext(exec_var[0])[1].lstrip('.'), xxh64(self.exe).hexdigest()[:10])
+        self.plugin = Plugin(os.path.splitext(exec_var[0])[1].lstrip('.'), xxh(self.exe).hexdigest())
                         # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
 
     def check_shell(self):

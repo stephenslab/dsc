@@ -12,7 +12,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
 from difflib import SequenceMatcher
 from .constant import HTML_CSS, HTML_JS
-from xxhash import xxh64
+from xxhash import xxh32 as xxh
 
 class Logger:
     def __init__(self):
@@ -394,7 +394,7 @@ def sos_hash_output(values, jobs = 1):
     Parallel hash
     FIXME: parallel not implemented for now
     '''
-    return [xxh64(value).hexdigest() for value in values]
+    return [xxh(value).hexdigest() for value in values]
 
 def chunks(l, n):
     """Yield successive n-sized chunks from l."""
