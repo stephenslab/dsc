@@ -177,7 +177,7 @@ class ResultDB:
                                         object_pairs_hook = OrderedDict)
         else:
             raise DBError(f"Cannot build DSC meta-data: hash table ``{self.prefix}.map.mpk`` is missing!")
-        self.meta_kws = ['ID', 'MID', 'FILE', 'PARENT']
+        self.meta_kws = ['ID', 'MID', 'FILE', 'PARENT', '__out_vars__']
 
     def load_parameters(self):
         #
@@ -246,22 +246,19 @@ class ResultDB:
                     # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
                     # avoid name conflict
                     # FIXME: make these DSC keywords
-                    # and therefore remove this line because there should be no worry about name conflicts
-                    for x in self.meta_kws:
-                        if x in v.keys():
-                            v['.{}'.format(x)] = v.pop(x)
                     #
                     if module in self.data:
                         keys1 = repr(sorted([x for x in v.keys() if not x in KWS]))
                         keys2 = repr(sorted([x for x in self.data[module].keys() if not x in self.meta_kws]))
                         if keys1 != keys2:
                             raise DBError('Inconsistent keys between module '\
-                                          '``{0} (value {2})`` and ``{1} (value {3})``.'.\
+                                          '``{0} ({1})`` and ``{2} ({3})``.'.\
                                           format(inst_cnts, keys1, self.data[module]['ID'], keys2))
                     else:
                         self.data[module] = dict()
                         for x in self.meta_kws:
                             self.data[module][x] = []
+                        self.data[module]['__out_vars__'] = v['__out_vars__']
                     # ID numbers all module instances
                     self.data[module]['ID'].append(inst_cnts)
                     k = k.split(' ')
@@ -331,14 +328,17 @@ class ResultDB:
         self.load_parameters()
         for module in self.end_modules:
             self.master[f'pipeline_{module}'] = self.write_master_table(module)
+        output = dict()
         for module in self.data:
             cols = ['ID', 'PARENT', 'FILE'] + [x for x in self.data[module].keys() if x not in self.meta_kws]
+            output[module] = self.data[module].pop('__out_vars__')
             self.data[module] = pd.DataFrame(self.data[module], columns = cols)
         self.data.update(self.master)
         if script is not None:
             self.data['.html'] = script
         if groups is not None:
             self.data['.groups'] = groups
+        self.data['.output'] = output
         pickle.dump(self.data, open(self.prefix + '.db', 'wb'))
 
 if __name__ == '__main__':
