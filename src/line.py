@@ -234,9 +234,9 @@ class CastData(YLine):
 
 class OperationParser(YLine):
     '''
-    Parse DSC logic sequence variables by expanding them
+    Parse DSC sequence variables by expanding them
 
-    Input: a string sequence of .FILTER or 'run'
+    Input: a string sequence of 'run'
     '''
     def __init__(self):
         YLine.__init__(self)
@@ -258,13 +258,13 @@ class OperationParser(YLine):
             raise TypeError("Argument must be string but it is %s." % type(value))
         value = value.strip()
         if value[-1] in ['+', '*', ',', '=', '/']:
-            raise FormatError('The end of @FILTER operator ``"{}"`` cannot be operator ``{}``!'.\
+            raise FormatError('The end of operator ``"{}"`` cannot be operator ``{}``!'.\
                               format(value, value[-1]))
         res = []
         for seq in self.split(value):
             self.reset()
             self.sequence = seq
-            seq = seq.replace(' ', '')
+            #seq = seq.replace(' ', '')
             for a in [self.cache_symbols,
                       self.check_syntax,
                       self.reconstruct]:
@@ -276,7 +276,7 @@ class OperationParser(YLine):
     def cache_symbols(self, value):
         '''cache all symbols'''
         # split with delimiter kept
-        seq = re.split(r'(\(|\)|\+|\*|,)', value)
+        seq = [y.strip() for y in re.split(r'({})'.format("|".join([re.escape(x) for x in self.operators])), value) if y.strip()]
         new_seq = []
         # reconstruct slice wrongfully splitted e.g., sth[2,3,4]
         start_idx = 0
@@ -335,7 +335,7 @@ class OperationParser(YLine):
             tmp_2 = []
             for y in tmp_1:
                 if '_' in tmp_1[y]:
-                    tmp_3 = [self.cache[x] for x in tmp_1[y].split('_')]
+                    tmp_3 = [self.cache[i] for i in tmp_1[y].split('_')]
                     tmp_2.append('+'.join(tmp_3))
                 else:
                     tmp_2.append(self.cache[tmp_1[y]])
@@ -352,6 +352,28 @@ class OperationParser(YLine):
         cache_id = 'X{}'.format(self.cache_count)
         self.cache[cache_id] = cache
         return cache_id
+
+
+class LogicParser(OperationParser):
+    '''
+    Parse DSC sequence variables by expanding them
+
+    Input: a string sequence of @FILTER
+    '''
+    def __init__(self):
+        OperationParser.__init__(self)
+        self.operators = ['(', ')', '|', '&', '~']
+
+    def reconstruct(self, value):
+        print(value)
+        from .utils import bool_symexpand
+        res = []
+        for x in str(bool_symexpand(value)).split('|'):
+            x = x.strip().strip('(').strip(')').split('&')
+            tmp = [self.cache[y.strip()] if not y.strip().startswith('~') else f'not {self.cache[y.strip()[1:]]}'
+                   for y in x]
+            res.append(tuple(tmp) if len(tmp) > 1 else tmp[0])
+        return res
 
 
 class EntryFormatter:
@@ -385,3 +407,21 @@ class EntryFormatter:
                 else:
                     cfg[key] = value
         return cfg
+
+def expand_logic(string):
+    '''
+    bool logic expander
+    '''
+    string = string.replace(' or ', '|')
+    string = string.replace(' OR ', '|')
+    string = string.replace(' and ', '&')
+    string = string.replace(' AND ', '&')
+    string = string.replace('not', '~')
+    string = string.replace('NOT', '~')
+    res = []
+    op = LogicParser()
+    for x in op(string):
+        if isinstance(x, str):
+            x = (x,)
+        res.append(x)
+    return res

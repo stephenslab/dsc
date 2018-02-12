@@ -259,8 +259,6 @@ class DSC_Module:
         self.name = name
         # params: alias, value
         self.p = OrderedDict()
-        # parameter filter:
-        self.ft = try_get_value(content, ('meta', 'filter'))
         # return variables (to plugin): alias, value
         self.rv = OrderedDict()
         # return files: alias, ext
@@ -284,7 +282,8 @@ class DSC_Module:
         self.set_input(try_get_value(content, 'input'), try_get_value(content, ('meta', 'alias')))
         self.set_output(content['output'])
         self.apply_input_operator()
-        self.apply_input_filter()
+        # parameter filter:
+        self.ft = self.apply_input_filter(try_get_value(content, ('meta', 'filter')))
         self.check_shell()
 
     def set_exec(self, exec_var):
@@ -397,11 +396,22 @@ class DSC_Module:
         if len(alias):
             raise FormatError(f'Invalid @ALIAS for module ``{self.name}``:\n``{dict2str(alias)}``')
 
-    def apply_input_filter(self):
-        if self.ft is None or len(self.ft) == 0:
-            return
-        raw_rule = self.ft
-        self.ft = ' and '.join([f"({x.replace('.', '_')})" for x in self.ft.split(',')])
+    def apply_input_filter(self, ft):
+        if ft is None or len(ft) == 0:
+            return None
+        if isinstance(ft, collections.Mapping):
+            valid = False
+            for module in ft:
+                if module == self.name:
+                    ft = ft[module]
+                    valid = True
+                    break
+            if not valid:
+                raise FormatError(f"Cannot find module ``{self.name}`` in @FILTER specification ``{list(ft.keys())}``.")
+        if isinstance(ft, collections.Mapping):
+            raise FormatError(f"Invalid @FILTER format for module ``{self.name}`` (cannot be a key-value mapping).")
+        raw_rule = ft
+        ft = ' and '.join([f"({x.replace('.', '_')})" for x in ft.split(',')])
         statement = ';'.join([f"{k} = {str(self.p[k])}" for k in self.p])
         value_str = ','.join([f'_{x}' for x in self.p.keys()])
         loop_str = ' '.join([f"for _{x} in {x}" for x in self.p])

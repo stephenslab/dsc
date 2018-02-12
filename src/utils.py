@@ -116,6 +116,14 @@ def non_commutative_symexpand(expr_string):
                   for sym in parsed_expr.atoms(sympy.Symbol)}
     return sympy.expand(eval(expr_string, {}, new_locals))
 
+def bool_symexpand(expr_string):
+    from sympy.parsing.sympy_parser import parse_expr
+    from sympy.logic.boolalg import to_dnf
+    parsed_expr = parse_expr(expr_string, evaluate=False)
+    new_locals = {sym.name:sympy.Symbol(sym.name)
+                  for sym in parsed_expr.atoms(sympy.Symbol)}
+    return to_dnf(eval(expr_string, {}, new_locals), simplify = True)
+
 def lower_keys(x, level_start = 0, level_end = 2, mapping = dict):
     level_start += 1
     if level_start > level_end:

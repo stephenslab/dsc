@@ -8,8 +8,8 @@ import pandas as pd
 from io import StringIO
 import tokenize
 from .utils import uniq_list, filter_sublist, FormatError, DBError, logger
-from .line import OperationParser
 from .yhat_sqldf import sqldf
+from .line import expand_logic
 
 SQL_KEYWORDS = set([
     'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
@@ -55,37 +55,6 @@ SQL_KEYWORDS = set([
     'COUNT', 'DATE', 'DAY', 'DIV', 'EXP', 'IS', 'LIKE', 'MAX', 'MIN', 'MOD', 'MONTH',
     'LOG', 'POW', 'SIN', 'SLEEP', 'SORT', 'STD', 'VALUES', 'SUM'
 ])
-
-def id_generator(size=6, chars=None):
-    import string, random
-    if chars is None:
-        chars = string.ascii_uppercase + string.digits
-    return ''.join(random.choice(chars) for _ in range(size))
-
-def expand_logic(string):
-    PH = '__{}'.format(id_generator())
-    string = string.replace('*', PH + '_ast__')
-    string = string.replace('+', PH + '_plus__')
-    string = string.replace(',', PH + '_com__')
-    string = string.replace(' or ', ',')
-    string = string.replace(' OR ', ',')
-    string = string.replace(' and ', '*')
-    string = string.replace(' AND ', '*')
-    string = re.sub(' +',  PH + '_space__', string)
-    res = []
-    op = OperationParser()
-    for x in op(string):
-        if isinstance(x, str):
-            x = (x,)
-        tmp = []
-        for y in x:
-            y = y.replace(PH + '_ast__', '*')
-            y = y.replace(PH + '_plus__', '+')
-            y = y.replace(PH + '_com__', ',')
-            y = y.replace(PH + '_space__', ' ')
-            tmp.append(y)
-        res.append(tmp)
-    return res
 
 class Query_Processor:
     def __init__(self, db, targets, condition = None, groups = None, add_path = False):
@@ -213,7 +182,7 @@ class Query_Processor:
         # the inner lists are connected by AND
         res = []
         cond_tables = []
-        symbols = ['=', '==', '!=', '>', '<', '>=', '<=']
+        symbols = ['=', '==', '!=', '>', '<', '>=', '<=', 'in']
         for and_list in expand_logic(' AND '.join(condition)):
             tmp = []
             for value in and_list:
