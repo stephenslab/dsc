@@ -405,7 +405,10 @@ class DSC_Module:
         for i in ft:
             tmp = []
             for ii in i:
-                tmp.append(f'{ii[0]} (_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]})'.strip())
+                if len(ii[0]):
+                    tmp.append(f'{ii[0]} (_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]})'.strip())
+                else:
+                    tmp.append(f'_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]}'.strip())
             res.append(f"({' and '.join(tmp)})")
         return ' or '.join(res)
 

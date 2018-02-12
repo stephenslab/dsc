@@ -31,10 +31,10 @@ class Logger:
         end = '\n' if msg.endswith('\n') else ''
         msg = msg.strip()
         if exit:
-            sys.stderr.write(start + "\033[1;40;33mERROR: {}\033[0m\n".format(msg) + end)
+            sys.stderr.write(start + f"\033[1;33mERROR: {self.emphasize(msg, 33)}\033[0m\n" + end)
             sys.exit()
         else:
-            sys.stderr.write(start + "\033[1;40;35mWARNING: {}\033[0m\n".format(msg) + end)
+            sys.stderr.write(start + f"\033[1;35mWARNING: {self.emphasize(msg, 35)}\033[0m\n" + end)
 
     def log(self, msg = None, flush=False, debug=False):
         if msg is None:
@@ -50,9 +50,9 @@ class Logger:
         end = end + '\n' if msg.endswith('\n') else end
         msg = msg.strip()
         if debug:
-            sys.stderr.write(start + "\033[1;40;34mDEBUG: {}\033[0m".format(msg) + end)
+            sys.stderr.write(start + f"\033[1;34mDEBUG: {self.emphasize(msg, 34)}\033[0m" + end)
         else:
-            sys.stderr.write(start + "\033[1;40;32mINFO: {}\033[0m".format(msg) + end)
+            sys.stderr.write(start + f"\033[1;32mINFO: {self.emphasize(msg, 32)}\033[0m" + end)
         self.__width_cache = len(msg)
 
     def debug(self, msg = None, flush = False):
@@ -69,6 +69,11 @@ class Logger:
         if self.verbosity == 0:
             return
         self.error(msg, False)
+
+    def emphasize(self, msg, level_color):
+        if msg is None:
+            return msg
+        return re.sub(r'``([^`]*)``', f'\033[0m\033[1;4m\\1\033[0m\033[1;{level_color}m', str(msg))
 
 logger = Logger()
 

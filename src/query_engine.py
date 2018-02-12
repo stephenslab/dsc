@@ -248,8 +248,7 @@ class Query_Processor:
                         self.check_table_field(vv[1], 1)
                 valid_idx = [idx for idx, vv in enumerate(value) if vv[1][0].lower() in tables]
                 if len(valid_idx) >= 1:
-                    value = ' OR '.join([f"value[i][0] ({'.'.join(value[i][1])} {value[i][2]} {value[i][3]})"
-                                         for i in valid_idx])
+                    value = ' OR '.join([f"{value[i][0]} ({'.'.join(value[i][1])} {value[i][2]} {value[i][3]})" if len(value[i][0]) else f"{'.'.join(value[i][1])} {value[i][2]} {value[i][3]}" for i in valid_idx])
                     if len(valid_idx) > 1:
                         tmp.append(f"({value})")
                     else:

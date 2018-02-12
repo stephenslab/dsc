@@ -468,7 +468,7 @@ def parse_filter(condition, groups = {}, dotted = True):
                 tmp.append(('not' if is_not else '', tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
             else:
                 # will be connected by OR logic
-                tmp.append([(('not' if is_not else '', x, tokens[0][1]), "==" if tokens[1] == "=" else tokens[1], tokens[2])
+                tmp.append([('not' if is_not else '', [x, tokens[0][1]], "==" if tokens[1] == "=" else tokens[1], tokens[2])
                             for x in groups[tokens[0][0]]])
         res.append(tmp)
     return res, cond_tables
