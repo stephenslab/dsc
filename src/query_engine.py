@@ -277,7 +277,7 @@ class Query_Processor:
         if len(table) == 0:
             return None
         table = pd.DataFrame(table)
-        rename = {x: x.replace('_FILE', '') + '.output' for x in table if "_FILE" in x}
+        rename = {x: x.replace('_FILE_', '.').replace('_FILE', '') + '.output' for x in table if "_FILE" in x}
         if ordering is None:
             table = table[sorted([x for x in table if not "_FILE" in x]) + \
                           sorted([x for x in table if "_FILE" in x])].rename(columns = rename)
@@ -300,9 +300,9 @@ class Query_Processor:
             gvals = sorted(self.groups[g], key = len, reverse = True)
             for col in table.columns:
                 for k in gvals:
-                    if not (col.startswith(k + '_') or col == k + '.output'):
+                    if not (col.startswith(k + '_') or col.startswith(k + '.')):
                         continue
-                    k = ('.' if col == k + '.output' else '_') + col[(len(k) + 1):]
+                    k = col[len(k):]
                     if not k in to_merge:
                         to_merge[k] = []
                     to_merge[k].append(col)
@@ -316,12 +316,12 @@ class Query_Processor:
                     if not g in table:
                         table[g] = None
                         for col in to_merge[k]:
-                            table[g] = table.apply(lambda row: [kk for kk in gvals if col.startswith(kk + '_') or col == kk + '.output'][0]
+                            table[g] = table.apply(lambda row: [kk for kk in gvals if col.startswith(kk + '_') or col.startswith(kk + '.')][0]
                                                    if not row[col] == row[col] else row[g], axis = 1)
                 else:
                     # simply rename it
                     table[f'{g}{k}'] = table[to_merge[k][0]]
-                    table[g] = [kk for kk in gvals if to_merge[k][0].startswith(kk + '_') or to_merge[k][0] == kk + '.output'][0]
+                    table[g] = [kk for kk in gvals if to_merge[k][0].startswith(kk + '_') or to_merge[k][0].startswith(kk + '.')][0]
             to_drop.extend(to_merge.values())
         #
         table.drop(set(sum(to_drop, [])), axis=1, inplace=True)
