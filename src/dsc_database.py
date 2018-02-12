@@ -208,7 +208,7 @@ class ResultDB:
             raise DBError('Cannot load source data to build database!')
         # FIXME: make these to DSC keywords and check DSC keywords
         # by just loading it not redefining it here
-        KWS = ['sequence_id', 'sequence_name', 'module', 'exec']
+        KWS = ['sequence_id', 'sequence_name', 'module', 'exec', '__out_vars__']
         # flatten dictionary removing duplicate keys because those keys are just `DSC_IO` and `DSC_EXT`
         # All other info in counts should be unique
 

@@ -222,7 +222,8 @@ class DSC_Translator:
 
         def get_header(self):
             if self.prepare:
-                self.header = f"## Codes for {self.step.name}"
+                self.header = f"## Codes for {self.step.name}\n"
+                self.header += f"__out_vars__ = {repr([x for x in list(self.step.rv.keys()) + list(self.step.rf.keys()) if x != 'DSC_AUTO_OUTPUT_'])}"
             else:
                 self.header = f"\n[{self.step.name}]\n"
                 self.header += f"parameter: DSC_STEP_ID_ = None\nparameter: {self.step.name}_output_files = list"
@@ -309,18 +310,16 @@ class DSC_Translator:
                 self.action += f"{key} = OrderedDict()\n"
                 if self.step.depends:
                     self.action += "for x, y in zip({}, {}_{}_output):\n\t{}[' '.join((y, x[1]))]"\
-                                  " = dict([('sequence_id', {}), "\
-                                  "('sequence_name', {}), ('module', '{}')] + x[0])\n".\
+                                  " = dict([('sequence_id', sequence_id), "\
+                                  "('sequence_name', sequence_name), ('module', '{}'), ('__out_vars__', __out_vars__)] + x[0])\n".\
                                   format(combined_params, n2a(int(self.step_map[self.step.name][1])).lower(),
-                                         self.step.name, key, 'sequence_id',
-                                         'sequence_name', self.step.name)
+                                         self.step.name, key, self.step.name)
                 else:
                     self.action += "for x, y in zip({}, {}_{}_output):\n\t{}[y]"\
-                                   " = dict([('sequence_id', {}), "\
-                                   "('sequence_name', {}), ('module', '{}')] + x[0])\n".\
+                                   " = dict([('sequence_id', sequence_id), "\
+                                   "('sequence_name', sequence_name), ('module', '{}'), ('__out_vars__', __out_vars__)] + x[0])\n".\
                                    format(combined_params, n2a(int(self.step_map[self.step.name][1])).lower(),
-                                          self.step.name, key, 'sequence_id',
-                                          'sequence_name', self.step.name)
+                                          self.step.name, key, self.step.name)
                 self.action += "{0}['DSC_IO_'] = ({1}, {2})\n".\
                                format(key, '[]' if self.input_vars is None else '{0} if {0} is not None else []'.\
                                       format(self.input_vars),
