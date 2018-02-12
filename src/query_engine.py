@@ -5,8 +5,6 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, pickle
 import pandas as pd
-from io import StringIO
-import tokenize
 from .utils import uniq_list, filter_sublist, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
 from .line import parse_filter

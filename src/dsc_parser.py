@@ -11,12 +11,12 @@ import os, re, itertools, copy, subprocess
 import collections
 from xxhash import xxh64
 from sos.utils import env
-from .utils import FormatError, strip_dict, find_nested_key, merge_lists, \
+from .utils import FormatError, strip_dict, find_nested_key, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
 from .addict import Dict as dotdict
 from .syntax import *
-from .line import OperationParser, EntryFormatter
+from .line import OperationParser, EntryFormatter, parse_filter
 from .plugin import Plugin
 __all__ = ['DSC_Script', 'DSC_Pipeline']
 
@@ -43,6 +43,8 @@ class DSC_Script:
         for line in content:
             if line.strip().startswith('@'):
                 line = line.replace('@', '.', 1)
+            if line.strip().startswith('*'):
+                line = line.replace('*', '..', 1)
             if not DSC_BLOCK_CONTENT.search(line) and not line.startswith('#'):
                 if res and exe:
                     self.update(res, exe)
@@ -372,7 +374,7 @@ class DSC_Module:
         if isinstance(alias, collections.Mapping):
             valid = False
             for module in alias:
-                if module == self.name:
+                if module == self.name or module == '..':
                     alias = alias[module]
                     valid = True
                     break
@@ -396,13 +398,24 @@ class DSC_Module:
         if len(alias):
             raise FormatError(f'Invalid @ALIAS for module ``{self.name}``:\n``{dict2str(alias)}``')
 
+    def make_filter_statement(self, ft):
+        ft = parse_filter(ft, dotted = False)[0]
+        res = []
+        variables = uniq_list(flatten_list([[ii[1][1] for ii in i] for i in ft]))
+        for i in ft:
+            tmp = []
+            for ii in i:
+                tmp.append(f'{ii[0]} (_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]})'.strip())
+            res.append(f"({' and '.join(tmp)})")
+        return ' or '.join(res)
+
     def apply_input_filter(self, ft):
         if ft is None or len(ft) == 0:
             return None
         if isinstance(ft, collections.Mapping):
             valid = False
             for module in ft:
-                if module == self.name:
+                if module == self.name or module == '..':
                     ft = ft[module]
                     valid = True
                     break
@@ -411,17 +424,19 @@ class DSC_Module:
         if isinstance(ft, collections.Mapping):
             raise FormatError(f"Invalid @FILTER format for module ``{self.name}`` (cannot be a key-value mapping).")
         raw_rule = ft
-        ft = ' and '.join([f"({x.replace('.', '_')})" for x in ft.split(',')])
+        ft = self.make_filter_statement(ft)
+        # Verify it
         statement = ';'.join([f"{k} = {str(self.p[k])}" for k in self.p])
         value_str = ','.join([f'_{x}' for x in self.p.keys()])
         loop_str = ' '.join([f"for _{x} in {x}" for x in self.p])
-        statement += f';print(len([({value_str}) {loop_str} if {self.ft}]))'
+        statement += f';print(len([({value_str}) {loop_str} if {ft}]))'
         try:
             ret = subprocess.check_output(f"python -c '''{str(statement)}'''", shell = True).decode('utf-8').strip()
         except:
             raise FormatError(f"Invalid @FILTER: ``{raw_rule}``!")
         if int(ret) == 0:
             raise FormatError(f"No parameter combination satisfies @FILTER ``{raw_rule}``!")
+        return ft
 
     def apply_input_operator(self):
         '''
