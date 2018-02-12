@@ -31,14 +31,14 @@ score_beta: score.R
     est: $true_beta
     truth: $beta_est
     # module output aka pipeline variable
-    $mse_beta: result
+    $mse: result
 
 score_pi0: score.R
     # module input and variables
     est: $pi0_est
     truth: $true_pi0
     # module output
-    $mse_pi: result
+    $mse: result
 
 DSC:
     # module ensembles

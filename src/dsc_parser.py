@@ -501,9 +501,11 @@ class DSC_Module:
 class DSC_Section:
     def __init__(self, content, sequence, output, extern):
         self.content = content
-        self.output = self.content['output'][0] if 'output' in self.content else output
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
+        if 'output' not in self.content:
+            raise FormatError('Missing required ``DSC::output``.')
+        self.output = output if output else self.content['output'][0]
         self.OP = OperationParser()
         self.regularize_ensemble()
         # FIXME: check if sequence input is of the right type

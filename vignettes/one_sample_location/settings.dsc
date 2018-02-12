@@ -1,5 +1,5 @@
 normal, t: rnorm.R, rt.R
-    seed: R(1:10)
+    seed: R(1:2)
     n: 1000
     true_mean: 0, 1
     $x: x
