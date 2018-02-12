@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, pickle
 import pandas as pd
-from .utils import uniq_list, filter_sublist, FormatError, DBError, logger
+from .utils import uniq_list, flatten_list, filter_sublist, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
 from .line import parse_filter
 
@@ -53,6 +53,12 @@ SQL_KEYWORDS = set([
     'COUNT', 'DATE', 'DAY', 'DIV', 'EXP', 'IS', 'LIKE', 'MAX', 'MIN', 'MOD', 'MONTH',
     'LOG', 'POW', 'SIN', 'SLEEP', 'SORT', 'STD', 'VALUES', 'SUM'
 ])
+
+def find_partial_index(xx, ordering):
+    for ii, i in enumerate(ordering):
+        if xx.startswith(i):
+            return ii
+    raise ValueError(f'{xx} not in list {ordering}')
 
 class Query_Processor:
     def __init__(self, db, targets, condition = None, groups = None, add_path = False):
@@ -108,7 +114,7 @@ class Query_Processor:
         '''
         Input is (table, field)
         output is if they are valid
-        check_field: zero for not check, 1 for check with warning, 2 for check and raise error
+        check_field: zero for not check, 1 for check SELECT statement, 2 for check WHERE statement
         '''
         x, y = value
         if x != self.legalize_name(x):
@@ -117,12 +123,15 @@ class Query_Processor:
         if not x.lower() in keys_lower:
             raise DBError(f"Cannot find module ``{x}`` in DSC results ``{self.db}``.")
         k = list(self.data.keys())[keys_lower.index(x.lower())]
-        if not y.lower() in [i.lower() for i in self.data[k]]:
-            if check_field == 2:
-                raise DBError(f"``{'.'.join(value)}`` is invalid query: cannot find column ``{y}`` in table ``{k}``")
-            if check_field == 1:
-                self.field_warnings[k] = f"Cannot find parameter ``{y}`` in module ``{k}``."\
-                                         " The output filenames from this module is kept instead."
+        y_low = y.lower()
+        if y_low in [i.lower() for i in self.data[k]] and y_low in [i.lower() for i in self.data['.output'][k]] and check_field == 1:
+            self.field_warnings[k] = f"Variable ``{y}`` is both parameter and output in module ``{k}``. Parameter variable ``{y}`` is extracted. To obtain output variable ``{y}`` please use ``{k}.output.{y}`` to specify the query target."
+        if not y_low in [i.lower() for i in self.data[k]] and check_field == 2:
+            raise DBError(f"Cannot find column ``{y}`` in table ``{k}``")
+        if y_low.startswith('output.'):
+            y_low = y_low[7:]
+        if not y_low in [i.lower() for i in self.data[k]] and not y_low in [i.lower() for i in self.data['.output'][k]] and check_field == 1:
+            raise DBError(f"Cannot find variable ``{y}`` in module ``{k}``")
         return
 
     def get_grouped_tables(self, groups):
@@ -151,8 +160,8 @@ class Query_Processor:
         '''
         res = []
         for item in ' '.join(values).split():
-            if re.search('^\w+\.\w+$', item):
-                item, y = item.split('.')
+            if re.search('^\w+\.\w+$', item) or  re.search('^\w+\.output.\w+$', item):
+                item, y = item.split('.', 1)
                 if not y:
                     raise FormatError(f"Field for module ``{item}`` is empty.")
             else:
@@ -215,7 +224,7 @@ class Query_Processor:
                     continue
                 key = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
                 if item[1].lower() not in [x.lower() for x in self.data[key].keys()]:
-                    tmp1.append("{0}.FILE AS {0}_FILE_{1}".format(item[0], item[1]))
+                    tmp1.append("{0}.FILE AS {0}_FILE_{1}".format(item[0], item[1] if not item[1].startswith('output.') else item[1][7:]))
                 else:
                     tmp1.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))
             select.append("SELECT " + ', '.join(tmp1))
@@ -245,7 +254,7 @@ class Query_Processor:
                     value = [value]
                 else:
                     for vv in value:
-                        self.check_table_field(vv[1], 1)
+                        self.check_table_field(vv[1], 2)
                 valid_idx = [idx for idx, vv in enumerate(value) if vv[1][0].lower() in tables]
                 if len(valid_idx) >= 1:
                     value = ' OR '.join([f"{value[i][0]} ({'.'.join(value[i][1])} {value[i][2]} {value[i][3]})" if len(value[i][0]) else f"{'.'.join(value[i][1])} {value[i][2]} {value[i][3]}" for i in valid_idx])
@@ -267,20 +276,16 @@ class Query_Processor:
         '''
         if len(table) == 0:
             return None
-        targets = {name: [os.path.join(os.path.dirname(self.db), x) if add_path else x for x in table[name]]
-                   for name in table.keys() if '_FILE_' in name}
-        table.update(targets)
         table = pd.DataFrame(table)
-        rename = {x: x if not "_FILE_" in x else x.replace('_FILE', '') for x in table}
+        rename = {x: x.replace('_FILE', '') + '.output' for x in table if "_FILE" in x}
         if ordering is None:
-            table = table[sorted([x for x in table if not "_FILE_" in x]) + \
-                          sorted([x for x in table if "_FILE_" in x])].rename(columns = rename)
+            table = table[sorted([x for x in table if not "_FILE" in x]) + \
+                          sorted([x for x in table if "_FILE" in x])].rename(columns = rename)
         else:
-            table = table.rename(columns = rename)
-            table = table[sorted(table.columns, key = lambda x: ordering.index(x.rsplit('_',1)[0]))]
+            table = table[sorted(table.columns, key = lambda x: find_partial_index(x, ordering))].rename(columns = rename)
         if add_path:
             for x in table:
-                if x.endswith("_FILE"):
+                if x.endswith(".output"):
                     table[x] = table[x].apply(lambda i: os.path.join(os.path.dirname(self.db), i))
         return table
 
@@ -292,43 +297,40 @@ class Query_Processor:
         for g in self.groups:
             # For each group, find common fields to merge
             to_merge = dict()
+            gvals = sorted(self.groups[g], key = len, reverse = True)
             for col in table.columns:
-                k = col.rsplit('_',1)
-                if not k[0] in self.groups[g]:
-                    continue
-                if not k[1] in to_merge:
-                    to_merge[k[1]] = []
-                to_merge[k[1]].append(col)
+                for k in gvals:
+                    if not (col.startswith(k + '_') or col == k + '.output'):
+                        continue
+                    k = ('.' if col == k + '.output' else '_') + col[(len(k) + 1):]
+                    if not k in to_merge:
+                        to_merge[k] = []
+                    to_merge[k].append(col)
+                    break
             for k in to_merge:
                 if len(to_merge[k]) > 1:
-                    table[f'{g}_{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
-                    if not all(table[f'{g}_{k}'].apply(len) == 1):
-                        raise DBError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}_k`` due to collating entries.')
-                    table[f'{g}_{k}'] = table[f'{g}_{k}'].apply(lambda x: x[0])
+                    table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
+                    if not all(table[f'{g}{k}'].apply(len) == 1):
+                        raise DBError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}{k}`` due to collating entries.')
+                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: x[0])
                     if not g in table:
                         table[g] = None
                         for col in to_merge[k]:
-                            table[g] = table.apply(lambda row: col.rsplit('_',1)[0]
+                            table[g] = table.apply(lambda row: [kk for kk in gvals if col.startswith(kk + '_') or col == kk + '.output'][0]
                                                    if not row[col] == row[col] else row[g], axis = 1)
                 else:
                     # simply rename it
-                    table[f'{g}_{k}'] = table[to_merge[k][0]]
-                    table[g] = to_merge[k][0].rsplit('_',1)[0]
+                    table[f'{g}{k}'] = table[to_merge[k][0]]
+                    table[g] = [kk for kk in gvals if to_merge[k][0].startswith(kk + '_') or to_merge[k][0] == kk + '.output'][0]
             to_drop.extend(to_merge.values())
         #
         table.drop(set(sum(to_drop, [])), axis=1, inplace=True)
-        # Adjust column ordering
-        targets = []
-        for x in self.targets:
-            x = x.rsplit('.')
-            if len(x) == 1:
-                x.append('FILE')
-            if x[0] in self.groups:
-                targets.extend([x[0], '_'.join(x)])
-            else:
-                targets.append('_'.join(x))
-        table = table.rename(columns = {g: f'{g}_identifier' for g in self.groups})
-        table = table.rename(columns = {x: x if not x.endswith('_FILE') else x[:-5] for x in table})
+        # Adjust column name / ordering
+        targets = uniq_list([x.split('.', 1)[0] for x in self.targets])
+        targets = flatten_list([[x] + self.groups[x] if x in self.groups else x for x in targets])
+        table = table.rename(columns = {g: f'{g}.id' for g in self.groups})
+        table = table[sorted(table.columns, key = lambda x: (find_partial_index(x, targets), not x.endswith('.id')))]
+        table = table.rename(columns = {f'{g}.id': g for g in self.groups})
         return table
 
     def get_queries(self):
@@ -348,10 +350,7 @@ class Query_Processor:
         return dict(res)
 
     def warn(self):
-        end_modules = [x[-1] for x in self.pipelines]
         for k in self.field_warnings:
-            if k in end_modules:
-                continue
             logger.warning(self.field_warnings[k])
 
 if __name__ == '__main__':
