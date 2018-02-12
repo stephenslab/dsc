@@ -153,8 +153,9 @@ class DSC_Translator:
         from .utils import install_r_lib, install_py_module
         if lib_type not in ["R_library", "Python_Module"]:
             raise ValueError("Invalid library type ``{}``.".format(lib_type))
-        if libs is None:
+        if len(libs) == 0:
             return
+        libs = uniq_list(libs)
         installed_libs = []
         fn = f'.sos/.dsc/{self.db}.{xxh64("".join(libs)).hexdigest()}.lib-info'
         for item in glob.glob(f'.sos/.dsc/{self.db}.*.lib-info'):

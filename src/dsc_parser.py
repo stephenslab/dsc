@@ -71,6 +71,10 @@ class DSC_Script:
                 raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
         self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path))
                              for x in self.runtime.sequence_ordering.keys()])
+        for m in self.modules.values():
+            if m.plugin.name == 'R':
+                self.runtime.rlib.append('dscrutils@stephenslab/dsc2/dscrutils (0.2.5+)')
+                break
         # FIXME: maybe this should be allowed?
         self.runtime.check_looped_computation()
 
@@ -522,8 +526,8 @@ class DSC_Section:
             self.options['submit'] = True
         else:
             self.options['submit'] = self.content['submit'] if 'submit' in self.content else None
-        self.rlib = self.content['R_libs'] if 'R_libs' in self.content else None
-        self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else None
+        self.rlib = self.content['R_libs'] if 'R_libs' in self.content else []
+        self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else []
 
     @staticmethod
     def __merge_sequences(input_sequences):

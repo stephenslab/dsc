@@ -63,7 +63,7 @@ def query(args):
                 for table in qp.output_tables:
                     qp.output_tables[table].to_excel(writer, table, index = False)
             writer.save()
-            logger.info(f"Query results saved to spread sheet ``{fxlsx}``".format(fxlsx))
+            logger.info(f"Query results saved to spreadsheet ``{fxlsx}``".format(fxlsx))
         if fnb is not None:
             desc = (args.description or []) + ['Queries performed for:\n\n* targets: `{}`\n* conditions: `{}`'.\
                                                format(repr(args.target), repr(args.condition))]
