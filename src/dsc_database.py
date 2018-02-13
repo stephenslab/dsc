@@ -70,7 +70,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
         # 1. collect sequence names and hash
         for k in list(data.keys()):
             for kk in data[k]:
-                if kk in ["DSC_EXT_", "DSC_IO_"]:
+                if kk in ["__ext__", "__input_output___"]:
                     continue
                 kk = kk.split(' ')[0]
                 if kk in names:
@@ -100,7 +100,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                 else:
                     lookup[k_core] = extend_dict(lookup[k_core], dict(content), unique = True)
                     names[kk] = content
-                    names[kk].append(data[k]["DSC_EXT_"])
+                    names[kk].append(data[k]["__ext__"])
         for k in names:
             # existing items in map_data, skip them
             if isinstance(names[k], str):
@@ -151,12 +151,12 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
             if module not in conf[workflow_id]:
                 conf[workflow_id][module] = OrderedDict()
             conf[workflow_id][module]['input'] = [os.path.join(fid, map_data[item]) \
-                                        for item in data[k]['DSC_IO_'][0]]
+                                        for item in data[k]['__input_output___'][0]]
             conf[workflow_id][module]['output'] = [os.path.join(fid, map_data[item]) \
-                                         for item in data[k]['DSC_IO_'][1]]
+                                         for item in data[k]['__input_output___'][1]]
             # eg. score_beta:6cf79a4c4bf191ea:simulate:90d846d054f4b5d1:shrink:fde60bc16e1728c7:simulate:90d846d054f4b5d1
             conf[workflow_id][module]['depends'] = [meta_data[key][x]
-                                                    for x in uniq_list(data[k]['DSC_IO_'][1][0].split(':')[::2][1:])]
+                                                    for x in uniq_list(data[k]['__input_output___'][1][0].split(':')[::2][1:])]
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
 
@@ -208,8 +208,8 @@ class ResultDB:
             raise DBError('Cannot load source data to build database!')
         # FIXME: make these to DSC keywords and check DSC keywords
         # by just loading it not redefining it here
-        KWS = ['sequence_id', 'sequence_name', 'module', 'exec', '__out_vars__']
-        # flatten dictionary removing duplicate keys because those keys are just `DSC_IO` and `DSC_EXT`
+        KWS = ['__pipeline_id__', '__pipeline_name__', '__module__', '__exec__', '__out_vars__']
+        # flatten dictionary removing duplicate keys because those keys are just `__input_output__` and `__ext__`
         # All other info in counts should be unique
 
         # from collections import Counter
@@ -236,9 +236,9 @@ class ResultDB:
                 if not module in self.end_modules and is_end_module:
                     self.end_modules.append(module)
                 #
-                len_ext = len(data['DSC_EXT_']) + 1
+                len_ext = len(data['__ext__']) + 1
                 for k, v in data.items():
-                    if k in ['DSC_IO_', 'DSC_EXT_']:
+                    if k in ['__input_output___', '__ext__']:
                         continue
                     inst_cnts += 1
                     # each v is a dict of a module instances

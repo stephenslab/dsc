@@ -72,8 +72,8 @@ class DSC_Translator:
             # Configuration
             if len(new_steps):
                 conf_str.append(f"###\n# [{n2a(workflow_id + 1)}]\n###\n" \
-                                f"sequence_id = '{workflow_id + 1}'\n"\
-                                f'''sequence_name = '{"+".join([n2a(x[1]).lower()+"_"+x[0] for x in sqn])}'\n''' \
+                                f"__pipeline_id__ = '{workflow_id + 1}'\n"\
+                                f'''__pipeline_name__ = '{"+".join([n2a(x[1]).lower()+"_"+x[0] for x in sqn])}'\n''' \
                                 f"# output: '.sos/.dsc/{self.db}_{workflow_id + 1}.mpk'\n")
                 conf_str.extend(new_steps)
                 io_info_files.append(f'.sos/.dsc/{self.db}_{workflow_id + 1}.mpk')
@@ -96,9 +96,9 @@ class DSC_Translator:
                            'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' + \
                            '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
                            '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
-                           f'\n\tDSC_UPDATES_ = OrderedDict()\n\t_output = ".sos/.dsc/{self.db}.io.mpk"\n\t' + \
+                           f'\n\t__io_db__ = OrderedDict()\n\t_output = ".sos/.dsc/{self.db}.io.mpk"\n\t' + \
                            '\n\t'.join('\n'.join(conf_str).split('\n')) + \
-                           "\n\topen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))\n\n" + \
+                           "\n\topen(_output, 'wb').write(msgpack.packb(__io_db__))\n\n" + \
                            "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
@@ -245,19 +245,19 @@ class DSC_Translator:
                 if self.current_depends:
                     self.input_string += f"## With variables from: {', '.join(self.current_depends)}"
                 if len(self.current_depends) >= 2:
-                    self.input_vars = f'{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_input'
+                    self.input_vars = f'__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_input__'
                     self.input_string += '\n{} = sos_group_input({})'.\
                        format(self.input_vars,
-                              ', '.join([f'{n2a(int(self.step_map[x][1])).lower()}_{x}_output' for x in self.current_depends]))
+                              ', '.join([f'__{n2a(int(self.step_map[x][1])).lower()}_{x}_output__' for x in self.current_depends]))
                 elif len(self.current_depends) == 1:
-                    self.input_vars = f"{n2a(int(self.step_map[self.current_depends[0]][1])).lower()}_{self.current_depends[0]}_output"
+                    self.input_vars = f"__{n2a(int(self.step_map[self.current_depends[0]][1])).lower()}_{self.current_depends[0]}_output__"
                 else:
                     pass
                 if len(self.current_depends):
                     if len(self.current_depends) > 1:
-                        self.loop_string[1] = f'for __i in chunks({self.input_vars}, {len(self.current_depends)})'
+                        self.loop_string[1] = f'for __i__ in chunks({self.input_vars}, {len(self.current_depends)})'
                     else:
-                        self.loop_string[1] = f'for __i in {self.input_vars}'
+                        self.loop_string[1] = f'for __i__ in {self.input_vars}'
             else:
                 if len(self.current_depends):
                     self.input_string += "parameter: {0}_input_files = list\ninput: dynamic({0}_input_files)".\
@@ -278,7 +278,7 @@ class DSC_Translator:
         def get_output(self):
             if self.prepare:
                 format_string = '.format({})'.format(', '.join([f'_{s}' for s in reversed(self.params)]))
-                output_lhs = f"{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output"
+                output_lhs = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
                 self.output_string += "{3} = sos_hash_output(['{0}'{1} {2}])".\
                                       format(' '.join([self.step.name, str(self.step.exe)] \
                                                       + [f'{x}:{{}}' for x in reversed(self.params)]),
@@ -286,7 +286,7 @@ class DSC_Translator:
                 if len(self.current_depends):
                     self.output_string += "\n{0} = ['{1}:{{}}:{{}}'.format(item, {3}) " \
                                           "for item in {0} {2}]".format(output_lhs, self.step.name, self.loop_string[1],
-                                                                        "':'.join(__i)" if len(self.current_depends) > 1 else "__i")
+                                                                        "':'.join(__i__)" if len(self.current_depends) > 1 else "__i__")
                 else:
                     self.output_string += "\n{0} = ['{1}:{{}}'.format(item) for item in {0}]".\
                                           format(output_lhs, self.step.name)
@@ -302,17 +302,17 @@ class DSC_Translator:
         def get_action(self):
             if self.prepare:
                 combined_params = '[([{0}], {1}) {2}]'.\
-                                  format(', '.join([f"('exec', '{self.step.exe}')"] \
+                                  format(', '.join([f"('__exec__', '{self.step.exe}')"] \
                                                    + [f"('{x}', _{x})" for x in reversed(self.params)]),
-                                         None if self.loop_string[1] is '' else ("f\"{' '.join(__i)}\"" if len(self.current_depends) > 1 else "f'{__i}'"),
+                                         None if self.loop_string[1] is '' else ("f\"{' '.join(__i__)}\"" if len(self.current_depends) > 1 else "f'{__i__}'"),
                                          ' '.join(self.loop_string) + self.filter_string)
                 input_str = '[]' if self.input_vars is None else '{0} if {0} is not None else []'.format(self.input_vars)
-                output_str = f"{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output"
+                output_str = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
                 # FIXME: multiple output to be implemented
                 if self.step.depends:
-                    self.action += f"DSC_UPDATES_['{self.step.name}:' + str(sequence_id)] = dict([(' '.join((y, x[1])), dict([('sequence_id', sequence_id), ('sequence_name', sequence_name), ('module', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params},{output_str})] + [('DSC_IO_', ({input_str}, {output_str})), ('DSC_EXT_', '{flatten_list(self.step.rf.values())[0]}')])\n"
+                    self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(' '.join((y, x[1])), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{flatten_list(self.step.rf.values())[0]}')])\n"
                 else:
-                    self.action += f"DSC_UPDATES_['{self.step.name}:' + str(sequence_id)] = dict([(y, dict([('sequence_id', sequence_id), ('sequence_name', sequence_name), ('module', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('DSC_IO_', ({input_str}, {output_str})), ('DSC_EXT_', '{flatten_list(self.step.rf.values())[0]}')])\n"
+                    self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(y, dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{flatten_list(self.step.rf.values())[0]}')])\n"
             else:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list for now
