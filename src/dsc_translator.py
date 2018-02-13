@@ -99,7 +99,7 @@ class DSC_Translator:
                            f'\n\tDSC_UPDATES_ = OrderedDict()\n\t_output = ".sos/.dsc/{self.db}.io.mpk"\n\t' + \
                            '\n\t'.join('\n'.join(conf_str).split('\n')) + \
                            "\n\topen(_output, 'wb').write(msgpack.packb(DSC_UPDATES_))\n\n" + \
-                           "prepare_io()"
+                           "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
@@ -304,29 +304,15 @@ class DSC_Translator:
                 combined_params = '[([{0}], {1}) {2}]'.\
                                   format(', '.join([f"('exec', '{self.step.exe}')"] \
                                                    + [f"('{x}', _{x})" for x in reversed(self.params)]),
-                                         None if self.loop_string[1] is '' else ("'{}'.format(' '.join(__i))" if len(self.current_depends) > 1 else "'{}'.format(__i)"),
+                                         None if self.loop_string[1] is '' else ("f\"{' '.join(__i)}\"" if len(self.current_depends) > 1 else "f'{__i}'"),
                                          ' '.join(self.loop_string) + self.filter_string)
-                key = f"DSC_UPDATES_['{self.step.name}:' + str(sequence_id)]"
-                self.action += f"{key} = OrderedDict()\n"
-                if self.step.depends:
-                    self.action += "for x, y in zip({}, {}_{}_output):\n\t{}[' '.join((y, x[1]))]"\
-                                  " = dict([('sequence_id', sequence_id), "\
-                                  "('sequence_name', sequence_name), ('module', '{}'), ('__out_vars__', __out_vars__)] + x[0])\n".\
-                                  format(combined_params, n2a(int(self.step_map[self.step.name][1])).lower(),
-                                         self.step.name, key, self.step.name)
-                else:
-                    self.action += "for x, y in zip({}, {}_{}_output):\n\t{}[y]"\
-                                   " = dict([('sequence_id', sequence_id), "\
-                                   "('sequence_name', sequence_name), ('module', '{}'), ('__out_vars__', __out_vars__)] + x[0])\n".\
-                                   format(combined_params, n2a(int(self.step_map[self.step.name][1])).lower(),
-                                          self.step.name, key, self.step.name)
-                self.action += "{0}['DSC_IO_'] = ({1}, {2})\n".\
-                               format(key, '[]' if self.input_vars is None else '{0} if {0} is not None else []'.\
-                                      format(self.input_vars),
-                                      f"{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output")
+                input_str = '[]' if self.input_vars is None else '{0} if {0} is not None else []'.format(self.input_vars)
+                output_str = f"{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output"
                 # FIXME: multiple output to be implemented
-                self.action += "{0}['DSC_EXT_'] = \'{1}\'\n".\
-                               format(key, flatten_list(self.step.rf.values())[0])
+                if self.step.depends:
+                    self.action += f"DSC_UPDATES_['{self.step.name}:' + str(sequence_id)] = dict([(' '.join((y, x[1])), dict([('sequence_id', sequence_id), ('sequence_name', sequence_name), ('module', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params},{output_str})] + [('DSC_IO_', ({input_str}, {output_str})), ('DSC_EXT_', '{flatten_list(self.step.rf.values())[0]}')])\n"
+                else:
+                    self.action += f"DSC_UPDATES_['{self.step.name}:' + str(sequence_id)] = dict([(y, dict([('sequence_id', sequence_id), ('sequence_name', sequence_name), ('module', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('DSC_IO_', ({input_str}, {output_str})), ('DSC_EXT_', '{flatten_list(self.step.rf.values())[0]}')])\n"
             else:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list for now
