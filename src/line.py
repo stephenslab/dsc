@@ -9,8 +9,8 @@ __license__ = "MIT"
 import re, subprocess, collections
 from io import StringIO
 import tokenize
-from .utils import is_null, str2num, cartesian_list, \
-    pairwise_list, get_slice, FormatError, do_parentheses_match
+from .utils import is_null, str2num, cartesian_list, pairwise_list, \
+    get_slice, FormatError, do_parentheses_match, find_parens
 
 class YLine:
     '''
@@ -168,14 +168,18 @@ class ExpandActions(YLine):
             }
 
     def __call__(self, value):
-        for idx, item in enumerate(value):
-            if isinstance(item, str):
-                for name in list(self.method.keys()):
-                    pattern = re.compile(r'^{}\((.*?)\)$'.format(name))
-                    for m in re.finditer(pattern, item):
-                        item = item.replace(m.group(0), self.encodeVar(self.method[name](m.group(1))), 1)
-                if item != value[idx]:
-                    value[idx] = item
+        if isinstance(value, str):
+            for name in list(self.method.keys()):
+                pos = [m.end() - 1 for m in re.finditer(f'{name}\(', value)]
+                p_end = 0
+                replacements = []
+                for p in pos:
+                    if p < p_end:
+                        raise ValueError(f"Invalid parentheses pattern in ``{value}``")
+                    p_end = find_parens(value[p:])[0]
+                    replacements.append((f'{name}{value[p:p_end+p+1]}', ','.join(self.method[name](value[p:p_end+p+1]))))
+                for r in replacements:
+                    value = value.replace(r[0], r[1], 1)
         return value
 
     def __ForEach(self, value):
@@ -385,9 +389,9 @@ class EntryFormatter:
         pass
 
     def __call__(self, data, variables):
-        actions = [Str2List(),
+        actions = [ExpandActions(),
+                   Str2List(),
                    ExpandVars(variables),
-                   ExpandActions(),
                    CastData()]
         return self.__Transform(data, actions)
 

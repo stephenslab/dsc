@@ -335,16 +335,7 @@ class DSC_Module:
                     raise FormatError(f"Return ``{key}`` in ``{in_input}`` cannot be a mixture of file() and module input")
             if key in self.rf:
                 continue
-            # now decide this new variable is a file or plugin
-            # For plugin
-            groups = DSC_LAN_OP.search(value)
-            if groups:
-                # have to set return alias inside plugin
-                if groups.group(1).lower() != str(self.plugin):
-                    raise FormatError(f'Output cannot be created with ``{groups.group(1).upper()}`` for this {self.plugin.upper()}-based routine.')
-                self.rv[key] = groups.group(2)
-                continue
-            # For raw
+            # now decide this new variable is a file or else
             groups = DSC_ASIS_OP.search(value)
             if groups:
                 self.rv[key] = groups.group(1)

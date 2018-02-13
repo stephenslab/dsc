@@ -872,6 +872,26 @@ def do_parentheses_match(input_string, l = '(', r = ')'):
         index += 1
     return balanced and len(s) == 0
 
+def find_parens(s, lenient = True):
+    '''
+    return all pairs of matching parentheses
+    '''
+    toret = {}
+    pstack = []
+    for i, c in enumerate(s):
+        if c == '(':
+            pstack.append(i)
+        elif c == ')':
+            if len(pstack) == 0:
+                if not lenient:
+                    raise IndexError("No matching closing parens at: " + str(i))
+                else:
+                    break
+            toret[pstack.pop()] = i
+    if len(pstack) > 0:
+        raise IndexError("No matching opening parens at: " + str(pstack.pop()))
+    return toret
+
 def remove_multiple_strings(cur_string, replace_list):
     for cur_word in sorted(set(replace_list), key=len):
         cur_string = cur_string.replace(cur_word, '')
