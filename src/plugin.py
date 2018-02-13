@@ -176,9 +176,6 @@ class RPlug(BasePlug):
             res += '\n' + '\n'.join(sorted(self.tempfile))
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
-        if 'seed' in keys:
-            res += '\nset.seed(${_seed})'
-            keys.remove('seed')
         res += '\n' + '\n'.join(self.container)
         if cmd_args:
             for item in cmd_args:
@@ -210,8 +207,7 @@ class RPlug(BasePlug):
         return res.strip()
 
     def set_container(self, name, value, params):
-        keys = [x.strip() for x in value.split(',')] if value else list(params.keys())
-        keys = sorted([x for x in keys if x != 'seed'])
+        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
         res = ['{} <- list()'.format(name)]
         for k in keys:
             if '=' in k:
@@ -306,9 +302,6 @@ class PyPlug(BasePlug):
             res += '\n' + '\n'.join(sorted(self.tempfile))
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
-        if 'seed' in keys:
-            res += '\nimport random, numpy\nrandom.seed(${_seed})\nnumpy.random.seed(${_seed})'
-            keys.remove('seed')
         res += '\n' + '\n'.join(self.container)
         # FIXME: will eventually allow for parameter input for plugins (at SoS level)
         if cmd_args:
@@ -340,8 +333,7 @@ class PyPlug(BasePlug):
         return res.strip()
 
     def set_container(self, name, value, params):
-        keys = [x.strip() for x in value.split(',')] if value else list(params.keys())
-        keys = sorted([x for x in keys if x != 'seed'])
+        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
         res = ['{} = {{}}'.format(name)]
         for k in keys:
             if not (isinstance(params[k][0], str) and params[k][0].startswith('$')):

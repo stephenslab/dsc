@@ -8,7 +8,7 @@ sh: expand = "${ }"
 
 [readme]
 depends: executable('pandoc')
-sh: workdir='.'
+sh: workdir = '.'
   pandoc --from=markdown --to=rst --output=README.rst README.md
 
 [pip]
@@ -19,7 +19,7 @@ cur_ver = get_output("pip show dsc | grep Version | cut -d' ' -f2").strip()
 # do not upload if the version on pip is the current one
 stop_if(cur_ver == version)
 
-sh:	workdir='.', expand = "${ }"
+sh:	workdir = '.', expand = "${ }"
 	python setup.py sdist && \
 	rm -rf /tmp/release_dsc && \
 	mkdir /tmp/release_dsc && \
@@ -27,16 +27,17 @@ sh:	workdir='.', expand = "${ }"
 	cd /tmp/release_dsc && \
 	tar zxf dsc-${version}.tar.gz && \
 	cd dsc-${version} && \
+	python setup.py sdist bdist_wheel upload && \
 	python setup.py install
 
-sh: workdir='.'
-	python setup.py sdist bdist_wheel upload && \
+[upgrade]
+sh:
   pip install --upgrade --upgrade-strategy only-if-needed --no-cache-dir --user dsc
-  
+
 [release]
 sos_run('readme+patch+pip')
 
 [default]
 sh:
-  python setup.py install
+  python setup.py install && \
   rm -rf *.egg-info build dist

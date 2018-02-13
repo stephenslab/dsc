@@ -10,7 +10,7 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 ### 0.2.5.1
 
 ### 0.2.5
-* Release compatible to SoS 0.9.12.1
+* Release compatible with SoS 0.9.12.1.
 
-### 0.2.2
-* First release
+### 0.1.0
+* First release.
