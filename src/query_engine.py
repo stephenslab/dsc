@@ -165,7 +165,7 @@ class Query_Processor:
                 if not y:
                     raise FormatError(f"Field for module ``{item}`` is empty.")
             else:
-                y = 'FILE'
+                y = '__output__'
             if item in self.groups:
                 item = self.groups[item]
             else:
@@ -205,7 +205,7 @@ class Query_Processor:
         res = []
         for pipeline in self.pipelines:
             pipeline = list(reversed(pipeline))
-            res.append('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.parent = {1}.ID".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)]))
+            res.append('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)]))
         return res
 
     def get_select_where_clause(self):
@@ -224,7 +224,7 @@ class Query_Processor:
                     continue
                 key = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
                 if item[1].lower() not in [x.lower() for x in self.data[key].keys()]:
-                    tmp1.append("{0}.FILE AS {0}_FILE_{1}".format(item[0], item[1] if not item[1].startswith('output.') else item[1][7:]))
+                    tmp1.append("{0}.__output__ AS {0}___output___{1}".format(item[0], item[1] if not item[1].startswith('output.') else item[1][7:]))
                 else:
                     tmp1.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))
             select.append("SELECT " + ', '.join(tmp1))
@@ -270,17 +270,14 @@ class Query_Processor:
         else:
             return ''
 
-    def populate_table(self, table, ordering = None, add_path = False):
-        '''Dig into RDS files generated and get values out of them when possible
-        FIXME: load from RDS has been removed for now due to poor ryp2 support
-        '''
+    def adjust_table(self, table, ordering = None, add_path = False):
         if len(table) == 0:
             return None
         table = pd.DataFrame(table)
-        rename = {x: x.replace('_FILE_', '.').replace('_FILE', '') + '.output' for x in table if "_FILE" in x}
+        rename = {x: x.replace('___output___', '.').replace('___output__', '') + '.output' for x in table if "___output__" in x}
         if ordering is None:
-            table = table[sorted([x for x in table if not "_FILE" in x]) + \
-                          sorted([x for x in table if "_FILE" in x])].rename(columns = rename)
+            table = table[sorted([x for x in table if not "___output__" in x]) + \
+                          sorted([x for x in table if "___output__" in x])].rename(columns = rename)
         else:
             table = table[sorted(table.columns, key = lambda x: find_partial_index(x, ordering))].rename(columns = rename)
         if add_path:
@@ -340,7 +337,7 @@ class Query_Processor:
         return self.data
 
     def run_queries(self, add_path = False):
-        res = [('+'.join(pipeline), self.populate_table(sqldf(query, self.data), pipeline, add_path)) \
+        res = [('+'.join(pipeline), self.adjust_table(sqldf(query, self.data), pipeline, add_path)) \
                      for pipeline, query in zip(self.pipelines, self.queries)]
         res = [x for x in res if x[1] is not None]
         if len(res) == 0:

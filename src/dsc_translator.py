@@ -96,9 +96,9 @@ class DSC_Translator:
                            'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' + \
                            '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
                            '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
-                           f'\n\t__io_db__ = OrderedDict()\n\t_output = ".sos/.dsc/{self.db}.io.mpk"\n\t' + \
+                           f'\n\t__io_db__ = OrderedDict()\n\t' + \
                            '\n\t'.join('\n'.join(conf_str).split('\n')) + \
-                           "\n\topen(_output, 'wb').write(msgpack.packb(__io_db__))\n\n" + \
+                           f"\n\topen('.sos/.dsc/{self.db}.io.mpk', 'wb').write(msgpack.packb(__io_db__))\n\n" + \
                            "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])

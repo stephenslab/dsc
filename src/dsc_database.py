@@ -177,7 +177,7 @@ class ResultDB:
                                         object_pairs_hook = OrderedDict)
         else:
             raise DBError(f"Cannot build DSC meta-data: hash table ``{self.prefix}.map.mpk`` is missing!")
-        self.meta_kws = ['ID', 'MID', 'FILE', 'PARENT', '__out_vars__']
+        self.meta_kws = ['__id__', '__module_id__', '__output__', '__parent__', '__out_vars__']
 
     def load_parameters(self):
         #
@@ -186,7 +186,7 @@ class ResultDB:
             for vv in self.data.values():
                 try:
                     # FIXME: maybe slow here
-                    res = vv['ID'][vv['MID'].index(x)]
+                    res = vv['__id__'][vv['__module_id__'].index(x)]
                     break
                 except ValueError:
                     continue
@@ -206,8 +206,6 @@ class ResultDB:
                                                 encoding = 'utf-8', object_pairs_hook = OrderedDict)
         except:
             raise DBError('Cannot load source data to build database!')
-        # FIXME: make these to DSC keywords and check DSC keywords
-        # by just loading it not redefining it here
         KWS = ['__pipeline_id__', '__pipeline_name__', '__module__', '__exec__', '__out_vars__']
         # flatten dictionary removing duplicate keys because those keys are just `__input_output__` and `__ext__`
         # All other info in counts should be unique
@@ -245,7 +243,6 @@ class ResultDB:
                     # each k reads like
                     # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
                     # avoid name conflict
-                    # FIXME: make these DSC keywords
                     #
                     if module in self.data:
                         keys1 = repr(sorted([x for x in v.keys() if not x in KWS]))
@@ -253,24 +250,24 @@ class ResultDB:
                         if keys1 != keys2:
                             raise DBError('Inconsistent keys between module '\
                                           '``{0} ({1})`` and ``{2} ({3})``.'.\
-                                          format(inst_cnts, keys1, self.data[module]['ID'], keys2))
+                                          format(inst_cnts, keys1, self.data[module]['__id__'], keys2))
                     else:
                         self.data[module] = dict()
                         for x in self.meta_kws:
                             self.data[module][x] = []
                         self.data[module]['__out_vars__'] = v['__out_vars__']
                     # ID numbers all module instances
-                    self.data[module]['ID'].append(inst_cnts)
+                    self.data[module]['__id__'].append(inst_cnts)
                     k = k.split(' ')
-                    self.data[module]['MID'].append(k[0])
-                    self.data[module]['FILE'].append(find_namemap(k[0]))
+                    self.data[module]['__module_id__'].append(k[0])
+                    self.data[module]['__output__'].append(find_namemap(k[0]))
                     if len(k) > 1:
                         # Have to fine its ID ...
                         # If I trust the order of io.meta.mpk then I just search which
-                        # module has MID == k[-1] and return its ID
-                        self.data[module]['PARENT'].append(search_dependent_index(k[-1]))
+                        # module has __module_id__ == k[-1] and return its ID
+                        self.data[module]['__parent__'].append(search_dependent_index(k[-1]))
                     else:
-                        self.data[module]['PARENT'].append(-9)
+                        self.data[module]['__parent__'].append(-9)
                     # Assign other parameters
                     for kk, vv in v.items():
                         if kk not in KWS:
@@ -281,7 +278,7 @@ class ResultDB:
     def __get_pipeline(self, module, module_id, module_idx, iteres):
         '''Input are last module name, ID, and its index (in its data frame)'''
         iteres.append((module, module_id))
-        depend_id = self.data[module]['PARENT'][module_idx]
+        depend_id = self.data[module]['__parent__'][module_idx]
         if depend_id == -9:
             return
         else:
@@ -290,7 +287,7 @@ class ResultDB:
             for k in self.data:
                 # try get some idx
                 try:
-                    idx = self.data[k]['ID'].index(depend_id)
+                    idx = self.data[k]['__id__'].index(depend_id)
                     module = k
                     break
                 except ValueError:
@@ -308,7 +305,7 @@ class ResultDB:
         pipelines = []
         # A pipeline instance can be retrieved via:
         # (module -> depend_id -> id -> module ... )_n
-        for module_idx, module_id in enumerate(self.data[module]['ID']):
+        for module_idx, module_id in enumerate(self.data[module]['__id__']):
             tmp = []
             self.__get_pipeline(module, module_id, module_idx, tmp)
             pipelines.append(tuple(reversed(tmp)))
@@ -330,7 +327,7 @@ class ResultDB:
             self.master[f'pipeline_{module}'] = self.write_master_table(module)
         output = dict()
         for module in self.data:
-            cols = ['ID', 'PARENT', 'FILE'] + [x for x in self.data[module].keys() if x not in self.meta_kws]
+            cols = ['__id__', '__parent__', '__output__'] + [x for x in self.data[module].keys() if x not in self.meta_kws]
             output[module] = self.data[module].pop('__out_vars__')
             self.data[module] = pd.DataFrame(self.data[module], columns = cols)
         self.data.update(self.master)
