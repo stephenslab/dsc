@@ -10,7 +10,7 @@ simulate: datamaker.R
     nsamp: 1000
     betahatsd: 1
     # module decoration
-    @ALIAS: args = list()
+    @ALIAS: args = List()
     @CONF: queue = midway
     # module output
     $data: data

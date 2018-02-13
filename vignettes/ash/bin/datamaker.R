@@ -18,6 +18,7 @@
 #'
 library('ashr')
 rnormmix_datamaker = function(args){
+  set.seed(args$seed)
 
   #here is the meat of the function that needs to be defined for each dsc to be done
   pi0 = runif(1,args$min_pi0,args$max_pi0) #generate the proportion of true nulls randomly
