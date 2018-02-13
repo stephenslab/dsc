@@ -7,15 +7,23 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 ## Change Log
 
-### 0.2.5.1
+### 0.2.x
+
+#### 0.2.5.1
+
 Major:
+
 * Change in `seed` behavior: from this release `seed` will no longer be a DSC2 keyword. Users are responsible to set seeds on their own.
 
 Minor:
-* Allow for both lower case or capitalized operator names `File/file, List/list, Dict/dict`.
 
-### 0.2.5
-* Release compatible with SoS 0.9.12.1.
+* Allow for both lower case and capitalized operator names `File/file, List/list, Dict/dict`.
 
-### 0.1.0
-* First release.
+#### 0.2.5
+
+* New syntax release, compatible with SoS 0.9.12.1.
+
+### 0.1.x
+
+#### 0.1.0
+* First release, compatible with SoS 0.6.4.
