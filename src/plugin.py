@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-import re
+from .syntax import DSC_FILE_OP
 
 R_SOURCE = '''
 source.file <- source
@@ -215,12 +215,12 @@ class RPlug(BasePlug):
             else:
                 j = None
             if not (isinstance(params[k][0], str) and params[k][0].startswith('$')) \
-               and not (isinstance(params[k][0], str) and re.search(r'^File\((.*?)\)$', params[k][0])):
+               and not (isinstance(params[k][0], str) and DSC_FILE_OP.search(params[k][0])):
                 res.append('%s$%s <- ${_%s}' % (name, j if j is not None else k, k))
             else:
                 res.append('%s$%s <- %s' % (name, j if j is not None else k, k))
+            self.container_vars.append((k, j))
         self.container.extend(res)
-        self.container_vars.extend(keys)
 
     @staticmethod
     def add_try(content, n_output):
@@ -334,14 +334,19 @@ class PyPlug(BasePlug):
 
     def set_container(self, name, value, params):
         keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
-        res = ['{} = {{}}'.format(name)]
+        res = [f'{name} = dict()']
         for k in keys:
-            if not (isinstance(params[k][0], str) and params[k][0].startswith('$')):
-                res.append('%s[%s] = ${_%s}' % (name, repr(str(k)), k))
+            if '=' in k:
+                j, k = (x.strip() for x in k.split('='))
             else:
-                res.append('%s[%s] = %s' % (name, repr(str(k)), k))
+                j = None
+            if not (isinstance(params[k][0], str) and params[k][0].startswith('$')) \
+               and not (isinstance(params[k][0], str) and DSC_FILE_OP.search(params[k][0])):
+                res.append('%s[%s] <- ${_%s}' % (name, repr(str(j if j is not None else k)), k))
+            else:
+                res.append('%s[%s] <- %s' % (name, repr(str(j if j is not None else k)), k))
+            self.container_vars.append((k, j))
         self.container.extend(res)
-        self.container_vars.extend(keys)
 
     @staticmethod
     def add_try(content, n_output):
