@@ -7,7 +7,7 @@ __license__ = "MIT"
 import os, sys
 import pandas as pd
 from .utils import logger
-from . import VERSION
+from .version import __version__
 
 def query(args):
     logger.info("Loading database ...")
@@ -91,7 +91,7 @@ def main():
     #
     p = MyArgParser(description = __doc__, formatter_class = ArgumentDefaultsHelpFormatter)
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
-    p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
+    p.add_argument('--version', action = 'version', version = __version__)
     p.add_argument('dsc_output', metavar = "DSC output folder", help = 'Path to DSC output.')
     p.add_argument('-o', metavar = "str", dest = 'output', required = True,
                    help = '''Output notebook / data file name.

@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import os, sys, glob, time
-from . import VERSION
+from .version import __version__
 from sos.utils import env, get_traceback
 
 class Silencer:
@@ -205,7 +205,7 @@ def main():
     #
     p = MyArgParser(description = __doc__, formatter_class = ArgumentDefaultsHelpFormatter)
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
-    p.add_argument('--version', action = 'version', version = '{}'.format(VERSION))
+    p.add_argument('--version', action = 'version', version = __version__)
     p.add_argument('dsc_file', metavar = "DSC script", help = 'DSC script to execute.')
     p.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''Benchmark output. It overwrites "DSC::output" defined in DSC file.''')

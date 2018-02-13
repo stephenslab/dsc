@@ -1,9 +1,9 @@
-*.egg-info 
-build 
-dist
 **/.sos
 **/.ipynb_checkpoints
 **/.DS_store
+**/__pycache__
+README.rst
+src/version.py.bak
 vignettes/ash/*
 vignettes/one_sample_location/*
 vignettes/one_sample_location_python/*
