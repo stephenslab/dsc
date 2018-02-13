@@ -170,7 +170,7 @@ def execute(args):
         return
     env.logger.info("DSC in progress ...")
     try:
-        with Silencer(args.verbosity if args.host else min(1, args.verbosity)):
+        with Silencer(args.verbosity if args.host else max(0, args.verbosity - 1)):
             content = {'__max_running_jobs__': args.__max_jobs__,
                        '__max_procs__': args.__max_jobs__,
                        '__sig_mode__': mode,
