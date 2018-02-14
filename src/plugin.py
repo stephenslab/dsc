@@ -88,12 +88,11 @@ class Shell(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0}=\'${{_output[0]:bn}}.{0}\''.format(lhs))
+            self.tempfile.append(f'TMP_{self.identifier}=`mktemp -d`')
+            self.tempfile.append(f'{lhs}="""$TMP_{self.identifier}/${{_output[0]:bn}}.{lhs}"""')
         else:
-            self.tempfile.append('TMP_{}=`mktemp -d`'.format(self.identifier))
-            temp_var = ['$TMP_{0}/${{_output[0]:bn}}.{1}.{2}'.\
-                        format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
-            self.tempfile.append('{}="{}"'.format(lhs, ' '.join(temp_var)))
+            temp_var = [f'${{_output[0]:n}}.{lhs}.{item.strip()}' for item in rhs.split(',')]
+            self.tempfile.append('{}="""{}"""'.format(lhs, ' '.join(temp_var)))
 
     def add_return(self, lhs, rhs):
         pass
