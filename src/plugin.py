@@ -138,11 +138,10 @@ class RPlug(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0} <- \'${{_output[0]:bn}}.{0}\''.format(lhs))
+            self.tempfile.append(f'TMP_{self.identifier} <- tempdir()')
+            self.tempfile.append(f'{lhs} <- paste0(TMP_{self.identifier}, "/", ${{_output[0]:bnr}}, ".{lhs}")')
         else:
-            self.tempfile.append('TMP_{} <- tempdir()'.format(self.identifier))
-            temp_var = ['paste0(TMP_{0}, "/${{_output[0]:bn}}.{1}.{2}")'.\
-                        format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
+            temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
 
     def get_input(self, params, input_num, lib, index, cmd_args, autoload):
@@ -264,11 +263,10 @@ class PyPlug(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append('{0} = \'${{_output[0]:bn}}.{0}\''.format(lhs))
+            self.tempfile.append(f'TMP_{self.identifier} = tempfile.gettempdir()')
+            self.tempfile.append(f'{lhs} = os.path.join(TMP_{self.identifier}, ${{_output[0]:bnr}} + ".{lhs}")')
         else:
-            self.tempfile.append('TMP_{} = tempfile.gettempdir()'.format(self.identifier))
-            temp_var = ['"{{}}/${{_output[0]:bn}}.{1}.{2}".format(TMP_{0})'.\
-                        format(self.identifier, lhs, item.strip()) for item in rhs.split(',')]
+            temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
 
     def get_input(self, params, input_num, lib, index, cmd_args, autoload):
