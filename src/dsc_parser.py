@@ -247,6 +247,8 @@ class DSC_Script:
                 os.remove(env.logfile)
         if os.path.isfile('.sos/transcript.txt'):
             os.remove('.sos/transcript.txt')
+        if args.__construct__ == 'none' and os.path.isfile('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output))):
+            os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(output)))
 
     def dump(self):
         res = dict([('Modules', self.modules),

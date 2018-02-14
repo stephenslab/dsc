@@ -49,8 +49,6 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
                             "__confirm__": True, "signature": False,
                             "verbosity": 0, "zap": False,
                             "size": None, "age": None, "dryrun": False}), [])
-    if rerun and os.path.isfile('.sos/.dsc/{}.lib-info'.format(os.path.basename(output))):
-        os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(output)))
 
 def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     '''

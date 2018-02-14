@@ -22,7 +22,7 @@ class DSC_Translator:
         # FIXME: to be replaced by the R utils package
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
-        conf_header = 'from dsc.dsc_database import remove_obsolete_output, build_config_db\n'
+        conf_header = 'from dsc.dsc_database import build_config_db\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\nfrom dsc.utils import n2a\n"\
                      f"IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"
@@ -106,9 +106,7 @@ class DSC_Translator:
                             "\n[deploy_1 (Hashing output files)]" + \
                             f"\ninput: '.sos/.dsc/{self.db}.prepare.py'\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
                             "\nrun: expand = True\n{} {{_input}}".format(sys.executable) + \
-                            "\n[deploy_2 (Removing obsolete output)]" + \
-                            f"\nremove_obsolete_output('{self.output}', rerun = {rerun})" + \
-                            " \n[deploy_3 (Configuring output filenames)]\n" \
+                            "\n[deploy_2 (Configuring output filenames)]\n" \
                             f"parameter: vanilla = {rerun}\n"\
                             f"input: '.sos/.dsc/{self.db}.io.mpk'\n"\
                             f"output: '{self.output}/{self.db}.map.mpk', "\

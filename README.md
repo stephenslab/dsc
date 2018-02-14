@@ -12,8 +12,8 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 0.2.5.2
 
 * Upstream bug fix, SoS bump to version 0.9.12.2.
-* Temp file `file()` behavior change and documentation update.
-* [minor] More unit test with bug fixes.
+* Temp file `file()` behavior change (named temp files is now more intuitive) and documentation update.
+* [minor] More unit tests and bug fixes.
 
 0.2.5.1
 
