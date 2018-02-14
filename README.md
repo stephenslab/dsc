@@ -9,21 +9,25 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 ### 0.2.x
 
-#### 0.2.5.1
+0.2.5.2
 
-Major:
+* Upstream bug fix, SoS bump to version 0.9.12.2.
+* Temp file `file()` behavior change and documentation update.
+* [minor] More unit test with bug fixes.
+
+0.2.5.1
 
 * Change in `seed` behavior: from this release `seed` will no longer be a DSC2 keyword. Users are responsible to set seeds on their own.
 
-Minor:
 
-* Allow for both lower case and capitalized operator names `File/file, List/list, Dict/dict`.
+* [minor] Allow for both lower case and capitalized operator names `File/file, List/list, Dict/dict`.
 
-#### 0.2.5
+0.2.5
 
 * New syntax release, compatible with SoS 0.9.12.1.
 
 ### 0.1.x
 
-#### 0.1.0
+0.1.0
+
 * First release, compatible with SoS 0.6.4.
