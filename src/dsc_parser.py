@@ -111,9 +111,9 @@ class DSC_Script:
             raise FormatError(f"Dot is not allowed for module / variable names, in ``{val}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
         if val.startswith('_'):
             raise FormatError(f"Names cannot start with underscore, in ``{val}``. Note that such naming convention is not acceptable to R. {tip}")
-        if ("*" in val and val != '*') or '@' in val[1:]:
+        if ("*" in val and val != '*') or '@' in val[1:] or '$' in val[1:]:
             raise FormatError(f'Invalid variable name ``{val}``')
-        if not (val == '*' or val.startswith('@')):
+        if not (val == '*' or val.startswith('@') or val.startswith('$')):
             if not val.isidentifier():
                 raise FormatError(f'Invalid variable name ``{val}``')
 
@@ -210,6 +210,8 @@ class DSC_Script:
             # parse input / output / meta
             # output has $ prefix, meta has . prefix, input has no prefix
             for module in tmp:
+                if module.startswith('$') or module.startswith('.'):
+                    raise FormatError(f'Module {module[1:]} name cannot start with ``@`` or ``$``.')
                 if module in res:
                     raise FormatError(f'Duplicate module definition {module}')
                 res[module] = dict([('input', dict()), ('output', dict()), ('meta', dict())])
