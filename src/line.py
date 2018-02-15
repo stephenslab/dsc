@@ -448,7 +448,7 @@ def parse_filter(condition, groups = {}, dotted = True):
     res = []
     cond_tables = []
     symbols = ['=', '==', '!=', '>', '<', '>=', '<=', 'in']
-    for and_list in expand_logic(' and '.join(condition)):
+    for and_list in expand_logic(' and '.join(condition) if isinstance(condition, (list, tuple)) else condition):
         tmp = []
         for value in and_list:
             if value.strip().lower().startswith('not '):
