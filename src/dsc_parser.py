@@ -25,7 +25,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, extern = None):
+    def __init__(self, content, output = None, sequence = None, extern = None, truncate = False):
         self.content = dict()
         if os.path.isfile(content):
             dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -70,7 +70,7 @@ class DSC_Script:
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
                 raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
-        self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path))
+        self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path, truncate))
                              for x in self.runtime.sequence_ordering.keys()])
         for m in self.modules.values():
             if m.plugin.name == 'R':
@@ -112,6 +112,7 @@ class DSC_Script:
             val = (groups.group(1).strip(), groups.group(2).strip())
         else:
             val = (val,)
+        val = flatten_list([[vv.strip() for vv in v.split(',') if vv.strip()] for v in val])
         for vv in val:
             if '.' in vv:
                 raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
@@ -269,7 +270,7 @@ class DSC_Script:
         if os.path.isfile('.sos/transcript.txt'):
             os.remove('.sos/transcript.txt')
         if args.__construct__ == 'none' and os.path.isfile('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output))):
-            os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(output)))
+            os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output)))
 
     def dump(self):
         res = dict([('Modules', self.modules),
@@ -283,7 +284,7 @@ class DSC_Script:
         return res
 
 class DSC_Module:
-    def __init__(self, name, content, global_options = None, script_path = None):
+    def __init__(self, name, content, global_options = None, script_path = None, lite = False):
         # module name
         self.name = name
         # params: alias, value
@@ -311,6 +312,8 @@ class DSC_Module:
         self.set_input(try_get_value(content, 'input'), try_get_value(content, ('meta', 'alias')))
         self.set_output(content['output'])
         self.apply_input_operator()
+        if lite:
+            self.chop_input()
         # parameter filter:
         self.ft = self.apply_input_filter(try_get_value(content, ('meta', 'filter')))
         self.check_shell()
@@ -495,6 +498,13 @@ class DSC_Module:
                 del self.p[k]
             else:
                 self.p[k] = values
+
+    def chop_input(self):
+        '''
+        Each of `self.p` is a list. Here we only keep the first item in that list
+        '''
+        for k in self.p:
+            self.p[k] = [self.p[k][0]]
 
     def __str__(self):
         return dict2str(self.dump())

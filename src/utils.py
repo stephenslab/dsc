@@ -905,8 +905,11 @@ def remove_multiple_strings(cur_string, replace_list):
         cur_string = cur_string.replace(cur_word, '')
     return cur_string
 
-def load_mpk(mpk_files, jobs):
+def load_mpk(mpk_files, jobs = 2):
     import msgpack
+    if isinstance(mpk_files, str):
+        return msgpack.unpackb(open(mpk_files, "rb").read(), encoding = 'utf-8',
+                                     object_pairs_hook = OrderedDict)
     d = Manager().dict()
     def f(d, x):
         for xx in x:
