@@ -263,6 +263,9 @@ def main():
     with Timer(verbose = True if (env.verbosity > 0) else False) as t:
         try:
             args.func(args)
+        except KeyboardInterrupt:
+            t.disable()
+            sys.exit('KeyboardInterrupt')
         except Exception as e:
             if args.debug:
                 raise

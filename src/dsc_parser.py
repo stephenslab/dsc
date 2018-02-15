@@ -47,7 +47,7 @@ class DSC_Script:
             if line.strip().startswith('*'):
                 line = line.replace('*', '..', 1)
             if not DSC_BLOCK_CONTENT.search(line) and not line.startswith('#'):
-                if res and exe:
+                if res:
                     self.update(res, exe)
                     res = exe = ''
                 text = line.split(':')
@@ -219,6 +219,8 @@ class DSC_Script:
             for module in tmp:
                 if module.startswith('$') or module.startswith('.'):
                     raise FormatError(f'Module {module[1:]} name cannot start with ``@`` or ``$``.')
+                if module == 'default':
+                    raise FormatError(f'Cannot use ``"default"`` for module name -- please consider another name.')
                 if module in res:
                     raise FormatError(f'Duplicate module definition {module}')
                 res[module] = dict([('input', dict()), ('output', dict()), ('meta', dict())])

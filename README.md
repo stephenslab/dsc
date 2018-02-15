@@ -9,22 +9,22 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 ### 0.2.x
 
-0.2.5.2
+0.2.6
 
-* Upstream bug fix, SoS bump to version 0.9.12.2.
-* Add `--truncate` switch
+* Add `--truncate` switch.
+* Bring back `--host` option.
+* SoS required version 0.9.12.2 for relevant upstream bug fixes.
 * [minor] More unit tests and bug fixes.
 
 0.2.5.1
 
-* Change in `seed` behavior: from this release `seed` will no longer be a DSC2 keyword. Users are responsible to set seeds on their own.
-
-
+* Change in `seed` behavior: since this release `seed` will no longer be a DSC2 keyword. Users are responsible to set seeds on their own.
 * [minor] Allow for both lower case and capitalized operator names `File/file, List/list, Dict/dict`.
 
 0.2.5
 
 * New syntax release, compatible with SoS 0.9.12.1.
+* Removed `--host` option due to upstream changes.
 
 ### 0.1.x
 
