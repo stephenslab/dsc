@@ -51,8 +51,8 @@ class DSC_Script:
                     self.update(res, exe)
                     res = exe = ''
                 text = line.split(':')
-                if len(text) != 2 or (len(text[1].strip()) == 0 and text[0].strip() != 'DSC'):
-                    raise FormatError(f'Invalid syntax ``{line}``. '\
+                if len(text) != 2 or (len(text[1].strip()) == 0 and text[0].strip() != 'DSC' and not DSC_DERIVED_BLOCK.search(text[0].strip())):
+                    raise FormatError(f'Invalid syntax ``{line.strip()}``. '\
                                       'Should be in the format of ``module names: module executables``')
                 res += f'{text[0]}:\n'
                 exe = text[1].strip()
@@ -107,15 +107,21 @@ class DSC_Script:
 
     def validate_var_name(self, val):
         tip = f"If this limitation is irrelevant to your problem, and you really cannot rename variable in your code, then at your own risk you can rename ``{val}`` to, eg, ``name`` in DSC and use ``@ALIAS: {val} = name``."
-        if '.' in val:
-            raise FormatError(f"Dot is not allowed for module / variable names, in ``{val}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
-        if val.startswith('_'):
-            raise FormatError(f"Names cannot start with underscore, in ``{val}``. Note that such naming convention is not acceptable to R. {tip}")
-        if ("*" in val and val != '*') or '@' in val[1:] or '$' in val[1:]:
-            raise FormatError(f'Invalid variable name ``{val}``')
-        if not (val == '*' or val.startswith('@') or val.startswith('$')):
-            if not val.isidentifier():
-                raise FormatError(f'Invalid variable name ``{val}``')
+        groups = DSC_DERIVED_BLOCK.search(val)
+        if groups:
+            val = (groups.group(1).strip(), groups.group(2).strip())
+        else:
+            val = (val,)
+        for vv in val:
+            if '.' in vv:
+                raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
+            if vv.startswith('_'):
+                raise FormatError(f"Names cannot start with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R. {tip}")
+            if ("*" in vv and vv != '*') or '@' in vv[1:] or '$' in vv[1:]:
+                raise FormatError(f'Invalid variable name ``{vv}``')
+            if not (vv == '*' or vv.startswith('@') or vv.startswith('$')):
+                if not vv.isidentifier():
+                    raise FormatError(f'Invalid variable name ``{vv}``')
 
     def propagate_derived_block(self):
         '''
@@ -146,7 +152,7 @@ class DSC_Script:
             if item[0] == item[1]:
                 raise FormatError(f"Looped block inheritance: {item[0]}({item[0]})!")
             if item[1] not in tmp:
-                raise FormatError(f"Base block does not exist: {item[0]}({item[1]})!")
+                raise FormatError(f"Base block ``{item[1]}`` does not exist for {item[0]}({item[1]})!")
         #
         derived_cycle = itertools.cycle(derived.values())
         while True:
