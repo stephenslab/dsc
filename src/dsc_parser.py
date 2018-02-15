@@ -607,22 +607,6 @@ class DSC_Section:
                 raise ValueError(f'Duplicated module found in DSC sequence ``{seq}``. '\
                                  'Iteratively executing modules is not yet supported.')
 
-    # def consolidate_sequences(self):
-    #     '''
-    #     FIXME: not sure if still needed
-    #     For trivial multiple sequences, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
-    #     This cannot be done with symbolic math logic so we have to do it here
-    #     '''
-    #     sequences = OrderedDict()
-    #     for sequence, idx in self.sequence:
-    #         if sequence not in sequences:
-    #             sequences[sequence] = idx
-    #         else:
-    #             for item in idx:
-    #                 if item not in sequences[sequence]:
-    #                     sequences[sequence].append(item)
-    #     self.sequence = [[k, sorted(value)] for k, value in sequences.items()]
-
     def __str__(self):
         return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence),
                                                 ('sequence ordering', list(self.sequence_ordering.keys())),
@@ -713,29 +697,6 @@ class DSC_Pipeline:
             raise FormatError(f'Cannot find output variable for ``${variable}`` in any of its upstream modules.'\
                               f' This variable is required by module ``{module_name}``.')
         return curr_idx, dependent
-
-    # def consolidate_pipelines(self):
-    #     '''
-          # FIXME: is there a need for it now?
-    #     For trivial multiple pipelines, eg, "step1 * step2[1], step1 * step[2]", should be consolidated to one
-    #     This cannot be done with symbolic math logic so we have to do it here
-
-    #     First we compare each pipeline (a list of OrderedDict) and get rid of duplicate
-    #     Second ... is there a second?
-    #     '''
-    #     import hashlib
-    #     import pickle
-    #     def get_md5(data):
-    #         return hashlib.md5(pickle.dumps(data)).hexdigest()
-    #     pipelines = []
-    #     ids = []
-    #     for pipeline in self.pipelines:
-    #         md5 = get_md5(pipeline)
-    #         if md5 not in ids:
-    #             ids.append(md5)
-    #             pipelines.append(pipeline)
-    #     self.pipelines = pipelines
-
 
     def __str__(self):
         res = ''
