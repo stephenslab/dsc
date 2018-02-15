@@ -344,6 +344,14 @@ def find_nested_key(key, dictionary):
                 for result in find_nested_key(key, d):
                     yield [k] + result
 
+def get_nested_keys(dictionary):
+    for k, v in dictionary.items():
+        if not isinstance(v, collections.Mapping):
+            yield [k]
+        else:
+            for result in get_nested_keys(v):
+                yield [k] + result
+
 def dict2str(value):
     res = yaml.dump(strip_dict(value, into_list = True))
     # pattern = re.compile(r'!!python/(.*?)\s')

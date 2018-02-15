@@ -41,6 +41,7 @@ class DSC_Script:
             script_path = None
         res = exe = ''
         for line in content:
+            self.validate_var_name(line.split(':')[0].strip())
             if line.strip().startswith('@'):
                 line = line.replace('@', '.', 1)
             if line.strip().startswith('*'):
@@ -103,6 +104,18 @@ class DSC_Script:
                 for k in keys:
                     set_nested_value(self.content[block], k, gvars[v])
         # FIXME: have to decide if we need to set global options, or not?
+
+    def validate_var_name(self, val):
+        tip = f"If this limitation is irrelevant to your problem, and you really cannot rename variable in your code, then at your own risk you can rename ``{val}`` to, eg, ``name`` in DSC and use ``@ALIAS: {val} = name``."
+        if '.' in val:
+            raise FormatError(f"Dot is not allowed for module / variable names, in ``{val}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
+        if val.startswith('_'):
+            raise FormatError(f"Names cannot start with underscore, in ``{val}``. Note that such naming convention is not acceptable to R. {tip}")
+        if ("*" in val and val != '*') or '@' in val[1:]:
+            raise FormatError(f'Invalid variable name ``{val}``')
+        if not (val == '*' or val.startswith('@')):
+            if not val.isidentifier():
+                raise FormatError(f'Invalid variable name ``{val}``')
 
     def propagate_derived_block(self):
         '''
