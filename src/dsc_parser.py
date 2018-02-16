@@ -18,7 +18,7 @@ from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter, parse_filter
 from .plugin import Plugin
-__all__ = ['DSC_Script', 'DSC_Pipeline']
+__all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
 
 class DSC_Script:
@@ -244,7 +244,7 @@ class DSC_Script:
         res['DSC'] = self.content['DSC']
         self.content = res
 
-    def get_sos_options(self, name, content, host):
+    def get_sos_options(self, name, content):
         out = dotdict()
         out.verbosity = env.verbosity
         out.__wait__ = True
@@ -274,7 +274,7 @@ class DSC_Script:
         conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
         if not os.path.isfile(conf):
             with open(conf, 'w') as f:
-                f.write('hosts:\n\tlocalhost: localhost\n\thosts: {}')
+                f.write('hosts:\n  localhost: localhost\n  hosts: {}')
         env.sos_dict['CONFIG'] = load_config_files(conf)
 
     def dump(self):
@@ -730,15 +730,15 @@ def remote_config_parser(host):
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
-    default = dict([('time_per_task', '5m'), ('task_per_job', '2'), ('cores', '1'), ('mem', '2G')])
+    default = dict([('time_per_task', '5m'), ('tasks_per_job', 2), ('cores', 1), ('mem', '2G'), ('trunk_workers', 1)])
     if 'default' in conf:
-        default.update(conf.pop('default'))
+        default.update(conf['default'])
     for key in conf:
         if key == 'DSC':
             continue
         tmp = copy.deepcopy(default)
         tmp.update(conf[key])
         tmp['walltime'] = tmp.pop('time_per_task')
-        tmp['trunk_size'] = tmp.pop('task_per_job')
+        tmp['trunk_size'] = tmp.pop('tasks_per_job')
         conf[key] = tmp
     return conf

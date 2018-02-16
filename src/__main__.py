@@ -104,6 +104,7 @@ def execute(args):
     #
     conf = None
     if args.host:
+        from .dsc_parser import remote_config_parser
         conf = remote_config_parser(args.host)
         args.host = os.path.basename(os.path.splitext(args.host)[0])
         env.sos_dict['CONFIG']['hosts'][args.host] = conf.pop('DSC')
@@ -149,6 +150,7 @@ def execute(args):
                    '__max_procs__': args.__max_jobs__,
                    '__sig_mode__': mode,
                    '__bin_dirs__': exec_path,
+                   '__remote__': None,
                    'script': script_prepare,
                    'workflow': "deploy"}
         cmd_run(script.get_sos_options(db + '.prepare', content), [])

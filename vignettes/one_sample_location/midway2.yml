@@ -11,25 +11,25 @@ DSC:
   max_mem: 64G
   job_template: |
     #!/bin/bash
-    #SBATCH --time=${walltime}
+    #SBATCH --time={walltime}
     #SBATCH --partition=broadwl
     #SBATCH --nodes=1
-    #SBATCH --ntasks-per-node=${cores}
-    #SBATCH --mem-per-cpu=${mem_per_cpu}
-    #SBATCH --job-name=${job_name}
-    #SBATCH --output=${cur_dir}/.sos/${job_name}.out
-    #SBATCH --error=${cur_dir}/.sos/${job_name}.err
-    cd ${cur_dir}
+    #SBATCH --ntasks-per-node={cores}
+    #SBATCH --mem-per-cpu={mem_per_cpu}
+    #SBATCH --job-name={job_name}
+    #SBATCH --output={cur_dir}/.sos/{job_name}.out
+    #SBATCH --error={cur_dir}/.sos/{job_name}.err
+    cd {cur_dir}
     mkdir -p .sos
-    sos execute ${task} -v ${verbosity} -s ${sig_mode} ${'--dryrun' if run_mode == 'dryrun' else ''}
+    sos execute {task} -v {verbosity} -s {sig_mode} {'--dryrun' if run_mode == 'dryrun' else ''}
   walltime: "06:00:00"
   cores: 20
   mem: 1G
   mem_per_cpu: 1000
-  submit_cmd: sbatch ${job_file}
+  submit_cmd: sbatch {job_file}
   submit_cmd_output: "Submitted batch job {job_id}"
-  status_cmd: squeue --job ${job_id}
-  kill_cmd: scancel ${job_id}
+  status_cmd: squeue --job {job_id}
+  kill_cmd: scancel {job_id}
 
 default:
   time_per_task: 10m

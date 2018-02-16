@@ -297,7 +297,7 @@ class DSC_Translator:
 
         def get_step_option(self):
             if not self.prepare and self.conf is not None:
-                self.step_option += f"task: workdir = './', {', '.join([k + ' = ' + v for k, v in self.conf[self.step.name].items()])}, concurrent = True\n"
+                self.step_option += f"task: workdir = './', {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, concurrent = True\n"
 
         def get_action(self):
             if self.prepare:
