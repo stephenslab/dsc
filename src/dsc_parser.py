@@ -10,7 +10,7 @@ This file defines methods to load and preprocess DSC scripts
 import os, re, itertools, copy, subprocess
 import collections
 from xxhash import xxh32 as xxh
-from sos.utils import env
+from sos.utils import env, load_config_files
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
@@ -244,28 +244,18 @@ class DSC_Script:
         res['DSC'] = self.content['DSC']
         self.content = res
 
-    def get_sos_options(self, name, content):
-        # FIXME: should use wait when local host
+    def get_sos_options(self, name, content, host):
         out = dotdict()
         out.verbosity = env.verbosity
         out.__wait__ = True
         out.__no_wait__ = False
         out.__targets__ = []
-        # FIXME: add more options here
         out.__queue__ = 'localhost'
-        # FIXME: when remote is used should make it `no_wait`
-        # Yet to observe the behavior there
-        out.__remote__ = None
         out.dryrun = False
-        # FIXME
-        out.__dag__ = '.sos/.dsc/{}.dot'.format(name)
+        out.__dag__ = f'.sos/.dsc/{name}.dot'
         # FIXME: port the entire resume related features
         out.__resume__ = False
-        # FIXME: use config info
-        out.__config__ = '.sos/.dsc/{}.conf.yml'.format(name)
-        if not os.path.isfile(out.__config__):
-            with open(out.__config__, 'w') as f:
-                f.write('name: dsc')
+        out.__config__ = f'.sos/.dsc/{name}.conf.yml'
         out.update(content)
         return out
 
@@ -281,6 +271,11 @@ class DSC_Script:
             os.remove('.sos/transcript.txt')
         if args.__construct__ == 'none' and os.path.isfile('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output))):
             os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output)))
+        conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
+        if not os.path.isfile(conf):
+            with open(conf, 'w') as f:
+                f.write('hosts:\n\tlocalhost: localhost\n\thosts: {}')
+        env.sos_dict['CONFIG'] = load_config_files(conf)
 
     def dump(self):
         res = dict([('Modules', self.modules),
@@ -724,3 +719,26 @@ class DSC_Pipeline:
             res += f'# Pipeline {idx + 1}\n'
             res += f'## Modules\n' + '\n'.join(['### {x}\n```yaml\n{y}\n```\n' for x, y in modules.items()])
         return res
+
+
+def remote_config_parser(host):
+    conf = None
+    for h in [host, f'{host}.yml', f'{host}.yaml']:
+        if os.path.isfile(h):
+            conf = yaml.load(open(h).read())
+    if conf is None:
+        raise FormatError(f'Cannot find host configuration file ``{host}``.')
+    if 'DSC' not in conf:
+        raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
+    default = dict([('time_per_task', '5m'), ('task_per_job', '2'), ('cores', '1'), ('mem', '2G')])
+    if 'default' in conf:
+        default.update(conf.pop('default'))
+    for key in conf:
+        if key == 'DSC':
+            continue
+        tmp = copy.deepcopy(default)
+        tmp.update(conf[key])
+        tmp['walltime'] = tmp.pop('time_per_task')
+        tmp['trunk_size'] = tmp.pop('task_per_job')
+        conf[key] = tmp
+    return conf

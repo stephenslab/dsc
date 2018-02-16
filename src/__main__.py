@@ -70,7 +70,7 @@ def remove(workflows, groups, modules, db, debug, replace = False, purge = False
         #
         data = pickle.load(open(filename, 'rb'))
         to_remove.extend(flatten_list([[glob.glob(os.path.join(db, '{}.*'.format(x)))
-                                        for x in data[item]['FILE']]
+                                        for x in data[item]['__output__']]
                                        for item in remove_modules if item in data]))
     if len(to_remove) and not \
        (replace and all([True if x.endswith('.zapped') and not x.endswith('.zapped.zapped') else False
@@ -101,11 +101,18 @@ def execute(args):
     script.init_dsc(args, env)
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines
+    #
+    conf = None
+    if args.host:
+        conf = remote_config_parser(args.host)
+        args.host = os.path.basename(os.path.splitext(args.host)[0])
+        env.sos_dict['CONFIG']['hosts'][args.host] = conf.pop('DSC')
+    #
     if args.debug:
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
     # FIXME: make sure try_catch works, or justify that it is not necessary to have.
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none",
-                              args.__max_jobs__, args.try_catch)
+                              args.__max_jobs__, args.try_catch, conf)
     # Apply clean-up
     if args.to_remove:
         remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
@@ -171,6 +178,7 @@ def execute(args):
                        '__max_procs__': args.__max_jobs__,
                        '__sig_mode__': mode,
                        '__bin_dirs__': exec_path,
+                       '__remote__': args.host,
                        'script': script_run,
                        'workflow': "DSC"}
             cmd_run(script.get_sos_options(db + '.run', content), [])

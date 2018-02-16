@@ -18,7 +18,7 @@ class DSC_Translator:
       * Each DSC module's name translates to SoS step name
       * Pipelines are executed via nested SoS workflows
     '''
-    def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False):
+    def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False, host_conf = None):
         # FIXME: to be replaced by the R utils package
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
@@ -47,7 +47,7 @@ class DSC_Translator:
                     self.step_map[workflow_id + 1][step.name] = name
                     # Has the core been processed?
                     if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
-                        job_translator = self.Step_Translator(step, self.db, None, try_catch)
+                        job_translator = self.Step_Translator(step, self.db, None, try_catch, host_conf)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
                         exe_signatures[step.name] = job_translator.exe_signature
@@ -176,7 +176,7 @@ class DSC_Translator:
             f.write('\n'.join(installed_libs + new_libs))
 
     class Step_Translator:
-        def __init__(self, step, db, step_map, try_catch):
+        def __init__(self, step, db, step_map, try_catch, host_conf = None):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -196,6 +196,7 @@ class DSC_Translator:
             self.step = step
             self.current_depends = uniq_list([x[0] for x in step.depends]) if step.depends else []
             self.db = db
+            self.conf = host_conf
             self.input_vars = None
             self.header = ''
             self.loop_string = ['', '']
@@ -271,7 +272,8 @@ class DSC_Translator:
                                                         self.filter_string))
                     else:
                         self.input_option.append(f'for_each = {repr(self.params)}')
-                self.input_option.append('concurrent = True')
+                if self.conf is None:
+                    self.input_option.append('concurrent = True')
 
         def get_output(self):
             if self.prepare:
@@ -294,9 +296,8 @@ class DSC_Translator:
                 self.output_string += f"output: {self.step.name}_output_files, group_by = {output_group_by}"
 
         def get_step_option(self):
-            # FIXME: will have to implement remote host execution
-            if not self.prepare and False:
-                self.step_option += "task:\n"
+            if not self.prepare and self.conf is not None:
+                self.step_option += f"task: workdir = './', {', '.join([k + ' = ' + v for k, v in self.conf[self.step.name].items()])}, concurrent = True\n"
 
         def get_action(self):
             if self.prepare:
