@@ -114,8 +114,15 @@ class DSC_Translator:
                             "\nbuild_config_db(str(_input[0]), str(_output[0]), "\
                             f"str(_output[1]), vanilla = vanilla, jobs = {n_cpu})"
         #
-        self.install_libs(runtime.rlib, "R_library")
-        self.install_libs(runtime.pymodule, "Python_Module")
+        self.lib_depends = []
+        if host_conf is None:
+            # run on local computer
+            # have to check and ensure local library work
+            self.install_libs(runtime.rlib, "R_library")
+            self.install_libs(runtime.pymodule, "Python_Module")
+        else:
+            self.lib_depends.extend([f'R_library("{l}")' for l in runtime.rlib])
+            self.lib_depends.extend([f'Py_Module("{l}")' for l in runtime.pymodule])
 
     def write_pipeline(self, pipeline_id, dest = None):
         import tempfile
@@ -143,7 +150,9 @@ class DSC_Translator:
                 included_steps.append(x)
         #
         self.last_steps = [x for x in self.last_steps if x in included_steps]
-        self.job_str += "\n[DSC]\ndepends: {}\noutput: {}".\
+        if len(self.lib_depends):
+            self.job_str += f"\n[DSC_0]\ndepends: {', '.join(self.lib_depends)}"
+        self.job_str += "\n[DSC_1]\ndepends: {}\noutput: {}".\
                         format(', '.join([f"sos_step('{n2a(x[1]).lower()}_{x[0]}')" for x in self.last_steps]),
                                ', '.join([f"IO_DB['{x[1]}']['{x[0]}']['output']" for x in self.last_steps]))
 
