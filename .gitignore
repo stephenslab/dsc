@@ -11,6 +11,7 @@ vignettes/one_sample_location_winsor/*
 !vignettes/ash/bin
 !vignettes/ash/settings*
 !vignettes/one_sample_location/settings*
+!vignettes/one_sample_location/*.yml
 !vignettes/one_sample_location/R
 !vignettes/one_sample_location_python/settings*
 !vignettes/one_sample_location_python/PY
