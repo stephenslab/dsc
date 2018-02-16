@@ -97,7 +97,7 @@ def execute(args):
     from .dsc_parser import DSC_Script, DSC_Pipeline
     from .dsc_translator import DSC_Translator
     from .dsc_database import ResultDB
-    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, extern = args.host, truncate = args.truncate)
+    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, truncate = args.truncate)
     script.init_dsc(args, env)
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines

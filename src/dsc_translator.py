@@ -294,7 +294,8 @@ class DSC_Translator:
                 self.output_string += f"output: {self.step.name}_output_files, group_by = {output_group_by}"
 
         def get_step_option(self):
-            if not self.prepare and self.step.is_extern:
+            # FIXME: will have to implement remote host execution
+            if not self.prepare and False:
                 self.step_option += "task:\n"
 
         def get_action(self):

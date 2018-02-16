@@ -11,7 +11,7 @@ import os, re, itertools, copy, subprocess
 import collections
 from xxhash import xxh32 as xxh
 from sos.utils import env
-from .utils import FormatError, strip_dict, find_nested_key, merge_lists, flatten_list, uniq_list, \
+from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
 from .addict import Dict as dotdict
@@ -25,7 +25,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, extern = None, truncate = False):
+    def __init__(self, content, output = None, sequence = None, truncate = False):
         self.content = dict()
         if os.path.isfile(content):
             dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -41,12 +41,14 @@ class DSC_Script:
             script_path = None
         res = exe = ''
         for line in content:
-            self.validate_var_name(line.split(':')[0].strip())
-            if line.strip().startswith('@'):
-                line = line.replace('@', '.', 1)
-            if line.strip().startswith('*'):
-                line = line.replace('*', '..', 1)
-            if not DSC_BLOCK_CONTENT.search(line) and not line.startswith('#'):
+            if line.strip().startswith('#'):
+                continue
+            # FIXME: maybe this is good enough to identify a line of decorator keys ...
+            if line.strip().startswith('@') and ':' in line:
+                line = line.replace('@', '^', 1)
+            if line.strip().startswith('*') and ':' in line:
+                line = line.replace('*', '?', 1)
+            if not DSC_BLOCK_CONTENT.search(line):
                 if res:
                     self.update(res, exe)
                     res = exe = ''
@@ -64,7 +66,7 @@ class DSC_Script:
         self.set_global_vars(global_vars)
         self.content = EntryFormatter()(self.content, global_vars)
         self.extract_modules()
-        self.runtime = DSC_Section(self.content['DSC'], sequence, output, extern)
+        self.runtime = DSC_Section(self.content['DSC'], sequence, output)
         if self.runtime.output is None:
             self.runtime.output = dsc_name
         for k in self.runtime.sequence_ordering:
@@ -87,12 +89,14 @@ class DSC_Script:
                 raise FormatError(f"Duplicate keys found in\n``{''.join(text)}``")
             else:
                 raise FormatError(e)
+        for idx, k in enumerate(flatten_list(get_nested_keys(block))):
+            self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
         block[name] = block.pop(list(block.keys())[0])
         if block[name] is None:
             block[name] = dict()
         if exe:
-            block[name]['.EXEC'] = exe
+            block[name]['^EXEC'] = exe
         self.content.update(block)
 
     def set_global_vars(self, gvars):
@@ -105,7 +109,7 @@ class DSC_Script:
                     set_nested_value(self.content[block], k, gvars[v])
         # FIXME: have to decide if we need to set global options, or not?
 
-    def validate_var_name(self, val):
+    def validate_var_name(self, val, is_parameter):
         tip = f"If this limitation is irrelevant to your problem, and you really cannot rename variable in your code, then at your own risk you can rename ``{val}`` to, eg, ``name`` in DSC and use ``@ALIAS: {val} = name``."
         groups = DSC_DERIVED_BLOCK.search(val)
         if groups:
@@ -114,15 +118,21 @@ class DSC_Script:
             val = (val,)
         val = flatten_list([[vv.strip() for vv in v.split(',') if vv.strip()] for v in val])
         for vv in val:
-            if '.' in vv:
-                raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
+            if is_parameter == 0 and (not vv.isidentifier() or vv.startswith('_')):
+                raise FormatError(f'Invalid module name ``{vv.replace("^", "?")}``')
+            if is_parameter == 0:
+                continue
             if vv.startswith('_'):
                 raise FormatError(f"Names cannot start with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R. {tip}")
-            if ("*" in vv and vv != '*') or '@' in vv[1:] or '$' in vv[1:]:
+            if '.' in vv:
+                raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
+            if '$' in vv[1:] or vv == '$':
+                raise FormatError(f"``$`` is not allowed in module / variable names, in ``{vv}``.")
+            if '^' in vv[1:]:
                 raise FormatError(f'Invalid variable name ``{vv}``')
-            if not (vv == '*' or vv.startswith('@') or vv.startswith('$')):
+            if not (vv == '?' or vv.startswith('^') or vv.startswith('$')):
                 if not vv.isidentifier():
-                    raise FormatError(f'Invalid variable name ``{vv}``')
+                    raise FormatError(f'Invalid variable name ``{vv.replace("^", "?")}``')
 
     def propagate_derived_block(self):
         '''
@@ -182,31 +192,31 @@ class DSC_Script:
                 continue
             # expand module executables
             modules = block.split(',')
-            if len(modules) != len(self.content[block]['.EXEC']) and len(self.content[block]['.EXEC']) > 1:
-                raise FormatError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['.EXEC'])}`` executables ``{self.content[block]['.EXEC']}``. " \
+            if len(modules) != len(self.content[block]['^EXEC']) and len(self.content[block]['^EXEC']) > 1:
+                raise FormatError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['^EXEC'])}`` executables ``{self.content[block]['^EXEC']}``. " \
                                  "Please ensure modules and executables match.")
-            if len(modules) > 1 and len(self.content[block]['.EXEC']) == 1:
-                self.content[block]['.EXEC'] = self.content[block]['.EXEC'] * len(modules)
+            if len(modules) > 1 and len(self.content[block]['^EXEC']) == 1:
+                self.content[block]['^EXEC'] = self.content[block]['^EXEC'] * len(modules)
             # collection module specific parameters
             tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
             for key in self.content[block]:
-                if key.startswith('.') and key not in DSC_MODP:
+                if key.startswith('^') and key not in DSC_MODP:
                     # then possibly it is executables
                     # we'll update executable specific information
                     for m in key[1:].split(','):
                         if m.strip() not in modules:
-                            raise FormatError(f'Undefined decoration ``@{m.strip()}``.')
+                            raise FormatError(f'Undefined decoration ``@{m.strip()}/^{m.strip()}``.')
                         else:
                             for kk, ii in self.content[block][key].items():
                                 if isinstance(ii, collections.Mapping):
-                                    if not kk.startswith('.'):
+                                    if not kk.startswith('^'):
                                         raise FormatError(f'Invalid decoration ``{kk}``. Decorations must start with ``@`` symbol.')
                                     if kk not in DSC_MODP:
-                                        raise FormatError(f'Undefined decoration ``@{kk[1:]}``.')
+                                        raise FormatError(f'Undefined decoration ``@{kk[1:]}/^{kk[1:]}``.')
                                     else:
                                         continue
                             tmp[m.strip()]['local'].update(self.content[block][key])
-                elif key == '.EXEC':
+                elif key == '^EXEC':
                     for idx, module in enumerate(modules):
                         tmp[module]['global'][key] = self.content[block][key][idx]
                 elif key not in DSC_MODP and isinstance(self.content[block][key], collections.Mapping):
@@ -217,8 +227,7 @@ class DSC_Script:
             # parse input / output / meta
             # output has $ prefix, meta has . prefix, input has no prefix
             for module in tmp:
-                if module.startswith('$') or module.startswith('.'):
-                    raise FormatError(f'Module {module[1:]} name cannot start with ``@`` or ``$``.')
+                # FIXME: also default_1 etc
                 if module == 'default':
                     raise FormatError(f'Cannot use ``"default"`` for module name -- please consider another name.')
                 if module in res:
@@ -228,7 +237,7 @@ class DSC_Script:
                     for key in tmp[module][item]:
                         if key.startswith('$'):
                             res[module]['output'][key[1:]] = tmp[module][item][key]
-                        elif key.startswith('.'):
+                        elif key.startswith('^'):
                             res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
                         else:
                             res[module]['input'][key] = tmp[module][item][key]
@@ -239,7 +248,6 @@ class DSC_Script:
         # FIXME: should use wait when local host
         out = dotdict()
         out.verbosity = env.verbosity
-        # no-wait when extern task
         out.__wait__ = True
         out.__no_wait__ = False
         out.__targets__ = []
@@ -301,7 +309,6 @@ class DSC_Module:
         self.plugin = None
         # runtime variables
         self.workdir = None
-        self.is_extern = None
         self.libpath = None
         self.path = None
         # dependencies
@@ -384,12 +391,9 @@ class DSC_Module:
         libpath2 = try_get_value(spec_option, 'lib_path')
         path1 = try_get_value(common_option, 'exec_path')
         path2 = try_get_value(spec_option, 'exec_path')
-        extern1 = try_get_value(common_option, 'submit')
-        extern2 = try_get_value(spec_option, 'submit')
         self.workdir = workdir2 if workdir2 is not None else workdir1
         self.libpath = libpath2 if libpath2 is not None else libpath1
         self.path = path2 if path2 is not None else path1
-        self.is_extern = extern2 if extern2 is not None else extern1
 
     def set_input(self, params, alias):
         if params is not None:
@@ -397,7 +401,7 @@ class DSC_Module:
         if isinstance(alias, collections.Mapping):
             valid = False
             for module in alias:
-                if module == self.name or module == '..':
+                if module == self.name or module == '?':
                     alias = alias[module]
                     valid = True
                     break
@@ -441,7 +445,7 @@ class DSC_Module:
         if isinstance(ft, collections.Mapping):
             valid = False
             for module in ft:
-                if module == self.name or module == '..':
+                if module == self.name or module == '?':
                     ft = ft[module]
                     valid = True
                     break
@@ -525,7 +529,7 @@ class DSC_Module:
 
 
 class DSC_Section:
-    def __init__(self, content, sequence, output, extern):
+    def __init__(self, content, sequence, output):
         self.content = content
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
@@ -550,10 +554,6 @@ class DSC_Section:
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
         self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
         self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
-        if extern:
-            self.options['submit'] = True
-        else:
-            self.options['submit'] = self.content['submit'] if 'submit' in self.content else None
         self.rlib = self.content['R_libs'] if 'R_libs' in self.content else []
         self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else []
 
