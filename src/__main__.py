@@ -102,13 +102,17 @@ def execute(args):
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines
     #
+    import platform
+    exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
+                 for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
+    exec_path = [x for x in exec_path if os.path.isdir(x)]
     conf = None
     if args.host:
         from .dsc_parser import remote_config_parser
         from .utils import yaml
-        conf = remote_config_parser(args.host)
-        args.host = os.path.basename(os.path.splitext(args.host)[0])
-        yaml.dump({'localhost':'localhost', 'hosts':{args.host: conf.pop('DSC')}}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
+        conf = remote_config_parser(args.host, exec_path)
+        args.host = conf['default']['queue']
+        yaml.dump({'localhost':'localhost', 'hosts': conf.pop('DSC')}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     #
     if args.debug:
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
@@ -141,10 +145,6 @@ def execute(args):
         mode = "force"
     if args.__recover__:
         mode = "build"
-    import platform
-    exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
-                 for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
-    exec_path = [x for x in exec_path if os.path.isdir(x)]
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         content = {'__max_running_jobs__': args.__max_jobs__,

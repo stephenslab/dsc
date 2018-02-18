@@ -1,0 +1,51 @@
+DSC:
+  midway2:
+    description: UChicago RCC cluster Midway 2
+    address: gaow@midway2.rcc.uchicago.edu
+    paths:
+      home: /home/gaow
+    queue_type: pbs
+    wait_for_tasks: false
+    status_check_interval: 120
+    max_running_jobs: 30
+    max_cores: 40
+    max_walltime: "36:00:00"
+    max_mem: 64G
+    job_template: |
+      #!/bin/bash
+      #SBATCH --time={walltime}
+      #SBATCH --partition={partition}
+      #SBATCH --account={account}
+      #SBATCH --nodes=1
+      #SBATCH --ntasks-per-node={cores}
+      #SBATCH --mem-per-cpu={mem//1e9}GB
+      #SBATCH --job-name={job_name}
+      #SBATCH --output={cur_dir}/.sos/{job_name}.out
+      #SBATCH --error={cur_dir}/.sos/{job_name}.err
+      cd {cur_dir}
+      mkdir -p .sos
+      sos execute {task} -v {verbosity} -s {sig_mode}
+    partition: broadwl
+    account: gaow
+    submit_cmd: sbatch {job_file}
+    submit_cmd_output: "Submitted batch job {job_id}"
+    status_cmd: squeue --job {job_id}
+    kill_cmd: scancel {job_id}
+  stephenslab:
+    based_on: hosts.midway2
+    max_cores: 28
+    max_mem: 128G
+    max_walltime: "10d"
+    partition: mstephens
+    account: pi-mstephens
+
+default:
+  queue: midway2
+  time_per_task: 10m
+  tasks_per_job: 2
+  n_cpu: 1
+  mem_per_cpu: 2G
+  workdir: "./"
+
+simulate:
+  tasks_per_job: 20

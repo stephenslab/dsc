@@ -719,7 +719,7 @@ class DSC_Pipeline:
         return res
 
 
-def remote_config_parser(host):
+def remote_config_parser(host, paths = []):
     conf = None
     for h in [host, f'{host}.yml', f'{host}.yaml']:
         if os.path.isfile(h):
@@ -728,9 +728,14 @@ def remote_config_parser(host):
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
-    default = dict([('time_per_task', '5m'), ('tasks_per_job', 2), ('cores', 1), ('mem', '2G'), ('trunk_workers', 1)])
+    default = dict([('time_per_task', '5m'), ('tasks_per_job', 2), ('n_cpu', 1), ('mem_per_cpu', '2G'), ('trunk_workers', 1), ('queue', list(conf['DSC'].keys())[0])])
+    if len(paths):
+        default['prepand_path'] = os.sep.join(paths)
     if 'default' in conf:
         default.update(conf['default'])
+    conf['default'] = default
+    if conf['default']['queue'] not in conf['DSC']:
+        raise FormatError(f"Cannot find configuration for queue ``{conf['default']['queue']}`` in ``DSC`` section of file ``{host}``.")
     for key in conf:
         if key == 'DSC':
             continue
@@ -738,5 +743,7 @@ def remote_config_parser(host):
         tmp.update(conf[key])
         tmp['walltime'] = tmp.pop('time_per_task')
         tmp['trunk_size'] = tmp.pop('tasks_per_job')
+        tmp['mem'] = tmp.pop('mem_per_cpu')
+        tmp['cores'] = tmp.pop('n_cpu')
         conf[key] = tmp
     return conf
