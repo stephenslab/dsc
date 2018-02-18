@@ -272,10 +272,8 @@ class DSC_Script:
         if args.__construct__ == 'none' and os.path.isfile('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output))):
             os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output)))
         conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
-        if not os.path.isfile(conf):
-            with open(conf, 'w') as f:
-                f.write('hosts:\n  localhost: localhost\n  hosts: {}')
-        env.sos_dict['CONFIG'] = load_config_files(conf)
+        with open(conf, 'w') as f:
+            f.write('hosts:\n  localhost: localhost\n  hosts: {}')
 
     def dump(self):
         res = dict([('Modules', self.modules),

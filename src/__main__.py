@@ -105,9 +105,10 @@ def execute(args):
     conf = None
     if args.host:
         from .dsc_parser import remote_config_parser
+        from .utils import yaml
         conf = remote_config_parser(args.host)
         args.host = os.path.basename(os.path.splitext(args.host)[0])
-        env.sos_dict['CONFIG']['hosts'][args.host] = conf.pop('DSC')
+        yaml.dump({'localhost':'localhost', 'hosts':{args.host: conf.pop('DSC')}}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     #
     if args.debug:
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
