@@ -124,21 +124,20 @@ class DSC_Translator:
             self.lib_depends.extend([f'R_library("{l}")' for l in runtime.rlib])
             self.lib_depends.extend([f'Py_Module("{l}")' for l in runtime.pymodule])
 
-    def write_pipeline(self, pipeline_id, dest = None):
-        import tempfile
-        res = []
+    def write_pipeline(self, pipeline_id):
         if pipeline_id == 1:
-            res.append(self.conf_str_sos)
+            res = self.conf_str_sos
             with open(f'.sos/.dsc/{self.db}.prepare.py', 'w') as f:
                 f.write(self.conf_str_py)
             open(f'.sos/.dsc/{self.db}.io.meta.mpk', 'wb').write(msgpack.packb(self.step_map))
+        elif pipeline_id == 2:
+            res = self.job_str
         else:
-            res.append(self.job_str)
-        output = dest if dest is not None else (tempfile.NamedTemporaryFile().name + '.sos')
-        for item in glob.glob(os.path.join(os.path.dirname(output), "*.sos")):
-            os.remove(item)
+            res = '\n'.join(['[default]', 'depends: executable("rsync"), executable("scp"), executable("ssh")',
+                             f'task: to_host = [".sos/.dsc/{self.db}.conf.yml", {repr(self.db)}], queue = "localhost"', 'run:\n sos status'])
+        output = os.path.join(os.path.abspath('.sos'), f'{xxh(res).hexdigest()}.sos')
         with open(output, 'w') as f:
-            f.write('\n'.join(res))
+            f.write(res)
         return output
 
     def filter_execution(self):
@@ -306,7 +305,7 @@ class DSC_Translator:
 
         def get_step_option(self):
             if not self.prepare and self.conf is not None:
-                self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items() if k != 'queue'])}, tags = f'{{_output:bn}}', concurrent = True\n"
+                self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{{_output:bn}}', concurrent = True\n"
 
         def get_action(self):
             if self.prepare:

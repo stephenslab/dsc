@@ -257,6 +257,14 @@ class DSC_Script:
         out.__resume__ = False
         out.__config__ = f'.sos/.dsc/{name}.conf.yml'
         out.update(content)
+        if '__max_running_jobs__' not in content:
+            out.__max_running_jobs__ = 1
+        if '__max_procs__' not in content:
+            out.__max_procs__ = 1
+        if '__bin_dirs__' not in content:
+            out.__bin_dirs__ = []
+        if 'workflow' not in content:
+            out.workflow = 'default'
         return out
 
     def init_dsc(self, args, env):

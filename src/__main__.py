@@ -145,15 +145,12 @@ def execute(args):
         mode = "force"
     if args.__recover__:
         mode = "build"
+    content = {'__sig_mode__': mode,
+               '__remote__': None,
+               'script': script_prepare,
+               'workflow': "deploy"}
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
-        content = {'__max_running_jobs__': args.__max_jobs__,
-                   '__max_procs__': args.__max_jobs__,
-                   '__sig_mode__': mode,
-                   '__bin_dirs__': exec_path,
-                   '__remote__': None,
-                   'script': script_prepare,
-                   'workflow': "deploy"}
         cmd_run(script.get_sos_options(db + '.prepare', content), [])
     # Recover DSC database alone from meta-file
     if args.__construct__ == "all":
@@ -166,6 +163,19 @@ def execute(args):
             ResultDB(f'{script.runtime.output}/{db}', master).\
                 Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
         return
+    # Send files to remote host
+    if args.host:
+        env.logger.info(f"Sending resources to remote computer ``{args.host}`` ...")
+        content = {'__sig_mode__': mode,
+                   '__remote__': args.host,
+                   'script': pipeline.write_pipeline(0)}
+        try:
+            with Silencer(args.verbosity if args.host else max(0, args.verbosity - 1)):
+                cmd_run(script.get_sos_options(db + '.prepare', content), [])
+        except Exception as e:
+            env.logger.error(f"Failed to communicate with ``{args.host}``")
+            env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"sos\" on ``{args.host}``.")
+            raise RuntimeError(e)
     # Run
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info("Building execution graph ...")
@@ -175,15 +185,15 @@ def execute(args):
         script_to_html(script_run, f'.sos/.dsc/{db}.run.html')
         return
     env.logger.info("DSC in progress ...")
+    content = {'__max_running_jobs__': args.__max_jobs__,
+               '__max_procs__': args.__max_jobs__,
+               '__sig_mode__': mode,
+               '__bin_dirs__': exec_path,
+               '__remote__': args.host,
+               'script': script_run,
+               'workflow': "DSC"}
     try:
         with Silencer(args.verbosity if args.host else max(0, args.verbosity - 1)):
-            content = {'__max_running_jobs__': args.__max_jobs__,
-                       '__max_procs__': args.__max_jobs__,
-                       '__sig_mode__': mode,
-                       '__bin_dirs__': exec_path,
-                       '__remote__': args.host,
-                       'script': script_run,
-                       'workflow': "DSC"}
             cmd_run(script.get_sos_options(db + '.run', content), [])
     except Exception as e:
         if env.verbosity > 2:
@@ -282,9 +292,14 @@ def main():
                 raise
             if env.verbosity > 2:
                 sys.stderr.write(get_traceback())
-            env.logger.error(e)
             t.disable()
-            sys.exit(1)
+            if type(e).__name__ == 'RuntimeError':
+                env.logger.error("Detailed message:")
+                sys.exit(e)
+            else:
+                env.logger.error(e)
+                sys.exit(1)
+
 
 if __name__ == '__main__':
     main()
