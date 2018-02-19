@@ -10,7 +10,7 @@ This file defines methods to load and preprocess DSC scripts
 import os, re, itertools, copy, subprocess, platform
 import collections
 from xxhash import xxh32 as xxh
-from sos.utils import env, load_config_files
+from sos.utils import env
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
      yaml
@@ -739,7 +739,7 @@ def remote_config_parser(host, paths = []):
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
     default = dict([('time_per_task', '5m'), ('tasks_per_job', 2), ('n_cpu', 1), ('mem_per_cpu', '2G'), ('trunk_workers', 1), ('queue', list(conf['DSC'].keys())[0])])
     if len(paths):
-        default['prepand_path'] = os.sep.join(paths)
+        default['prepend_path'] = os.sep.join(paths)
     if 'default' in conf:
         default.update(conf['default'])
     conf['default'] = default

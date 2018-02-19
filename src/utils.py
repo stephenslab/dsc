@@ -606,7 +606,7 @@ def round_print(text, sep, pc = None):
         print(sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x)
                         for x in line]).strip())
 
-def install_r_lib(lib):
+def install_r_lib(lib, dryrun = False):
     from sos.targets_r import R_library
     groups = re.search('(.*?)\((.*?)\)', lib)
     if groups is not None:
@@ -614,8 +614,11 @@ def install_r_lib(lib):
         versions = [x.strip() for x in groups.group(2).split(',')]
     else:
         versions = None
-    logger.info("Checking R library {} ...".format(lib))
-    return R_library(lib, versions).target_exists()
+    if not dryrun:
+        logger.info("Checking R library {} ...".format(lib))
+        return R_library(lib, versions).target_exists()
+    else:
+        return(lib, versions)
 
 def install_py_module(lib):
     from sos.targets_python import Py_Module

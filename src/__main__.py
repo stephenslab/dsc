@@ -111,7 +111,7 @@ def execute(args):
         from .dsc_parser import remote_config_parser
         conf = remote_config_parser(args.host, exec_path)
         args.host = conf['default']['queue']
-        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}', 'queue_type': 'process'}
+        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}', 'queue_type': 'process', 'status_check_interval': 3}
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     #
     if args.debug:
@@ -162,19 +162,18 @@ def execute(args):
             ResultDB(f'{script.runtime.output}/{db}', master).\
                 Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
         return
-    env.logger.info("Building execution graph ...")
     pipeline.filter_execution()
     script_run = pipeline.write_pipeline(2)
     # Send files to remote host
     if args.host:
-        conf['DSC'][f'{args.host}-process'] = {'based_on': 'hosts.localhost'}
+        del conf['DSC'][f'{args.host}-process']
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.remote.yml', 'w'))
-        env.logger.info(f"Sending resources to remote computer ``{args.host}`` ...")
+        env.logger.info(f"Sending & installing resources to remote computer ``{args.host}`` (may take a while) ...")
         content = {'__sig_mode__': mode,
                    '__queue__': args.host,
                    'script': pipeline.write_pipeline((script_run, args.host))}
         try:
-            with Silencer(args.verbosity if args.host else max(0, args.verbosity - 1)):
+            with Silencer(max(0, args.verbosity - 1)):
                 cmd_run(script.get_sos_options(db, content), [])
         except Exception as e:
             env.logger.error(f"Failed to communicate with ``{args.host}``")
@@ -186,9 +185,9 @@ def execute(args):
         script_to_html(script_run, f'.sos/.dsc/{db}.run.html')
         return
     if args.host:
-        conf['DSC'][args.host]['execute_cmd'] = '"ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s \'"' % (script_run, '.sos/.dsc/{db}.conf.yml')
+        conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.yml')
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
-    env.logger.info("DSC in progress ...")
+    env.logger.info("Building execution graph & running DSC ...")
     content = {'__max_running_jobs__': args.__max_jobs__,
                '__max_procs__': args.__max_jobs__,
                '__sig_mode__': mode,

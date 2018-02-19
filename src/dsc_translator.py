@@ -6,10 +6,11 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import os, sys, msgpack, glob
+import os, sys, msgpack, glob, inspect
 from xxhash import xxh32 as xxh
 from sos.targets import fileMD5, executable
-from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a
+from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a, \
+    install_r_lib, install_py_module
 __all__ = ['DSC_Translator']
 
 class DSC_Translator:
@@ -23,9 +24,10 @@ class DSC_Translator:
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
         conf_header = 'from dsc.dsc_database import build_config_db\n'
-        job_header = "import msgpack\nfrom collections import OrderedDict\nfrom dsc.utils import n2a\n"\
+        job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      f"IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
-                     ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"
+                     ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"\
+                     f"{inspect.getsource(n2a)}\n"
         processed_steps = dict()
         conf_dict = dict()
         conf_str = []
@@ -121,7 +123,8 @@ class DSC_Translator:
             self.install_libs(runtime.rlib, "R_library")
             self.install_libs(runtime.pymodule, "Python_Module")
         else:
-            self.lib_depends.extend([f'R_library("{l}")' for l in runtime.rlib])
+            self.lib_depends.extend([f'R_library({repr(l[0])}, {repr(l[1]) if l[1] is not None else "None"})'
+                                     for l in [install_r_lib(x, dryrun = True) for x in runtime.rlib]])
             self.lib_depends.extend([f'Py_Module("{l}")' for l in runtime.pymodule])
 
     def write_pipeline(self, args):
@@ -134,7 +137,9 @@ class DSC_Translator:
             res = self.job_str
         else:
             res = '\n'.join(['[default]', 'depends: executable("rsync"), executable("scp"), executable("ssh")',
-                             f'task: to_host = {{".sos/.dsc/{self.db}.conf.remote.yml": ".sos/.dsc/{self.db}.conf.yml", {repr(self.db)}: {repr(self.db)}, {repr(args[0])}: {repr(args[0])}}}, queue = "{args[1]}-process"', 'run:\n sos status'])
+                             f'task: to_host = {{".sos/.dsc/{self.db}.conf.remote.yml": ".sos/.dsc/{self.db}.conf.yml", {repr(self.db)}: {repr(self.db)}, {repr(args[0])}: {repr(args[0])}}}, queue = "{args[1]}-process"', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *\n Py_Module("msgpack")'])
+            for item in self.lib_depends:
+                res += f"\n {item}"
         output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
         with open(output, 'w') as f:
             f.write(res)
@@ -149,14 +154,11 @@ class DSC_Translator:
                 included_steps.append(x)
         #
         self.last_steps = [x for x in self.last_steps if x in included_steps]
-        if len(self.lib_depends):
-            self.job_str += f"\n[DSC_0]\ndepends: {', '.join(self.lib_depends)}"
-        self.job_str += "\n[DSC_1]\ndepends: {}\noutput: {}".\
+        self.job_str += "\n[DSC]\ndepends: {}\noutput: {}".\
                         format(', '.join([f"sos_step('{n2a(x[1]).lower()}_{x[0]}')" for x in self.last_steps]),
                                ', '.join([f"IO_DB['{x[1]}']['{x[0]}']['output']" for x in self.last_steps]))
 
     def install_libs(self, libs, lib_type):
-        from .utils import install_r_lib, install_py_module
         if lib_type not in ["R_library", "Python_Module"]:
             raise ValueError("Invalid library type ``{}``.".format(lib_type))
         if len(libs) == 0:
