@@ -111,7 +111,8 @@ def execute(args):
         from .dsc_parser import remote_config_parser
         conf = remote_config_parser(args.host, exec_path)
         args.host = conf['default']['queue']
-        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}', 'queue_type': 'process', 'status_check_interval': 3}
+        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}',
+                                               'queue_type': 'process', 'status_check_interval': 3}
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     else:
         if args.to_host:
@@ -169,6 +170,11 @@ def execute(args):
     script_run = pipeline.write_pipeline(2)
     # Send files to remote host
     if args.host:
+        address = conf['DSC'][args.host]['address']
+        conf['DSC'][args.host]['address'] = 'localhost'
+        del conf['DSC'][f'{args.host}-process']
+        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.remote.yml', 'w'))
+        conf['DSC'][args.host]['address'] = address
         env.logger.info(f"Sending & installing resources to remote computer ``{args.host}`` (may take a while) ...")
         content = {'__sig_mode__': 'force',
                    '__queue__': f'{args.host}-process',
@@ -186,7 +192,7 @@ def execute(args):
         script_to_html(os.path.abspath(script_run), f'.sos/.dsc/{db}.run.html')
         return
     if args.host:
-        conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.yml')
+        conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.remote.yml')
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     env.logger.info("Building execution graph & running DSC ...")
     content = {'__max_running_jobs__': args.__max_jobs__,

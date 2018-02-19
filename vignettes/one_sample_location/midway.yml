@@ -6,7 +6,7 @@ DSC:
       home: /home/gaow
     queue_type: pbs
     wait_for_tasks: false
-    status_check_interval: 120
+    status_check_interval: 60
     max_running_jobs: 30
     max_cores: 40
     max_walltime: "36:00:00"
@@ -14,19 +14,19 @@ DSC:
     job_template: |
       #!/bin/bash
       #SBATCH --time={walltime}
-      #SBATCH --partition={partition}
-      #SBATCH --account={account}
+      {partition}
+      {account}
       #SBATCH --nodes=1
       #SBATCH --ntasks-per-node={cores}
-      #SBATCH --mem-per-cpu={mem}
+      #SBATCH --mem-per-cpu={mem//10**9}G
       #SBATCH --job-name={job_name}
       #SBATCH --output={cur_dir}/.sos/{job_name}.out
       #SBATCH --error={cur_dir}/.sos/{job_name}.err
       cd {cur_dir}
       mkdir -p .sos
       sos execute {task} -v {verbosity} -s {sig_mode}
-    partition: broadwl
-    account: gaow
+    partition: ""
+    account: ""
     submit_cmd: sbatch {job_file}
     submit_cmd_output: "Submitted batch job {job_id}"
     status_cmd: squeue --job {job_id}
@@ -36,8 +36,8 @@ DSC:
     max_cores: 28
     max_mem: 128G
     max_walltime: "10d"
-    partition: mstephens
-    account: pi-mstephens
+    partition: "#SBATCH --partition=mstephens"
+    account: "#SBATCH --account=pi-mstephens"
 
 default:
   queue: midway2
@@ -45,7 +45,6 @@ default:
   tasks_per_job: 2
   n_cpu: 1
   mem_per_cpu: 2G
-  workdir: "./"
 
 simulate:
   tasks_per_job: 20

@@ -137,7 +137,7 @@ class DSC_Translator:
             res = self.job_str
         else:
             res = '\n'.join(['[default]', 'depends: executable("rsync"), executable("scp"), executable("ssh")',
-                             f'task: to_host = [".sos/.dsc/{self.db}.conf.yml", {repr(self.db)}, {repr(arg[0])}] + {repr(arg[1])}', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *\n Py_Module("msgpack")'])
+                             f'task: to_host = [".sos/.dsc/{self.db}.conf.remote.yml", {repr(self.db)}, {repr(arg[0])}] + {repr(arg[1])}', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *\n Py_Module("msgpack")'])
             for item in self.lib_depends:
                 res += f"\n {item}"
         output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
@@ -307,7 +307,7 @@ class DSC_Translator:
 
         def get_step_option(self):
             if not self.prepare and self.conf is not None:
-                self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{{_output:bn}}', concurrent = True\n"
+                self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{{_output:bn}}', workdir = {repr(self.step.workdir)}, concurrent = True\n"
 
         def get_action(self):
             if self.prepare:
@@ -327,7 +327,10 @@ class DSC_Translator:
                 # FIXME: have not considered super-step yet
                 # Create fake plugin and command list for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
-                    self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = None, stdout = None\n'
+                    if self.conf is None:
+                        self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = None, stdout = None\n'
+                    else:
+                        self.action += f'{plugin.name}: expand = "${{ }}"\n'
                     # Add action
                     if not self.step.shell_run:
                         script_begin = plugin.get_input(self.params, len(self.step.depends),
