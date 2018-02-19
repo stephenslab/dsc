@@ -13,8 +13,11 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 * Add `--truncate` switch.
 * Bring back `--host` option.
-* SoS required version 0.9.12.3 for relevant upstream bug fixes.
+* SoS required version bumped to 0.9.12.3 for relevant upstream bug fixes.
 * [minor] More unit tests and bug fixes.
+
+0.2.5.2
+* SoS required version bumped to 0.9.12.2 for relevant upstream bug fixes.
 
 0.2.5.1
 

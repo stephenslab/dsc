@@ -40,10 +40,7 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
-      install_requires = ['sos>=0.9.12.3', 'sos-r>=0.9.12.0',
-                          'sos-python>=0.9.12.0', 'sos-notebook>=0.9.11.3',
-                          'openpyxl>=2.2', 'pyarrow>=0.5.0',
-                          'sqlalchemy', 'msgpack-python',
-                          'ruamel.yaml>=0.15', 'pandas>=0.22.0',
-                          'sympy', 'numexpr', 'numpy']
+      install_requires = ['numpy', 'pandas>=0.22.0', 'sympy', 'numexpr',
+                          'sos>=0.9.12.2', 'openpyxl>=2.2', 'pyarrow>=0.5.0',
+                          'sqlalchemy', 'msgpack-python', 'ruamel.yaml>=0.15']
       )
