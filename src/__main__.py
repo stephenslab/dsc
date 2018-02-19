@@ -113,6 +113,9 @@ def execute(args):
         args.host = conf['default']['queue']
         conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}', 'queue_type': 'process', 'status_check_interval': 3}
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
+    else:
+        if args.to_host:
+            raise ValueError('Cannot set option ``--to-host`` without specifying ``--host``!')
     #
     if args.debug:
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
@@ -139,7 +142,7 @@ def execute(args):
     from sos.converter import script_to_html
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
-        script_to_html(script_prepare, f'.sos/.dsc/{db}.prepare.html')
+        script_to_html(os.path.abspath(script_prepare), f'.sos/.dsc/{db}.prepare.html')
     mode = "default"
     if args.__construct__ == "none":
         mode = "force"
@@ -166,14 +169,12 @@ def execute(args):
     script_run = pipeline.write_pipeline(2)
     # Send files to remote host
     if args.host:
-        del conf['DSC'][f'{args.host}-process']
-        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.remote.yml', 'w'))
         env.logger.info(f"Sending & installing resources to remote computer ``{args.host}`` (may take a while) ...")
-        content = {'__sig_mode__': mode,
-                   '__queue__': args.host,
-                   'script': pipeline.write_pipeline((script_run, args.host))}
+        content = {'__sig_mode__': 'force',
+                   '__queue__': f'{args.host}-process',
+                   'script': pipeline.write_pipeline((script_run, args.to_host if args.to_host is not None else []))}
         try:
-            with Silencer(max(0, args.verbosity - 1)):
+            with Silencer(args.verbosity if args.debug else max(0, args.verbosity - 1)):
                 cmd_run(script.get_sos_options(db, content), [])
         except Exception as e:
             env.logger.error(f"Failed to communicate with ``{args.host}``")
@@ -182,7 +183,7 @@ def execute(args):
     # Run
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     if args.debug:
-        script_to_html(script_run, f'.sos/.dsc/{db}.run.html')
+        script_to_html(os.path.abspath(script_run), f'.sos/.dsc/{db}.run.html')
         return
     if args.host:
         conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.yml')
@@ -259,7 +260,9 @@ def main():
                    This is useful to swap out large intermediate files.
                    "purge" cleans up obsolete outputs in folder "DSC::output" after DSC is executed with "-s none".''')
     p.add_argument('--host', metavar='str', help = SUPPRESS)
-                   #help='''Name of host computer to send tasks to.''')
+                   #help='''Configuration file for remote computer.''')
+    p.add_argument('--to-host', metavar='str', dest = 'to_host', nargs = '+', help = SUPPRESS)
+                   #help='''Files and directories to be sent to remote host that will be used in benchmarking.''')
     p.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
                    dest='__max_jobs__', help='''Number of maximum cpu threads for local runs, or concurrent jobs for remote execution.''')
     p.add_argument('--truncate', action='store_true',
