@@ -23,9 +23,9 @@ DSC:
       #SBATCH --output={cur_dir}/.sos/{job_name}.out
       #SBATCH --error={cur_dir}/.sos/{job_name}.err
       cd {cur_dir}
-      mkdir -p .sos
+      module load R
       sos execute {task} -v {verbosity} -s {sig_mode}
-    partition: ""
+    partition: "#SBATCH --partition=broadwl"
     account: ""
     submit_cmd: sbatch {job_file}
     submit_cmd_output: "Submitted batch job {job_id}"

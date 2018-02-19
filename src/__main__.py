@@ -176,7 +176,7 @@ def execute(args):
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.remote.yml', 'w'))
         conf['DSC'][args.host]['address'] = address
         env.logger.info(f"Sending & installing resources to remote computer ``{args.host}`` (may take a while) ...")
-        content = {'__sig_mode__': 'force',
+        content = {'__sig_mode__': mode,
                    '__queue__': f'{args.host}-process',
                    'script': pipeline.write_pipeline((script_run, args.to_host if args.to_host is not None else []))}
         try:

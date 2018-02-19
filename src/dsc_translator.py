@@ -136,8 +136,9 @@ class DSC_Translator:
         elif arg == 2:
             res = self.job_str
         else:
-            res = '\n'.join(['[default]', 'depends: executable("rsync"), executable("scp"), executable("ssh")',
-                             f'task: to_host = [".sos/.dsc/{self.db}.conf.remote.yml", {repr(self.db)}, {repr(arg[0])}] + {repr(arg[1])}', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *\n Py_Module("msgpack")'])
+            res = '\n'.join([f'[default]\nparameter: to_host = [".sos/.dsc/{self.db}.conf.remote.yml", {repr(os.path.join(self.output, self.db + ".conf.mpk"))}, {repr(arg[0])}] + {repr(arg[1])}',
+                             'depends: executable("rsync"), executable("scp"), executable("ssh")',
+                             f'task: to_host = to_host', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *\n Py_Module("msgpack")'])
             for item in self.lib_depends:
                 res += f"\n {item}"
         output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
