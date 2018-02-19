@@ -124,18 +124,18 @@ class DSC_Translator:
             self.lib_depends.extend([f'R_library("{l}")' for l in runtime.rlib])
             self.lib_depends.extend([f'Py_Module("{l}")' for l in runtime.pymodule])
 
-    def write_pipeline(self, pipeline_id):
-        if pipeline_id == 1:
+    def write_pipeline(self, args):
+        if args == 1:
             res = self.conf_str_sos
             with open(f'.sos/.dsc/{self.db}.prepare.py', 'w') as f:
                 f.write(self.conf_str_py)
             open(f'.sos/.dsc/{self.db}.io.meta.mpk', 'wb').write(msgpack.packb(self.step_map))
-        elif pipeline_id == 2:
+        elif args == 2:
             res = self.job_str
         else:
             res = '\n'.join(['[default]', 'depends: executable("rsync"), executable("scp"), executable("ssh")',
-                             f'task: to_host = [".sos/.dsc/{self.db}.conf.yml", {repr(self.db)}], queue = "localhost"', 'run:\n sos status'])
-        output = os.path.join(os.path.abspath('.sos'), f'{xxh(res).hexdigest()}.sos')
+                             f'task: to_host = {{".sos/.dsc/{self.db}.conf.remote.yml": ".sos/.dsc/{self.db}.conf.yml", {repr(self.db)}: {repr(self.db)}, {repr(args[0])}: {repr(args[0])}}}, queue = "{args[1]}-process"', 'run:\n sos status'])
+        output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
         with open(output, 'w') as f:
             f.write(res)
         return output

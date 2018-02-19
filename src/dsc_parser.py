@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-import os, re, itertools, copy, subprocess
+import os, re, itertools, copy, subprocess, platform
 import collections
 from xxhash import xxh32 as xxh
 from sos.utils import env, load_config_files
@@ -251,6 +251,7 @@ class DSC_Script:
         out.__no_wait__ = False
         out.__targets__ = []
         out.__queue__ = 'localhost'
+        out.__remote__ = None
         out.dryrun = False
         out.__dag__ = f'.sos/.dsc/{name}.dot'
         # FIXME: port the entire resume related features
@@ -281,7 +282,7 @@ class DSC_Script:
             os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output)))
         conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
         with open(conf, 'w') as f:
-            f.write('hosts:\n  localhost: localhost\n  hosts: {}')
+            f.write('localhost: localhost\nhosts:\n  localhost:\n    address: localhost')
 
     def dump(self):
         res = dict([('Modules', self.modules),
@@ -754,4 +755,5 @@ def remote_config_parser(host, paths = []):
         tmp['mem'] = tmp.pop('mem_per_cpu')
         tmp['cores'] = tmp.pop('n_cpu')
         conf[key] = tmp
+    conf['DSC']['localhost'] = {'paths': {'home': '/Users/{user_name}' if platform.system() == 'Darwin' else '/home/{user_name}'}, 'address': 'localhost'}
     return conf

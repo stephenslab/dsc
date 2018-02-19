@@ -85,7 +85,7 @@ def remove(workflows, groups, modules, db, debug, replace = False, purge = False
                            format('replace' if replace else 'remove'))
 
 def execute(args):
-    from .utils import workflow2html, dsc2html, transcript2html
+    from .utils import workflow2html, dsc2html, transcript2html, yaml
     if args.to_remove:
         if args.target is None and args.to_remove != 'purge':
             raise ValueError("``--remove`` must be specified with ``--target``.")
@@ -109,16 +109,16 @@ def execute(args):
     conf = None
     if args.host:
         from .dsc_parser import remote_config_parser
-        from .utils import yaml
         conf = remote_config_parser(args.host, exec_path)
         args.host = conf['default']['queue']
-        yaml.dump({'localhost':'localhost', 'hosts': conf.pop('DSC')}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
+        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}', 'queue_type': 'process'}
+        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     #
     if args.debug:
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
     # FIXME: make sure try_catch works, or justify that it is not necessary to have.
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none",
-                              args.__max_jobs__, args.try_catch, conf)
+                              args.__max_jobs__, args.try_catch, {k:v for k, v in conf.items() if k != 'DSC'})
     # Apply clean-up
     if args.to_remove:
         remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
@@ -146,12 +146,11 @@ def execute(args):
     if args.__recover__:
         mode = "build"
     content = {'__sig_mode__': mode,
-               '__remote__': None,
                'script': script_prepare,
                'workflow': "deploy"}
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
-        cmd_run(script.get_sos_options(db + '.prepare', content), [])
+        cmd_run(script.get_sos_options(db, content), [])
     # Recover DSC database alone from meta-file
     if args.__construct__ == "all":
         if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
@@ -163,27 +162,32 @@ def execute(args):
             ResultDB(f'{script.runtime.output}/{db}', master).\
                 Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
         return
+    env.logger.info("Building execution graph ...")
+    pipeline.filter_execution()
+    script_run = pipeline.write_pipeline(2)
     # Send files to remote host
     if args.host:
+        conf['DSC'][f'{args.host}-process'] = {'based_on': 'hosts.localhost'}
+        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.remote.yml', 'w'))
         env.logger.info(f"Sending resources to remote computer ``{args.host}`` ...")
         content = {'__sig_mode__': mode,
-                   '__remote__': args.host,
-                   'script': pipeline.write_pipeline(0)}
+                   '__queue__': args.host,
+                   'script': pipeline.write_pipeline((script_run, args.host))}
         try:
             with Silencer(args.verbosity if args.host else max(0, args.verbosity - 1)):
-                cmd_run(script.get_sos_options(db + '.prepare', content), [])
+                cmd_run(script.get_sos_options(db, content), [])
         except Exception as e:
             env.logger.error(f"Failed to communicate with ``{args.host}``")
             env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"sos\" on ``{args.host}``.")
             raise RuntimeError(e)
     # Run
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
-    env.logger.info("Building execution graph ...")
-    pipeline.filter_execution()
-    script_run = pipeline.write_pipeline(2)
     if args.debug:
         script_to_html(script_run, f'.sos/.dsc/{db}.run.html')
         return
+    if args.host:
+        conf['DSC'][args.host]['execute_cmd'] = '"ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s \'"' % (script_run, '.sos/.dsc/{db}.conf.yml')
+        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     env.logger.info("DSC in progress ...")
     content = {'__max_running_jobs__': args.__max_jobs__,
                '__max_procs__': args.__max_jobs__,
@@ -194,7 +198,7 @@ def execute(args):
                'workflow': "DSC"}
     try:
         with Silencer(args.verbosity if args.host else max(0, args.verbosity - 1)):
-            cmd_run(script.get_sos_options(db + '.run', content), [])
+            cmd_run(script.get_sos_options(db, content), [])
     except Exception as e:
         if env.verbosity > 2:
             sys.stderr.write(get_traceback())

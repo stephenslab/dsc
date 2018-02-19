@@ -18,7 +18,7 @@ DSC:
       #SBATCH --account={account}
       #SBATCH --nodes=1
       #SBATCH --ntasks-per-node={cores}
-      #SBATCH --mem-per-cpu={mem//1e9}GB
+      #SBATCH --mem-per-cpu={mem}
       #SBATCH --job-name={job_name}
       #SBATCH --output={cur_dir}/.sos/{job_name}.out
       #SBATCH --error={cur_dir}/.sos/{job_name}.err
