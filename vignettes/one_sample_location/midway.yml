@@ -23,7 +23,7 @@ DSC:
       #SBATCH --output={cur_dir}/.sos/{job_name}.out
       #SBATCH --error={cur_dir}/.sos/{job_name}.err
       cd {cur_dir}
-      module load R
+      module load R/3.4.3
       sos execute {task} -v {verbosity} -s {sig_mode}
     partition: "#SBATCH --partition=broadwl"
     account: ""

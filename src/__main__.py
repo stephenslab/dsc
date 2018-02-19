@@ -122,7 +122,7 @@ def execute(args):
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
     # FIXME: make sure try_catch works, or justify that it is not necessary to have.
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none",
-                              args.__max_jobs__, args.try_catch, {k:v for k, v in conf.items() if k != 'DSC'})
+                              args.__max_jobs__, args.try_catch, conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'})
     # Apply clean-up
     if args.to_remove:
         remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
@@ -159,7 +159,7 @@ def execute(args):
     if args.__construct__ == "all":
         if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
                  and os.path.isfile(f'.sos/.dsc/{db}.io.mpk'))):
-            env.logger.warning('Cannot skip to building DSC database because meta-data for this project is corrupted.')
+            env.logger.warning('Cannot build DSC database because meta-data for this project is corrupted.')
         else:
             master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
             env.logger.info("Building DSC database ...")
