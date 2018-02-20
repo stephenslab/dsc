@@ -1,4 +1,3 @@
-#' @title Merge lists
 merge_lists <- function(x, y, ...)
 {
   if(length(x) == 0)

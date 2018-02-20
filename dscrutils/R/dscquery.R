@@ -28,12 +28,20 @@
 #' @note May not work in Windows.
 #'
 #' @examples
+#'
+#' # Retrieve results from the "one_sample_location" experiment # in
+#' # which the true mean is 1.
 #' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
-#' dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
+#' dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.mse"),
 #'                 condition = "simulate.true_mean = 1")
 #' print(dat)
-#' 
+#'
+#' # This query should generate an error because there is no output
+#' called "score" in the "mse" module.
+#' dat2 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
+#'                  condition = "simulate.true_mean = 1")
+#'
 #' @export
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
                       add.path = FALSE, exec = "dsc-query",
@@ -101,7 +109,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   }
   out <- system(cmd.str,ignore.stdout = !verbose,ignore.stderr = !verbose)
   if (out != 0)
-    stop("Error while running dsc-query command")
+    stop("dsc-query command failed (returned a non-zero exit status)")
   
   # LOAD DSC QUERY
   # --------------
