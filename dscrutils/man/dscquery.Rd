@@ -50,7 +50,7 @@ dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.mse"),
 print(dat)
 
 # This query should generate an error because there is no output
-called "score" in the "mse" module.
+# called "score" in the "mse" module.
 dat2 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
                  condition = "simulate.true_mean = 1")
 
