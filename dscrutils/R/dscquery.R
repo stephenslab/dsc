@@ -29,8 +29,9 @@
 #'
 #' @examples
 #'
-#' # Retrieve results from the "one_sample_location" experiment # in
-#' # which the true mean is 1.
+#' # Retrieve results from the "one_sample_location" experiment in
+#' # which the true mean is 1. The MSE (mean squared error) values
+#' # should be extracted into the "mse.mse" column.
 #' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
 #' dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.mse"),
@@ -118,27 +119,62 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
                   check.names = FALSE,comment.char = "",na.strings = "")
 
-  browser()
-  
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
   # Get all the columns of the form "module.variable.output".
-  cols <- unlist(lapply(as.list(names(dat)),function (x) {
+  cols <- which(sapply(as.list(names(dat)),function (x) {
     n <- nchar(x)
     if (n < 7 | length(unlist(strsplit(x,"[.]"))) != 3)
-      return(NULL)
-    else if (substr(x,n-6,n) != ".output")
-      return(NULL)
+      return(FALSE)
     else
-      return(substr(x,1,n-7))
+      return(substr(x,n-6,n) == ".output")
   }))
-
+  
   # Repeat for each column of the form "module.variable.output".
-  if (length(cols) > 0)
-    cat("Reading DSC output:\n")
-  for (col in cols) {
-    if (verbose)
-      cat(" - ",col,":",sep = "")
+  if (length(cols) > 0) {
+    cat("Reading DSC outputs:\n")
+    n <- nrow(dat)
+    for (j in cols) {
+
+      # Get the column name (col), module name (module), variable name
+      # (var) and new column name (col.new).
+      col     <- names(dat)[j]
+      x       <- unlist(strsplit(col,"[.]"))
+      module  <- x[1]
+      var     <- x[2]
+      col.new <- paste(module,var,sep = ".")
+      if (verbose)
+        cat(" - ",col.new,": ",sep = "")
+
+      # This list will contain the value of the variable for each table row.
+      values <- vector("list",n)
+      
+      # Extract the value of the selected output from each of the RDS
+      # files. Repeat for each row of the query table.
+      for (i in 1:n) {
+        dscfile <- file.path(dsc.outdir,paste0(dat[i,j],".rds"))
+        out     <- readRDS(dscfile)
+
+        # Check that the variable is one of the outputs in the file.
+        if (!is.element(var,names(out)))
+          stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
+
+        # Extract the value of the variable.
+        values[[i]] <- out[[var]]
+      }
+
+      # If all the values are atomic, then the values can fit into the
+      # column of a data frame. If not, then there is nothing to be
+      # done.
+      if (all(sapply(values,is.atomic))) {
+        if (verbose)
+          cat("extracted\n")
+        dat[[j]]      <- unlist(values)
+        names(dat)[j] <- col.new
+      } else
+        if (verbose)
+          cat("not extracted\n")
+    }
   }
   
   # Output the query result stored in a data frame.

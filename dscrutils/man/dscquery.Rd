@@ -40,8 +40,9 @@ May not work in Windows.
 }
 \examples{
 
-# Retrieve results from the "one_sample_location" experiment # in
-# which the true mean is 1.
+# Retrieve results from the "one_sample_location" experiment in
+# which the true mean is 1. The MSE (mean squared error) values
+# should be extracted into the "mse.mse" column.
 dsc.dir <- system.file("datafiles","one_sample_location",
                        "dsc_result",package = "dscrutils")
 dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.mse"),
