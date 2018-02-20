@@ -113,12 +113,33 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   
   # LOAD DSC QUERY
   # --------------
+  if (verbose)
+    cat("Loading dsc-query output from CSV file.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
                   check.names = FALSE,comment.char = "",na.strings = "")
 
+  browser()
+  
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
-  # TO DO.
+  # Get all the columns of the form "module.variable.output".
+  cols <- unlist(lapply(as.list(names(dat)),function (x) {
+    n <- nchar(x)
+    if (n < 7 | length(unlist(strsplit(x,"[.]"))) != 3)
+      return(NULL)
+    else if (substr(x,n-6,n) != ".output")
+      return(NULL)
+    else
+      return(substr(x,1,n-7))
+  }))
+
+  # Repeat for each column of the form "module.variable.output".
+  if (length(cols) > 0)
+    cat("Reading DSC output:\n")
+  for (col in cols) {
+    if (verbose)
+      cat(" - ",col,":",sep = "")
+  }
   
   # Output the query result stored in a data frame.
   return(dat)
