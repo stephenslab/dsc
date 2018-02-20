@@ -9,6 +9,12 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 ### 0.2.x
 
+0.2.6.1
+
+* Require `PBS` type of queue to have a corresponding headnode configuration (for customized `job_template`)
+* SoS required version bumped to 0.9.12.6 for the new feature above.
+* [minor] Various bug fixes.
+
 0.2.6
 
 * Bring back `--host` option; add a companion option `--to-host` to facilicate sending resources to remote computer.

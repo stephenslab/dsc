@@ -41,6 +41,8 @@ class DSC_Script:
             script_path = None
         res = exe = ''
         for line in content:
+            if len(line.strip()) == 0:
+                continue
             if line.strip().startswith('#'):
                 continue
             # FIXME: maybe this is good enough to identify a line of decorator keys ...
@@ -739,13 +741,13 @@ def remote_config_parser(host, paths = []):
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
     default = dict([('time_per_task', '5m'), ('tasks_per_job', 2), ('n_cpu', 1), ('mem_per_cpu', '2G'), ('trunk_workers', 1), ('queue', list(conf['DSC'].keys())[0])])
     if len(paths):
-        default['prepend_path'] = os.sep.join(paths)
+        default['prepend_path'] = paths
     if 'default' in conf:
         default.update(conf['default'])
     conf['default'] = default
     if conf['default']['queue'] not in conf['DSC']:
         raise FormatError(f"Cannot find configuration for queue ``{conf['default']['queue']}`` in ``DSC`` section of file ``{host}``.")
-    for key in conf:
+    for key in list(conf.keys()):
         if key == 'DSC':
             continue
         tmp = copy.deepcopy(default)
@@ -754,6 +756,12 @@ def remote_config_parser(host, paths = []):
         tmp['trunk_size'] = tmp.pop('tasks_per_job')
         tmp['mem'] = tmp.pop('mem_per_cpu')
         tmp['cores'] = tmp.pop('n_cpu')
-        conf[key] = tmp
+        keys = [k.strip() for k in key.split(',')]
+        if len(keys) > 1:
+            for k in keys:
+                conf[k] = tmp
+            del conf[key]
+        else:
+            conf[key] = tmp
     conf['DSC']['localhost'] = {'paths': {'home': '/Users/{user_name}' if platform.system() == 'Darwin' else '/home/{user_name}'}, 'address': 'localhost'}
     return conf

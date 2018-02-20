@@ -123,9 +123,9 @@ class DSC_Translator:
             self.install_libs(runtime.rlib, "R_library")
             self.install_libs(runtime.pymodule, "Python_Module")
         else:
-            self.lib_depends.extend([f'R_library({repr(l[0])}, {repr(l[1]) if l[1] is not None else "None"})'
+            self.lib_depends.extend([f'R_library({repr(l[0])}, {repr(l[1]) if l[1] is not None else "None"}).target_exists()'
                                      for l in [install_r_lib(x, dryrun = True) for x in runtime.rlib]])
-            self.lib_depends.extend([f'Py_Module("{l}")' for l in runtime.pymodule])
+            self.lib_depends.extend([f'Py_Module("{l}").target_exists()' for l in runtime.pymodule])
 
     def write_pipeline(self, arg):
         if arg == 1:
