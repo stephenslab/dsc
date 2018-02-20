@@ -11,10 +11,10 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 0.2.6
 
-* Add `--truncate` switch.
 * Bring back `--host` option; add a companion option `--to-host` to facilicate sending resources to remote computer.
+* Add `--truncate` switch.
 * SoS required version bumped to 0.9.12.3 for relevant upstream bug fixes.
-* [minor] More unit tests and bug fixes.
+* [minor] Improved command interface.
 
 0.2.5.2
 
