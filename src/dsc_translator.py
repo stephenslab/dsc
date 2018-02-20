@@ -126,7 +126,7 @@ class DSC_Translator:
             self.lib_depends.extend([f'if not R_library({repr(l[0])}, {repr(l[1]) if l[1] is not None else "None"}).target_exists():\n   raise RuntimeError("Automatic installation failed. Please login and manually install {repr(l[0])}.")'
                                      for l in [install_r_lib(x, dryrun = True) for x in runtime.rlib]])
             self.lib_depends.extend([f'if not Py_Module("{l}").target_exists():\n   raise RuntimeError("Automatic installation failed. Please login and manually install {repr(l[0])}.")'
-                                     for l in runtime.pymodule])
+                                     for l in (runtime.pymodule + ['msgpack'])])
 
     def write_pipeline(self, arg):
         if arg == 1:
@@ -139,7 +139,7 @@ class DSC_Translator:
         else:
             res = '\n'.join([f'[default]\nparameter: to_host = [".sos/.dsc/{self.db}.conf.remote.yml", {repr(os.path.join(self.output, self.db + ".conf.mpk"))}, {repr(arg[0])}] + {repr(arg[1])}',
                              'depends: executable("rsync"), executable("scp"), executable("ssh")',
-                             f'task: to_host = to_host', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *\n Py_Module("msgpack")'])
+                             f'task: to_host = to_host', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
             for item in self.lib_depends:
                 res += f"\n {item}"
         output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
