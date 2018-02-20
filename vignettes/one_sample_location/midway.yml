@@ -14,8 +14,8 @@ DSC:
     job_template: |
       #!/bin/bash
       #SBATCH --time={walltime}
-      {partition}
-      {account}
+      #{partition}
+      #{account}
       #SBATCH --nodes=1
       #SBATCH --ntasks-per-node={cores}
       #SBATCH --mem-per-cpu={mem//10**9}G
@@ -24,8 +24,7 @@ DSC:
       #SBATCH --error={cur_dir}/.sos/{job_name}.err
       cd {cur_dir}
       module load R/3.4.3
-      sos execute {task} -v {verbosity} -s {sig_mode}
-    partition: "#SBATCH --partition=broadwl"
+    partition: "SBATCH --partition=broadwl"
     account: ""
     submit_cmd: sbatch {job_file}
     submit_cmd_output: "Submitted batch job {job_id}"
@@ -36,8 +35,8 @@ DSC:
     max_cores: 28
     max_mem: 128G
     max_walltime: "10d"
-    partition: "#SBATCH --partition=mstephens"
-    account: "#SBATCH --account=pi-mstephens"
+    partition: "SBATCH --partition=mstephens"
+    account: "SBATCH --account=pi-mstephens"
 
 default:
   queue: midway2

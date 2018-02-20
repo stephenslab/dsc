@@ -111,8 +111,11 @@ def execute(args):
         from .dsc_parser import remote_config_parser
         conf = remote_config_parser(args.host, exec_path)
         args.host = conf['default']['queue']
-        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}',
-                                               'queue_type': 'process', 'status_check_interval': 3}
+        conf['DSC'][args.host]['job_template'] += 'sos execute {task} -v {verbosity} -s {sig_mode}'
+        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}', 'cur_dir': '~/',
+                                               'queue_type': 'process', 'status_check_interval': 3,
+                                               'job_template': '\n'.join([x for x in conf['DSC'][args.host]['job_template'].split("\n") if not x.startswith('#')])
+                                               }
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     else:
         if args.to_host:
