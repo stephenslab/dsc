@@ -6,7 +6,8 @@
    from Github:
 
    ```R
-   devtools::install_github("stephenslab/dsc2",subdir = "dscrutils")
+   devtools::install_github("stephenslab/dsc2",subdir = "dscrutils",
+                            force = TRUE)
    ```
 
    See below for additional installation options.
