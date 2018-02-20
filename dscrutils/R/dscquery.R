@@ -101,8 +101,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   }
   out <- system(cmd.str,ignore.stdout = !verbose,ignore.stderr = !verbose)
   if (out != 0)
-    stop("Error when running dsc-query command")
-
+    stop("Error while running dsc-query command")
+  
   # LOAD DSC QUERY
   # --------------
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
