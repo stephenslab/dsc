@@ -16,7 +16,7 @@ def query(args):
     from .query_jupyter import get_database_notebook, get_query_notebook
     from .query_engine import Query_Processor
     from .utils import uniq_list
-    am = AnswerMachine()
+    am = AnswerMachine(always_yes = args.force)
     if os.path.isfile(args.dsc_output):
         args.dsc_output = os.path.dirname(args.dsc_output)
     args.output = args.output.strip('.')
@@ -77,7 +77,6 @@ def query(args):
                     "or run it from command line with ``jupyter nbconvert --to notebook --execute {0}.ipynb`` "\
                     "first, then use ``jupyter notebook {0}.nbconvert.ipynb`` to open it.".\
                     format(args.output))
-    # if not args.no_html:
     #     html = args.output[:-6] + '.html'
     #     notebook_to_html(args.output, html, dotdict([("template", "sos-report")]),
     #                      ["--Application.log_level='CRITICAL'"])
@@ -118,8 +117,8 @@ def main():
     p.add_argument('--addon', metavar = 'str', nargs = '+',
                    help='''Scripts to load to the notebooks for follow up analysis.
                    Only usable in conjunction with "--language".''')
-    # p.add_argument('--no-html', action = 'store_true', dest = 'no_html',
-    #                help='''Do not export to HTML format.''')
+    p.add_argument('-f', '--force', action = 'store_true', dest = 'force',
+                    help=SUPPRESS)
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(4)), default = 2,
                    help='''Output error (0), warning (1), info (2) and debug (3)
                    information.''')
