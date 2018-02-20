@@ -32,7 +32,7 @@ class Logger:
         msg = msg.strip()
         if exit:
             sys.stderr.write(start + f"\033[1;33mERROR: {self.emphasize(msg, 33)}\033[0m\n" + end)
-            sys.exit()
+            sys.exit(1)
         else:
             sys.stderr.write(start + f"\033[1;35mWARNING: {self.emphasize(msg, 35)}\033[0m\n" + end)
 
