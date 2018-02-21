@@ -25,24 +25,35 @@ pathnames, not just the base filenames.}
 
 \item{exec}{The command or pathname of the dsc-query executable.}
 
-\item{max.extract.vector}{All vectors not exceeding this length are
-automatically extracted to the data frame unless the}
+\item{max.extract.vector}{Vector-valued DSC outputs not exceeding
+this length are automatically extracted to the data frame.}
 
 \item{verbose}{If \code{verbose = TRUE}, print progress of DSC
 query command to the console.}
 }
 \value{
 A data frame containing the result of the DSC query, with
-columns corresponding to the query target.
+columns corresponding to the query target. When reasonable to do
+so, the DSC outputs are extracted into the columns of the data
+frame; when the values are not extracted, the file names containing
+the outputs are provided instead.
 
-NOTE: It is possible that some of the column names may be
-duplicated if any vectors are extracted.
+Note that data frames cannot contain NULL values, and therefore
+NULL-valued DSC outputs cannot be extracted into the data frame,
+and must be loaded from the RDS files.
 }
 \description{
-Add more detailed (paragraph-length) description here.
+This is an R interface to \code{dsc-query} for
+conveniently extracting and exploring DSC results within the R
+environment. For details, see the documentation for the
+\code{dsc-query} command.
 }
 \note{
-May not work in Windows.
+We have made considerable effort to prevent column names from
+being duplicated. However, we have not tested this extensively for
+possible column name conflicts.
+
+This function may not work in Windows.
 }
 \examples{
 

@@ -1,6 +1,9 @@
 #' @title SQL-like interface for querying DSC output.
 #'
-#' @description Add more detailed (paragraph-length) description here.
+#' @description This is an R interface to \code{dsc-query} for
+#' conveniently extracting and exploring DSC results within the R
+#' environment. For details, see the documentation for the
+#' \code{dsc-query} command.
 #' 
 #' @param dsc.outdir Directory where DSC output is stored.
 #' 
@@ -19,19 +22,27 @@
 #' 
 #' @param exec The command or pathname of the dsc-query executable.
 #'
-#' @param max.extract.vector All vectors not exceeding this length are
-#' automatically extracted to the data frame unless the 
+#' @param max.extract.vector Vector-valued DSC outputs not exceeding
+#' this length are automatically extracted to the data frame.
 #' 
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
 #' @return A data frame containing the result of the DSC query, with
-#' columns corresponding to the query target.
+#' columns corresponding to the query target. When reasonable to do
+#' so, the DSC outputs are extracted into the columns of the data
+#' frame; when the values are not extracted, the file names containing
+#' the outputs are provided instead.
 #'
-#' NOTE: It is possible that some of the column names may be
-#' duplicated if any vectors are extracted.
+#' Note that data frames cannot contain NULL values, and therefore
+#' NULL-valued DSC outputs cannot be extracted into the data frame,
+#' and must be loaded from the RDS files.
 #'
-#' @note May not work in Windows.
+#' @note We have made considerable effort to prevent column names from
+#' being duplicated. However, we have not tested this extensively for
+#' possible column name conflicts.
+#'
+#' This function may not work in Windows.
 #'
 #' @examples
 #'
@@ -116,10 +127,6 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   # ---------------------
   # Generate a temporary directory where the query output will be
   # stored.
-  #
-  # NOTE: It may be important at some point to use internal "absolute"
-  # function from workflowr package to specify the pathnames.
-  # 
   outdir  <- file.path(tempdir(),"dsc")
   outfile <- file.path(outdir,"query.csv")
   dir.create(outdir,showWarnings = FALSE,recursive = TRUE)

@@ -25,7 +25,7 @@
    help(package = "dscrutils")
    ```
 
-## More detailed installation instructions
+## Development notes
 
 To install the package from a local copy of the git repository, run
 the following command in R with the working directory set to the
@@ -34,8 +34,6 @@ repository root:
 ```R
 devtools::install_local("dscrutils")
 ```
-
-## Development notes
 
 To update the package documentation from the
 [roxygen2](http://r-pkgs.had.co.nz/man.html) tags, run the following
