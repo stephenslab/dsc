@@ -5,7 +5,7 @@
 \title{SQL-like interface for querying DSC output.}
 \usage{
 dscquery(dsc.outdir, targets, conditions = NULL, groups, add.path = FALSE,
-  exec = "dsc-query", verbose = TRUE)
+  exec = "dsc-query", max.extract.vector = 10, verbose = TRUE)
 }
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
@@ -25,12 +25,18 @@ pathnames, not just the base filenames.}
 
 \item{exec}{The command or pathname of the dsc-query executable.}
 
+\item{max.extract.vector}{All vectors not exceeding this length are
+automatically extracted to the data frame unless the}
+
 \item{verbose}{If \code{verbose = TRUE}, print progress of DSC
 query command to the console.}
 }
 \value{
 A data frame containing the result of the DSC query, with
 columns corresponding to the query target.
+
+NOTE: It is possible that some of the column names may be
+duplicated if any vectors are extracted.
 }
 \description{
 Add more detailed (paragraph-length) description here.
