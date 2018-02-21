@@ -449,7 +449,7 @@ def expand_logic(string):
         res.append(tuple(x))
     return res
 
-def parse_filter(condition, groups = {}, dotted = True):
+def parse_filter(condition, groups = None, dotted = True):
     '''
     parse condition statement
     After expanding, condition is a list of list
@@ -463,6 +463,7 @@ def parse_filter(condition, groups = {}, dotted = True):
     # FIXME: check legalize names
     if condition is None:
         return ([], [])
+    groups = groups or dict()
     res = []
     cond_tables = []
     symbols = ['=', '==', '!=', '>', '<', '>=', '<=', 'in']

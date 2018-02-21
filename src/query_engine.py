@@ -134,7 +134,8 @@ class Query_Processor:
             raise DBError(f"Cannot find variable ``{y}`` in module ``{k}``")
         return
 
-    def get_grouped_tables(self, groups):
+    @staticmethod
+    def get_grouped_tables(groups):
         '''
         input is g: m1, m2
         output is {g: [m1, m2]}

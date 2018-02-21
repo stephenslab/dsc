@@ -19,18 +19,18 @@ class Logger:
         self.__width_cache = 1
         self.verbosity = 2
 
-    def error(self, msg = None, exit = True):
+    def error(self, msg = None, q = True):
         if msg is None:
             sys.stderr.write('\n')
             return
-        if type(msg) is list:
+        if isinstance(msg, list):
             msg = ' '.join(map(str, msg))
         else:
             msg = str(msg)
         start = '\n' if msg.startswith('\n') else ''
         end = '\n' if msg.endswith('\n') else ''
         msg = msg.strip()
-        if exit:
+        if q:
             sys.stderr.write(start + f"\033[1;33mERROR: {self.emphasize(msg, 33)}\033[0m\n" + end)
             sys.exit(1)
         else:
@@ -70,7 +70,8 @@ class Logger:
             return
         self.error(msg, False)
 
-    def emphasize(self, msg, level_color):
+    @staticmethod
+    def emphasize(msg, level_color):
         if msg is None:
             return msg
         return re.sub(r'``([^`]*)``', f'\033[0m\033[1;4m\\1\033[0m\033[1;{level_color}m', str(msg))
@@ -255,7 +256,7 @@ def get_slice(value, all_tuple = True, mismatch_quit = True, non_negative = True
          slicearg = re.search('\[(.*?)\]', value).group(1)
     except Exception as e:
          if mismatch_quit:
-              raise AttributeError('Cannot obtain slice from input string {}'.format(value))
+              raise AttributeError(f'Cannot obtain slice from input string {value}. [{e}].')
          else:
               return value, None
     name = value.split('[')[0]
@@ -370,9 +371,10 @@ def update_nested_dict(d, u, mapping = dict):
             d[k] = u[k]
     return d
 
-def strip_dict(data, mapping = dict, into_list = False, skip_keys = []):
+def strip_dict(data, mapping = dict, into_list = False, skip_keys = None):
     if not isinstance(data, collections.Mapping):
         return data
+    skip_keys = skip_keys or []
     mapping_null = [dict()]
     new_data = mapping()
     for k, v in data.items():
@@ -686,11 +688,12 @@ def md2html(content, to_file):
     with open(to_file, 'w') as f:
         f.write(output)
 
-def dsc2html(dsc_conf, output, sequences, modules, lib_content = [], dsc_ann = None):
+def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann = None):
     '''
     section_content: ordered dictionary of lists,
     {'section 1': ['exec1.R', 'exec2.py']}
     '''
+    lib_content = lib_content or []
     modules = dict(modules)
     section_content = [('->'.join(x), flatten_list([modules[i] for i in x])) for x in sequences]
     section_content = dict(lib_content + section_content)

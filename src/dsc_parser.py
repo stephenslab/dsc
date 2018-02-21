@@ -111,7 +111,8 @@ class DSC_Script:
                     set_nested_value(self.content[block], k, gvars[v])
         # FIXME: have to decide if we need to set global options, or not?
 
-    def validate_var_name(self, val, is_parameter):
+    @staticmethod
+    def validate_var_name(val, is_parameter):
         tip = f"If this limitation is irrelevant to your problem, and you really cannot rename variable in your code, then at your own risk you can rename ``{val}`` to, eg, ``name`` in DSC and use ``@ALIAS: {val} = name``."
         groups = DSC_DERIVED_BLOCK.search(val)
         if groups:
@@ -246,7 +247,8 @@ class DSC_Script:
         res['DSC'] = self.content['DSC']
         self.content = res
 
-    def get_sos_options(self, name, content):
+    @staticmethod
+    def get_sos_options(name, content):
         out = dotdict()
         out.verbosity = env.verbosity
         out.__wait__ = True
@@ -367,7 +369,7 @@ class DSC_Module:
                     if groups:
                         try:
                             self.rf[key].append(groups.group(1))
-                        except Exception as e:
+                        except:
                             self.rf[key] = [groups.group(1)]
                 # are there remaining values not file()?
                 if key in self.rf and len(self.rf[key]) < len(in_input):
@@ -429,7 +431,8 @@ class DSC_Module:
         if len(alias):
             raise FormatError(f'Invalid @ALIAS for module ``{self.name}``:\n``{dict2str(alias)}``')
 
-    def make_filter_statement(self, ft):
+    @staticmethod
+    def make_filter_statement(ft):
         ft = parse_filter(ft, dotted = False)[0]
         res = []
         variables = uniq_list(flatten_list([[ii[1][1] for ii in i] for i in ft]))
@@ -730,7 +733,7 @@ class DSC_Pipeline:
         return res
 
 
-def remote_config_parser(host, paths = []):
+def remote_config_parser(host, paths):
     conf = None
     for h in [host, f'{host}.yml', f'{host}.yaml']:
         if os.path.isfile(h):
