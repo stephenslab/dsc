@@ -508,7 +508,7 @@ def _load_sliced_level(handler, level, sel):
         raise ValueError('Cannot partially load this data type using `sel`')
 
 
-def save(path, data, compression='blosc'):
+def save(data, path, compression='blosc'):
     """
     Save any Python structure to an HDF5 file. It is particularly suited for
     Numpy arrays. This function works similar to ``numpy.save``, except if you
@@ -546,12 +546,12 @@ def save(path, data, compression='blosc'):
 
     Parameters
     ----------
-    path : string
-        Filename to which the data is saved.
     data : anything
         Data to be saved. This can be anything from a Numpy array, a string, an
         object, or a dictionary containing all of them including more
         dictionaries.
+    path : string
+        Filename to which the data is saved.
     compression : string or tuple
         Set compression method, choosing from `blosc`, `zlib`, `lzo`, `bzip2`
         and more (see PyTables documentation). It can also be specified as a

@@ -275,11 +275,11 @@ class PyPlug(BasePlug):
             for item in lib:
                 res += '\nsys.path.append(os.path.expanduser("{}"))'.format(item)
         # load files
-        res += '\nfrom dsc.utils import save_rds, load_rds'
+        res += '\nfrom dsc.hdf5io import save as save_dsc_h5, load as load_dsc_h5'
         load_multi_in = '\n{} = {{}}'.format(self.identifier) + \
-          '\nfor item in [${{_input:r,}}]:\n\t{}.update(load_rds(item))'.format(self.identifier)
-        load_single_in = '\n{} = load_rds("${{_input}}")'.format(self.identifier)
-        load_out = '\nglobals().update(load_rds("${_output}"))'
+          '\nfor item in [${{_input:r,}}]:\n\t{}.update(load_dsc_h5(item))'.format(self.identifier)
+        load_single_in = '\n{} = load_dsc_h5("${{_input}}")'.format(self.identifier)
+        load_out = '\nglobals().update(load_dsc_h5("${_output}"))'
         flag = False
         if input_num > 1 and autoload:
             res += load_multi_in
@@ -323,7 +323,7 @@ class PyPlug(BasePlug):
     def get_return(self, output_vars):
         if len(output_vars) == 0:
             return ''
-        res = '\nsave_rds({{{}}}, ${{_output:r}})'.\
+        res = '\nsave_dsc_h5({{{}}}, ${{_output:r}})'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
                            ['"DSC_TIMER" : timeit.default_timer() - {}_tic_pt'.format(self.identifier)]))
         # res += '\nfrom os import _exit; _exit(0)'
