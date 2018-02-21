@@ -417,18 +417,36 @@ def expand_logic(string):
     '''
     bool logic expander
     '''
+    string = string.replace('|', '__DSC_BAR__')
+    string = string.replace('~', '__DSC_TA__')
+    string = string.replace('&', '__DSC_N__')
     string = string.replace(' or ', '|')
     string = string.replace(' OR ', '|')
     string = string.replace(' and ', '&')
     string = string.replace(' AND ', '&')
     string = string.replace('not', '~')
     string = string.replace('NOT', '~')
+    quote_dict = dict()
+    idx = 1
+    for m in re.findall(r'\'(.+?)\'', string) + re.findall(r'\"(.+?)\"', string):
+        key = f'__DSC_QT_{idx}__'
+        quote_dict[key] = m
+        string = string.replace(m, key, 1)
+        idx += 1
     res = []
     op = LogicParser()
     for x in op(string):
         if isinstance(x, str):
-            x = (x,)
-        res.append(x)
+            x = [x]
+        else:
+            x = list(x)
+        for idx, item in enumerate(x):
+            x[idx] = x[idx].replace('__DSC_BAR__', '|')
+            x[idx] = x[idx].replace('__DSC_TA__', '~')
+            x[idx] = x[idx].replace('__DSC_N__', '&')
+            for key, value in quote_dict.items():
+                x[idx] = x[idx].replace(key, value, 1)
+        res.append(tuple(x))
     return res
 
 def parse_filter(condition, groups = {}, dotted = True):
