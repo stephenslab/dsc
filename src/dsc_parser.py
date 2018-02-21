@@ -347,7 +347,7 @@ class DSC_Module:
         self.shell_run = False
         if not self.shell_run and len(self.rv) > 0:
             # make it a list in order to readily merge with other self.rf items
-            self.rf['DSC_AUTO_OUTPUT_'] = ['rds']
+            self.rf['DSC_AUTO_OUTPUT_'] = ['rds' if self.plugin.name == 'R' else 'h5']
 
     def set_output(self, return_var):
         '''

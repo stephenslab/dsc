@@ -94,8 +94,8 @@ def main():
     p.add_argument('dsc_output', metavar = "DSC output folder", help = 'Path to DSC output.')
     p.add_argument('-o', metavar = "str", dest = 'output', required = True,
                    help = '''Output notebook / data file name.
-                   In query applications if file name ends with ".rds" then only data file will be saved
-                   as result of query. Otherwise both data file and a notebook that displays the data
+                   In query applications if file name ends with ".csv", ".ipynb" or ".xlsx" then only data file will be saved
+                   as result of query. Otherwise both data file in ".xlsx" format and a notebook that displays the data
                    will be saved.''')
     p.add_argument('--limit', metavar = 'N', type = int, default = -1,
                    help='''Number of rows to display for tables. Default is to display it for all rows
