@@ -46,7 +46,7 @@ May not work in Windows.
 }
 \examples{
 
-# Retrieve results from the "one_sample_location" experiment in
+# Retrieve results from the "one_sample_location" DSC experiment in
 # which the true mean is 1. The MSE (mean squared error) values
 # should be extracted into the "mse.mse" column.
 dsc.dir <- system.file("datafiles","one_sample_location",
@@ -55,9 +55,34 @@ dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.mse"),
                 condition = "simulate.true_mean = 1")
 print(dat)
 
+# Retrieve some results from the "ash" DSC experiment. In this
+# example, the beta estimates are long vectors (length 1,000), so the
+# results are not extracted into the outputted data frame.
+dsc.dir2 <- system.file("datafiles","ash","dsc_result",
+                        package = "dscrutils")
+dat2 <-
+  dscquery(dsc.dir2,
+           targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
+                       "shrink.beta_est","shrink.pi0_est"),
+           condition = paste("simulate.g =",
+                             "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"))
+
+# This is the same as the previous example, but extracts the
+# vector-valued beta estimates into the outputted data frame. As a
+# result, the data frame of query results is much larger (it has over
+# 1000 columns).
+
+dat3 <-
+  dscquery(dsc.dir2,
+           targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
+                       "shrink.beta_est","shrink.pi0_est"),
+           condition = paste("simulate.g =",
+                             "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"),
+           max.extract.vector = 1000)
+
 # This query should generate an error because there is no output
 # called "score" in the "mse" module.
-dat2 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
+dat4 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
                  condition = "simulate.true_mean = 1")
 
 }

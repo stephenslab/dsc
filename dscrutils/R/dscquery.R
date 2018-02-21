@@ -35,7 +35,7 @@
 #'
 #' @examples
 #'
-#' # Retrieve results from the "one_sample_location" experiment in
+#' # Retrieve results from the "one_sample_location" DSC experiment in
 #' # which the true mean is 1. The MSE (mean squared error) values
 #' # should be extracted into the "mse.mse" column.
 #' dsc.dir <- system.file("datafiles","one_sample_location",
@@ -44,9 +44,34 @@
 #'                 condition = "simulate.true_mean = 1")
 #' print(dat)
 #'
+#' # Retrieve some results from the "ash" DSC experiment. In this
+#' # example, the beta estimates are long vectors (length 1,000), so the
+#' # results are not extracted into the outputted data frame.
+#' dsc.dir2 <- system.file("datafiles","ash","dsc_result",
+#'                         package = "dscrutils")
+#' dat2 <-
+#'   dscquery(dsc.dir2,
+#'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
+#'                        "shrink.beta_est","shrink.pi0_est"),
+#'            condition = paste("simulate.g =",
+#'                              "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"))
+#'
+#' # This is the same as the previous example, but extracts the
+#' # vector-valued beta estimates into the outputted data frame. As a
+#' # result, the data frame of query results is much larger (it has over
+#' # 1000 columns).
+#' 
+#' dat3 <-
+#'   dscquery(dsc.dir2,
+#'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
+#'                        "shrink.beta_est","shrink.pi0_est"),
+#'            condition = paste("simulate.g =",
+#'                              "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"),
+#'            max.extract.vector = 1000)
+#' 
 #' # This query should generate an error because there is no output
 #' # called "score" in the "mse" module.
-#' dat2 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
+#' dat4 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
 #'                  condition = "simulate.true_mean = 1")
 #'
 #' @export
@@ -127,7 +152,11 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
                   na.strings = "")
   n   <- nrow(dat)
   dat <- as.list(dat)
-
+  for (i in 1:length(dat)) {
+    dat[[i]]        <- data.frame(dat[[i]])
+    names(dat[[i]]) <- names(dat)[i]
+  }
+      
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
   # Get all the columns of the form "module.variable.output".
@@ -159,8 +188,9 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
       
       # Extract the value of the selected output from each of the RDS
       # files. Repeat for each row of the query table.
+      dsc.module.files <- dat[[j]][[1]]
       for (i in 1:n) {
-        dscfile <- file.path(dsc.outdir,paste0(dat[[j]][i],".rds"))
+        dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
         out     <- readRDS(dscfile)
 
         # Check that the variable is one of the outputs in the file.
@@ -171,10 +201,12 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
         values[[i]] <- out[[var]]
       }
 
-      # If all the values are atomic, then the values can fit into the
-      # column of a data frame. If not, then there is nothing to be
-      # done.
-      if (all(sapply(values,is.atomic))) {
+      # If all the values are atomic, not NULL, and scalar (i.e.,
+      # length of 1), then the values can fit into the column of a data
+      # frame. If not, then there is nothing to be done.
+      if (all(sapply(values,function (x) !is.null(x) &
+                                         is.atomic(x) &
+                                         length(x) == 1))) {
         if (verbose)
           cat("extracted atomic values\n")
         dat[[j]]        <- data.frame(unlist(values))
@@ -188,23 +220,25 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
         # vector values into the data frame.
         extract.values <- FALSE
         if (all(sapply(values,is.vector)))
-          if (unique(sapply(values,length)) == 1 &
+          if (length(unique(sapply(values,length))) == 1 &
               max(sapply(values,length)) <= max.extract.vector)
             extract.values <- TRUE
         if (extract.values) {
           if (verbose)
-            cat("extracted vector values")
+            cat("extracted vector values\n")
           dat[[j]] <- data.frame(do.call(rbind,values),
                                  check.names = FALSE,
                                  stringsAsFactors = FALSE)
           names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
-        }
-        else if (verbose)
+        } else if (verbose)
           cat("not extracted (filenames provided)\n")
       }
     }
   }
   
   # Output the query result as a data frame.
-  return(do.call(cbind,dat))
+  dat.names  <- unlist(lapply(dat,names))
+  dat        <- do.call(cbind,dat)
+  names(dat) <- dat.names
+  return(dat)
 }
