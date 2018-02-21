@@ -444,7 +444,7 @@ def parse_filter(condition, groups = {}, dotted = True):
     '''
     # FIXME: check legalize names
     if condition is None:
-        return (None, None)
+        return ([], [])
     res = []
     cond_tables = []
     symbols = ['=', '==', '!=', '>', '<', '>=', '<=', 'in']
