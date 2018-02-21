@@ -600,10 +600,10 @@ def round_print(text, sep, pc = None):
         for i, value in enumerate(line):
             try:
                 line[i] = int(value)
-            except Exception as e:
+            except Exception:
                 try:
                     line[i] = float(value)
-                except Exception as e:
+                except Exception:
                     line[i] = value
         print(sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x)
                         for x in line]).strip())
