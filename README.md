@@ -16,8 +16,8 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 0.2.6.1
 
-* Require `PBS` type of queue to have a corresponding headnode configuration (for customized `job_template`)
-* SoS required version bumped to 0.9.12.6 for the new feature above.
+* Internally replace `RDS` format with `HDF5` format for Python routines. **Pipeline with mixed languages is now officially broken at this point until the next major release that supports `HDF5` in R**.
+* SoS required version bumped to 0.9.12.7 for relevant upstream bug fixes for remote host computing.
 * [minor] Various bug fixes.
 
 0.2.6
