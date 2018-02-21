@@ -441,11 +441,11 @@ def expand_logic(string):
         else:
             x = list(x)
         for idx, item in enumerate(x):
-            x[idx] = x[idx].replace('__DSC_BAR__', '|')
-            x[idx] = x[idx].replace('__DSC_TA__', '~')
-            x[idx] = x[idx].replace('__DSC_N__', '&')
+            x[idx] = item.replace('__DSC_BAR__', '|')
+            x[idx] = item.replace('__DSC_TA__', '~')
+            x[idx] = item.replace('__DSC_N__', '&')
             for key, value in quote_dict.items():
-                x[idx] = x[idx].replace(key, value, 1)
+                x[idx] = item.replace(key, value, 1)
         res.append(tuple(x))
     return res
 
