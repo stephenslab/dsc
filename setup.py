@@ -40,8 +40,8 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
-      install_requires = ['numpy', 'pandas>=0.22.0', 'sympy', 'numexpr',
+      install_requires = ['numpy', 'scipy', 'pandas>=0.22.0', 'sympy', 'numexpr',
                           'sos>=0.9.12.6', 'sos-pbs>=0.9.10.4',
-                          'pyarrow>=0.5.0', 'sqlalchemy',
+                          'tables', 'pyarrow>=0.5.0', 'sqlalchemy',
                           'msgpack-python', 'ruamel.yaml>=0.15']
       )
