@@ -19,11 +19,17 @@
 #' 
 #' @param exec The command or pathname of the dsc-query executable.
 #'
+#' @param max.extract.vector All vectors not exceeding this length are
+#' automatically extracted to the data frame unless the 
+#' 
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
 #' @return A data frame containing the result of the DSC query, with
 #' columns corresponding to the query target.
+#'
+#' NOTE: It is possible that some of the column names may be
+#' duplicated if any vectors are extracted.
 #'
 #' @note May not work in Windows.
 #'
@@ -46,7 +52,7 @@
 #' @export
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
                       add.path = FALSE, exec = "dsc-query",
-                      verbose = TRUE) {
+                      max.extract.vector = 10, verbose = TRUE) {
 
   # CHECK INPUTS
   # ------------
@@ -117,7 +123,10 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   if (verbose)
     cat("Loading dsc-query output from CSV file.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
-                  check.names = FALSE,comment.char = "",na.strings = "")
+                  check.names = FALSE,comment.char = "",
+                  na.strings = "")
+  n   <- nrow(dat)
+  dat <- as.list(dat)
 
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
@@ -133,7 +142,6 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   # Repeat for each column of the form "module.variable.output".
   if (length(cols) > 0) {
     cat("Reading DSC outputs:\n")
-    n <- nrow(dat)
     for (j in cols) {
 
       # Get the column name (col), module name (module), variable name
@@ -152,7 +160,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
       # Extract the value of the selected output from each of the RDS
       # files. Repeat for each row of the query table.
       for (i in 1:n) {
-        dscfile <- file.path(dsc.outdir,paste0(dat[i,j],".rds"))
+        dscfile <- file.path(dsc.outdir,paste0(dat[[j]][i],".rds"))
         out     <- readRDS(dscfile)
 
         # Check that the variable is one of the outputs in the file.
@@ -168,15 +176,35 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
       # done.
       if (all(sapply(values,is.atomic))) {
         if (verbose)
-          cat("extracted\n")
-        dat[[j]]      <- unlist(values)
-        names(dat)[j] <- col.new
-      } else
-        if (verbose)
-          cat("not extracted\n")
+          cat("extracted atomic values\n")
+        dat[[j]]        <- data.frame(unlist(values))
+        names(dat[[j]]) <- col.new
+        names(dat)[j]   <- col.new
+      } else {
+
+        # If (1) all the values are vectors, (2) the vectors are of
+        # the same length, and (3) the vector lengths to not exceed
+        # the maximum allowed vector length, then incorporate the
+        # vector values into the data frame.
+        extract.values <- FALSE
+        if (all(sapply(values,is.vector)))
+          if (unique(sapply(values,length)) == 1 &
+              max(sapply(values,length)) <= max.extract.vector)
+            extract.values <- TRUE
+        if (extract.values) {
+          if (verbose)
+            cat("extracted vector values")
+          dat[[j]] <- data.frame(do.call(rbind,values),
+                                 check.names = FALSE,
+                                 stringsAsFactors = FALSE)
+          names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
+        }
+        else if (verbose)
+          cat("not extracted (filenames provided)\n")
+      }
     }
   }
   
-  # Output the query result stored in a data frame.
-  return(dat)
+  # Output the query result as a data frame.
+  return(do.call(cbind,dat))
 }
