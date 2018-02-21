@@ -40,7 +40,7 @@ class Logger:
         if msg is None:
             sys.stderr.write('\n')
             return
-        if type(msg) is list:
+        if isinstance(msg, list):
             msg = ' '.join(map(str, msg))
         else:
             msg = str(msg)

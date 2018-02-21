@@ -221,8 +221,7 @@ def _save_level(handler, group, level, name=None, filters=None, idtable=None):
                 _save_level(handler, new_group, v, name=k, filters=filters,
                             idtable=idtable)
 
-    elif isinstance(level, SimpleNamespace) and
-          _dict_native_ok(level.__dict__):
+    elif isinstance(level, SimpleNamespace) and _dict_native_ok(level.__dict__):
         # Create a new group in same manner as for dict
         new_group = handler.create_group(
             group, name, "SimpleNamespace:{}".format(len(level.__dict__)))
@@ -361,8 +360,7 @@ def _load_nonlink_level(handler, level, pathtable, pathname):
     Loads level and builds appropriate type, without handling softlinks
     """
     if isinstance(level, tables.Group):
-        if level._v_title.startswith('SimpleNamespace:') or
-                     IO_ROOT_IS_SNS in level._v_attrs:
+        if level._v_title.startswith('SimpleNamespace:') or IO_ROOT_IS_SNS in level._v_attrs:
             val = SimpleNamespace()
             dct = val.__dict__
         elif level._v_title.startswith('list:'):
@@ -581,8 +579,7 @@ def save(path, data, compression='blosc'):
                 _save_level(h5file, group, value, name=key,
                             filters=filters, idtable=idtable)
 
-        elif isinstance(data, SimpleNamespace) and
-              _dict_native_ok(data.__dict__):
+        elif isinstance(data, SimpleNamespace) and _dict_native_ok(data.__dict__):
             idtable[id(data)] = '/'
             group._v_attrs[IO_ROOT_IS_SNS] = True
             for key, value in data.__dict__.items():

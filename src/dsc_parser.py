@@ -369,7 +369,7 @@ class DSC_Module:
                     if groups:
                         try:
                             self.rf[key].append(groups.group(1))
-                        except:
+                        except Exception:
                             self.rf[key] = [groups.group(1)]
                 # are there remaining values not file()?
                 if key in self.rf and len(self.rf[key]) < len(in_input):
