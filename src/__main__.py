@@ -103,7 +103,8 @@ def execute(args):
     pipeline_obj = DSC_Pipeline(script).pipelines
     #
     import platform
-    exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' else 'linux')
+    # FIXME: always assume args.host is a Linux machine; thus not checking it
+    exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' and args.host is None else 'linux')
                  for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
     exec_path = [x for x in exec_path if os.path.isdir(x)]
     conf = None
@@ -196,7 +197,7 @@ def execute(args):
     if args.host:
         conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.remote.yml')
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
-    env.logger.info("Building execution graph & running DSC ...")
+    env.logger.info(f"Building execution graph & {'Running DSC' if args.host is None else 'Connecting to ``' + args.host + '`` (may take a while)'} ...")
     content = {'__max_running_jobs__': args.__max_jobs__,
                '__max_procs__': args.__max_jobs__,
                '__sig_mode__': mode,
