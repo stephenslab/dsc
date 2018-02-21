@@ -1,7 +1,7 @@
 
 # DSC2
 
-[![PyPI version](https://badge.fury.io/py/sos.svg)](https://badge.fury.io/py/dsc)
+[![PyPI version](https://badge.fury.io/py/dsc.svg)](https://badge.fury.io/py/dsc)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/46bb573ea0414f6095f1b7fd4bedbfd3)](https://www.codacy.com/app/gaow/dsc2?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stephenslab/dsc2&amp;utm_campaign=Badge_Grade)
 
 DSC2 is successor of the [Dynamic Statistical Comparisons in R](https://github.com/stephens999/dscr).
