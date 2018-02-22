@@ -736,7 +736,7 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
                     seen.append(command)
                 try:
                     text = open(command).read()
-                except Exception as e:
+                except Exception:
                     continue
                 scripts.append((os.path.basename(command), os.path.splitext(command)[1][1:].lower(), text))
             if len(scripts) == 0:
