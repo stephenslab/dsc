@@ -124,22 +124,24 @@ class ExpandVars(YLine):
     '''
     def __init__(self, global_var):
         YLine.__init__(self)
-        self.global_var = global_var
+        self.global_var = global_var if global_var else dict()
 
     def __call__(self, value):
-        if self.global_var is None:
-            return value
         for idx, item in enumerate(value):
             if isinstance(item, str):
                 # find pattern with slicing first
                 pattern = re.compile(r'\$\((.*?)\)\[(.*?)\]')
                 for m in re.finditer(pattern, item):
+                    if m.group(1) not in self.global_var:
+                        raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
                     tmp = [x.strip() if isinstance(x, str) else str(x) for x in self.split(self.global_var[m.group(1)])]
                     tmp = ', '.join([tmp[i] for i in get_slice('slice[' + m.group(2) + ']')[1]])
                     item = item.replace(m.group(0), '[' + tmp + ']')
                 # then pattern without slicing
                 pattern = re.compile(r'\$\((.*?)\)')
                 for m in re.finditer(pattern, item):
+                    if m.group(1) not in self.global_var:
+                        raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
                     item = item.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)]))
                 if item != value[idx]:
                     value[idx] = item
@@ -175,7 +177,7 @@ class ExpandActions(YLine):
                 replacements = []
                 for p in pos:
                     if p < p_end:
-                        raise ValueError(f"Invalid parentheses pattern in ``{value}``")
+                        raise FormatError(f"Invalid parentheses pattern in ``{value}``")
                     p_end = find_parens(value[p:])[0]
                     replacements.append((f'{name}{value[p:p_end+p+1]}', ','.join(self.method[name](value[p:p_end+p+1]))))
                 for r in replacements:
@@ -186,7 +188,7 @@ class ExpandActions(YLine):
         raw_value = value
         value = [self.decodeVar(x) for x in self.split(value)]
         if len(value) == 1:
-            raise ValueError('Cannot produce combinations for single value ``{}``! '\
+            raise FormatError('Cannot produce combinations for single value ``{}``! '\
                              ' Please use "," to separate input string to multiple values.'.format(raw_value))
         value = [x if isinstance(x, (list, tuple)) else [x] for x in value]
         return cartesian_list(*value)
@@ -261,7 +263,7 @@ class OperationParser(YLine):
         if is_null(value):
             return value
         if not isinstance(value, str):
-            raise TypeError("Argument must be string but it is %s." % type(value))
+            raise FormatError("Argument must be string but it is %s." % type(value))
         value = value.strip()
         if value[-1] in ['+', '*', ',', '=', '/']:
             raise FormatError('The end of operator ``"{}"`` cannot be operator ``{}``!'.\

@@ -57,6 +57,9 @@ class BasePlug:
     def get_input(self, params, input_num, lib, index, cmd_args, autoload):
         return ''
 
+    def get_output(self, params):
+        return ''
+
     @staticmethod
     def format_tuple(value):
         return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
@@ -93,18 +96,6 @@ class Shell(BasePlug):
         else:
             temp_var = [f'${{_output[0]:n}}.{lhs}.{item.strip()}' for item in rhs.split(',')]
             self.tempfile.append('{}="""{}"""'.format(lhs, ' '.join(temp_var)))
-
-    def add_return(self, lhs, rhs):
-        pass
-
-    def get_return(self, output_vars):
-        return ''
-
-    def set_container(self, name, value, params):
-        pass
-
-    def get_input(self, params, input_num, lib, index, cmd_args, autoload):
-        return ''
 
     @staticmethod
     def format_tuple(value):
@@ -195,6 +186,19 @@ class RPlug(BasePlug):
         # timer
         res += '\n{}_tic_pt <- proc.time()'.format(self.identifier)
         return res
+
+    def get_output(self, params):
+        res = []
+        for k in params:
+            if k == 'DSC_AUTO_OUTPUT_':
+                continue
+            if len(params[k]) > 1:
+                res.append(f'{k} <- rep(NA, {len(params[k])})')
+                for idx, item in enumerate(params[k]):
+                    res.append(f'{k}[{idx + 1}] <- paste0(${{_output:nr}}, ".{item}")')
+            else:
+                res.append(f'{k} <- paste0(${{_output:nr}}, ".{params[k][0]}")')
+        return '\n'.join(res)
 
     def get_return(self, output_vars):
         if len(output_vars) == 0:
@@ -319,6 +323,19 @@ class PyPlug(BasePlug):
             res += '\n%s = ${_%s}' % (k, k)
         res += '\n{}_tic_pt = timeit.default_timer()'.format(self.identifier)
         return res
+
+    def get_output(self, params):
+        res = []
+        for k in params:
+            if k == 'DSC_AUTO_OUTPUT_':
+                continue
+            if len(params[k]) > 1:
+                res.append(f'{k} = [None for x in range({len(params[k])})]')
+                for idx, item in enumerate(params[k]):
+                    res.append(f'{k}[{idx}] = ${{_output:nr}} + ".{item}"')
+            else:
+                res.append(f'{k} = ${{_output:nr}} + ".{params[k][0]}"')
+        return '\n'.join(res)
 
     def get_return(self, output_vars):
         if len(output_vars) == 0:
