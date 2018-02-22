@@ -195,7 +195,7 @@ def execute(args):
         script_to_html(os.path.abspath(script_run), f'.sos/.dsc/{db}.run.html')
         return
     if args.host:
-        conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.remote.yml')
+        conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -J %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.remote.yml', args.__max_jobs__)
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
     env.logger.info(f"Building execution graph & {'Running DSC' if args.host is None else 'Connecting to ``' + args.host + '`` (may take a while)'} ...")
     content = {'__max_running_jobs__': args.__max_jobs__,

@@ -377,6 +377,9 @@ class DSC_Module:
             if key in self.rf:
                 continue
             # now decide this new variable is a file or else
+            if not isinstance(value, str):
+                self.rv[key] = value
+                continue
             groups = DSC_ASIS_OP.search(value)
             if groups:
                 self.rv[key] = groups.group(1)
@@ -622,7 +625,7 @@ class DSC_Section:
                 # that is, only exists alternating modules not concatenate modules
                 self.groups[lhs] = rhs.replace(',','').replace(')','').replace('(','').split()
             else:
-                self.concats[lhs] = rhs.replace(',','').replace(')','').replace('(','').replace('*').split()
+                self.concats[lhs] = rhs.replace(',','').replace(')','').replace('(','').replace('*', '').split()
             # http://www.regular-expressions.info/wordboundaries.html
             value = re.sub(r"\b%s\b" % lhs, rhs, value)
         return value
@@ -675,7 +678,7 @@ class DSC_Pipeline:
             for k, p in list(module.p.items()):
                 for p1_idx, p1 in enumerate(p):
                     if isinstance(p1, str):
-                        if p1.startswith('$'):
+                        if p1.startswith('$') and not (DSC_GVS.search(p1) or DSC_GV.search(p1)):
                             id_dependent = self.find_dependent(p1[1:], list(pipeline.values()),
                                                                module.name)
                             if id_dependent[1] not in module.depends:
