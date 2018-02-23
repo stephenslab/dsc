@@ -14,6 +14,12 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 ### 0.2.x
 
+0.2.6.2
+
+* Add, by default, a variable `DSC_DEBUG` to output files that saves parameters used to generate the output.
+* Enhance `R()` operator due to use of [`dscrutils`](https://github.com/stephenslab/dsc2/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
+* [minor] Various bug fixes.
+
 0.2.6.1
 
 * Internally replace `RDS` format with `HDF5` format for Python routines. **Pipeline with mixed languages is now officially broken at this point until the next major release that supports `HDF5` in R**.

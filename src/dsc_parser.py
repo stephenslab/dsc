@@ -147,9 +147,9 @@ class DSC_Script:
         blocks = []
         derived = dict()
         for block in self.content:
-            groups = DSC_DERIVED_BLOCK.search(block.strip())
+            groups = DSC_DERIVED_BLOCK.search(block)
             if groups:
-                derived[block] = (groups.group(1).strip(), groups.group(2).strip())
+                derived[block] = (groups.group(1), groups.group(2))
             else:
                 base.append(block)
                 blocks.append(block)
