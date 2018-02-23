@@ -40,10 +40,10 @@ DSC:
 
 default:
   queue: midway2
-  time_per_task: 10m
-  tasks_per_job: 2
+  time_per_instance: 10m
+  instances_per_job: 2
   n_cpu: 1
   mem_per_cpu: 2G
 
 simulate:
-  tasks_per_job: 20
+  instances_per_job: 20

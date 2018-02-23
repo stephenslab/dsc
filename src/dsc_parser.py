@@ -754,7 +754,7 @@ def remote_config_parser(host, paths):
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
-    default = dict([('time_per_task', '5m'), ('tasks_per_job', 2), ('n_cpu', 1), ('mem_per_cpu', '2G'), ('trunk_workers', 1), ('queue', list(conf['DSC'].keys())[0])])
+    default = dict([('time_per_instance', '5m'), ('instances_per_job', 2), ('n_cpu', 1), ('mem_per_cpu', '2G'), ('trunk_workers', 1), ('queue', list(conf['DSC'].keys())[0])])
     if len(paths):
         default['prepend_path'] = paths
     if 'default' in conf:
@@ -767,8 +767,8 @@ def remote_config_parser(host, paths):
             continue
         tmp = copy.deepcopy(default)
         tmp.update(conf[key])
-        tmp['walltime'] = tmp.pop('time_per_task')
-        tmp['trunk_size'] = tmp.pop('tasks_per_job')
+        tmp['walltime'] = tmp.pop('time_per_instance')
+        tmp['trunk_size'] = tmp.pop('instances_per_job')
         tmp['mem'] = tmp.pop('mem_per_cpu')
         tmp['cores'] = tmp.pop('n_cpu')
         keys = [k.strip() for k in key.split(',')]
