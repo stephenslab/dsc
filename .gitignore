@@ -3,7 +3,7 @@
 **/.DS_store
 **/__pycache__
 README.rst
-src/version.py.bak
+**/*.bak
 vignettes/ash/*
 vignettes/one_sample_location/*
 vignettes/one_sample_location_python/*

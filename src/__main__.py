@@ -197,7 +197,9 @@ def execute(args):
     if args.host:
         conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -J %s -v %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.remote.yml', args.__max_jobs__, args.verbosity)
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
-    env.logger.info(f"Building execution graph & {'Running DSC' if args.host is None else 'Connecting to ``' + args.host + '`` (may take a while)'} ...")
+    else:
+        os.remove('.sos/transcript.txt')
+    env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
     content = {'__max_running_jobs__': args.__max_jobs__,
                '__max_procs__': args.__max_jobs__,
                '__sig_mode__': mode,
@@ -208,16 +210,12 @@ def execute(args):
     try:
         with Silencer(args.verbosity if args.host else max(0, args.verbosity - 1)):
             cmd_run(script.get_sos_options(db, content), [])
-    except Exception as e:
-        if env.verbosity > 2:
-            sys.stderr.write(get_traceback())
+    except SystemExit:
         if args.host is None:
-            transcript2html('.sos/transcript.txt', f'{db}.transcript.html', title = db)
-            env.logger.error(e)
-            env.logger.warning("If needed, you can open ``{}.transcript.html`` and "\
-                               "use ``ctrl-F`` to search by ``output file name`` "\
-                               "for the problematic chunk of code.".\
-                               format(db))
+            transcript2html('.sos/transcript.txt', f'{db}.scripts.html', title = db)
+            env.logger.warning(f"If needed, you can open ``{db}.scripts.html`` and "\
+                               "use ``ctrl-F`` to search by file names to trace back "\
+                               "problematic chunks of code.")
         sys.exit(1)
     # Build database
     master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
