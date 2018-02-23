@@ -377,9 +377,9 @@ class DSC_Module:
                     groups = DSC_FILE_OP.search(p)
                     if groups:
                         try:
-                            self.rf[key].append(groups.group(1))
+                            self.rf[key].append(groups.group(1).strip('.'))
                         except Exception:
-                            self.rf[key] = [groups.group(1)]
+                            self.rf[key] = [groups.group(1).strip('.')]
                 # are there remaining values not file()?
                 if key in self.rf and len(self.rf[key]) < len(in_input):
                     raise FormatError(f"Return ``{key}`` in ``{in_input}`` cannot be a mixture of file() and module input")
@@ -396,7 +396,7 @@ class DSC_Module:
             # For file
             groups = DSC_FILE_OP.search(value)
             if groups:
-                self.rf[key] = [groups.group(1)]
+                self.rf[key] = [groups.group(1).strip('.')]
             else:
                 self.rv[key] = value
 
@@ -502,7 +502,7 @@ class DSC_Module:
                         p1 = DSC_ASIS_OP.search(p1).group(1)
                     elif DSC_FILE_OP.search(p1):
                         # p1 is file extension
-                        file_ext = DSC_FILE_OP.search(p1).group(1)
+                        file_ext = DSC_FILE_OP.search(p1).group(1).strip('.')
                         if k in self.rf:
                             # This file is to be saved as output
                             # FIXME: have to figure out what is the index of the output
