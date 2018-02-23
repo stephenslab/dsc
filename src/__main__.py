@@ -256,13 +256,13 @@ def main():
                    help = '''Behavior of how DSC is executed in the presence of existing results.
                    "default": skips modules whose "environment" has not been changed since previous execution.
                    "none": executes DSC from scratch.
-                   "all": skips all execution and attempts to build DSC database using existing results.
-                   making it possible to explore partial benchmark results without having to complete the entire
-                   benchmark.''')
+                   "all": skips all execution yet build DSC database of what the specified benchmark is
+                   supposed to look like, thus making it possible to explore partial benchmark results.''')
     mt.add_argument('--touch', action='store_true', dest='__recover__',
-                   help = '''"Touch" output files if exist, to mark them "executed" instead of running their commands.
+                   help = '''"Touch" output files if exist, to mark them "up-to-date".
                    This option is useful when executed benchmark files are transferred from one computer to another
-                   during which file signatures are lost.''')
+                   during which file signatures are lost. It will override "--skip" option.
+                   Note that time stamp is irrelevant to whether or not a file is up-to-date.''')
     mt.add_argument('--clean', metavar = "option", choices = ["remove", "replace", "purge"],
                    dest = 'to_remove',
                    help = '''Behavior of how DSC removes files.
@@ -271,7 +271,7 @@ def main():
                    so that pipelines involving these files will continue to run without regenerating them
                    unless they are directly required by another module.
                    This is useful to swap out large intermediate files.
-                   "purge" cleans up obsolete outputs in folder "DSC::output" after DSC is executed with "-s none".''')
+                   "purge" cleans up obsolete outputs in folder "DSC::output", after DSC is executed with "-s none".''')
     ro = p.add_argument_group('Runtime behavior')
     ro.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
                    dest='__max_jobs__',
