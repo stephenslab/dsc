@@ -12,8 +12,7 @@ import collections
 from xxhash import xxh32 as xxh
 from sos.utils import env
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
-     try_get_value, dict2str, set_nested_value, update_nested_dict, locate_file, filter_sublist, OrderedDict, \
-     yaml
+     try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, OrderedDict, cartesian_list, yaml
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter, parse_filter
@@ -63,11 +62,16 @@ class DSC_Script:
             else:
                 res += line
         self.update(res, exe)
-        self.propagate_derived_block()
+        if 'DSC' not in self.content:
+            raise FormatError('Cannot find required section ``DSC``!')
         global_vars = try_get_value(self.content, ('DSC', 'global'))
         self.set_global_vars(global_vars)
         self.content = EntryFormatter()(self.content, global_vars)
-        self.extract_modules()
+        derived, sorted_blocks = self.get_derived_blocks()
+        for block in sorted_blocks:
+            if block == 'DSC':
+                continue
+            self.extract_modules(block, derived[block] if block in derived else None)
         self.runtime = DSC_Section(self.content['DSC'], sequence, output)
         if self.runtime.output is None:
             self.runtime.output = dsc_name
@@ -137,11 +141,13 @@ class DSC_Script:
                 if not vv.isidentifier():
                     raise FormatError(f'Invalid variable name ``{vv.replace("^", "?")}``')
 
-    def propagate_derived_block(self):
+    def get_derived_blocks(self):
         '''
-        Name of derived blocks looks like: "derived(base)"
-        This function first figures out sorted block names such that derived block always follows the base block
-        Then it propagate self.content derived blocks
+        input: name of derived blocks looks like: "derived(base)"
+        output:
+        - derived : {block_name: derived_block, base_block}
+        - base: [module, ...]
+        - sorted_keys: figures out sorted block names such that derived block always follows the base block
         '''
         base = []
         blocks = []
@@ -150,102 +156,105 @@ class DSC_Script:
             groups = DSC_DERIVED_BLOCK.search(block)
             if groups:
                 derived[block] = (groups.group(1), groups.group(2))
+                if ',' in derived[block][1]:
+                    raise FormatError(f"Invalid base module name ``{derived[block][1]}``. Base module has to be single module.")
             else:
-                base.append(block)
+                base.extend(block.split(','))
                 blocks.append(block)
         if len(derived) == 0:
-            return
-        # Check looped derivations: x(y) and y(x)
-        tmp = [sorted(x) for x in derived.values()]
+            return derived, list(self.content.keys())
+        # get module level derivation
+        # [(derived, base), ()...]
+        tmp = sum([cartesian_list(*[y.split(',') for y in x]) for x in derived.values()], [])
+        # Check self-derivation and non-existing base
+        for item in tmp:
+            if item[0] == item[1]:
+                raise FormatError(f"Looped block inheritance: {item[0]}({item[0]})!")
+            if item[1] not in base and item[1] not in [x[0] for x in tmp]:
+                raise FormatError(f"Base block ``{item[1]}`` does not exist for {item[0]}({item[1]})!")
+        # now create duplicates by swapping
+        # and looped derivations: x(y) and y(x)
+        tmp = [sorted(x) for x in tmp]
         for item in ((i, tmp.count(i)) for i in tmp):
             if item[1] > 1:
                 raise FormatError(f"Looped block inheritance: {item[0][0]}({item[0][1]}) and {item[0][1]}({item[0][0]})!")
-        # Check self-derivation and non-existing base
-        tmp = base + [x[0] for x in derived.values()]
-        for item in derived.values():
-            if item[0] == item[1]:
-                raise FormatError(f"Looped block inheritance: {item[0]}({item[0]})!")
-            if item[1] not in tmp:
-                raise FormatError(f"Base block ``{item[1]}`` does not exist for {item[0]}({item[1]})!")
         #
         derived_cycle = itertools.cycle(derived.values())
         while True:
             item = next(derived_cycle)
             if item[1] in base:
-                base.append(item[0])
+                base.extend(item[0].split(','))
                 name = f'{item[0]}({item[1]})'
                 if name not in blocks:
                     blocks.append(name)
             if len(blocks) == len(self.content.keys()):
                 break
-        # propagate data
-        for block in blocks:
-            if block in derived:
-                self.content[derived[block][0]] = update_nested_dict(
-                    copy.deepcopy(self.content[derived[block][1]]), self.content[block])
-                del self.content[block]
-        return
+        return derived, blocks
 
-    def extract_modules(self):
-        if 'DSC' not in self.content:
-            raise FormatError('Cannot find required section ``DSC``!')
+    def extract_modules(self, block, derived):
+        '''
+        block: block raw name str
+        derived: (derived modules str, base module str)
+        '''
         res = dict()
-        for block in self.content:
-            if block == 'DSC':
-                continue
-            # expand module executables
-            modules = block.split(',')
-            if len(modules) != len(self.content[block]['^EXEC']) and len(self.content[block]['^EXEC']) > 1:
-                raise FormatError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['^EXEC'])}`` executables ``{self.content[block]['^EXEC']}``. " \
-                                 "Please ensure modules and executables match.")
-            if len(modules) > 1 and len(self.content[block]['^EXEC']) == 1:
-                self.content[block]['^EXEC'] = self.content[block]['^EXEC'] * len(modules)
-            # collection module specific parameters
-            tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
-            for key in self.content[block]:
-                if key.startswith('^') and key not in DSC_MODP:
-                    # then possibly it is executables
-                    # we'll update executable specific information
-                    for m in key[1:].split(','):
-                        if m.strip() not in modules:
-                            raise FormatError(f'Undefined decoration ``@{m.strip()}/^{m.strip()}``.')
-                        else:
-                            for kk, ii in self.content[block][key].items():
-                                if isinstance(ii, collections.Mapping):
-                                    if not kk.startswith('^'):
-                                        raise FormatError(f'Invalid decoration ``{kk}``. Decorations must start with ``@`` symbol.')
-                                    if kk not in DSC_MODP:
-                                        raise FormatError(f'Undefined decoration ``@{kk[1:]}/^{kk[1:]}``.')
-                                    else:
-                                        continue
-                            tmp[m.strip()]['local'].update(self.content[block][key])
-                elif key == '^EXEC':
-                    for idx, module in enumerate(modules):
-                        tmp[module]['global'][key] = self.content[block][key][idx]
-                elif key not in DSC_MODP and isinstance(self.content[block][key], collections.Mapping):
-                    raise FormatError(f'Invalid decoration ``{key}``. Decorations must start with ``@`` symbol.')
-                else:
-                    for module in modules:
-                        tmp[module]['global'][key] = self.content[block][key]
-            # parse input / output / meta
-            # output has $ prefix, meta has . prefix, input has no prefix
-            for module in tmp:
-                # FIXME: also default_1 etc
-                if module == 'default':
-                    raise FormatError(f'Cannot use ``"default"`` for module name -- please consider another name.')
-                if module in res:
-                    raise FormatError(f'Duplicate module definition {module}')
+        # expand module executables
+        modules = block.split(',') if derived is None else derived[0].split(',')
+        if derived is not None and '^EXEC' not in self.content[block]:
+            self.content[block]['^EXEC'] = [self.content[derived[1]]['meta']['exec']]
+        if len(modules) != len(self.content[block]['^EXEC']) and len(self.content[block]['^EXEC']) > 1:
+            raise FormatError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['^EXEC'])}`` executables ``{self.content[block]['^EXEC']}``. " \
+                             "Please ensure modules and executables match.")
+        if len(modules) > 1 and len(self.content[block]['^EXEC']) == 1:
+            self.content[block]['^EXEC'] = self.content[block]['^EXEC'] * len(modules)
+        # collection module specific parameters
+        tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
+        for key in self.content[block]:
+            if key.startswith('^') and key not in DSC_MODP:
+                # then possibly it is executables
+                # we'll update executable specific information
+                for m in key[1:].split(','):
+                    if m.strip() not in modules:
+                        raise FormatError(f'Undefined decoration ``@{m.strip()}/^{m.strip()}``.')
+                    else:
+                        for kk, ii in self.content[block][key].items():
+                            if isinstance(ii, collections.Mapping):
+                                if not kk.startswith('^'):
+                                    raise FormatError(f'Invalid decoration ``{kk}``. Decorations must start with ``@`` symbol.')
+                                if kk not in DSC_MODP:
+                                    raise FormatError(f'Undefined decoration ``@{kk[1:]}/^{kk[1:]}``.')
+                                else:
+                                    continue
+                        tmp[m.strip()]['local'].update(self.content[block][key])
+            elif key == '^EXEC':
+                for idx, module in enumerate(modules):
+                    tmp[module]['global'][key] = self.content[block][key][idx]
+            elif key not in DSC_MODP and isinstance(self.content[block][key], collections.Mapping):
+                raise FormatError(f'Invalid decoration ``{key}``. Decorations must start with ``@`` symbol.')
+            else:
+                for module in modules:
+                    tmp[module]['global'][key] = self.content[block][key]
+        # parse input / output / meta
+        # output has $ prefix, meta has . prefix, input has no prefix
+        for module in tmp:
+            # FIXME: also default_1 etc
+            if module == 'default':
+                raise FormatError(f'Cannot use ``"default"`` for module name -- please consider another name.')
+            if module in res:
+                raise FormatError(f'Duplicate module definition {module}')
+            if derived is not None:
+                res[module] = copy.deepcopy(self.content[derived[1]])
+            else:
                 res[module] = dict([('input', dict()), ('output', dict()), ('meta', dict())])
-                for item in ['global', 'local']:
-                    for key in tmp[module][item]:
-                        if key.startswith('$'):
-                            res[module]['output'][key[1:]] = tmp[module][item][key]
-                        elif key.startswith('^'):
-                            res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
-                        else:
-                            res[module]['input'][key] = tmp[module][item][key]
-        res['DSC'] = self.content['DSC']
-        self.content = res
+            for item in ['global', 'local']:
+                for key in tmp[module][item]:
+                    if key.startswith('$'):
+                        res[module]['output'][key[1:]] = tmp[module][item][key]
+                    elif key.startswith('^'):
+                        res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
+                    else:
+                        res[module]['input'][key] = tmp[module][item][key]
+        del self.content[block]
+        self.content.update(res)
 
     @staticmethod
     def get_sos_options(name, content):
