@@ -14,8 +14,8 @@ simulate: datamaker.R
     @CONF: queue = midway
     # module output
     $data: data
-    $true_beta: raw(data$meta$beta)
-    $true_pi0: raw(data$meta$pi0)
+    $true_beta: data$meta$beta
+    $true_pi0: data$meta$pi0
 
 shrink: runash.R
     # module input and variables
@@ -23,8 +23,8 @@ shrink: runash.R
     mixcompdist: normal, halfuniform
     # module output
     $ash_data: ash_data
-    $beta_est: raw(ashr::get_pm(ash_data))
-    $pi0_est: raw(ashr::get_pi0(ash_data))
+    $beta_est: ashr::get_pm(ash_data)
+    $pi0_est: ashr::get_pi0(ash_data)
 
 score_beta: score.R
     # module input and variables

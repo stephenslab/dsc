@@ -86,7 +86,8 @@ class Query_Processor:
         # 4. make inner join, the FROM clause
         from_clauses = self.get_from_clause()
         # 5. make select / where clause
-        select_clauses, where_clauses = self.get_select_where_clause()
+        select_clauses = self.get_select_clause()
+        where_clauses = [self.get_one_where_clause()] * len(select_clauses)
         self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
         # 6. run queries
         self.output_tables = self.run_queries(add_path)
@@ -209,9 +210,8 @@ class Query_Processor:
             res.append('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)]))
         return res
 
-    def get_select_where_clause(self):
+    def get_select_clause(self):
         select = []
-        where = []
         select_fields = []
         for pipeline in self.pipelines:
             tmp1 = []
@@ -229,21 +229,20 @@ class Query_Processor:
                 else:
                     tmp1.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))
             select.append("SELECT " + ', '.join(tmp1))
-            where.append(self.get_one_where_clause([x[0].lower() for x in tmp2]))
             select_fields.append(['.'.join(x) for x in tmp2])
         # not all pipelines will be used
         # because of `-t` option logic, if a new
         output_fields = filter_sublist(select_fields, ordered = False)
         select = [x for i, x in enumerate(select) if select_fields[i] in output_fields]
-        where = [x for i, x in enumerate(where) if select_fields[i] in output_fields]
-        return select, where
+        return select
 
-    def get_one_where_clause(self, tables):
+    def get_one_where_clause(self):
         '''
         After expanding, condition is a list of list
         the outer lists are connected by OR
         the inner lists are connected by AND
         '''
+        valid_tables = [x[0].lower() for x in self.condition_tables]
         # to decide which part of the conditions is relevant to which pipeline we have to
         # dissect it to reveal table/field names
         condition = []
@@ -256,7 +255,7 @@ class Query_Processor:
                 else:
                     for vv in value:
                         self.check_table_field(vv[1], 2)
-                valid_idx = [idx for idx, vv in enumerate(value) if vv[1][0].lower() in tables]
+                valid_idx = [idx for idx, vv in enumerate(value) if vv[1][0].lower() in valid_tables]
                 if len(valid_idx) >= 1:
                     value = ' OR '.join([f"{value[i][0]} ({'.'.join(value[i][1])} {value[i][2]} {value[i][3]})" if len(value[i][0]) else f"{'.'.join(value[i][1])} {value[i][2]} {value[i][3]}" for i in valid_idx])
                     if len(valid_idx) > 1:
@@ -265,8 +264,9 @@ class Query_Processor:
                         tmp.append(value)
                 else:
                     pass
-            condition.append(tmp)
-        if len(condition) > 0:
+            if len(tmp):
+                condition.append(tmp)
+        if len(condition):
             return "WHERE " + ' OR '.join(['(' + ' AND '.join([f"({y})" for y in x]) + ')' for x in condition])
         else:
             return ''
