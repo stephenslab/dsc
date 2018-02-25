@@ -197,7 +197,7 @@ def execute(args):
     if args.host:
         conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -J %s -v %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.remote.yml', args.__max_jobs__, args.verbosity)
         yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
-    else:
+    if os.path.isfile('.sos/transcript.txt'):
         os.remove('.sos/transcript.txt')
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
     content = {'__max_running_jobs__': args.__max_jobs__,
