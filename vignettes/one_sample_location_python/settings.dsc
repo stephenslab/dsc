@@ -1,27 +1,23 @@
-simulate:
-    exec: rnorm.py, rt.py
+rnorm, rt: rnorm.py, rt.py
     seed: R(1:10)
-    params:
-        n: 1000
-        true_mean: 0, 1
-    return: x, true_mean
+    n: 1000
+    true_mean: 0, 1
+    $x: x
+    $true_mean: true_mean
 
-estimate:
-    exec: mean.py, median.py
-    params:
-        x: $x
-    return: mean
+mean, median: mean.py, median.py
+    x: $x
+    $mean: mean
 
-mse:
-    exec: MSE.py
-    params:
-        mean_est: $mean
-        true_mean: $true_mean
-    return: mse
+mse: MSE.py
+    mean_est: $mean
+    true_mean: $true_mean
+    $mse: mse
 
 DSC:
-    run: simulate *
-         estimate *
-         mse
+    define:
+      simulate: rnorm, rt
+      estimate: mean, median
+    run: simulate * estimate * mse
     exec_path: PY/scenarios, PY/methods, PY/scores
     output: dsc_result

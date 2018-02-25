@@ -1,28 +1,24 @@
-simulate:
-    exec: rnorm.py, rt.R
+rnorm, rt: rnorm.py, rt.R
     seed: R(1:10)
-    params:
-        n: 1000
-        true_mean: 0, 1
-    return: x, true_mean
+    n: 1000
+    true_mean: 0, 1
+    $x: x
+    $true_mean: true_mean
 
-estimate:
-    exec: mean.R, median.py
-    params:
-        x: $x
-    return: mean
+mean, median: mean.R, median.py
+    x: $x
+    $mean: mean
 
-mse:
-    exec: MSE.py
-    params:
-        mean_est: $mean
-        true_mean: $true_mean
-    return: mse
+mse: MSE.py
+    mean_est: $mean
+    true_mean: $true_mean
+    $mse: mse
 
 DSC:
-    run: simulate *
-         estimate *
-         mse
+    define:
+      simulate: rnorm, rt
+      estimate: mean, median
+    run: simulate * estimate * mse
     R_libs: psych
     exec_path: PY/scenarios, PY/methods, PY/scores,
                R/scenarios, R/methods

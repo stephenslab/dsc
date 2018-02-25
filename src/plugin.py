@@ -340,7 +340,7 @@ class PyPlug(BasePlug):
     def get_return(self, output_vars):
         if len(output_vars) == 0:
             return ''
-        res = '\nsave_dsc_h5({{{}}}, ${{_output:r}})'.\
+        res = '\nsave_dsc_h5({{{}}}, ${{_output:r}}, compression = "zlib")'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
                            ['"DSC_TIMER" : timeit.default_timer() - {}_tic_pt'.format(self.identifier)]))
         # res += '\nfrom os import _exit; _exit(0)'
