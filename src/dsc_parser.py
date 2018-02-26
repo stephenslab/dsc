@@ -40,6 +40,7 @@ class DSC_Script:
             dsc_name = 'DSCStringIO'
             script_path = None
         res = exe = ''
+        headline = False
         for line in content:
             if len(line.strip()) == 0:
                 continue
@@ -51,6 +52,7 @@ class DSC_Script:
             if line.strip().startswith('*') and ':' in line:
                 line = line.replace('*', '?', 1)
             if not DSC_BLOCK_CONTENT.search(line):
+                headline = True
                 if res:
                     self.update(res, exe)
                     res = exe = ''
@@ -59,9 +61,14 @@ class DSC_Script:
                     raise FormatError(f'Invalid syntax ``{line.strip()}``. '\
                                       'Should be in the format of ``module names: module executables``')
                 res += f'{text[0]}:\n'
-                exe = text[1].strip()
+                exe += text[1].strip()
             else:
-                res += line
+                if headline and not ':' in line:
+                    # still contents for exe ...
+                    exe += line.strip()
+                else:
+                    headline = False
+                    res += line
         self.update(res, exe)
         if 'DSC' not in self.content:
             raise FormatError('Cannot find required section ``DSC``!')
