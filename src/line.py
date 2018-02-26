@@ -405,7 +405,7 @@ class EntryFormatter:
             if isinstance(value, collections.Mapping):
                 self.__Transform(value, actions)
             else:
-                if key != '.FILTER':
+                if key != '^FILTER':
                     for a in actions:
                         value = a(value)
                 # empty list
@@ -414,6 +414,64 @@ class EntryFormatter:
                 else:
                     cfg[key] = value
         return cfg
+
+def expand_exe(string):
+    '''
+    `exec` expand:
+    input: eg. R(some, code) + (a.R cmd_args, b.R cmd_args) + R(some, code)
+    output: (R(some, code), a.R cmd_args, R(some, code)), (R(some, code), b.R cmd_args, R(some, code))
+    '''
+    action_dict = dict()
+    idx = 0
+    for name in ['R', 'Python']:
+        pos = [m.end() - 1 for m in re.finditer(f'{name}\(', string)]
+        p_end = 0
+        replacements = []
+        for p in pos:
+            if p < p_end:
+                raise FormatError(f"Invalid parentheses pattern in ``{string}``")
+            p_end = find_parens(string[p:])[0]
+            key = f'__DSC_INLINE_{idx}__'
+            action_dict[key] = (name, string[(p+1):(p_end+p)])
+            replacements.append((f'{name}{string[p:p_end+p+1]}', key))
+            idx += 1
+        for r in replacements:
+            string = string.replace(r[0], r[1], 1)
+    string = string.replace('+', '*')
+    res = []
+    op = OperationParser()
+    for x in op(string):
+        if isinstance(x, str):
+            x = [x]
+        else:
+            x = list(x)
+        exe_type = 'unknown'
+        for idx in range(len(x)):
+            for key, value in action_dict.items():
+                if key in x[idx]:
+                    x[idx] = x[idx].replace(key, value[1], 1)
+                    if exe_type != 'unknown' and exe_type != value[0]:
+                        raise FormatError(f"Cannot mix ``{exe_type}`` and ``{value[0]}`` codes, near ``{x[idx]}``")
+                    else:
+                        exe_type = value[0]
+        res.append([exe_type] + x)
+    return res
+
+def parse_exe(string):
+    x = expand_exe(string)
+    replaced = dict()
+    pattern = re.compile(r'\$\((.*?)\)')
+    for i in range(len(x)):
+        for j in range(len(x[i])):
+            if j == 0:
+                continue
+            for m in re.finditer(pattern, x[i][j]):
+                if m.group(1) in replaced:
+                    continue
+                x[i][j] = x[i][j].replace(m.group(0), m.group(1))
+                replaced[m.group(1)] = f"${m.group(1)}"
+        x[i] = tuple(x[i])
+    return x, replaced
 
 def expand_logic(string):
     '''
@@ -426,8 +484,8 @@ def expand_logic(string):
     string = string.replace(' OR ', '|')
     string = string.replace(' and ', '&')
     string = string.replace(' AND ', '&')
-    string = string.replace('not', '~')
-    string = string.replace('NOT', '~')
+    string = string.replace(' not ', '~')
+    string = string.replace(' NOT ', '~')
     quote_dict = dict()
     idx = 1
     for m in re.findall(r'\'(.+?)\'', string) + re.findall(r'\"(.+?)\"', string):
@@ -442,12 +500,12 @@ def expand_logic(string):
             x = [x]
         else:
             x = list(x)
-        for idx, item in enumerate(x):
-            x[idx] = item.replace('__DSC_BAR__', '|')
-            x[idx] = item.replace('__DSC_TA__', '~')
-            x[idx] = item.replace('__DSC_N__', '&')
+        for idx in range(len(x)):
+            x[idx] = x[idx].replace('__DSC_BAR__', '|')
+            x[idx] = x[idx].replace('__DSC_TA__', '~')
+            x[idx] = x[idx].replace('__DSC_N__', '&')
             for key, value in quote_dict.items():
-                x[idx] = item.replace(key, value, 1)
+                x[idx] = x[idx].replace(key, value, 1)
         res.append(tuple(x))
     return res
 
