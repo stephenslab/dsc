@@ -10,12 +10,13 @@ This file defines methods to load and preprocess DSC scripts
 import os, re, itertools, copy, subprocess, platform
 import collections
 from xxhash import xxh32 as xxh
-from sos.utils import env
+from sos.utils import env, short_repr
+from sos.targets import fileMD5
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, OrderedDict, cartesian_list, yaml
 from .addict import Dict as dotdict
 from .syntax import *
-from .line import OperationParser, EntryFormatter, parse_filter
+from .line import OperationParser, EntryFormatter, parse_filter, parse_exe
 from .plugin import Plugin
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
@@ -102,7 +103,12 @@ class DSC_Script:
         if block[name] is None:
             block[name] = dict()
         if exe:
-            block[name]['^EXEC'] = exe
+            exe = parse_exe(exe)
+            block[name]['^EXEC'] = exe[0]
+            for k, v in exe[1].items():
+                if k in block[name] and block[name][k] != v:
+                    raise FormatError(f"Block ``{name}`` has property conflicts for ``k``: ``{block[name][k]}`` or ``{v}``?")
+                block[name][k] = v
         self.content.update(block)
 
     def set_global_vars(self, gvars):
@@ -202,8 +208,7 @@ class DSC_Script:
         if derived is not None and '^EXEC' not in self.content[block]:
             self.content[block]['^EXEC'] = [self.content[derived[1]]['meta']['exec']]
         if len(modules) != len(self.content[block]['^EXEC']) and len(self.content[block]['^EXEC']) > 1:
-            raise FormatError(f"``{len(modules)}`` modules ``{modules}`` does not match ``{len(self.content[block]['^EXEC'])}`` executables ``{self.content[block]['^EXEC']}``. " \
-                             "Please ensure modules and executables match.")
+            raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['^EXEC'])}`` executables are provided. Please ensure they match.")
         if len(modules) > 1 and len(self.content[block]['^EXEC']) == 1:
             self.content[block]['^EXEC'] = self.content[block]['^EXEC'] * len(modules)
         # collection module specific parameters
@@ -227,7 +232,7 @@ class DSC_Script:
                         tmp[m.strip()]['local'].update(self.content[block][key])
             elif key == '^EXEC':
                 for idx, module in enumerate(modules):
-                    tmp[module]['global'][key] = self.content[block][key][idx]
+                    tmp[module]['global'][key] = list(self.content[block][key][idx])
             elif key not in DSC_MODP and isinstance(self.content[block][key], collections.Mapping):
                 raise FormatError(f'Invalid decoration ``{key}``. Decorations must start with ``@`` symbol.')
             else:
@@ -329,7 +334,6 @@ class DSC_Module:
         # dependencies
         self.depends = []
         # check if it runs in shell
-        self.shell_run = None
         # Now init these values
         self.set_options(global_options, try_get_value(content, ('meta', 'conf')))
         self.set_exec(content['meta']['exec'])
@@ -342,19 +346,70 @@ class DSC_Module:
         self.ft = self.apply_input_filter(try_get_value(content, ('meta', 'filter')))
         self.check_shell()
 
-    def set_exec(self, exec_var):
-        # FIXME: need to implement inline eg R()
-        exec_var = tuple(exec_var.split())
-        self.exe = ' '.join([locate_file(exec_var[0], self.path)] + list(exec_var[1:]))
-        self.plugin = Plugin(os.path.splitext(exec_var[0])[1].lstrip('.'), xxh(self.exe).hexdigest())
-                        # re.sub(r'^([0-9])(.*?)', r'\2', textMD5(data.command)))
+    def set_exec(self, exe):
+        '''
+        Example input exec:
+        - ['unknown', 'MSE.R']
+        - ['R', 'mse = (mean_est-true_mean)^2']
+        - ('unknown', 'datamaker.py split')
+        '''
+        # FIXME: handle $() in args (maybe later?) and ensure they exist in parameter list
+        self.exe = {'path': [], 'content': [], 'args': None, 'signature': None, 'file': [], 'type': 'unknown'}
+        for etype, item in zip(exe[0], exe[1:]):
+            if etype != 'unknown':
+                # is inline code
+                if etype != self.exe['type']:
+                    if self.exe['type'] == 'unknown':
+                        self.exe['type'] = etype
+                    else:
+                        raise FormatError(f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item}``.")
+                self.exe['content'].append(item)
+            else:
+                # is executable
+                item = item.split()
+                self.exe['file'].append(item[0])
+                if len(item) > 1:
+                    if self.exe['args'] is not None:
+                        raise FormatError(f"Executable arguments conflict near ``{item[0]}``: ``{' '.join(self.exe['args'])}`` or ``{' '.join(item[1:])}``?")
+                    else:
+                        self.exe['args'] = item[1:]
+                fpath = locate_file(item[0], self.path)
+                if fpath is None:
+                    # must be a system executable
+                    self.exe['path'].append(item[0])
+                else:
+                    # try determine self.exe['type']
+                    etype = os.path.splitext(item[0])[1].lstrip('.').upper()
+                    if etype == '':
+                        etype = 'unknown'
+                    if self.exe['type'] == 'unknown':
+                        self.exe['type'] = etype
+                    if self.exe['type'] != etype:
+                        raise FormatError(f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item[0]}``.")
+                    # load contents
+                    if etype != 'unknown':
+                        self.exe['content'].extend(open(fpath, 'r').readlines())
+                    else:
+                        self.exe['path'].append(fpath)
+        assert len(self.exe['path']) == 0 or len(self.exe['content']) == 0
+        if len(self.exe['path']) > 0:
+            raise FormatError(f"Cannot mix multiple executables ``{self.exe['path']}`` in one module ``{self.name}``.")
+        if len(self.exe['path']):
+            self.exe['path'] = self.exe['path'][0]
+        if len(self.exe['content']):
+            self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
+                                             if x.strip() and not x.strip().startswith('#')])
+        if len(self.exe['path']) == 0:
+            self.exe['signature'] = xxh(self.exe['content'] + (' '.join(self.exe['args']) if self.exe['args'] else '')).hexdigest()
+        else:
+            self.exe['signature'] = fileMD5(self.exe['path'], partial = False) + (f"_{xxh(' '.join(self.exe['args'])).hexdigest()}" if self.exe['args'] else '')
+        self.plugin = Plugin(self.exe['type'], self.exe['signature'])
 
     def check_shell(self):
         # FIXME: check if the exec is meant to be executed from shell
-        # True only if command has $ parameters and they exist in parameter list
-        # Also this conflicts with self.rv: self.shell_run == True && len(self.rv) == 0
-        self.shell_run = False
-        if not self.shell_run and len(self.rv) > 0:
+        # True only if self.exe['path']
+        # Also this conflicts with self.rv: self.exe['path'] && len(self.rv) == 0
+        if len(self.exe['path']) == 0 and len(self.rv) > 0:
             # make it a list in order to readily merge with other self.rf items
             self.rf['DSC_AUTO_OUTPUT_'] = ['rds' if self.plugin.name == 'R' else 'h5']
 
@@ -536,10 +591,10 @@ class DSC_Module:
 
     def dump(self):
         return strip_dict(dict([('name', self.name),
-                                ('dependencies', self.depends), ('command', self.exe),
+                                ('dependencies', self.depends), ('command', short_repr(self.exe['content'])),
                                 ('input', self.p), ('input_filter', self.ft),
                                 ('output_variables', self.rv),
-                                ('output_files', self.rf),  ('shell_status', self.shell_run),
+                                ('output_files', self.rf),  ('shell_status', len(self.exe['path'])),
                                 ('plugin_status', self.plugin.dump()),
                                 ('runtime_options', dict([('exec_path', self.path),
                                                           ('workdir', self.workdir),

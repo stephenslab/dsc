@@ -337,13 +337,14 @@ def find_nested_key(key, dictionary):
     for k, v in dictionary.items():
         if k == key:
             yield [k]
-        elif isinstance(v, dict):
+        elif isinstance(v, collections.Mapping):
             for result in find_nested_key(key, v):
                 yield [k] + result
         elif isinstance(v, list):
             for d in v:
-                for result in find_nested_key(key, d):
-                    yield [k] + result
+                if isinstance(d, collections.Mapping):
+                    for result in find_nested_key(key, d):
+                        yield [k] + result
 
 def get_nested_keys(dictionary):
     for k, v in dictionary.items():
@@ -729,16 +730,25 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
             scripts = []
             seen = []
             for command in commands:
-                command = command.split()[0]
-                if command in seen:
-                    continue
+                if isinstance(command, list):
+                    # for libs
+                    command = command.split()[0]
+                    if command in seen:
+                        continue
+                    else:
+                        seen.append(command)
+                    try:
+                        text = open(command).read()
+                    except Exception:
+                        continue
+                    scripts.append((os.path.basename(command), os.path.splitext(command)[1][1:].lower(), text))
                 else:
-                    seen.append(command)
-                try:
-                    text = open(command).read()
-                except Exception:
-                    continue
-                scripts.append((os.path.basename(command), os.path.splitext(command)[1][1:].lower(), text))
+                    # for exec is dict
+                    text = command['content'] if len(command['content']) else command['path']
+                    if command['args']:
+                        text = f"# Command arguments: {command['args']}\n" + text
+                    scripts.append(('+'.join(command['file']) if len(command['file']) else command['signature'],
+                                    command['type'].lower(), text))
             if len(scripts) == 0:
                 continue
             f.write('<div class="accodion-section">\n'
@@ -816,7 +826,7 @@ def locate_file(file_name, file_path):
                 raise ValueError("File ``{}`` found in multiple directories ``{}`` and ``{}``!".\
                                 format(file_name, item, os.path.join(*os.path.split(res)[:-1])))
             res = os.path.join(item, file_name)
-    return res if res else file_name
+    return res
 
 def n2a(col_num, col_abs=False):
     """

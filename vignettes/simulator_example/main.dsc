@@ -14,6 +14,6 @@ DSC:
   define:
     method: my_method, their_method
     score: abs, mse
-  run: simulate + method + score
+  run: simulate * method * score
   output: simulator_example
   exec_path: R

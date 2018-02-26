@@ -8,7 +8,7 @@ This file defines methods to translate DSC into pipeline in SoS language
 '''
 import os, sys, msgpack, glob, inspect
 from xxhash import xxh32 as xxh
-from sos.targets import fileMD5, executable
+from sos.targets import executable
 from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a, \
     install_r_lib, install_py_module
 __all__ = ['DSC_Translator']
@@ -289,10 +289,10 @@ class DSC_Translator:
 
         def get_output(self):
             if self.prepare:
-                format_string = '.format({})'.format(', '.join([f'_{s}' for s in reversed(self.params)]))
+                format_string = '.format({})'.format(', '.join([f'_{s}' for s in reversed(self.params)])) if len(self.params) else ''
                 output_lhs = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
                 self.output_string += "{3} = sos_hash_output(['{0}'{1} {2}])".\
-                                      format(' '.join([self.step.name, str(self.step.exe)] \
+                                      format(' '.join([self.step.name, self.step.exe['signature']] \
                                                       + [f'{x}:{{}}' for x in reversed(self.params)]),
                                              format_string, self.loop_string[0] + self.filter_string, output_lhs)
                 if len(self.current_depends):
@@ -314,8 +314,7 @@ class DSC_Translator:
         def get_action(self):
             if self.prepare:
                 combined_params = '[([{0}], {1}) {2}]'.\
-                                  format(', '.join([f"('__exec__', '{self.step.exe}')"] \
-                                                   + [f"('{x}', _{x})" for x in reversed(self.params)]),
+                                  format(', '.join([f"('{x}', _{x})" for x in reversed(self.params)]),
                                          None if self.loop_string[1] is '' else ("f\"{' '.join(__i__)}\"" if len(self.current_depends) > 1 else "f'{__i__}'"),
                                          ' '.join(self.loop_string) + self.filter_string)
                 input_str = '[]' if self.input_vars is None else '{0} if {0} is not None else []'.format(self.input_vars)
@@ -327,17 +326,16 @@ class DSC_Translator:
                     self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(y, dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{flatten_list(self.step.rf.values())[0]}')])\n"
             else:
                 # FIXME: have not considered super-step yet
-                # Create fake plugin and command list for now
+                # Create fake loop for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     if self.conf is None:
                         self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = None, stdout = None\n'
                     else:
                         self.action += f'{plugin.name}: expand = "${{ }}"\n'
                     # Add action
-                    if not self.step.shell_run:
+                    if len(cmd['path']) == 0:
                         script_begin = plugin.get_input(self.params, len(self.step.depends),
-                                                        self.step.libpath, idx,
-                                                        cmd.split()[1:] if len(cmd.split()) > 1 else None,
+                                                        self.step.libpath, idx, cmd['args'],
                                                         True if len([x for x in self.step.depends if x[2] == 'var']) else False)
                         script_begin += '\n' + plugin.get_output(self.step.rf)
                         script_begin = '{1}\n{0}\n{2}'.\
@@ -352,24 +350,16 @@ class DSC_Translator:
                                                 '## END code by DSC2')
                         else:
                             script_end = ''
-                        try:
-                            cmd_text = [x.rstrip() for x in open(cmd.split()[0], 'r').readlines()
-                                        if x.strip() and not x.strip().startswith('#')]
-                        except IOError:
-                            raise IOError(f"Cannot find script ``{cmd.split()[0]}``!")
-                        script = '\n'.join([script_begin, '\n'.join(cmd_text), script_end])
+                        script = '\n'.join([script_begin, cmd['content'], script_end])
                         if self.try_catch:
                             script = plugin.add_try(script, len(flatten_list([self.step.rf.values()])))
-                        script = f"""## {str(plugin)} script UUID: ${{DSC_STEP_ID_}}\n{script}"""
+                        script = f"""## {str(plugin)} script UUID: ${{DSC_STEP_ID_}}\n{script}\n"""
                         self.action += script
-                        self.exe_signature.append(fileMD5(self.step.exe.split()[0], partial = False)
-                                                  if os.path.isfile(self.step.exe.split()[0])
-                                                  else self.step.exe.split()[0] + \
-                                                  (self.step.exe.split()[1]
-                                                   if len(self.step.exe.split()) > 1 else ''))
+                        self.exe_signature.append(cmd['signature'])
                     else:
-                        executable(cmd.split()[0])
-                        self.action += cmd
+                        # FIXME: need to process $(?) in args change into ${_?}
+                        executable(cmd['path'])
+                        self.action += f"\t{cmd['path']} {' '.join(cmd['args']) if cmd['args'] else ''}\n"
 
         def dump(self):
             return '\n'.join([x for x in

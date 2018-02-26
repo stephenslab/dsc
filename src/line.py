@@ -415,12 +415,20 @@ class EntryFormatter:
                     cfg[key] = value
         return cfg
 
-def expand_exe(string):
+def parse_exe(string):
     '''
-    `exec` expand:
     input: eg. R(some, code) + (a.R cmd_args, b.R cmd_args) + R(some, code)
     output: (R(some, code), a.R cmd_args, R(some, code)), (R(some, code), b.R cmd_args, R(some, code))
     '''
+    pattern = re.compile(r'\$\((.*?)\)')
+    def parse_inline(inline):
+        replaced_inline = []
+        for m in re.finditer(pattern, inline):
+            inline = inline.replace(m.group(0), m.group(1))
+            replaced_inline.append((m.group(1), f"${m.group(1)}"))
+        return inline, replaced_inline
+    #
+    ext_map = {'R': 'R', 'Python': 'PY'}
     action_dict = dict()
     idx = 0
     for name in ['R', 'Python']:
@@ -432,46 +440,36 @@ def expand_exe(string):
                 raise FormatError(f"Invalid parentheses pattern in ``{string}``")
             p_end = find_parens(string[p:])[0]
             key = f'__DSC_INLINE_{idx}__'
-            action_dict[key] = (name, string[(p+1):(p_end+p)])
+            action_dict[key] = (ext_map[name], string[(p+1):(p_end+p)])
             replacements.append((f'{name}{string[p:p_end+p+1]}', key))
             idx += 1
         for r in replacements:
             string = string.replace(r[0], r[1], 1)
     string = string.replace('+', '*')
     res = []
+    replaced = []
     op = OperationParser()
     for x in op(string):
         if isinstance(x, str):
             x = [x]
         else:
             x = list(x)
-        exe_type = 'unknown'
+        exe_type = []
         for idx in range(len(x)):
+            is_typed = False
             for key, value in action_dict.items():
                 if key in x[idx]:
-                    x[idx] = x[idx].replace(key, value[1], 1)
-                    if exe_type != 'unknown' and exe_type != value[0]:
-                        raise FormatError(f"Cannot mix ``{exe_type}`` and ``{value[0]}`` codes, near ``{x[idx]}``")
-                    else:
-                        exe_type = value[0]
-        res.append([exe_type] + x)
-    return res
-
-def parse_exe(string):
-    x = expand_exe(string)
-    replaced = dict()
-    pattern = re.compile(r'\$\((.*?)\)')
-    for i in range(len(x)):
-        for j in range(len(x[i])):
-            if j == 0:
-                continue
-            for m in re.finditer(pattern, x[i][j]):
-                if m.group(1) in replaced:
-                    continue
-                x[i][j] = x[i][j].replace(m.group(0), m.group(1))
-                replaced[m.group(1)] = f"${m.group(1)}"
-        x[i] = tuple(x[i])
-    return x, replaced
+                    content = parse_inline(value[1])
+                    x[idx] = x[idx].replace(key, content[0], 1)
+                    replaced.extend(content[1])
+                    exe_type.append(value[0])
+                    is_typed = True
+                    if all([x in exe_type for x in ext_map.values()]):
+                        raise FormatError(f"Cannot mix executable types ``{[x for x in exe_type if x != 'unknown']}``, near ``{x[idx]}``")
+            if not is_typed:
+                exe_type.append('unknown')
+        res.append(tuple([tuple(exe_type)] + x))
+    return res, dict(replaced)
 
 def expand_logic(string):
     '''

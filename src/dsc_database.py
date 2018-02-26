@@ -204,7 +204,7 @@ class ResultDB:
                                                 encoding = 'utf-8', object_pairs_hook = OrderedDict)
         except:
             raise DBError('Cannot load source data to build database!')
-        KWS = ['__pipeline_id__', '__pipeline_name__', '__module__', '__exec__', '__out_vars__']
+        KWS = ['__pipeline_id__', '__pipeline_name__', '__module__', '__out_vars__']
         # flatten dictionary removing duplicate keys because those keys are just `__input_output__` and `__ext__`
         # All other info in counts should be unique
 

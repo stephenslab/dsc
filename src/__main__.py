@@ -135,7 +135,7 @@ def execute(args):
     # Archive scripts
     lib_content = [(f"From <code>{k}</code>", sorted(glob.glob(f"{k}/*.*")))
                    for k in script.runtime.options['lib_path'] or []]
-    exec_content = [(k, [script.modules[k].exe])
+    exec_content = [(k, script.modules[k].exe)
                     for k in script.runtime.sequence_ordering]
     dsc2html(open(args.dsc_file).read(), script.runtime.output,
              script.runtime.sequence, exec_content, lib_content)
