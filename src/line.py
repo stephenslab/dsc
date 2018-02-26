@@ -10,7 +10,7 @@ import re, subprocess, collections
 from io import StringIO
 import tokenize
 from .utils import is_null, str2num, cartesian_list, pairwise_list, \
-    get_slice, FormatError, do_parentheses_match, find_parens
+    get_slice, FormatError, do_parentheses_match, find_parens, parens_aware_split
 
 class YLine:
     '''
@@ -25,36 +25,7 @@ class YLine:
     @staticmethod
     def split(value):
         '''Split value by comma outside (), [] and {}'''
-        if not isinstance(value, str):
-            if isinstance(value, (int, float, bool)):
-                return [value]
-            else:
-                return value
-        counts = {'(': 0,
-                  ')': 0,
-                  '[': 0,
-                  ']': 0,
-                  '{': 0,
-                  '}': 0}
-        res = []
-        unit = ''
-        for item in list(value):
-            if item != ',':
-                unit += item
-                if item in counts.keys():
-                    counts[item] += 1
-            else:
-                if counts['('] != counts[')'] or \
-                  counts['['] != counts[']'] or \
-                  counts['{'] != counts['}']:
-                    # comma is inside some parenthesis
-                    unit += item
-                else:
-                    # comma is outside any parenthesis, time to split
-                    res.append(unit.strip())
-                    unit = ''
-        res.append(unit.strip())
-        return res
+        return parens_aware_split(value, ',')
 
     def encodeVar(self, var):
         '''

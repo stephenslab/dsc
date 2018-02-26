@@ -1,3 +1,3 @@
-metric = function(model, out) {
-  return((model$mu - out$fit)^2)
+metric = function(mu, fit) {
+  return((mu - fit)^2)
 }

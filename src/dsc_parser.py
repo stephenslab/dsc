@@ -13,7 +13,8 @@ from xxhash import xxh32 as xxh
 from sos.utils import env, short_repr
 from sos.targets import fileMD5
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
-     try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, OrderedDict, cartesian_list, yaml
+     try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, OrderedDict, cartesian_list, yaml, \
+     parens_aware_split
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter, parse_filter, parse_exe
@@ -46,24 +47,24 @@ class DSC_Script:
                 continue
             if line.strip().startswith('#'):
                 continue
+            text = parens_aware_split(line, ':')
             # FIXME: maybe this is good enough to identify a line of decorator keys ...
-            if line.strip().startswith('@') and ':' in line:
+            if line.strip().startswith('@') and len(text) > 1:
                 line = line.replace('@', '^', 1)
-            if line.strip().startswith('*') and ':' in line:
+            if line.strip().startswith('*') and len(text) > 1:
                 line = line.replace('*', '?', 1)
             if not DSC_BLOCK_CONTENT.search(line):
                 headline = True
                 if res:
                     self.update(res, exe)
                     res = exe = ''
-                text = line.split(':')
                 if len(text) != 2 or (len(text[1].strip()) == 0 and text[0].strip() != 'DSC' and not DSC_DERIVED_BLOCK.search(text[0].strip())):
                     raise FormatError(f'Invalid syntax ``{line.strip()}``. '\
                                       'Should be in the format of ``module names: module executables``')
                 res += f'{text[0]}:\n'
                 exe += text[1].strip()
             else:
-                if headline and not ':' in line:
+                if headline and len(text) == 1:
                     # still contents for exe ...
                     exe += line.strip()
                 else:

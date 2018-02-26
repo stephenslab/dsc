@@ -916,6 +916,38 @@ def find_parens(s, lenient = True):
         raise IndexError("No matching opening parens at: " + str(pstack.pop()))
     return toret
 
+def parens_aware_split(value, sep = ','):
+    if not isinstance(value, str):
+        if isinstance(value, (int, float, bool)):
+            return [value]
+        else:
+            return value
+    counts = {'(': 0,
+              ')': 0,
+              '[': 0,
+              ']': 0,
+              '{': 0,
+              '}': 0}
+    res = []
+    unit = ''
+    for item in list(value):
+        if item != sep:
+            unit += item
+            if item in counts.keys():
+                counts[item] += 1
+        else:
+            if counts['('] != counts[')'] or \
+              counts['['] != counts[']'] or \
+              counts['{'] != counts['}']:
+                # sep is inside some parenthesis
+                unit += item
+            else:
+                # sep is outside any parenthesis, time to split
+                res.append(unit.strip())
+                unit = ''
+    res.append(unit.strip())
+    return res
+
 def remove_multiple_strings(cur_string, replace_list):
     for cur_word in sorted(set(replace_list), key=len):
         cur_string = cur_string.replace(cur_word, '')

@@ -1,3 +1,3 @@
-metric = function(model, out) {
-  return(abs(model$mu - out$fit))
+metric = function(mu, fit) {
+  return(abs(mu - fit))
 }
