@@ -51,8 +51,10 @@ class DSC_Script:
             # FIXME: maybe this is good enough to identify a line of decorator keys ...
             if line.strip().startswith('@') and len(text) > 1:
                 line = line.replace('@', '^', 1)
+                text[0] = text[0].replace('@', '^', 1)
             if line.strip().startswith('*') and len(text) > 1:
                 line = line.replace('*', '?', 1)
+                text[0] = text[0].replace('*', '?', 1)
             if not DSC_BLOCK_CONTENT.search(line):
                 headline = True
                 if res:
@@ -404,9 +406,10 @@ class DSC_Module:
             raise FormatError(f"Cannot mix multiple executables ``{self.exe['path']}`` in one module ``{self.name}``.")
         if len(self.exe['path']):
             self.exe['path'] = self.exe['path'][0]
-        if len(self.exe['content']):
-            self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
-                                             if x.strip() and not x.strip().startswith('#')])
+        if len(self.exe['path']) == 0 and len(self.exe['content']) == 0:
+            raise FormatError(f"Contents in ``{self.exe['file']}`` is empty!")
+        self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
+                                         if x.strip() and not x.strip().startswith('#')])
         if len(self.exe['path']) == 0:
             self.exe['signature'] = xxh(self.exe['content'] + (' '.join(self.exe['args']) if self.exe['args'] else '')).hexdigest()
         else:
@@ -599,7 +602,7 @@ class DSC_Module:
 
     def dump(self):
         return strip_dict(dict([('name', self.name),
-                                ('dependencies', self.depends), ('command', short_repr(self.exe['content'])),
+                                ('dependencies', self.depends), ('command', '+'.join(self.exe['file'])),
                                 ('input', self.p), ('input_filter', self.ft),
                                 ('output_variables', self.rv),
                                 ('output_files', self.rf),  ('shell_status', len(self.exe['path'])),
