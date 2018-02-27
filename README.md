@@ -18,8 +18,11 @@ Goal for 0.2.7
 
 * Add, by default, a variable `DSC_DEBUG` to output files that saves parameters used to generate the output.
 * Enhance `R()` operator due to use of [`dscrutils`](https://github.com/stephenslab/dsc2/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
-* Allow use of language interpreters (eg. `R()`, `Python()`) to configure module executable.
+* Inline module executable via language interpreters (eg. `R()`, `Python()`).
+* [#92](https://github.com/stephenslab/dsc2/issues/92) paired parameter input convention.
+- [#90](https://github.com/stephenslab/dsc2/issues/90) use `Rmd` files as module executables.
 * SoS required version bumped to 0.9.12.8 for improved support to `--touch` option.
+* [minor] Various bug fixes.
 
 ### 0.2.x
 
