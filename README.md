@@ -20,7 +20,8 @@ Goal for 0.2.7
 * Enhance `R()` operator due to use of [`dscrutils`](https://github.com/stephenslab/dsc2/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
 * Inline module executable via language interpreters (eg. `R()`, `Python()`).
 * [#92](https://github.com/stephenslab/dsc2/issues/92) paired parameter input convention.
-- [#90](https://github.com/stephenslab/dsc2/issues/90) use `Rmd` files as module executables.
+* [#90](https://github.com/stephenslab/dsc2/issues/90) use `Rmd` files as module executables.
+* Revert to `rpy2` implementation for mixed language data communication, but will involve `rpy2` only on need basis.
 * SoS required version bumped to 0.9.12.8 for improved support to `--touch` option.
 * [minor] Various bug fixes.
 
