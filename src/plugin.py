@@ -54,7 +54,10 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def get_input(self, params, input_num, lib, index, cmd_args, autoload):
+    def load_env(self, input_num, index, autoload, customized):
+        return ''
+
+    def get_input(self, params, lib, cmd_args):
         return ''
 
     def get_output(self, params):
@@ -135,11 +138,8 @@ class RPlug(BasePlug):
             temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
 
-    def get_input(self, params, input_num, lib, index, cmd_args, autoload):
-        if lib is not None:
-            res = 'DSC_LIBPATH <- c({})\n'.format(','.join([repr(x) for x in lib])) + R_SOURCE
-        else:
-            res = ''
+    def load_env(self, input_num, index, autoload, customized):
+        res = ''
         # load files
         load_multi_in = '\n{} <- list()'.format(self.identifier) + \
           '\ninput.files <- c(${{_input:r,}})\nfor (i in 1:length(input.files)) ' \
@@ -163,6 +163,10 @@ class RPlug(BasePlug):
             res += '\n' + '\n'.join(sorted(self.input_alias))
         if self.tempfile:
             res += '\n' + '\n'.join(sorted(self.tempfile))
+        return res
+
+    def get_input(self, params, lib, cmd_args):
+        res = ('DSC_LIBPATH <- c({})\n'.format(','.join([repr(x) for x in lib])) + R_SOURCE) if len(lib) else ''
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
         res += '\n' + '\n'.join(self.container)
@@ -273,13 +277,9 @@ class PyPlug(BasePlug):
             temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
 
-    def get_input(self, params, input_num, lib, index, cmd_args, autoload):
-        res = 'import sys, os, tempfile, timeit'
-        if lib is not None:
-            for item in lib:
-                res += '\nsys.path.append(os.path.expanduser("{}"))'.format(item)
+    def load_env(self, input_num, index, autoload, customized):
+        res = 'import sys, os, tempfile, timeit, pickle'
         # load files
-        res += '\nimport pickle'
         load_multi_in = '\n{} = {{}}'.format(self.identifier) + \
           '\nfor item in [${{_input:r,}}]:\n\t{}.update(pickle.load(open(item, "rb")))'.format(self.identifier)
         load_single_in = '\n{} = pickle.load(open("${{_input}}", "rb"))'.format(self.identifier)
@@ -301,18 +301,20 @@ class PyPlug(BasePlug):
             res += '\n' + '\n'.join(sorted(self.input_alias))
         if self.tempfile:
             res += '\n' + '\n'.join(sorted(self.tempfile))
+        return res
+
+    def get_input(self, params, lib, cmd_args):
+        res = '\n'.join([f'sys.path.append(os.path.expanduser("{item}"))' for item in lib])
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
         res += '\n' + '\n'.join(self.container)
         # FIXME: will eventually allow for parameter input for plugins (at SoS level)
         if cmd_args:
-            if not res:
-                res = '\nimport sys'
             cmd_list = []
             for item in cmd_args:
                 if item.startswith('$'):
                     if item[1:] not in params:
-                        raise ValueError('Cannot find ``{}`` in parameter list'.format(item))
+                        raise ValueError(f'Cannot find ``{item}`` in parameter list')
                     else:
                         cmd_list.append('${_%s}' % item[1:])
                         params.remove(item[1:])

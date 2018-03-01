@@ -1,3 +1,5 @@
+#!/usr/bin/env dsc
+
 normal: normal.R
   n: 100
   $data: x

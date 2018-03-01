@@ -49,14 +49,18 @@ class DSC_Translator:
                     self.step_map[workflow_id + 1][step.name] = name
                     # Has the core been processed?
                     if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
-                        job_translator = self.Step_Translator(step, self.db, None, try_catch, host_conf)
+                        job_translator = self.Step_Translator(step, self.db, None,
+                                                              try_catch, host_conf,
+                                                              'rpy2' in runtime.pymodule and 'dsc' in runtime.pymodule)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
                         exe_signatures[step.name] = job_translator.exe_signature
                     processed_steps[(step.name, flow, depend)] = name
                     conf_translator = self.Step_Translator(step, self.db,
                                                            self.step_map[workflow_id + 1],
-                                                           try_catch)
+                                                           try_catch,
+                                                           None,
+                                                           'rpy2' in runtime.pymodule and 'dsc' in runtime.pymodule)
                     conf_dict[name] = conf_translator.dump()
                 else:
                     self.step_map[workflow_id + 1][step.name] = processed_steps[(step.name, flow, depend)]
@@ -188,7 +192,7 @@ class DSC_Translator:
             f.write('\n'.join(installed_libs + new_libs))
 
     class Step_Translator:
-        def __init__(self, step, db, step_map, try_catch, host_conf = None):
+        def __init__(self, step, db, step_map, try_catch, host_conf = None, customized_loader = False):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -203,6 +207,7 @@ class DSC_Translator:
                 raise ValueError('Multiple output files not implemented')
             self.step_map = step_map
             self.try_catch = try_catch
+            self.customized_loader = customized_loader
             self.exe_signature = []
             self.prepare = 0 if step_map is None else 1
             self.step = step
@@ -334,9 +339,13 @@ class DSC_Translator:
                         self.action += f'{plugin.name}: expand = "${{ }}"\n'
                     # Add action
                     if len(cmd['path']) == 0:
-                        script_begin = plugin.get_input(self.params, len(self.step.depends),
-                                                        self.step.libpath, idx, cmd['args'],
-                                                        True if len([x for x in self.step.depends if x[2] == 'var']) else False)
+                        script_begin = plugin.load_env(len(self.step.depends),
+                                                       idx,
+                                                       True if len([x for x in self.step.depends if x[2] == 'var']) else False,
+                                                       self.customized_loader)
+                        script_begin += '\n' + plugin.get_input(self.params,
+                                                                self.step.libpath if self.step.libpath else [],
+                                                                cmd['args'])
                         script_begin += '\n' + plugin.get_output(self.step.rf)
                         script_begin = '{1}\n{0}\n{2}'.\
                                        format(script_begin.strip(),
