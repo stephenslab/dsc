@@ -5,6 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import sys, os, re, itertools, collections, sympy
+from collections import OrderedDict
 from itertools import cycle, chain, islice
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
