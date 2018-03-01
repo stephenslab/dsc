@@ -26,6 +26,10 @@ Goal for 0.2.7
 
 ### 0.2.x
 
+0.2.6.4
+
+* Add a `dsc-io` command to convert between python `pickle` and R `RDS` files -- an internal command for data conversion and a test for `rpy2` configuration.
+
 0.2.6.3
 
 * Inline module executable via language interpreters (eg. `R()`, `Python()`).
