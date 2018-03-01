@@ -26,7 +26,7 @@ setup(name        = "dsc",
       url         = 'https://github.com/stephenslab/dsc2',
       download_url= f'https://pypi.python.org/pypi/dsc/{__version__}#downloads',
       version     = __version__,
-      entry_points = {'console_scripts': ['dsc = dsc.__main__:main', 'dsc-query = dsc.__query__:main']},
+      entry_points = {'console_scripts': ['dsc = dsc.__main__:main', 'dsc-query = dsc.__query__:main', 'dsc-io = dsc.dsc_io:main']},
       license     = __license__,
       classifiers = [
         'Development Status :: 3 - Alpha',

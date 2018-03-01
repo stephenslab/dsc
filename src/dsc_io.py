@@ -5,11 +5,16 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import os, collections, re
-from multiprocessing import Process, Manager
-from .utils import chunks
+
+'''
+Test rpy2 installation:
+python -m 'rpy2.tests'
+'''
 
 def load_mpk(mpk_files, jobs = 2):
     import msgpack
+    from multiprocessing import Process, Manager
+    from .utils import chunks
     if isinstance(mpk_files, str):
         return msgpack.unpackb(open(mpk_files, "rb").read(), encoding = 'utf-8',
                                      object_pairs_hook = collections.OrderedDict)
@@ -138,3 +143,20 @@ def save_rds(data, filename):
     else:
         assign('res', data)
     RO.r("saveRDS(res, '%s')" % filename)
+
+def main():
+    import sys, pickle
+    if len(sys.argv) < 3:
+        sys.exit(0)
+    # Input is pkl, output is rds
+    infile = sys.argv[1]
+    outfile = sys.argv[2]
+    if infile.endswith('pkl') and outfile.endswith('rds'):
+        save_rds(pickle.load(open(infile, 'rb')), outfile)
+    elif infile.endswith('rds') and outfile.endswith('pkl'):
+        pickle.dump(load_rds(infile), open(outfile, 'wb'))
+    else:
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
