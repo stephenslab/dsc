@@ -26,6 +26,10 @@ Goal for 0.2.7
 
 ### 0.2.x
 
+0.2.6.5
+
+* Bring back partial mixed languages support. **Piplines with mixed R and Python code can communicate data of limited types (recursively support array, matrix, dataframe), via `rpy2` as in versions prior to 0.2.5.x**. Support for additional languages will be implemented on need basis with `HDF5` format [#86](https://github.com/stephenslab/dsc2/issues/86).
+
 0.2.6.4
 
 * Add a `dsc-io` command to convert between python `pickle` and R `RDS` files -- an internal command for data conversion and a test for `rpy2` configuration.

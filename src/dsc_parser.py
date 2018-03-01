@@ -91,10 +91,11 @@ class DSC_Script:
                 raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
         self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path, truncate))
                              for x in self.runtime.sequence_ordering.keys()])
-        for m in self.modules.values():
-            if m.plugin.name == 'R':
-                self.runtime.rlib.append('dscrutils@stephenslab/dsc2/dscrutils (0.2.5+)')
-                break
+        script_types =  [m.exe['type'] for m in self.modules.values()]
+        if 'R' in script_types:
+            self.runtime.rlib.append('dscrutils@stephenslab/dsc2/dscrutils (0.2.5+)')
+        if 'R' in script_types and 'PY' in script_types:
+            self.runtime.pymodule.extend(['rpy2', 'dsc'])
         # FIXME: maybe this should be allowed?
         self.runtime.check_looped_computation()
 
