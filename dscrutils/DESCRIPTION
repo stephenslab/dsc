@@ -1,7 +1,7 @@
 Package: dscrutils
 Encoding: UTF-8
 Type: Package
-Version: 0.2.6.3
+Version: 0.2.6.4
 Date: 2018-02-21
 Title: Dynamic Statistical Comparisons R Interface
 Authors@R: c(person("Gao","Wang",role=c("aut","cre"),
@@ -11,7 +11,7 @@ Authors@R: c(person("Gao","Wang",role=c("aut","cre"),
 Maintainer: Gao Wang <wangow@gmail.com>
 Description: Various R functions for interacting with and analyzing the
     results of a Dynamic Statistical Comparison (DSC) experiment.
-Depends: R (>= 3.4.0)
+Depends: R (>= 3.2.0)
 Suggests: testthat
 License: MIT + file LICENSE
 NeedsCompilation: no
