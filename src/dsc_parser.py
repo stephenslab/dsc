@@ -384,13 +384,15 @@ class DSC_Module:
                     else:
                         self.exe['args'] = item[1:]
                 fpath = locate_file(item[0], self.path)
+                etype = os.path.splitext(item[0])[1].lstrip('.').upper()
                 if fpath is None:
                     # must be a system executable
                     self.exe['path'].append(item[0])
+                    if etype in ['PY', 'R']:
+                        env.logger.warning(f'Cannot find script ``{item[0]}`` in given ``{self.path}``. DSC will treat it a command line executable.')
                 else:
                     # try determine self.exe['type']
                     is_rmd = False
-                    etype = os.path.splitext(item[0])[1].lstrip('.').upper()
                     if etype == '':
                         etype = 'unknown'
                     if etype.lower() == 'rmd':
@@ -406,7 +408,7 @@ class DSC_Module:
                     else:
                         self.exe['path'].append(fpath)
         assert len(self.exe['path']) == 0 or len(self.exe['content']) == 0
-        if len(self.exe['path']) > 0:
+        if len(self.exe['path']) > 1:
             raise FormatError(f"Cannot mix multiple executables ``{self.exe['path']}`` in one module ``{self.name}``.")
         if len(self.exe['path']):
             self.exe['path'] = self.exe['path'][0]

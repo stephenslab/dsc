@@ -4,17 +4,3 @@
 **/__pycache__
 README.rst
 **/*.bak
-vignettes/ash/*
-vignettes/one_sample_location/*
-vignettes/one_sample_location_python/*
-vignettes/one_sample_location_winsor/*
-!vignettes/ash/bin
-!vignettes/ash/settings*
-!vignettes/one_sample_location/settings*
-!vignettes/one_sample_location/*.yml
-!vignettes/one_sample_location/R
-!vignettes/one_sample_location_python/settings*
-!vignettes/one_sample_location_python/PY
-!vignettes/one_sample_location_python/R
-!vignettes/one_sample_location_winsor/R
-!vignettes/one_sample_location_winsor/settings*
