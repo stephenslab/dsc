@@ -9,7 +9,7 @@ _py_ver = sys.version_info
 if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) < (6, 0)):
     raise SystemError('Python 3.6 or higher is required. Please upgrade your Python {}.{}.{}.'
          .format(_py_ver.major, _py_ver.minor, _py_ver.micro))
-from setuptools import setup
+from setuptools import setup, find_packages
 from version import __version__
 
 try:
@@ -19,7 +19,6 @@ except FileNotFoundError:
     long_description = ''
 
 setup(name        = "dsc",
-      packages    = ["dsc"],
       description = "Implementation of Dynamic Statistical Comparisons",
       long_description = long_description,
       author      = __author__,
@@ -28,8 +27,6 @@ setup(name        = "dsc",
       download_url= f'https://pypi.python.org/pypi/dsc/{__version__}#downloads',
       version     = __version__,
       entry_points = {'console_scripts': ['dsc = dsc.__main__:main', 'dsc-query = dsc.__query__:main']},
-      package_dir = {"dsc": "src"},
-      exclude_pages_data = {"dsc": "src/hdf5io.py"},
       license     = __license__,
       classifiers = [
         'Development Status :: 3 - Alpha',
@@ -41,6 +38,8 @@ setup(name        = "dsc",
         'Intended Audience :: Science/Research',
         'Programming Language :: Python :: 3 :: Only',
         ],
+      packages    = ['dsc'],
+      package_dir = {'dsc': 'src'},
       install_requires = ['numpy', 'pandas>=0.22.0', 'sympy', 'numexpr',
                           'sos>=0.9.12.7', 'sos-pbs>=0.9.10.4',
                           'tables', 'pyarrow>=0.5.0', 'sqlalchemy',

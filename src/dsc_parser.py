@@ -10,11 +10,11 @@ This file defines methods to load and preprocess DSC scripts
 import os, re, itertools, copy, subprocess, platform
 import collections
 from xxhash import xxh32 as xxh
-from sos.utils import env, short_repr
+from sos.utils import env
 from sos.targets import fileMD5
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, OrderedDict, cartesian_list, yaml, \
-     parens_aware_split
+     parens_aware_split, rmd_to_r
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter, parse_filter, parse_exe
@@ -389,16 +389,20 @@ class DSC_Module:
                     self.exe['path'].append(item[0])
                 else:
                     # try determine self.exe['type']
+                    is_rmd = False
                     etype = os.path.splitext(item[0])[1].lstrip('.').upper()
                     if etype == '':
                         etype = 'unknown'
+                    if etype.lower() == 'rmd':
+                        etype = 'R'
+                        is_rmd = True
                     if self.exe['type'] == 'unknown':
                         self.exe['type'] = etype
                     if self.exe['type'] != etype:
                         raise FormatError(f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item[0]}``.")
                     # load contents
                     if etype != 'unknown':
-                        self.exe['content'].extend(open(fpath, 'r').readlines())
+                        self.exe['content'].extend(open(fpath, 'r').readlines() if not is_rmd else rmd_to_r(fpath))
                     else:
                         self.exe['path'].append(fpath)
         assert len(self.exe['path']) == 0 or len(self.exe['content']) == 0

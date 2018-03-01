@@ -980,3 +980,63 @@ def remove_quotes(value):
     if value.startswith('"') and value.endswith('"'):
         return value[1:-1]
     return value
+
+def rmd_to_r(infile, outfile = None, md_as_comments = False):
+    res = []
+    with open(infile) as f:
+        rmdlines = f.readlines()
+    # YAML front matter appears to be restricted to strictly ---\nYAML\n---
+    re_yaml_delim = re.compile(r"^---\s*$")
+    delim_lines = [i for i, l in enumerate(rmdlines) if re_yaml_delim.match(l)]
+    if len(delim_lines) >= 2 and delim_lines[1] - delim_lines[0] > 1:
+        rmdlines = rmdlines[:delim_lines[0]] + rmdlines[delim_lines[1] + 1:]
+
+    # the behaviour of rmarkdown appears to be that a code block does not
+    # have to have matching numbers of start and end `s - just >=3
+    # and there can be any number of spaces before the {r, meta} block,
+    # but "r" must be the first character of that block
+
+    re_code_start = re.compile(r"^````*\s*{r(.*)}\s*$")
+    re_code_end = re.compile(r"^````*\s*$")
+
+    MD, CODE = range(2)
+
+    def add_cell(celltype, celldata):
+        if celltype == MD:
+            if md_as_comments:
+                res.extend(['## ' + x for x in celldata])
+        else:
+            res.extend(celldata)
+
+    state = MD
+    celldata = []
+
+    for l in rmdlines:
+        if state == MD:
+            match = re_code_start.match(l)
+            if match:
+                state = CODE
+                # only add MD cells with non-whitespace content
+                if any([c.strip() for c in celldata]):
+                    add_cell(MD, celldata)
+                celldata = []
+            else:
+                celldata.append(l.rstrip() + "\n")
+        else:  # CODE
+            if re_code_end.match(l):
+                state = MD
+                # unconditionally add code blocks regardless of content
+                add_cell(CODE, celldata)
+                celldata = []
+            else:
+                if len(celldata) > 0:
+                    celldata[-1] = celldata[-1] + "\n"
+                celldata.append(l.rstrip())
+
+    if state == CODE or celldata:
+        add_cell(state, celldata)
+
+    if outfile:
+        with open(outfile, "w") as f:
+            f.write('\n'.join(res), outfile)
+    return res

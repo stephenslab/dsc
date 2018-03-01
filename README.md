@@ -17,7 +17,7 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 Goal for 0.2.7
 
 * Add, by default, a variable `DSC_DEBUG` to output files that saves parameters used to generate the output.
-* Enhance `R()` operator due to use of [`dscrutils`](https://github.com/stephenslab/dsc2/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
+* Enhance `R()` operator due to use of [dscrutils](https://github.com/stephenslab/dsc2/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
 * [#92](https://github.com/stephenslab/dsc2/issues/92) paired parameter input convention.
 * [#90](https://github.com/stephenslab/dsc2/issues/90) use `Rmd` files as module executables.
 * Revert to `rpy2` implementation for mixed language data communication, but will involve `rpy2` only on need basis.
