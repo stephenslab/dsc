@@ -23,7 +23,8 @@
 #'
 #' # Generates a list with two vectors.
 #' dscreval("list(x = LETTERS[1:5],y = 1:5)")
-#' 
+#'
+#' \dontrun{
 #' # Generates an error.
 #' dscreval("NULL")
 #'
@@ -35,6 +36,9 @@
 #'
 #' # Generates an error.
 #' dscreval("list(x = LETTERS[1:5],y = 1:5,z = as.list(1:5))")
+#' }
+#' 
+#' @export
 dscreval <- function (x) {
 
   # Check that the input is a character string.

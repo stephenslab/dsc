@@ -25,6 +25,7 @@ dscreval("1:10 < 5")
 # Generates a list with two vectors.
 dscreval("list(x = LETTERS[1:5],y = 1:5)")
 
+\dontrun{
 # Generates an error.
 dscreval("NULL")
 
@@ -36,4 +37,6 @@ dscreval("vector('list',3)")
 
 # Generates an error.
 dscreval("list(x = LETTERS[1:5],y = 1:5,z = as.list(1:5))")
+}
+
 }
