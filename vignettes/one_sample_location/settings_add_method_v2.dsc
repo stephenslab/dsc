@@ -1,29 +1,42 @@
-normal, t: rnorm.R, rt.R
-    seed: R(1:5)
-    n: 1000
-    true_mean: 0, 1
-    $x: x
-    $true_mean: true_mean
+#!/usr/bin/env dsc
 
-mean, median: mean.R, median.R
-    x: $x
-    $mean: mean
+normal: normal.R
+  n: 100
+  $data: x
+  $true_mean: 0
 
-winsor: winsor.R
-    x: $x
+t: t.R
+  n: 100
+  df: 2
+  $data: x
+  $true_mean: 3
+
+mean: mean.R
+  x: $data
+  $est_mean: y
+
+median: median.R
+  x: $data
+  $est_mean: y
+
+winsor(mean): winsor.R
     trim: 0.1, 0.2
-    $mean: mean
 
-mse: MSE.R
-    mean_est: $mean
-    true_mean: $true_mean
-    $mse: mse
-
+sq_err: sq.R
+  a: $est_mean
+  b: $true_mean
+  $error: e
+ 
+abs_err: abs.R
+  a: $est_mean
+  b: $true_mean
+  $error: e 
+  
 DSC:
     define:
       simulate: normal, t
-      estimate: mean, median, winsor
-    run: simulate * estimate * mse
-    R_libs: psych
-    exec_path: R/scenarios, R/methods, R/scores
+      analyze: mean, median, winsor
+      score: abs_err, sq_err
+    run: simulate * analyze * score
+    exec_path: R
     output: dsc_result
