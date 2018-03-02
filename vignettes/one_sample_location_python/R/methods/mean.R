@@ -1,1 +1,0 @@
-mean = mean(x)
