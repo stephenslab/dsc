@@ -4,15 +4,13 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, collections, re
-
 '''
 Test rpy2 installation:
 python -m 'rpy2.tests'
 '''
 
 def load_mpk(mpk_files, jobs = 2):
-    import msgpack
+    import msgpack, collections
     from multiprocessing import Process, Manager
     from .utils import chunks
     if isinstance(mpk_files, str):
@@ -33,8 +31,8 @@ def load_mpk(mpk_files, jobs = 2):
     return collections.OrderedDict([(x, d[x]) for x in sorted(d.keys(), key = lambda x: int(x.split(':')[0]))])
 
 def load_rds(filename, types = None):
-    import pandas as pd
-    import numpy as np
+    import os
+    import pandas as pd, numpy as np
     import rpy2.robjects as RO
     import rpy2.robjects.vectors as RV
     import rpy2.rinterface as RI
@@ -97,6 +95,7 @@ def load_rds(filename, types = None):
     return res
 
 def save_rds(data, filename):
+    import collections, re
     import pandas as pd
     import numpy as np
     import rpy2.robjects as RO
@@ -144,6 +143,20 @@ def save_rds(data, filename):
         assign('res', data)
     RO.r("saveRDS(res, '%s')" % filename)
 
+def load_dsc(infiles):
+    import pickle
+    if isinstance(infiles, str):
+        infiles = [infiles]
+    res = dict()
+    for infile in infiles:
+        if infile.endswith('.pkl'):
+            res.update(pickle.load(open(infile, 'rb')))
+        elif infile.endswith('.rds'):
+            res.update(load_rds(infile))
+        else:
+            raise ValueError(f'``{infile}`` is not supported DSC data format')
+    return res
+
 def main():
     import sys, pickle
     if len(sys.argv) < 3:
@@ -151,9 +164,9 @@ def main():
     # Input is pkl, output is rds
     infile = sys.argv[1]
     outfile = sys.argv[2]
-    if infile.endswith('pkl') and outfile.endswith('rds'):
+    if infile.endswith('.pkl') and outfile.endswith('.rds'):
         save_rds(pickle.load(open(infile, 'rb')), outfile)
-    elif infile.endswith('rds') and outfile.endswith('pkl'):
+    elif infile.endswith('.rds') and outfile.endswith('.pkl'):
         pickle.dump(load_rds(infile), open(outfile, 'wb'))
     else:
         sys.exit(1)

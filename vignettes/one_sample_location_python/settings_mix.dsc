@@ -1,3 +1,4 @@
+#!/usr/bin/env dsc
 rnorm, rt: rnorm.py, rt.R
     seed: R(1:10)
     n: 1000

@@ -139,13 +139,14 @@ class RPlug(BasePlug):
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
 
     def load_env(self, input_num, index, autoload, customized):
+        loader = 'readRDS' if not customized else 'dscrutils:::read_dsc'
         res = ''
         # load files
-        load_multi_in = '\n{} <- list()'.format(self.identifier) + \
-          '\ninput.files <- c(${{_input:r,}})\nfor (i in 1:length(input.files)) ' \
-          '{0} <- dscrutils:::merge_lists({0}, readRDS(input.files[i]))'.format(self.identifier)
-        load_single_in = '\n{} <- readRDS("${{_input}}")'.format(self.identifier)
-        load_out = '\nattach(readRDS("${_output}"), warn.conflicts = F)'
+        load_multi_in = f'\n{self.identifier} <- list()' + \
+          '\ninput.files <- c(${_input:r,})\nfor (i in 1:length(input.files)) ' + \
+          f'{self.identifier} <- dscrutils:::merge_lists({self.identifier}, {loader}(input.files[i]))'
+        load_single_in = f'\n{self.identifier} <- {loader}("${{_input}}")'
+        load_out = f'\nattach({loader}("${{_output}}"), warn.conflicts = F)'
         flag = False
         if input_num > 1 and autoload:
             res += load_multi_in
@@ -280,10 +281,16 @@ class PyPlug(BasePlug):
     def load_env(self, input_num, index, autoload, customized):
         res = 'import sys, os, tempfile, timeit, pickle'
         # load files
-        load_multi_in = '\n{} = {{}}'.format(self.identifier) + \
-          '\nfor item in [${{_input:r,}}]:\n\t{}.update(pickle.load(open(item, "rb")))'.format(self.identifier)
-        load_single_in = '\n{} = pickle.load(open("${{_input}}", "rb"))'.format(self.identifier)
-        load_out = '\nglobals().update(pickle.load(open("${_output}", "rb")))'
+        if customized:
+            res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
+            load_multi_in = f'\n{self.identifier} = __load_dsc__([${{_input:r,}}])'
+            load_single_in = f'\n{self.identifier} = __load_dsc__("${{_input}}")'
+            load_out = '\nglobals().update(__load_dsc__("${_output}"))'
+        else:
+            load_multi_in = f'\n{self.identifier} = {{}}' + \
+                            f'\nfor item in [${{_input:r,}}]:\n\t{self.identifier}.update(pickle.load(open(item, "rb")))'
+            load_single_in = f'\n{self.identifier} = pickle.load(open("${{_input}}", "rb"))'
+            load_out = '\nglobals().update(pickle.load(open("${_output}", "rb")))'
         flag = False
         if input_num > 1 and autoload:
             res += load_multi_in
