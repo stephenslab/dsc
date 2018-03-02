@@ -1,15 +1,11 @@
-# TO DO: Briefly describe what this function does. We do not need
-# roxygen2 documentation for this function since it will not be
-# exported.
-#
-# NOTES:
-# 
-#   - Evaluates the expression in the base R environment.
-#
-
 #' @title Parse and evaluate R expression, and check that the value is
 #' a "simple" atomic object, or a list of simple atomic objects.
 #'
+#' @details TO DO: Give a few more details about what this function
+#'   does. Explain what is meant by "simple atomic" object.
+#'
+#' NOTE: Evaluates the expression in the base R environment.
+#' 
 #' @examples
 #'
 #' # Generates a numeric vector.
@@ -69,4 +65,4 @@ dscreval <- function (x) {
 # Returns TRUE if and only if the input argument is atomic, and not
 # complex, "raw" or NULL.
 is.simple.atomic <- function (x)
-  is.atomic(x) & !(is.complex(x) | is.raw(x) | is.null(x) )
+  is.atomic(x) & !(is.complex(x) | is.raw(x) | is.null(x))

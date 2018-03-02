@@ -11,6 +11,12 @@ dscreval(x)
 Parse and evaluate R expression, and check that the value is
 a "simple" atomic object, or a list of simple atomic objects.
 }
+\details{
+TO DO: Give a few more details about what this function
+  does. Explain what is meant by "simple atomic" object.
+
+NOTE: Evaluates the expression in the base R environment.
+}
 \examples{
 
 # Generates a numeric vector.
