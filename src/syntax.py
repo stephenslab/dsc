@@ -21,3 +21,4 @@ DSC_PACK_OP = LazyRegex(r'((?i)list|(?i)dict)\((.*?)\)', re.VERBOSE)
 DSC_BLOCK_CONTENT = LazyRegex(r'^\s(.*?)', re.VERBOSE)
 DSC_GVS = LazyRegex(r'\$\((.*?)\)\[(.*?)\]', re.VERBOSE) # global variable with slicing
 DSC_GV = LazyRegex(r'\$\((.*?)\)', re.VERBOSE)
+DSC_RLIB = LazyRegex(r'((^|\W|\()library|(^|\W|\()require)\((.*?)\)', re.VERBOSE)

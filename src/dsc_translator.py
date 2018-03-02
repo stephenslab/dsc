@@ -347,8 +347,9 @@ class DSC_Translator:
                                                                 self.step.libpath if self.step.libpath else [],
                                                                 cmd['args'])
                         script_begin += '\n' + plugin.get_output(self.step.rf)
-                        script_begin = '{1}\n{0}\n{2}'.\
-                                       format(script_begin.strip(),
+                        script_begin = '{0}\n{2}\n{1}\n{3}'.\
+                                       format(cmd['header'],
+                                              script_begin.strip(),
                                               '## BEGIN code by DSC2',
                                               '## END code by DSC2')
                         if len(self.step.rv):

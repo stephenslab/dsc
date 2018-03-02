@@ -357,6 +357,14 @@ class DSC_Module:
         self.ft = self.apply_input_filter(try_get_value(content, ('meta', 'filter')))
         self.check_shell()
 
+    @staticmethod
+    def pop_rlib(vec):
+        res = []
+        for item in vec:
+            if DSC_RLIB.search(item):
+                res.append(vec.pop(vec.index(item)).strip())
+        return '\n'.join(res), vec
+
     def set_exec(self, exe):
         '''
         Example input exec:
@@ -365,7 +373,8 @@ class DSC_Module:
         - ('unknown', 'datamaker.py split')
         '''
         # FIXME: handle $() in args (maybe later?) and ensure they exist in parameter list
-        self.exe = {'path': [], 'content': [], 'args': None, 'signature': None, 'file': [], 'type': 'unknown'}
+        self.exe = {'path': [], 'content': [], 'args': None, 'signature': None,
+                    'file': [], 'type': 'unknown', 'header': ''}
         for etype, item in zip(exe[0], exe[1:]):
             if etype != 'unknown':
                 # is inline code
@@ -415,6 +424,9 @@ class DSC_Module:
             self.exe['path'] = self.exe['path'][0]
         if len(self.exe['path']) == 0 and len(self.exe['content']) == 0:
             raise FormatError(f"Contents in ``{self.exe['file']}`` is empty!")
+        if self.exe['type'] == 'R':
+            # bump libraries import to front of script
+            self.exe['header'], self.exe['content'] = self.pop_rlib(self.exe['content'])
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])
         if len(self.exe['path']) == 0:

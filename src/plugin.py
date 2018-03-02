@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-from .syntax import DSC_FILE_OP
+from .syntax import DSC_FILE_OP, DSC_ASIS_OP
 
 R_SOURCE = '''
 source.file <- source
@@ -26,6 +26,21 @@ source <- function(x) {
  }
 }
 '''
+def format_tuple(value):
+    res = []
+    has_raw = False
+    for v in value:
+        if isinstance(v, str):
+            groups = DSC_ASIS_OP.search(v)
+            if groups:
+                res.append(groups.group(1))
+                has_raw = True
+            else:
+                res.append(repr(v))
+        else:
+            res.append(str(v))
+    return res, has_raw
+
 
 class BasePlug:
     def __init__(self, name = 'run', identifier = ''):
@@ -65,7 +80,7 @@ class BasePlug:
 
     @staticmethod
     def format_tuple(value):
-        return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
+        return ' '.join(format_tuple(value)[0])
 
     def dump(self):
         return dict([
@@ -99,10 +114,6 @@ class Shell(BasePlug):
         else:
             temp_var = [f'${{_output[0]:n}}.{lhs}.{item.strip()}' for item in rhs.split(',')]
             self.tempfile.append('{}="""{}"""'.format(lhs, ' '.join(temp_var)))
-
-    @staticmethod
-    def format_tuple(value):
-        return ' '.join([repr(x) if isinstance(x, str) else str(x) for x in value])
 
     @staticmethod
     def add_try(content, n_output):
@@ -243,7 +254,8 @@ class RPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        return 'c({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
+        value, has_raw = format_tuple(value)
+        return '{}({})'.format('list' if has_raw else 'c', ', '.join(value))
 
     def __str__(self):
         return 'r'
@@ -382,7 +394,7 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        return '({})'.format(', '.join([repr(x) if isinstance(x, str) else str(x) for x in value]))
+        return '({})'.format(','.join(format_tuple(value)[0]))
 
     def __str__(self):
         return 'python'
