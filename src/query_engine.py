@@ -293,6 +293,8 @@ class Query_Processor:
         table = pd.concat(self.output_tables.values(), join = 'outer', ignore_index = True)
         to_drop = []
         for g in self.groups:
+            if g not in self.targets:
+                continue
             # For each group, find common fields to merge
             to_merge = dict()
             gvals = sorted(self.groups[g], key = len, reverse = True)
