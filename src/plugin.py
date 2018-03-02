@@ -237,7 +237,9 @@ class RPlug(BasePlug):
                 res.append('%s$%s <- ${_%s}' % (name, j if j is not None else k, k))
             else:
                 res.append('%s$%s <- %s' % (name, j if j is not None else k, k))
-            self.container_vars.append((k, j))
+            #keep alias intact for now: maybe this is intended behavior ...
+            #self.container_vars.append(j if j is not None else k)
+            self.container_vars.append(k)
         self.container.extend(res)
 
     @staticmethod
