@@ -39,7 +39,7 @@ def format_tuple(value):
                 res.append(repr(v))
         else:
             res.append(str(v))
-    return res, has_raw
+    return res
 
 
 class BasePlug:
@@ -80,7 +80,7 @@ class BasePlug:
 
     @staticmethod
     def format_tuple(value):
-        return ' '.join(format_tuple(value)[0])
+        return ' '.join(format_tuple(value))
 
     def dump(self):
         return dict([
@@ -256,8 +256,8 @@ class RPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        value, has_raw = format_tuple(value)
-        return '{}({})'.format('list' if has_raw else 'c', ', '.join(value))
+        value = format_tuple(value)
+        return 'list({})'.format(', '.join(value))
 
     def __str__(self):
         return 'r'
@@ -396,7 +396,7 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        return '({})'.format(','.join(format_tuple(value)[0]))
+        return '({})'.format(','.join(format_tuple(value)))
 
     def __str__(self):
         return 'python'
