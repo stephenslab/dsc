@@ -50,7 +50,7 @@ class BasePlug:
 
     def reset(self):
         self.container = []
-        self.container_vars = []
+        self.container_vars = dict()
         self.input_alias = []
         self.tempfile = []
 
@@ -97,12 +97,6 @@ class BasePlug:
 class Shell(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'run', identifier = identifier)
-
-    def reset(self):
-        self.container = []
-        self.container_vars = []
-        self.input_alias = []
-        self.tempfile = []
 
     def add_input(self, lhs, rhs):
         self.add_tempfile(lhs, rhs)
@@ -237,9 +231,10 @@ class RPlug(BasePlug):
                 res.append('%s$%s <- ${_%s}' % (name, j if j is not None else k, k))
             else:
                 res.append('%s$%s <- %s' % (name, j if j is not None else k, k))
-            #keep alias intact for now: maybe this is intended behavior ...
-            #self.container_vars.append(j if j is not None else k)
-            self.container_vars.append(k)
+            if k not in self.container_vars:
+                self.container_vars[k] = [j]
+            else:
+                self.container_vars[k].append(j)
         self.container.extend(res)
 
     @staticmethod
@@ -382,7 +377,10 @@ class PyPlug(BasePlug):
                 res.append('%s[%s] <- ${_%s}' % (name, repr(str(j if j is not None else k)), k))
             else:
                 res.append('%s[%s] <- %s' % (name, repr(str(j if j is not None else k)), k))
-            self.container_vars.append((k, j))
+            if k not in self.container_vars:
+                self.container_vars[k] = [j]
+            else:
+                self.container_vars[k].append(j)
         self.container.extend(res)
 
     @staticmethod

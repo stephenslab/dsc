@@ -194,4 +194,8 @@ def main():
         sys.exit(1)
 
 if __name__ == '__main__':
-    main()
+    import warnings
+    from rpy2.rinterface import RRuntimeWarning
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category = RRuntimeWarning)
+        main()
