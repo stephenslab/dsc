@@ -35,6 +35,22 @@ def query(args):
         qp = Query_Processor(db, args.target, args.condition, args.groups, args.add_path)
         for query in qp.get_queries():
             logger.debug(query)
+        # convert output database
+        if args.rds is not None and args.add_path:
+            import warnings, psutil
+            from rpy2.rinterface import RRuntimeWarning
+            from .dsc_io import convert_dsc
+            fns = sum([list(qp.output_table[x]) for x in qp.output_table.columns if x.endswith('.output')], [])
+            if args.rds == 'omit':
+                fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl') and not os.path.isfile(x + '.rds')]
+            else:
+                fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl')]
+            if len(fns):
+                njobs = max(psutil.cpu_count() - 1, 1)
+                logger.info(f'Converting ``{len(fns)}`` files to RDS using ``{njobs}`` processes ...')
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category = RRuntimeWarning)
+                    convert_dsc(fns, njobs)
         # write output
         if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb') and not args.output.endswith('.csv'):
             fnb = args.output + '.ipynb'
@@ -117,6 +133,8 @@ def main():
     p.add_argument('--addon', metavar = 'str', nargs = '+',
                    help='''Scripts to load to the notebooks for follow up analysis.
                    Only usable in conjunction with "--language".''')
+    p.add_argument('--rds', dest = 'rds', choices = ['omit', 'overwrite'],
+                   help='''Convert Python serialized files to R serialized files''')
     p.add_argument('-f', '--force', action = 'store_true', dest = 'force',
                     help=SUPPRESS)
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(4)), default = 2,

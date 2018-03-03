@@ -157,6 +157,28 @@ def load_dsc(infiles):
             raise ValueError(f'``{infile}`` is not supported DSC data format')
     return res
 
+def convert_dsc(pkl_files, jobs = 2):
+    import pickle
+    from multiprocessing import Process
+    from .utils import chunks
+    def convert(d):
+        for ff in d:
+            if not ff.endswith('pkl'):
+                raise ValueError(f'``{ff}`` is not supported DSC data format')
+            save_rds(pickle.load(open(ff, 'rb')), ff[:-4] + '.rds')
+    #
+    if isinstance(pkl_files, str):
+        convert([pkl_files])
+        return 0
+    #
+    pkl_files = [x for x in chunks(pkl_files, int(len(pkl_files) / jobs) + 1)]
+    job_pool = [Process(target = convert, args = (x,)) for x in pkl_files]
+    for job in job_pool:
+        job.start()
+    for job in job_pool:
+        job.join()
+    return 0
+
 def main():
     import sys, pickle
     if len(sys.argv) < 3:
