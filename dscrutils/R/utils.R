@@ -9,9 +9,9 @@ merge_lists <- function(x, y, ...)
   return(x)
 }
 
-read_dsc <- function(infile)
-{
-  library(tools)
+#' @importFrom tools file_ext
+#' @importFrom tools file_path_sans_ext
+read_dsc <- function(infile) {
   inbase = file_path_sans_ext(infile)
   inext = file_ext(infile)
   rt = 0
