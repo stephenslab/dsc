@@ -85,6 +85,8 @@
 #' dat4 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
 #'                  condition = "simulate.true_mean = 1")
 #'
+#' @importFrom utils read.csv
+#' 
 #' @export
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
                       add.path = FALSE, exec = "dsc-query",
