@@ -35,6 +35,14 @@ repository root:
 devtools::install_local("dscrutils")
 ```
 
+To build and test the package, run these commands from the
+command-line shell:
+
+```bash
+R CMD build dscrutils
+R CMD check --as-cran dscrutils_0.2.6.4.tar.gz
+```
+
 To update the package documentation from the
 [roxygen2](http://r-pkgs.had.co.nz/man.html) tags, run the following
 from R after first making sure your working directory is inside the
