@@ -13,7 +13,6 @@ simulate: datamaker.R
     betahatsd: 1
     # module decoration
     @ALIAS: args = List()
-    @CONF: queue = midway
     # module output
     $data: data
     $true_beta: data$meta$beta

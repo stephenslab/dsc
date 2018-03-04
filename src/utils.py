@@ -840,14 +840,19 @@ def remove_multiple_strings(cur_string, replace_list):
         cur_string = cur_string.replace(cur_word, '')
     return cur_string
 
-def remove_quotes(value):
+def remove_head_tail(value, head_tail):
     if not isinstance(value, str):
         return value
-    if value.startswith("'") and value.endswith("'"):
-        return value[1:-1]
-    if value.startswith('"') and value.endswith('"'):
-        return value[1:-1]
+    for (x, y) in head_tail:
+        if value.startswith(x) and value.endswith(y):
+            return value[1:-1]
     return value
+
+def remove_quotes(value):
+    return remove_head_tail(value, [("'","'"),('"','"')])
+
+def remove_parens(value):
+    return remove_head_tail(value, [("(",")"),('[',']'), ('{', '}')])
 
 def rmd_to_r(infile, outfile = None, md_as_comments = False):
     res = []

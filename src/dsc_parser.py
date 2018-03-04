@@ -14,7 +14,7 @@ from sos.utils import env
 from sos.targets import fileMD5
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, OrderedDict, cartesian_list, yaml, \
-     parens_aware_split, rmd_to_r
+     parens_aware_split, remove_parens, rmd_to_r
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter, parse_filter, parse_exe
@@ -334,6 +334,8 @@ class DSC_Module:
         self.rv = OrderedDict()
         # return files: alias, ext
         self.rf = OrderedDict()
+        # groups of parameters eg (n,p): (1,2)
+        self.pg = []
         # exec
         self.exe = None
         # script plugin object
@@ -500,7 +502,26 @@ class DSC_Module:
 
     def set_input(self, params, alias):
         if params is not None:
-            self.p.update(params)
+            # handle input groups (n,p):(1,2)
+            for p in params:
+                if ',' in p:
+                    ps = parens_aware_split(remove_parens(p))
+                    self.pg.append(ps)
+                    for pp in ps:
+                        if pp in self.p:
+                            raise FormatError(f'Cannot add in duplicate parameter ``{pp}`` to module {self.name}')
+                        else:
+                            self.p[pp] = []
+                    for item in params[p]:
+                        if not isinstance(item, tuple) and len(item) == len(ps):
+                            raise FormatError(f'Parameter group ``{p}`` and value ``{item}`` should have same length')
+                        for pp, ii in zip(ps, item):
+                            self.p[pp].append(ii)
+                else:
+                    if p not in self.p:
+                        self.p[p] = params[p]
+                    else:
+                        raise FormatError(f'Cannot add in duplicate parameter ``{p}`` to module {self.name}')
         if isinstance(alias, collections.Mapping):
             valid = False
             for module in alias:
@@ -518,6 +539,10 @@ class DSC_Module:
             if k2 in self.p:
                 self.p[k1] = self.p.pop(k2)
                 del alias[k1]
+                for i in range(len(self.pg)):
+                    for ii in range(len(self.pg[i])):
+                        if k2 == self.pg[i][ii]:
+                            self.pg[i][ii] = k1
         # Handle special alias
         # Currently it is list() / dict()
         for k1, k2 in list(alias.items()):
@@ -544,8 +569,8 @@ class DSC_Module:
         return ' or '.join(res)
 
     def apply_input_filter(self, ft):
-        if ft is None or len(ft) == 0:
-            return None
+        # first handle module specific filter
+        ft = ft if ft else []
         if isinstance(ft, collections.Mapping):
             valid = False
             for module in ft:
@@ -557,6 +582,15 @@ class DSC_Module:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @FILTER specification ``{list(ft.keys())}``.")
         if isinstance(ft, collections.Mapping):
             raise FormatError(f"Invalid @FILTER format for module ``{self.name}`` (cannot be a key-value mapping).")
+        # then generate filter from self.pg
+        tmp = []
+        for group in self.pg:
+            for j in range(len(self.p[group[0]])):
+                tmp.append(" AND ".join(["{} = {}".format(g, repr(self.p[g][j]) if isinstance(self.p[g][j], str) else self.p[g][j]) for g in group]))
+        if len(tmp):
+            ft.append(' OR '.join(tmp))
+        if len(ft) == 0:
+            return None
         raw_rule = ft
         ft = self.make_filter_statement(ft)
         # Verify it
@@ -569,7 +603,7 @@ class DSC_Module:
         except:
             raise FormatError(f"Invalid @FILTER: ``{raw_rule}``!")
         if int(ret) == 0:
-            raise FormatError(f"No parameter combination satisfies @FILTER ``{raw_rule}``!")
+            raise FormatError(f"No parameter combination satisfies @FILTER ``{' AND '.join(raw_rule)}``!")
         return ft
 
     def apply_input_operator(self):
