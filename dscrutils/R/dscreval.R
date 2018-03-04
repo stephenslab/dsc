@@ -8,29 +8,36 @@
 #' 
 #' @examples
 #'
-#' # Generates a numeric vector.
-#' dscreval("c(3,-1,14)")
+#' # Generates a string encoding a numeric vector.
+#' x1 <- dscreval("c(3,-1,14)")
+#' cat(x1,"\n")
 #'
-#' # Generates a numeric vector.
-#' dscreval("seq(1,2,length.out = 5)")
+#' # Generates a string encoding a numeric vector.
+#' x2 <- dscreval("seq(1,2,length.out = 5)")
+#' cat(x2,"\n")
 #'
-#' # Generates a logical vector.
-#' dscreval("1:10 < 5")
+#' # Generates a string encoding a logical vector.
+#' x3 <- dscreval("1:7 < 5")
+#' cat(x3,"\n")
 #'
+#' # Generates 
+#' 
 #' # Generates a list with two vectors.
 #' dscreval("list(x = LETTERS[1:5],y = 1:5)")
 #'
 #' \dontrun{
-#' # Generates an error.
+#' 
+#' # Produces an error because NULL is not allowed.
 #' dscreval("NULL")
 #'
-#' # Generates an error.
+#' # Produces an error because complex numbers are not allowed.
 #' dscreval("polyroot(c(-1,2,-1,4))")
 #'
-#' # Generates an error.
+#' # Produces an error because NULL values are not allowed anywhere in
+#' # the data structure.
 #' dscreval("vector('list',3)")
 #'
-#' # Generates an error.
+#' # Produces an error because lists containing lists are not allowed.
 #' dscreval("list(x = LETTERS[1:5],y = 1:5,z = as.list(1:5))")
 #' }
 #' 
@@ -81,7 +88,7 @@ is.simple.atomic <- function (x)
 # character.
 atomic2tuple <- function (x) {
   if (is.logical(x) | is.numeric(x))
-    out <- paste(x,collapse = "\",\"")
+    out <- paste(x,collapse = ",")
   else if (is.character(x))
     out <- paste0("\"",paste(x,collapse = "\",\""),"\"")
   else
