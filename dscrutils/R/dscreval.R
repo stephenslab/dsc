@@ -8,22 +8,27 @@
 #' 
 #' @examples
 #'
-#' # Generates a string encoding a numeric vector.
+#' # Generates a string encoding a tuple of numeric values.
 #' x1 <- dscreval("c(3,-1,14)")
 #' cat(x1,"\n")
 #'
-#' # Generates a string encoding a numeric vector.
+#' # Generates a string encoding a tuple of numeric values.
 #' x2 <- dscreval("seq(1,2,length.out = 5)")
 #' cat(x2,"\n")
 #'
-#' # Generates a string encoding a logical vector.
+#' # Generates a string encoding a tuple of logical values.
 #' x3 <- dscreval("1:7 < 5")
 #' cat(x3,"\n")
 #'
-#' # Generates 
-#' 
-#' # Generates a list with two vectors.
-#' dscreval("list(x = LETTERS[1:5],y = 1:5)")
+#' # Generates a string encoding a tuple of character values.
+#' x4 <- dscreval("c('Illinois','Michigan','Ohio')")
+#' cat(x4,"\n")
+#'
+#' # Generates a string encoding of a nested tuple, in which the first
+#' element contains character values, and the second element contains
+#' numeric values.
+#' x5 <- dscreval("list(x = LETTERS[1:5],y = 1:5)")
+#' cat(x5,"\n")
 #'
 #' \dontrun{
 #' 
