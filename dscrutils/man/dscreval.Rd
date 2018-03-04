@@ -19,29 +19,41 @@ NOTE: Evaluates the expression in the base R environment.
 }
 \examples{
 
-# Generates a numeric vector.
-dscreval("c(3,-1,14)")
+# Generates a string encoding a tuple of numeric values.
+x1 <- dscreval("c(3,-1,14)")
+cat(x1,"\\n")
 
-# Generates a numeric vector.
-dscreval("seq(1,2,length.out = 5)")
+# Generates a string encoding a tuple of numeric values.
+x2 <- dscreval("seq(1,2,length.out = 5)")
+cat(x2,"\\n")
 
-# Generates a logical vector.
-dscreval("1:10 < 5")
+# Generates a string encoding a tuple of logical values.
+x3 <- dscreval("1:7 < 5")
+cat(x3,"\\n")
 
-# Generates a list with two vectors.
-dscreval("list(x = LETTERS[1:5],y = 1:5)")
+# Generates a string encoding a tuple of character values.
+x4 <- dscreval("c('Illinois','Michigan','Ohio')")
+cat(x4,"\\n")
+
+# Generates a string encoding of a nested tuple, in which the first
+# element contains character values, and the second element contains
+# numeric values.
+x5 <- dscreval("list(x = LETTERS[1:5],y = 1:5)")
+cat(x5,"\\n")
 
 \dontrun{
-# Generates an error.
+
+# Produces an error because NULL is not allowed.
 dscreval("NULL")
 
-# Generates an error.
+# Produces an error because complex numbers are not allowed.
 dscreval("polyroot(c(-1,2,-1,4))")
 
-# Generates an error.
+# Produces an error because NULL values are not allowed anywhere in
+# the data structure.
 dscreval("vector('list',3)")
 
-# Generates an error.
+# Produces an error because lists containing lists are not allowed.
 dscreval("list(x = LETTERS[1:5],y = 1:5,z = as.list(1:5))")
 }
 

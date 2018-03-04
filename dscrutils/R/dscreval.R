@@ -25,8 +25,8 @@
 #' cat(x4,"\n")
 #'
 #' # Generates a string encoding of a nested tuple, in which the first
-#' element contains character values, and the second element contains
-#' numeric values.
+#' # element contains character values, and the second element contains
+#' # numeric values.
 #' x5 <- dscreval("list(x = LETTERS[1:5],y = 1:5)")
 #' cat(x5,"\n")
 #'
