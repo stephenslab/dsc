@@ -292,8 +292,9 @@ class Query_Processor:
         common_keys = list(set(common_keys[0]).intersection(*common_keys))
         table = pd.concat(self.output_tables.values(), join = 'outer', ignore_index = True)
         to_drop = []
+        targets = uniq_list([x.split('.', 1)[0] for x in self.targets])
         for g in self.groups:
-            if g not in self.targets:
+            if g not in targets:
                 continue
             # For each group, find common fields to merge
             to_merge = dict()
@@ -326,7 +327,6 @@ class Query_Processor:
         #
         table.drop(set(sum(to_drop, [])), axis=1, inplace=True)
         # Adjust column name / ordering
-        targets = uniq_list([x.split('.', 1)[0] for x in self.targets])
         targets = flatten_list([[x] + self.groups[x] if x in self.groups else x for x in targets])
         table = table.rename(columns = {g: f'{g}.id' for g in self.groups})
         table = table[sorted(table.columns, key = lambda x: (find_partial_index(x, targets), not x.endswith('.id')))]
