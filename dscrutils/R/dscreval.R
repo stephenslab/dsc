@@ -1,11 +1,24 @@
-#' @title Parse and evaluate R expression, and check that the value is
-#' a "simple" atomic object, or a list of simple atomic objects.
+#' @title Evaluate R expression and create tuple-like string
+#' encoding of value to be used in DSC.
 #'
-#' @details TO DO: Give a few more details about what this function
-#'   does. Explain what is meant by "simple atomic" object.
+#' @description Parse and evaluate R expression, and check that the
+#' value is a "simple" atomic object, or a list of simple atomic
+#' objects, then return a string representation of the object.
 #'
-#' NOTE: Evaluates the expression in the base R environment.
+#' @param x Text of R expression to be parsed by code{parse}.
 #' 
+#' @param envir Environment in which the expression is evaluated. By
+#' default, the expression is evaluated in the base R environment.
+#' 
+#' @details The expression must evaluate to a logical, character or
+#' non-complex numeric vector, or a list of vectors of this form. An
+#' error is produced if the expression evaluates to an object that is
+#' not of this form.
+#'
+#' @return The return value is a string representation the atomic
+#' vector, or list of atomic vectors, in a format similar to nested
+#' tuples in Python.
+#'
 #' @examples
 #'
 #' # Generates a string encoding a tuple of numeric values.
@@ -47,14 +60,14 @@
 #' }
 #' 
 #' @export
-dscreval <- function (x) {
+dscreval <- function (x, envir = baseenv()) {
 
   # Check that the input is a character string.
   if (!is.character(x))
     stop("dscreval input argument \"x\" should be a character string.")
     
   # Evaluate the R expression in environment of package:base.
-  out <- tryCatch(eval(parse(text = x),envir = baseenv()),
+  out <- tryCatch(eval(parse(text = x),envir = envir),
                   error = function (e) {
                     msg <- conditionMessage(e)
                     stop(paste("Evaluation of the following R expression",

@@ -2,20 +2,32 @@
 % Please edit documentation in R/dscreval.R
 \name{dscreval}
 \alias{dscreval}
-\title{Parse and evaluate R expression, and check that the value is
-a "simple" atomic object, or a list of simple atomic objects.}
+\title{Evaluate R expression and create tuple-like string
+encoding of value to be used in DSC.}
 \usage{
-dscreval(x)
+dscreval(x, envir = baseenv())
+}
+\arguments{
+\item{x}{Text of R expression to be parsed by code{parse}.}
+
+\item{envir}{Environment in which the expression is evaluated. By
+default, the expression is evaluated in the base R environment.}
+}
+\value{
+The return value is a string representation the atomic
+vector, or list of atomic vectors, in a format similar to nested
+tuples in Python.
 }
 \description{
-Parse and evaluate R expression, and check that the value is
-a "simple" atomic object, or a list of simple atomic objects.
+Parse and evaluate R expression, and check that the
+value is a "simple" atomic object, or a list of simple atomic
+objects, then return a string representation of the object.
 }
 \details{
-TO DO: Give a few more details about what this function
-  does. Explain what is meant by "simple atomic" object.
-
-NOTE: Evaluates the expression in the base R environment.
+The expression must evaluate to a logical, character or
+non-complex numeric vector, or a list of vectors of this form. An
+error is produced if the expression evaluates to an object that is
+not of this form.
 }
 \examples{
 
