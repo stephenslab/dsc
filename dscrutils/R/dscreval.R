@@ -50,19 +50,41 @@ dscreval <- function (x) {
                                conditionMessage(e)))
                   })
 
-  # Check that the value of the expression is a non-NULL atomic
-  if (is.simple.atomic(out))
-    return(out)
-  else if (is.list(out) & all(sapply(out,is.simple.atomic)))
-    return(out)
+  # Verify that the value of the expression is a non-NULL atomic, or a
+  # list of non-NULL atomics. (See function "is.simple.atomic" defined
+  # below.)
+  output.is.valid <- FALSE
+  if (!is.simple.atomic(out))
+    if (!(is.list(out) & all(sapply(out,is.simple.atomic))))
+      stop(paste("Evaluation of the following R expression,\n",x,"\n",
+                 "produces a value that is not a simple atomic object,",
+                 "nor a list of simple atomic objects."))
+
+  # Convert the value to a string representation of the expression
+  # value reminiscent of nested tuples in Python.
+  if (is.list(out))
+    out <- paste(sapply(out,function (x) paste0("(",atomic2tuple(x),")")),
+                 collapse = ",")
   else
-    stop(paste("Evaluation of the following R expression,\n",x,"\n",
-               "produces a value that is not a simple atomic object,",
-               "nor a list of simple atomic objects."))
+    out <- atomic2tuple(out)
   return(out)
 }
 
-# Returns TRUE if and only if the input argument is atomic, and not
-# complex, "raw" or NULL.
+# Returns TRUE if and only if the input argument is logical, character
+# or non-complex numeric.
 is.simple.atomic <- function (x)
-  is.atomic(x) & !(is.complex(x) | is.raw(x) | is.null(x))
+  is.atomic(x) & !is.complex(x) &
+    (is.logical(x) | is.numeric(x) | is.character(x))
+
+# Return a string representation the atomic vector in a format similar
+# to tuples in Python. Accepted atomic types are logical, numeric and
+# character.
+atomic2tuple <- function (x) {
+  if (is.logical(x) | is.numeric(x))
+    out <- paste(x,collapse = "\",\"")
+  else if (is.character(x))
+    out <- paste0("\"",paste(x,collapse = "\",\""),"\"")
+  else
+    stop("Invalid input to atomic2tuple.")
+  return(out)
+}
