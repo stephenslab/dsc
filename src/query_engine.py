@@ -207,7 +207,7 @@ class Query_Processor:
         res = []
         for pipeline in self.pipelines:
             pipeline = list(reversed(pipeline))
-            res.append('FROM {0}'.format(pipeline[0]) + ' '.join([" INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)]))
+            res.append(('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)])).strip())
         return res
 
     def get_select_clause(self):
