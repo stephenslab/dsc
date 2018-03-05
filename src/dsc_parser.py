@@ -424,6 +424,8 @@ class DSC_Module:
                         self.exe['content'].extend(open(fpath, 'r').readlines() if not is_rmd else rmd_to_r(fpath, chunk_pattern = rmd_chunk_pattern))
                     else:
                         self.exe['path'].append(fpath)
+                if is_rmd:
+                    env.logger.warning(f'Source code of ``{self.name}`` is loaded from ``{item[0]}``. This is only recommended for prototyping.')
         assert len(self.exe['path']) == 0 or len(self.exe['content']) == 0
         if len(self.exe['path']) > 1:
             raise FormatError(f"Cannot mix multiple executables ``{self.exe['path']}`` in one module ``{self.name}``.")

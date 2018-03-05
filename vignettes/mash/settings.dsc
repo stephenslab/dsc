@@ -17,4 +17,5 @@ fit: R(library(mashr)) + fit*@intro_mash.Rmd
  
 DSC:
   run: simulate * get_cov * fit
+  R_libs: mashr@stephenslab/mashr (0.2.5+)
   output: mash_result
