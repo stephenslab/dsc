@@ -392,6 +392,7 @@ class DSC_Module:
                 etype = os.path.splitext(item[0])[1].lstrip('.').upper()
                 is_rmd = False
                 rmd_chunk_pattern = None
+                self.exe['file'].append(item[0])
                 if etype == 'RMD':
                     etype = 'R'
                     is_rmd = True
@@ -399,7 +400,6 @@ class DSC_Module:
                     if len(tmp_chunk_name) > 1:
                         rmd_chunk_pattern = tmp_chunk_name[0]
                         item[0] = tmp_chunk_name[-1]
-                self.exe['file'].append(item[0])
                 if len(item) > 1:
                     if self.exe['args'] is not None:
                         raise FormatError(f"Executable arguments conflict near ``{item[0]}``: ``{' '.join(self.exe['args'])}`` or ``{' '.join(item[1:])}``?")
