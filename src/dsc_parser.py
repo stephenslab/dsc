@@ -389,6 +389,16 @@ class DSC_Module:
             else:
                 # is executable
                 item = item.split()
+                etype = os.path.splitext(item[0])[1].lstrip('.').upper()
+                is_rmd = False
+                rmd_chunk_pattern = None
+                if etype == 'RMD':
+                    etype = 'R'
+                    is_rmd = True
+                    tmp_chunk_name = item[0].split('@')
+                    if len(tmp_chunk_name) > 1:
+                        rmd_chunk_pattern = tmp_chunk_name[0]
+                        item[0] = tmp_chunk_name[-1]
                 self.exe['file'].append(item[0])
                 if len(item) > 1:
                     if self.exe['args'] is not None:
@@ -396,7 +406,6 @@ class DSC_Module:
                     else:
                         self.exe['args'] = item[1:]
                 fpath = locate_file(item[0], self.path)
-                etype = os.path.splitext(item[0])[1].lstrip('.').upper()
                 if fpath is None:
                     # must be a system executable
                     self.exe['path'].append(item[0])
@@ -404,19 +413,15 @@ class DSC_Module:
                         env.logger.warning(f'Cannot find script ``{item[0]}`` in given ``{self.path}``. DSC will treat it a command line executable.')
                 else:
                     # try determine self.exe['type']
-                    is_rmd = False
                     if etype == '':
                         etype = 'unknown'
-                    if etype.lower() == 'rmd':
-                        etype = 'R'
-                        is_rmd = True
                     if self.exe['type'] == 'unknown':
                         self.exe['type'] = etype
                     if self.exe['type'] != etype:
                         raise FormatError(f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item[0]}``.")
                     # load contents
                     if etype != 'unknown':
-                        self.exe['content'].extend(open(fpath, 'r').readlines() if not is_rmd else rmd_to_r(fpath))
+                        self.exe['content'].extend(open(fpath, 'r').readlines() if not is_rmd else rmd_to_r(fpath, chunk_pattern = rmd_chunk_pattern))
                     else:
                         self.exe['path'].append(fpath)
         assert len(self.exe['path']) == 0 or len(self.exe['content']) == 0

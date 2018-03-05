@@ -6,6 +6,7 @@ __license__ = "MIT"
 
 import sys, os, re, itertools, collections, sympy
 from itertools import cycle, chain, islice
+from fnmatch import fnmatch
 from ruamel.yaml import YAML
 from ruamel.yaml.compat import StringIO
 from difflib import SequenceMatcher
@@ -630,10 +631,11 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
                     scripts.append((os.path.basename(command), os.path.splitext(command)[1][1:].lower(), text))
                 else:
                     # for exec is dict
-                    text = command['content'] if len(command['content']) else command['path']
+                    text = (command['header'] + '\n' + command['content']) \
+                           if len(command['header'] + command['content']) else command['path']
                     if command['args']:
                         text = f"# Command arguments: {command['args']}\n" + text
-                    scripts.append(('+'.join(command['file']) if len(command['file']) else command['signature'],
+                    scripts.append((('+'.join(command['file'])  + f' ({command["signature"]})').strip(),
                                     command['type'].lower(), text))
             if len(scripts) == 0:
                 continue
@@ -853,7 +855,7 @@ def remove_quotes(value):
 def remove_parens(value):
     return remove_head_tail(value, [("(",")"),('[',']'), ('{', '}')])
 
-def rmd_to_r(infile, outfile = None, md_as_comments = False):
+def rmd_to_r(infile, chunk_pattern = None, outfile = None, md_as_comments = False):
     res = []
     with open(infile) as f:
         rmdlines = f.readlines()
@@ -886,6 +888,11 @@ def rmd_to_r(infile, outfile = None, md_as_comments = False):
     for l in rmdlines:
         if state == MD:
             match = re_code_start.match(l)
+            # check if chunk name is in the selected list
+            if chunk_pattern and match:
+                chunk_name = match.groups()[0].split(',')[0].strip()
+                if not fnmatch(chunk_name, chunk_pattern):
+                    match = None
             if match:
                 state = CODE
                 # only add MD cells with non-whitespace content
@@ -895,7 +902,7 @@ def rmd_to_r(infile, outfile = None, md_as_comments = False):
             else:
                 celldata.append(l.rstrip() + "\n")
         else:  # CODE
-            if re_code_end.match(l):
+            if re_code_end.match(l) and state == CODE:
                 state = MD
                 # unconditionally add code blocks regardless of content
                 add_cell(CODE, celldata)

@@ -298,8 +298,8 @@ class DSC_Translator:
                 format_string = '.format({})'.format(', '.join([f'_{s}' for s in reversed(self.params)])) if len(self.params) else ''
                 output_lhs = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
                 self.output_string += "{3} = sos_hash_output(['{0}'{1} {2}])".\
-                                      format(' '.join([self.step.name, str(self.step.exe['args']), self.step.exe['signature']] \
-                                                      + [f'{x}:{{}}' for x in reversed(self.params)]),
+                                      format(' '.join([self.step.name, str(self.step.exe['args']) if self.step.exe['args'] else ''] \
+                                                      + self.step.exe['file'] + [f'{x}:{{}}' for x in reversed(self.params)]),
                                              format_string, self.loop_string[0] + self.filter_string, output_lhs)
                 if len(self.current_depends):
                     self.output_string += "\n{0} = ['{1}:{{}}:{{}}'.format(item, {3}) " \

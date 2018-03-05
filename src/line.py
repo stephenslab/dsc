@@ -416,7 +416,7 @@ def parse_exe(string):
             idx += 1
         for r in replacements:
             string = string.replace(r[0], r[1], 1)
-    string = string.replace('+', '*')
+    string = string.replace('*', '__DSC_STAR__').replace('+', '*')
     res = []
     replaced = []
     op = OperationParser()
@@ -427,6 +427,7 @@ def parse_exe(string):
             x = list(x)
         exe_type = []
         for idx in range(len(x)):
+            x[idx] = x[idx].replace('__DSC_STAR__', '*')
             is_typed = False
             for key, value in action_dict.items():
                 if key in x[idx]:
