@@ -5,7 +5,8 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, msgpack, glob, pickle
 import pandas as pd
-from .utils import uniq_list, chunks, OrderedDict, remove_multiple_strings, extend_dict, remove_quotes, DBError
+from collections import OrderedDict
+from .utils import uniq_list, chunks, remove_multiple_strings, extend_dict, remove_quotes, DBError
 from .addict import Dict as dotdict
 
 def remove_obsolete_output(output, additional_files = None, rerun = False):

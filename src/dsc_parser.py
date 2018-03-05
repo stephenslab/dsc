@@ -8,12 +8,12 @@ This file defines methods to load and preprocess DSC scripts
 '''
 
 import os, re, itertools, copy, subprocess, platform
-import collections
+from collections import Mapping, OrderedDict
 from xxhash import xxh32 as xxh
 from sos.utils import env
 from sos.targets import fileMD5
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
-     try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, OrderedDict, cartesian_list, yaml, \
+     try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
      parens_aware_split, remove_parens, rmd_to_r
 from .addict import Dict as dotdict
 from .syntax import *
@@ -233,7 +233,7 @@ class DSC_Script:
                         raise FormatError(f'Undefined decoration ``@{m.strip()}/^{m.strip()}``.')
                     else:
                         for kk, ii in self.content[block][key].items():
-                            if isinstance(ii, collections.Mapping):
+                            if isinstance(ii, Mapping):
                                 if not kk.startswith('^'):
                                     raise FormatError(f'Invalid decoration ``{kk}``. Decorations must start with ``@`` symbol.')
                                 if kk not in DSC_MODP:
@@ -244,7 +244,7 @@ class DSC_Script:
             elif key == '^EXEC':
                 for idx, module in enumerate(modules):
                     tmp[module]['global'][key] = list(self.content[block][key][idx])
-            elif key not in DSC_MODP and isinstance(self.content[block][key], collections.Mapping):
+            elif key not in DSC_MODP and isinstance(self.content[block][key], Mapping):
                 raise FormatError(f'Invalid decoration ``{key}``. Decorations must start with ``@`` symbol.')
             else:
                 for module in modules:
@@ -522,7 +522,7 @@ class DSC_Module:
                         self.p[p] = params[p]
                     else:
                         raise FormatError(f'Cannot add in duplicate parameter ``{p}`` to module {self.name}')
-        if isinstance(alias, collections.Mapping):
+        if isinstance(alias, Mapping):
             valid = False
             for module in alias:
                 if module == self.name or module == '?':
@@ -531,7 +531,7 @@ class DSC_Module:
                     break
             if not valid:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @ALIAS specification ``{list(alias.keys())}``.")
-        if isinstance(alias, collections.Mapping):
+        if isinstance(alias, Mapping):
             raise FormatError(f"Invalid @ALIAS format for module ``{self.name}`` (has to be formatted `alias = variable`).")
         alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
         # Swap parameter key with alias when applicable
@@ -571,7 +571,7 @@ class DSC_Module:
     def apply_input_filter(self, ft):
         # first handle module specific filter
         ft = ft if ft else []
-        if isinstance(ft, collections.Mapping):
+        if isinstance(ft, Mapping):
             valid = False
             for module in ft:
                 if module == self.name or module == '?':
@@ -580,7 +580,7 @@ class DSC_Module:
                     break
             if not valid:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @FILTER specification ``{list(ft.keys())}``.")
-        if isinstance(ft, collections.Mapping):
+        if isinstance(ft, Mapping):
             raise FormatError(f"Invalid @FILTER format for module ``{self.name}`` (cannot be a key-value mapping).")
         # then generate filter from self.pg
         tmp = []

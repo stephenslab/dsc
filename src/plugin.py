@@ -28,13 +28,13 @@ source <- function(x) {
 '''
 def format_tuple(value):
     res = []
-    has_raw = False
+    # has_raw = False
     for v in value:
         if isinstance(v, str):
             groups = DSC_ASIS_OP.search(v)
             if groups:
                 res.append(groups.group(1))
-                has_raw = True
+                # has_raw = True
             else:
                 res.append(repr(v))
         else:

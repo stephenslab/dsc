@@ -8,8 +8,9 @@ This file defines methods to translate DSC into pipeline in SoS language
 '''
 import os, sys, msgpack, glob, inspect
 from xxhash import xxh32 as xxh
+from collections import OrderedDict
 from sos.targets import executable
-from .utils import OrderedDict, flatten_list, uniq_list, dict2str, convert_null, n2a, \
+from .utils import flatten_list, uniq_list, dict2str, convert_null, n2a, \
     install_r_lib, install_py_module
 __all__ = ['DSC_Translator']
 
