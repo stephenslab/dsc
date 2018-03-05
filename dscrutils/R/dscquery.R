@@ -7,9 +7,13 @@
 #' 
 #' @param dsc.outdir Directory where DSC output is stored.
 #' 
-#' @param targets Query targets specified as a character vector, e.g.,
-#' \code{targets = c("simulate.n","estimate","mse.score")}. These will
-#' be the names of the columns in the returned data frame.
+#' @param targets Query targets specified as a character vector, or,
+#' character string separated by space, e.g.,
+#' \code{targets = "simulate.n estimate mse.score"} and
+#' \code{targets = c("simulate.n","estimate","mse.score")} are equivalent.
+#' Using \code{paste}, eg \code{paste("simulate",c("n","p","df"),sep=".")}
+#' one can specify multiple properties from the same module.
+#' These will be the names of the columns in the returned data frame.
 #'
 #' @param conditions The default \code{NULL} means "no conditions", in
 #' which case the results for all DSC pipelines are returned.
@@ -51,7 +55,7 @@
 #' # should be extracted into the "mse.mse" column.
 #' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
-#' dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.mse"),
+#' dat <- dscquery(dsc.dir,targets = "simulate.n estimate mse.mse",
 #'                 condition = "simulate.true_mean = 1")
 #' print(dat)
 #'
@@ -62,8 +66,8 @@
 #'                         package = "dscrutils")
 #' dat2 <-
 #'   dscquery(dsc.dir2,
-#'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
-#'                        "shrink.beta_est","shrink.pi0_est"),
+#'            targets = c(paste("simulate",c("nsamp","g"),sep="."),
+#'                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),sep="."))
 #'            condition = paste("simulate.g =",
 #'                              "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"))
 #'
@@ -171,10 +175,10 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   # Get all the columns of the form "module.variable.output".
   cols <- which(sapply(as.list(names(dat)),function (x) {
     n <- nchar(x)
-    if (n < 7 | length(unlist(strsplit(x,"[.]"))) != 3)
+    if (n < 7 | length(unlist(strsplit(x,"[:]"))) != 2)
       return(FALSE)
     else
-      return(substr(x,n-6,n) == ".output")
+      return(substr(x,n-6,n) == ":output")
   }))
   
   # Repeat for each column of the form "module.variable.output".
@@ -187,7 +191,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
       col     <- names(dat)[j]
       x       <- unlist(strsplit(col,"[.]"))
       module  <- x[1]
-      var     <- x[2]
+      var     <- substr(x[2], 1, nchar(x[2])-7)
       col.new <- paste(module,var,sep = ".")
       if (verbose)
         cat(" - ",col.new,": ",sep = "")

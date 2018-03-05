@@ -514,13 +514,14 @@ def parse_filter(condition, groups = None, dotted = True):
                     raise FormatError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
                 else:
                     tokens[0] = [''] + tokens[0]
-            cond_tables.append((tokens[0][0], tokens[0][1]))
             tokens[2] = tokens[2].replace('__DSC_DOT__', '.')
             if not tokens[0][0] in groups:
                 tmp.append(('not' if is_not else '', tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
+                cond_tables.append((tokens[0][0], tokens[0][1]))
             else:
                 # will be connected by OR logic
                 tmp.append([('not' if is_not else '', [x, tokens[0][1]], "==" if tokens[1] == "=" else tokens[1], tokens[2])
                             for x in groups[tokens[0][0]]])
+                cond_tables.extend([(x, tokens[0][1]) for x in groups[tokens[0][0]]])
         res.append(tmp)
     return res, cond_tables

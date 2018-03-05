@@ -63,7 +63,7 @@ def find_partial_index(xx, ordering):
 class Query_Processor:
     def __init__(self, db, targets, condition = None, groups = None, add_path = False):
         self.db = db
-        self.targets = targets
+        self.targets = ' '.join(targets).split()
         self.raw_condition = condition
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
         # table: msg map
@@ -73,7 +73,7 @@ class Query_Processor:
         else:
             self.groups = dict()
         self.groups.update(self.get_grouped_tables(groups))
-        self.target_tables = self.get_table_fields(targets)
+        self.target_tables = self.get_table_fields(self.targets)
         self.condition, self.condition_tables = parse_filter(condition, groups = self.groups)
         # 1. only keep tables that do exist in database
         self.target_tables = self.filter_tables(self.target_tables)
@@ -86,8 +86,8 @@ class Query_Processor:
         # 4. make inner join, the FROM clause
         from_clauses = self.get_from_clause()
         # 5. make select / where clause
-        select_clauses = self.get_select_clause()
-        where_clauses = [self.get_one_where_clause()] * len(select_clauses)
+        select_clauses, select_fields = self.get_select_clause()
+        where_clauses = self.get_where_clause(select_fields)
         self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
         # 6. run queries
         self.output_tables = self.run_queries(add_path)
@@ -207,7 +207,7 @@ class Query_Processor:
         res = []
         for pipeline in self.pipelines:
             pipeline = list(reversed(pipeline))
-            res.append('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)]))
+            res.append('FROM {0}'.format(pipeline[0]) + ' '.join([" INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)]))
         return res
 
     def get_select_clause(self):
@@ -225,24 +225,31 @@ class Query_Processor:
                     continue
                 key = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
                 if item[1].lower() not in [x.lower() for x in self.data[key].keys()]:
-                    tmp1.append("{0}.__output__ AS {0}___output___{1}".format(item[0], item[1] if not item[1].startswith('output.') else item[1][7:]))
+                    tmp1.append("{0}.__output__ AS {0}_DSC_VAR_{1}".format(item[0], item[1] if not item[1].startswith('output.') else item[1][7:]))
                 else:
-                    tmp1.append("{0}.{1} AS {0}_{1}".format(item[0], item[1]))
+                    if item[1] == '__output__':
+                        tmp1.append("{0}.{1} AS {0}_DSC_OUTPUT_".format(item[0], item[1]))
+                    else:
+                        tmp1.append("{0}.{1} AS {0}_DSC_FIELD_{1}".format(item[0], item[1]))
             select.append("SELECT " + ', '.join(tmp1))
             select_fields.append(['.'.join(x) for x in tmp2])
         # not all pipelines will be used
         # because of `-t` option logic, if a new
         output_fields = filter_sublist(select_fields, ordered = False)
         select = [x for i, x in enumerate(select) if select_fields[i] in output_fields]
-        return select
+        return select, output_fields
 
-    def get_one_where_clause(self):
+    def get_where_clause(self, select_fields):
+        return [self.get_one_where_clause(s, list(p)) for s, p in zip(select_fields, self.pipelines)]
+
+    def get_one_where_clause(self, one_select_fields, pipeline_tables):
         '''
         After expanding, condition is a list of list
         the outer lists are connected by OR
         the inner lists are connected by AND
         '''
-        valid_tables = [x[0].lower() for x in self.condition_tables]
+        select_tables = [x.split('.')[0].lower() for x in one_select_fields]
+        valid_tables = [x[0].lower() for x in self.condition_tables if x[0].lower() in select_tables + pipeline_tables]
         # to decide which part of the conditions is relevant to which pipeline we have to
         # dissect it to reveal table/field names
         condition = []
@@ -275,15 +282,25 @@ class Query_Processor:
         if len(table) == 0:
             return None
         table = pd.DataFrame(table)
-        rename = {x: x.replace('___output___', '.').replace('___output__', '') + '.output' for x in table if "___output__" in x}
+        rename = dict()
+        for x in table:
+            org = x
+            if '_DSC_VAR_' in x:
+                x = x.replace('_DSC_VAR_', '.') + ":output"
+            if '_DSC_FIELD_' in x:
+                x = x.replace('_DSC_FIELD_', '.')
+            if '_DSC_OUTPUT_' in x:
+                x = x.replace('_DSC_OUTPUT_', '.output.file')
+            if org != x:
+                rename[org] = x
         if ordering is None:
-            table = table[sorted([x for x in table if not "___output__" in x]) + \
-                          sorted([x for x in table if "___output__" in x])].rename(columns = rename)
+            table = table[sorted([x for x in table if not "_DSC_VAR_" in x]) + \
+                          sorted([x for x in table if "_DSC_VAR_" in x])].rename(columns = rename)
         else:
             table = table[sorted(table.columns, key = lambda x: find_partial_index(x, ordering))].rename(columns = rename)
         if add_path:
             for x in table:
-                if x.endswith(".output"):
+                if x.endswith(".output.file") or x.endswith(':output'):
                     table[x] = table[x].apply(lambda i: os.path.join(os.path.dirname(self.db), i))
         return table
 
@@ -301,7 +318,7 @@ class Query_Processor:
             gvals = sorted(self.groups[g], key = len, reverse = True)
             for col in table.columns:
                 for k in gvals:
-                    if not (col.startswith(k + '_') or col.startswith(k + '.')):
+                    if not col.startswith(k + '.'):
                         continue
                     k = col[len(k):]
                     if not k in to_merge:
@@ -317,20 +334,20 @@ class Query_Processor:
                     if not g in table:
                         table[g] = None
                         for col in to_merge[k]:
-                            table[g] = table.apply(lambda row: [kk for kk in gvals if col.startswith(kk + '_') or col.startswith(kk + '.')][0]
+                            table[g] = table.apply(lambda row: [kk for kk in gvals if col.startswith(kk + '.')][0]
                                                    if not row[col] == row[col] else row[g], axis = 1)
                 else:
                     # simply rename it
                     table[f'{g}{k}'] = table[to_merge[k][0]]
-                    table[g] = [kk for kk in gvals if to_merge[k][0].startswith(kk + '_') or to_merge[k][0].startswith(kk + '.')][0]
+                    table[g] = [kk for kk in gvals if to_merge[k][0].startswith(kk + '.')][0]
             to_drop.extend(to_merge.values())
         #
         table.drop(set(sum(to_drop, [])), axis=1, inplace=True)
         # Adjust column name / ordering
         targets = flatten_list([[x] + self.groups[x] if x in self.groups else x for x in targets])
-        table = table.rename(columns = {g: f'{g}.id' for g in self.groups})
-        table = table[sorted(table.columns, key = lambda x: (find_partial_index(x, targets), not x.endswith('.id')))]
-        table = table.rename(columns = {f'{g}.id': g for g in self.groups})
+        table = table.rename(columns = {g: f'{g}:id' for g in self.groups})
+        table = table[sorted(table.columns, key = lambda x: (find_partial_index(x, targets), not x.endswith(':id')))]
+        table = table.rename(columns = {f'{g}:id': g for g in self.groups})
         return table
 
     def get_queries(self):

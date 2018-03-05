@@ -142,12 +142,12 @@ class DSC_Script:
             val = (val,)
         val = flatten_list([[vv.strip() for vv in v.split(',') if vv.strip()] for v in val])
         for vv in val:
-            if is_parameter == 0 and (not vv.isidentifier() or vv.startswith('_')):
+            if is_parameter == 0 and (not vv.isidentifier() or vv.startswith('_') or vv.endswith('_')):
                 raise FormatError(f'Invalid module name ``{vv.replace("^", "?")}``')
             if is_parameter == 0:
                 continue
-            if vv.startswith('_'):
-                raise FormatError(f"Names cannot start with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R. {tip}")
+            if vv.startswith('_') or vv.endswith('_'):
+                raise FormatError(f"Names cannot start or end with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R. {tip}")
             if '.' in vv:
                 raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
             if '$' in vv[1:] or vv == '$':
