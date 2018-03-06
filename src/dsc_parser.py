@@ -441,10 +441,7 @@ class DSC_Module:
             self.exe['header'], self.exe['content'] = self.pop_rlib(self.exe['content'])
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])
-        if len(self.exe['path']) == 0:
-            self.exe['signature'] = xxh(self.exe['content'] + (' '.join(self.exe['args']) if self.exe['args'] else '')).hexdigest()
-        else:
-            self.exe['signature'] = fileMD5(self.exe['path'], partial = False) + (f"_{xxh(' '.join(self.exe['args'])).hexdigest()}" if self.exe['args'] else '')
+        self.exe['signature'] = xxh((fileMD5(self.exe['path'], partial = False) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '')).hexdigest()
         self.plugin = Plugin(self.exe['type'], self.exe['signature'])
 
     def check_shell(self):
