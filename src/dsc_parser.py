@@ -19,6 +19,7 @@ from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter, parse_filter, parse_exe
 from .plugin import Plugin
+from .version import __version__
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
 
@@ -93,7 +94,7 @@ class DSC_Script:
                              for x in self.runtime.sequence_ordering.keys()])
         script_types =  [m.exe['type'] for m in self.modules.values()]
         if 'R' in script_types:
-            self.runtime.rlib.append('dscrutils@stephenslab/dsc2/dscrutils (0.2.5+)')
+            self.runtime.rlib.append(f'dscrutils@stephenslab/dsc2/dscrutils ({__version__}+)')
         if 'R' in script_types and 'PY' in script_types:
             self.runtime.pymodule.extend(['rpy2', 'dsc'])
         # FIXME: maybe this should be allowed?

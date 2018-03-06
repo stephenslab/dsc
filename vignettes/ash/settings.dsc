@@ -48,7 +48,7 @@ DSC:
     # pipelines
     run: simulate * shrink * score
     # runtime environments
-    R_libs: ashr@stephens999/ashr (2.0.0+)
+    R_libs: ashr (2.2.7+)
     exec_path: bin
     output: dsc_result
     # pipeline variables, will overwrite any module variables of the same name

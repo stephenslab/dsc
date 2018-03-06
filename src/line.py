@@ -6,9 +6,10 @@ __license__ = "MIT"
 
 '''Handle one line in a DSC file, a customized YAML parser'''
 
-import re, subprocess, collections
+import re, collections
 from io import StringIO
 import tokenize
+from sos.utils import get_output
 from .utils import is_null, str2num, cartesian_list, pairwise_list, \
     get_slice, FormatError, do_parentheses_match, find_parens, parens_aware_split
 
@@ -150,7 +151,7 @@ class ExpandActions(YLine):
                     if p < p_end:
                         raise FormatError(f"Invalid parentheses pattern in ``{value}``")
                     p_end = find_parens(value[p:])[0]
-                    replacements.append((f'{name}{value[p:p_end+p+1]}', ','.join(self.method[name](value[p:p_end+p+1]))))
+                    replacements.append((f'{name}{value[p:p_end+p+1]}', self.method[name](value[p:p_end+p+1])))
                 for r in replacements:
                     value = value.replace(r[0], r[1], 1)
         return value
@@ -171,16 +172,24 @@ class ExpandActions(YLine):
 
     @staticmethod
     def __R(code):
-        return subprocess.check_output(f"R --slave -e 'cat({code})'", \
-                                       shell = True).decode('utf8').strip().split()
+        try:
+            output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
+        except:
+            from .utils import install_r_lib
+            from .version import __version__
+            install_r_lib(f'dscrutils@stephenslab/dsc2/dscrutils ({__version__}+)')
+            output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
+        return output
 
     @staticmethod
     def __Python(code):
-        return list(eval(code))
+        # FIXME improve logic here the same way as `dscrutils::dsceval`
+        return ','.join(list(eval(code)))
 
     @staticmethod
     def __Shell(self, code):
-        return subprocess.check_output(code, shell = True).decode('utf8').strip()
+        # FIXME: is this behavior any good?
+        return get_output(code).strip()
 
 
 class CastData(YLine):

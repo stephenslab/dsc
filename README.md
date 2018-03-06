@@ -21,6 +21,7 @@ Goal for 0.2.7
 * [#92](https://github.com/stephenslab/dsc2/issues/92) paired parameter input convention.
 * [#90](https://github.com/stephenslab/dsc2/issues/90) and [#93](https://github.com/stephenslab/dsc2/issues/93) use `Rmd` files as module executables.
 * Revert to `rpy2` implementation for mixed language data communication, but will involve `rpy2` only on need basis.
+* SoS bumped to 0.9.12.10 for fix of `--touch` behavior and R github package force install when version mismatches.
 * [minor] Various bug fixes.
 
 ### 0.2.x
