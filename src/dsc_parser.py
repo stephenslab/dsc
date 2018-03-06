@@ -114,6 +114,8 @@ class DSC_Script:
         block[name] = block.pop(list(block.keys())[0])
         if block[name] is None:
             block[name] = dict()
+        if not isinstance(block[name], Mapping):
+            raise FormatError(f"Code block ``{name}`` has format issues! Please make sure variables follow from ``key:(space)item`` format.")
         if exe:
             exe = parse_exe(exe)
             block[name]['^EXEC'] = exe[0]
@@ -457,6 +459,8 @@ class DSC_Module:
         '''
         Figure out if output is a variable, file or plugin
         '''
+        if len(return_var) == 0:
+            raise FormatError(f"Please specify output variables for module ``{self.name}``.")
         for key, value in return_var.items():
             if len(value) > 1:
                 raise FormatError(f"Output ``{key}`` cannot contain multiple elements ``{value}``")
