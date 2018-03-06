@@ -44,6 +44,9 @@ class DSC_Translator:
             for step in workflow.values():
                 flow = "_".join(['_'.join(keys[:keys.index(step.name)]), step.name]).strip('_')
                 depend = '_'.join(uniq_list([i[0] for i in step.depends]))
+                # beginning of pipeline := module that does not have any dependency
+                if len(step.depends) == 0:
+                    step.p['DSC_REPLICATE'] = runtime.replicate
                 # either different flow or different dependency will create a new entry
                 if (step.name, flow, depend) not in processed_steps:
                     name = (step.name, workflow_id + 1)

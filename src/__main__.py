@@ -246,7 +246,7 @@ def main():
                    help = '''When applied, DSC will only run one value per parameter.
                    For example with "--truncate", "n: R(1:50)" will be truncated to "n: 1".
                    This is useful in exploratory analysis and diagnostics, particularly when used in combination with "--target".''')
-    ce.add_argment('--replicate', metavar = 'N', type = int,
+    ce.add_argument('--replicate', metavar = 'N', type = int,
                    help = '''Overrides "DSC::replicate" to set number of replicates. Will be set to 1 when "--truncate" is in action.''')
     ce.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''Benchmark output. It overrides "DSC::output" defined in DSC file.''')
