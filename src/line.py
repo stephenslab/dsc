@@ -174,7 +174,7 @@ class ExpandActions(YLine):
     def __R(code):
         try:
             output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
-        except:
+        except Exception:
             from .utils import install_r_lib
             from .version import __version__
             install_r_lib(f'dscrutils@stephenslab/dsc2/dscrutils ({__version__}+)')
@@ -435,8 +435,8 @@ def parse_exe(string):
         else:
             x = list(x)
         exe_type = []
-        for idx in range(len(x)):
-            x[idx] = x[idx].replace('__DSC_STAR__', '*')
+        for idx, item in enumerate(x):
+            x[idx] = item.replace('__DSC_STAR__', '*')
             is_typed = False
             for key, value in action_dict.items():
                 if key in x[idx]:

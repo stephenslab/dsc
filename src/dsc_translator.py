@@ -88,13 +88,12 @@ class DSC_Translator:
             ii = 1
             for y in sequence:
                 tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y})]"]
-                tmp_str.append(f"script_signature = {repr(exe_signatures[y])}")
                 if ii > 1:
                     tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output']"\
                                f", {y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], "\
-                               "DSC_STEP_ID_ = '_'.join(script_signature))")
+                               f"DSC_STEP_ID_ = {abs(hash(repr(exe_signatures[y]))) % (10**8)})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))
                 self.job_pool[(y, workflow_id + 1)] = '\n'.join(tmp_str)
