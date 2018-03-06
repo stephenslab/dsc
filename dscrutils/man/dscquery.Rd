@@ -10,9 +10,13 @@ dscquery(dsc.outdir, targets, conditions = NULL, groups, add.path = FALSE,
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
 
-\item{targets}{Query targets specified as a character vector, e.g.,
-\code{targets = c("simulate.n","estimate","mse.score")}. These will
-be the names of the columns in the returned data frame.}
+\item{targets}{Query targets specified as a character vector, or,
+character string separated by space, e.g.,
+\code{targets = "simulate.n estimate mse.score"} and
+\code{targets = c("simulate.n","estimate","mse.score")} are equivalent.
+Using \code{paste}, eg \code{paste("simulate",c("n","p","df"),sep=".")}
+one can specify multiple properties from the same module.
+These will be the names of the columns in the returned data frame.}
 
 \item{conditions}{The default \code{NULL} means "no conditions", in
 which case the results for all DSC pipelines are returned.}
@@ -62,7 +66,7 @@ This function may not work in Windows.
 # should be extracted into the "mse.mse" column.
 dsc.dir <- system.file("datafiles","one_sample_location",
                        "dsc_result",package = "dscrutils")
-dat <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.mse"),
+dat <- dscquery(dsc.dir,targets = "simulate.n estimate mse.mse",
                 condition = "simulate.true_mean = 1")
 print(dat)
 
@@ -73,8 +77,9 @@ dsc.dir2 <- system.file("datafiles","ash","dsc_result",
                         package = "dscrutils")
 dat2 <-
   dscquery(dsc.dir2,
-           targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
-                       "shrink.beta_est","shrink.pi0_est"),
+           targets = c(paste("simulate",c("nsamp","g"),sep="."),
+                       paste("shrink",c("mixcompdist","beta_est","pi0_est"),
+                             sep=".")),
            condition = paste("simulate.g =",
                              "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"))
 
@@ -82,7 +87,6 @@ dat2 <-
 # vector-valued beta estimates into the outputted data frame. As a
 # result, the data frame of query results is much larger (it has over
 # 1000 columns).
-
 dat3 <-
   dscquery(dsc.dir2,
            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
@@ -93,7 +97,10 @@ dat3 <-
 
 # This query should generate an error because there is no output
 # called "score" in the "mse" module.
+
+\dontrun{
 dat4 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
                  condition = "simulate.true_mean = 1")
+}
 
 }

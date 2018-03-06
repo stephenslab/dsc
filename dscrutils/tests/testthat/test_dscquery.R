@@ -1,6 +1,6 @@
 context("dscrutils")
 
-test_that("one_sample_location DSC query example returns a 40 x 5 data frame",{
+test_that("one_sample_location DSC query example returns a 20 x 5 data frame",{
 
   # Retrieve results from the "one_sample_location" DSC experiment in
   # which the true mean is 1. The MSE (mean squared error) values

@@ -67,7 +67,8 @@
 #' dat2 <-
 #'   dscquery(dsc.dir2,
 #'            targets = c(paste("simulate",c("nsamp","g"),sep="."),
-#'                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),sep="."))
+#'                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),
+#'                              sep=".")),
 #'            condition = paste("simulate.g =",
 #'                              "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"))
 #'
@@ -86,9 +87,12 @@
 #' 
 #' # This query should generate an error because there is no output
 #' # called "score" in the "mse" module.
+#'
+#' \dontrun{
 #' dat4 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
 #'                  condition = "simulate.true_mean = 1")
-#'
+#' }
+#' 
 #' @importFrom utils read.csv
 #' 
 #' @export
