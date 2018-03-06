@@ -27,7 +27,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, truncate = False):
+    def __init__(self, content, output = None, sequence = None, truncate = False, replicate = None):
         self.content = dict()
         if os.path.isfile(content):
             dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -84,9 +84,8 @@ class DSC_Script:
             if block == 'DSC':
                 continue
             self.extract_modules(block, derived[block] if block in derived else None)
-        self.runtime = DSC_Section(self.content['DSC'], sequence, output)
-        if self.runtime.output is None:
-            self.runtime.output = dsc_name
+        self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
+        self.runtime.output = self.runtime.output[0] if self.runtime.output else dsc_name
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
                 raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
@@ -676,13 +675,15 @@ class DSC_Module:
 
 
 class DSC_Section:
-    def __init__(self, content, sequence, output):
+    def __init__(self, content, sequence, output, replicate):
         self.content = content
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
-        if 'output' not in self.content:
-            raise FormatError('Missing required ``DSC::output``.')
-        self.output = output if output else self.content['output'][0]
+        self.replicate = replicate if replicate else try_get_value(self.content, 'replicate')
+        if not isinstance(self.replicate, int) or self.replicate <= 0:
+            self.replicate = 1
+        self.replicate = [x+1 for x in range(self.replicate)]
+        self.output = output if output else try_get_value(self.content, 'output')
         self.OP = OperationParser()
         self.regularize_ensemble()
         # FIXME: check if sequence input is of the right type
