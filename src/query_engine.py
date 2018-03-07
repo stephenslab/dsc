@@ -326,9 +326,8 @@ class Query_Processor:
                 continue
             # For each group, find common fields to merge
             to_merge = dict()
-            gvals = sorted(self.groups[g], key = len, reverse = True)
             for col in table.columns:
-                for k in gvals:
+                for k in self.groups[g]:
                     if not col.startswith(k + '.'):
                         continue
                     k = col[len(k):]
@@ -338,19 +337,17 @@ class Query_Processor:
                     break
             for k in to_merge:
                 if len(to_merge[k]) > 1:
-                    table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
-                    if not all(table[f'{g}{k}'].apply(len) == 1):
-                        raise DBError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}{k}`` due to collating entries.')
-                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: x[0])
+                    table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(lambda x: tuple(x), 1)
+                    non_na_idx = table[f'{g}{k}'].apply(lambda x: tuple([idx for idx, y in enumerate(x) if y == y]))
+                    if not all([len(x) == 1 for x in non_na_idx]):
+                        raise DBError(f'Modules ``{to_merge[k]}`` cannot be grouped into ``{g}{k}`` due to collating entries.')
+                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0])
                     if not g in table:
-                        table[g] = None
-                        for col in to_merge[k]:
-                            table[g] = table.apply(lambda row: [kk for kk in gvals if col.startswith(kk + '.')][0]
-                                                   if not row[col] == row[col] else row[g], axis = 1)
+                        table[g] = [self.groups[g][kk[0]] for kk in non_na_idx]
                 else:
                     # simply rename it
                     table[f'{g}{k}'] = table[to_merge[k][0]]
-                    table[g] = [kk for kk in gvals if to_merge[k][0].startswith(kk + '.')][0]
+                    table[g] = [kk for kk in self.groups[g] if to_merge[k][0].startswith(kk + '.')][0]
             to_drop.extend(to_merge.values())
         #
         table.drop(set(sum(to_drop, [])), axis=1, inplace=True)
