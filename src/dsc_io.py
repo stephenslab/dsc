@@ -44,7 +44,7 @@ def load_rds(filename, types = None):
          if types is not None and not isinstance(data, types):
               return np.array([])
          if isinstance(data, RI.RNULLType):
-              res = np.array([np.nan])
+              res = None
          elif isinstance(data, RV.BoolVector):
               data = RO.r['as.integer'](data)
               res = np.array(data, dtype = int)
@@ -71,7 +71,9 @@ def load_rds(filename, types = None):
          else:
               # I do not know what to do for this
               # But I do not want to throw an error either
-              res = np.array([str(data)])
+              res = str(data)
+         if isinstance(res, np.ndarray) and res.shape == (1,):
+             res = res[0]
          return res
 
     def load_dict(res, data, types):

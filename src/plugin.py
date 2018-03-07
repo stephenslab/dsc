@@ -220,7 +220,7 @@ class RPlug(BasePlug):
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
                            [f"DSC_DEBUG = list(time=proc.time() - TIC_{self.identifier[4:]}, " \
-                            "script=dscrutils:::load_script(), replicate=DSC_REPLICATE, session=sessionInfo())"]))
+                            "script=dscrutils:::load_script(), replicate=DSC_REPLICATE, session=toString(sessionInfo()))"]))
         return res.strip()
 
     def set_container(self, name, value, params):
