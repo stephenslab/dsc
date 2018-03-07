@@ -32,7 +32,16 @@ the following command in R with the working directory set to the
 repository root:
 
 ```R
+getwd() # Should be .../dsc2
 devtools::install_local("dscrutils")
+```
+
+To test a local copy of the package, run the following command from
+the repository root:
+
+```R
+getwd() # Should be .../dsc2
+devtools::test("dscrutils")
 ```
 
 To build and test the package, run these commands from the
@@ -40,7 +49,7 @@ command-line shell:
 
 ```bash
 R CMD build dscrutils
-R CMD check --as-cran dscrutils_0.2.6.4.tar.gz
+R CMD check --as-cran dscrutils_0.2.6.5.tar.gz
 ```
 
 To update the package documentation from the

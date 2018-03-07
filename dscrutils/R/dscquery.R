@@ -76,7 +76,6 @@
 #' # vector-valued beta estimates into the outputted data frame. As a
 #' # result, the data frame of query results is much larger (it has over
 #' # 1000 columns).
-#' 
 #' dat3 <-
 #'   dscquery(dsc.dir2,
 #'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
@@ -85,12 +84,13 @@
 #'                              "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"),
 #'            max.extract.vector = 1000)
 #' 
+#' \dontrun{
+
 #' # This query should generate an error because there is no output
 #' # called "score" in the "mse" module.
-#'
-#' \dontrun{
 #' dat4 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
 #'                  condition = "simulate.true_mean = 1")
+#' 
 #' }
 #' 
 #' @importFrom utils read.csv
