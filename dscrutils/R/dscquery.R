@@ -176,7 +176,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
       
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
-  # Get all the columns of the form "module.variable.output".
+  # Get all the columns of the form "module.variable:output".
   cols <- which(sapply(as.list(names(dat)),function (x) {
     n <- nchar(x)
     if (n < 7 | length(unlist(strsplit(x,"[:]"))) != 2)
@@ -202,7 +202,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
 
       # This list will contain the value of the variable for each table row.
       values <- vector("list",n)
-      
+
       # Extract the value of the selected output from each of the RDS
       # files. Repeat for each row of the query table.
       dsc.module.files <- dat[[j]][[1]]
@@ -247,12 +247,14 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
                                  check.names = FALSE,
                                  stringsAsFactors = FALSE)
           names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
-        } else if (verbose)
-          cat("not extracted (filenames provided)\n")
+        } else {
+          names(dat[[j]]) <- col.new
+          if (verbose) cat("not extracted (filenames provided)\n")
+        }
       }
     }
   }
-  
+
   # Output the query result as a data frame.
   dat.names  <- unlist(lapply(dat,names))
   dat        <- do.call(cbind,dat)
