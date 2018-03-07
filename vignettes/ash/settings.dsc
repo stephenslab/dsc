@@ -2,7 +2,6 @@
 # module alias and executables
 simulate: datamaker.R
     # module input and variables
-    seed: R(1:5)
     mixcompdist: raw(normalmix)
     g: (raw(c(2/3,1/3)),raw(c(0,0)),raw(c(1,2))),
        (raw(rep(1/7,7)),raw(c(-1.5,-1,-0.5,0,0.5,1,1.5)),raw(rep(0.5,7))),
@@ -51,5 +50,5 @@ DSC:
     R_libs: ashr (2.2.7+)
     exec_path: bin
     output: dsc_result
-    # pipeline variables, will overwrite any module variables of the same name
+    # pipeline variables, will override any module variables of the same name
     # it is also place to config the global random number generator

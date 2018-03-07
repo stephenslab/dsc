@@ -6,7 +6,9 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
+import re
 from .syntax import DSC_FILE_OP, DSC_ASIS_OP
+from .utils import flatten_list
 
 R_SOURCE = '''
 source.file <- source
@@ -37,6 +39,8 @@ def format_tuple(value):
                 # has_raw = True
             else:
                 res.append(repr(v))
+        elif isinstance(v, tuple):
+            res.append(v)
         else:
             res.append(str(v))
     return res
@@ -80,7 +84,7 @@ class BasePlug:
 
     @staticmethod
     def format_tuple(value):
-        return ' '.join(format_tuple(value))
+        return ' '.join(flatten_list(format_tuple(value)))
 
     def dump(self):
         return dict([
@@ -256,8 +260,15 @@ class RPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
+        def qs(s):
+            return str(s) if not isinstance(s, str) else repr(s)
         value = format_tuple(value)
-        return 'list({})'.format(', '.join(value))
+        # this is the best I'd like to do for R ...
+        has_tuple = any([isinstance(v, tuple) or re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
+        if has_tuple:
+            return 'list({})'.format(','.join([f'c({",".join([qs(vv) for vv in v])})' if isinstance(v, tuple) else v for v in value]))
+        else:
+            return 'c({})'.format(','.join(value))
 
     def __str__(self):
         return 'r'
@@ -403,7 +414,9 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        return '({})'.format(','.join(format_tuple(value)))
+        def qs(s):
+            return str(s) if not isinstance(s, str) else repr(s)
+        return '({})'.format(','.join([f'({",".join([qs(vv) for vv in v])})' if isinstance(v, tuple) else v for v in value]))
 
     def __str__(self):
         return 'python'

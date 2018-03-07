@@ -42,7 +42,7 @@ class YLine:
                 else:
                     return '{}'.format(var[0])
             else:
-                return '[{}]'.format(', '.join(list(map(str, var))))
+                return '[{}]'.format(','.join(list(map(str, var))))
         else:
             return var
 
@@ -107,7 +107,7 @@ class ExpandVars(YLine):
                     if m.group(1) not in self.global_var:
                         raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
                     tmp = [x.strip() if isinstance(x, str) else str(x) for x in self.split(self.global_var[m.group(1)])]
-                    tmp = ', '.join([tmp[i] for i in get_slice('slice[' + m.group(2) + ']')[1]])
+                    tmp = ','.join([tmp[i] for i in get_slice('slice[' + m.group(2) + ']')[1]])
                     item = item.replace(m.group(0), '[' + tmp + ']')
                 # then pattern without slicing
                 pattern = re.compile(r'\$\((.*?)\)')

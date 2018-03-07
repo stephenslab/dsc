@@ -3,7 +3,6 @@
 #' @description Simulates data for a DSC for methods to shrink estimates values
 #' @details None
 #'
-#' @param seed The seed for the pseudo-rng set before generating the parameters
 #' @param args A list of the remaining arguments, which in this case is
 #' \item{nsamp}{The number of samples to create}
 #' \item{g}{An object of class normalmix specifying the mixture distribution from which non-null beta values
@@ -18,8 +17,6 @@
 #'
 library('ashr')
 rnormmix_datamaker = function(args){
-  set.seed(args$seed)
-
   #here is the meat of the function that needs to be defined for each dsc to be done
   pi0 = runif(1,args$min_pi0,args$max_pi0) #generate the proportion of true nulls randomly
   g = do.call(args$mixcompdist, as.list(args$g))
