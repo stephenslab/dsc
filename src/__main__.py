@@ -97,7 +97,7 @@ def execute(args):
     from .dsc_parser import DSC_Script, DSC_Pipeline
     from .dsc_translator import DSC_Translator
     from .dsc_database import ResultDB
-    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, truncate = args.truncate)
+    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, truncate = args.truncate, replicate = 1 if args.truncate else args.replicate)
     script.init_dsc(args, env)
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines
@@ -244,8 +244,10 @@ def main():
                    path(s) of particular DSC output files that needs to be removed.''')
     ce.add_argument('--truncate', action='store_true',
                    help = '''When applied, DSC will only run one value per parameter.
-                   For example with "--truncate", "seed: R(1:50)" will be truncated to "seed: 1".
+                   For example with "--truncate", "n: R(1:50)" will be truncated to "n: 1".
                    This is useful in exploratory analysis and diagnostics, particularly when used in combination with "--target".''')
+    ce.add_argument('--replicate', metavar = 'N', type = int,
+                   help = '''Overrides "DSC::replicate" to set number of replicates. Will be set to 1 when "--truncate" is in action.''')
     ce.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''Benchmark output. It overrides "DSC::output" defined in DSC file.''')
     mt = p.add_argument_group('Maintenance')

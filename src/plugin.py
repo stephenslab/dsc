@@ -103,8 +103,8 @@ class Shell(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append(f'TMP_{self.identifier}=`mktemp -d`')
-            self.tempfile.append(f'{lhs}="""$TMP_{self.identifier}/${{_output[0]:bn}}.{lhs}"""')
+            self.tempfile.append(f'TMP_{self.identifier[4:]}=`mktemp -d`')
+            self.tempfile.append(f'{lhs}="""$TMP_{self.identifier[4:]}/${{_output[0]:bn}}.{lhs}"""')
         else:
             temp_var = [f'${{_output[0]:n}}.{lhs}.{item.strip()}' for item in rhs.split(',')]
             self.tempfile.append('{}="""{}"""'.format(lhs, ' '.join(temp_var)))
@@ -137,8 +137,8 @@ class RPlug(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append(f'TMP_{self.identifier} <- tempdir()')
-            self.tempfile.append(f'{lhs} <- paste0(TMP_{self.identifier}, "/", ${{_output[0]:bnr}}, ".{lhs}")')
+            self.tempfile.append(f'TMP_{self.identifier[4:]} <- tempdir()')
+            self.tempfile.append(f'{lhs} <- paste0(TMP_{self.identifier[4:]}, "/", ${{_output[0]:bnr}}, ".{lhs}")')
         else:
             temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
@@ -155,10 +155,12 @@ class RPlug(BasePlug):
         flag = False
         if input_num > 1 and autoload:
             res += load_multi_in
+            res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
             if index > 0:
                 flag = True
         elif input_num == 1 and autoload:
             res += load_single_in
+            res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
             if index > 0:
                 flag = True
         else:
@@ -194,7 +196,9 @@ class RPlug(BasePlug):
         for k in keys:
             res += '\n%s <- ${_%s}' % (k, k)
         # timer
-        res += '\n{}_tic_pt <- proc.time()'.format(self.identifier)
+        res += f'\nTIC_{self.identifier[4:]} <- proc.time()'
+        # seed
+        res += '\nset.seed(DSC_REPLICATE + ${DSC_STEP_ID_})'
         return res
 
     def get_output(self, params):
@@ -215,7 +219,8 @@ class RPlug(BasePlug):
             return ''
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
-                           ['DSC_TIMER = proc.time() - {}_tic_pt'.format(self.identifier)]))
+                           [f"DSC_DEBUG = list(time=proc.time() - TIC_{self.identifier[4:]}, " \
+                            "script=dscrutils:::load_script(), replicate=DSC_REPLICATE, session=toString(sessionInfo()))"]))
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -281,8 +286,8 @@ class PyPlug(BasePlug):
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append(f'TMP_{self.identifier} = tempfile.gettempdir()')
-            self.tempfile.append(f'{lhs} = os.path.join(TMP_{self.identifier}, ${{_output[0]:bnr}} + ".{lhs}")')
+            self.tempfile.append(f'TMP_{self.identifier[4:]} = tempfile.gettempdir()')
+            self.tempfile.append(f'{lhs} = os.path.join(TMP_{self.identifier[4:]}, ${{_output[0]:bnr}} + ".{lhs}")')
         else:
             temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
@@ -303,10 +308,12 @@ class PyPlug(BasePlug):
         flag = False
         if input_num > 1 and autoload:
             res += load_multi_in
+            res += f'\nDSC_REPLICATE = {self.identifier}["DSC_DEBUG"]["replicate"]'
             if index > 0:
                 flag = True
         elif input_num == 1 and autoload:
             res += load_single_in
+            res += f'\nDSC_REPLICATE = {self.identifier}["DSC_DEBUG"]["replicate"]'
             if index > 0:
                 flag = True
         else:
@@ -339,7 +346,8 @@ class PyPlug(BasePlug):
             res += '\nsys.argv.extend([{}])'.format(', '.join(cmd_list))
         for k in keys:
             res += '\n%s = ${_%s}' % (k, k)
-        res += '\n{}_tic_pt = timeit.default_timer()'.format(self.identifier)
+        res += f'\nTIC_{self.identifier[4:]} = timeit.default_timer()'
+        res += '\nimport random\nrandom.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\nexcept Exception:\n\tpass'
         return res
 
     def get_output(self, params):
@@ -360,7 +368,8 @@ class PyPlug(BasePlug):
             return ''
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
-                           ['"DSC_TIMER" : timeit.default_timer() - {}_tic_pt'.format(self.identifier)]))
+                           [f"'DSC_DEBUG': dict([('time', timeit.default_timer() - TIC_{self.identifier[4:]}), " \
+                            "('script', open(__file__).read()), ('replicate', DSC_REPLICATE)])"]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 

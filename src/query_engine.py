@@ -83,17 +83,16 @@ class Query_Processor:
         # 3. identify and extract which part of each pipeline are involved
         # based on tables in target / condition
         self.pipelines = self.filter_pipelines()
-        # 4. make inner join, the FROM clause
-        from_clauses = self.get_from_clause()
-        # 5. make select / where clause
+        # 4. make select / from / where clause
         select_clauses, select_fields = self.get_select_clause()
+        from_clauses = self.get_from_clause()
         where_clauses = self.get_where_clause(select_fields)
         self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
-        # 6. run queries
+        # 5. run queries
         self.output_tables = self.run_queries(add_path)
-        # 7. merge table
+        # 6. merge table
         self.output_table = self.merge_tables()
-        # 8. show warnings
+        # finally show warnings
         self.warn()
 
     @staticmethod
@@ -210,31 +209,43 @@ class Query_Processor:
             res.append(('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)])).strip())
         return res
 
+    def get_one_select_clause(self, pipeline):
+        clause = []
+        fields = []
+        for item in self.target_tables:
+            # one table in targets do not exist in this pipeline
+            if item[0] not in pipeline:
+                continue
+            fields.append('.'.join(item) if item[1] else item[0])
+            if item[1] is None:
+                clause.append("'{0}' AS {0}".format(item[0]))
+            else:
+                idx = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
+                if item[1].lower() not in [x.lower() for x in self.data[idx].keys()]:
+                    clause.append("{0}.__output__ AS {0}_DSC_VAR_{1}".\
+                                  format(item[0], item[1] if not item[1].startswith('output.') else item[1][7:]))
+                else:
+                    if item[1] == '__output__':
+                        clause.append("{0}.{1} AS {0}_DSC_OUTPUT_".format(item[0], item[1]))
+                    else:
+                        clause.append("{0}.{1} AS {0}_DSC_FIELD_{1}".format(item[0], item[1]))
+        clause = "SELECT " + ', '.join(clause)
+        return clause, fields
+
     def get_select_clause(self):
         select = []
         select_fields = []
+        new_pipelines = []
         for pipeline in self.pipelines:
-            tmp1 = []
-            tmp2 = []
-            for item in self.target_tables:
-                if len([x for x in pipeline if x.lower() == item[0].lower()]) == 0:
-                    continue
-                tmp2.append(item)
-                if item[1] is None:
-                    tmp1.append("'{0}' AS {0}".format(item[0]))
-                    continue
-                key = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
-                if item[1].lower() not in [x.lower() for x in self.data[key].keys()]:
-                    tmp1.append("{0}.__output__ AS {0}_DSC_VAR_{1}".format(item[0], item[1] if not item[1].startswith('output.') else item[1][7:]))
-                else:
-                    if item[1] == '__output__':
-                        tmp1.append("{0}.{1} AS {0}_DSC_OUTPUT_".format(item[0], item[1]))
-                    else:
-                        tmp1.append("{0}.{1} AS {0}_DSC_FIELD_{1}".format(item[0], item[1]))
-            select.append("SELECT " + ', '.join(tmp1))
-            select_fields.append(['.'.join(x) for x in tmp2])
-        # not all pipelines will be used
-        # because of `-t` option logic, if a new
+            clause, fields = self.get_one_select_clause(pipeline)
+            # Caution: should have the same length as input target
+            if len(fields) != len(self.targets):
+                continue
+            new_pipelines.append(pipeline)
+            select.append(clause)
+            select_fields.append(fields)
+        # not all pipelines are useful
+        self.pipelines = new_pipelines
         output_fields = filter_sublist(select_fields, ordered = False)
         select = [x for i, x in enumerate(select) if select_fields[i] in output_fields]
         return select, output_fields
@@ -248,7 +259,7 @@ class Query_Processor:
         the outer lists are connected by OR
         the inner lists are connected by AND
         '''
-        select_tables = [x.split('.')[0].lower() for x in one_select_fields]
+        select_tables = uniq_list([x.split('.')[0].lower() for x in one_select_fields])
         valid_tables = [x[0].lower() for x in self.condition_tables if x[0].lower() in select_tables + pipeline_tables]
         # to decide which part of the conditions is relevant to which pipeline we have to
         # dissect it to reveal table/field names
@@ -315,9 +326,8 @@ class Query_Processor:
                 continue
             # For each group, find common fields to merge
             to_merge = dict()
-            gvals = sorted(self.groups[g], key = len, reverse = True)
             for col in table.columns:
-                for k in gvals:
+                for k in self.groups[g]:
                     if not col.startswith(k + '.'):
                         continue
                     k = col[len(k):]
@@ -327,19 +337,17 @@ class Query_Processor:
                     break
             for k in to_merge:
                 if len(to_merge[k]) > 1:
-                    table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(lambda x: x.dropna().tolist(), 1)
-                    if not all(table[f'{g}{k}'].apply(len) == 1):
-                        raise DBError(f'Modules ``to_merge[k]`` cannot be grouped into ``{g}{k}`` due to collating entries.')
-                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: x[0])
+                    table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(lambda x: tuple(x), 1)
+                    non_na_idx = table[f'{g}{k}'].apply(lambda x: tuple([idx for idx, y in enumerate(x) if y == y]))
+                    if not all([len(x) == 1 for x in non_na_idx]):
+                        raise DBError(f'Modules ``{to_merge[k]}`` cannot be grouped into ``{g}{k}`` due to collating entries.')
+                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0])
                     if not g in table:
-                        table[g] = None
-                        for col in to_merge[k]:
-                            table[g] = table.apply(lambda row: [kk for kk in gvals if col.startswith(kk + '.')][0]
-                                                   if not row[col] == row[col] else row[g], axis = 1)
+                        table[g] = [self.groups[g][kk[0]] for kk in non_na_idx]
                 else:
                     # simply rename it
                     table[f'{g}{k}'] = table[to_merge[k][0]]
-                    table[g] = [kk for kk in gvals if to_merge[k][0].startswith(kk + '.')][0]
+                    table[g] = [kk for kk in self.groups[g] if to_merge[k][0].startswith(kk + '.')][0]
             to_drop.extend(to_merge.values())
         #
         table.drop(set(sum(to_drop, [])), axis=1, inplace=True)

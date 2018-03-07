@@ -19,6 +19,7 @@ from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter, parse_filter, parse_exe
 from .plugin import Plugin
+from .version import __version__
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
 
@@ -26,7 +27,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, truncate = False):
+    def __init__(self, content, output = None, sequence = None, truncate = False, replicate = None):
         self.content = dict()
         if os.path.isfile(content):
             dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -83,9 +84,8 @@ class DSC_Script:
             if block == 'DSC':
                 continue
             self.extract_modules(block, derived[block] if block in derived else None)
-        self.runtime = DSC_Section(self.content['DSC'], sequence, output)
-        if self.runtime.output is None:
-            self.runtime.output = dsc_name
+        self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
+        self.runtime.output = self.runtime.output[0] if self.runtime.output else dsc_name
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
                 raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
@@ -93,7 +93,7 @@ class DSC_Script:
                              for x in self.runtime.sequence_ordering.keys()])
         script_types =  [m.exe['type'] for m in self.modules.values()]
         if 'R' in script_types:
-            self.runtime.rlib.append('dscrutils@stephenslab/dsc2/dscrutils (0.2.5+)')
+            self.runtime.rlib.append(f'dscrutils@stephenslab/dsc2/dscrutils ({__version__}+)')
         if 'R' in script_types and 'PY' in script_types:
             self.runtime.pymodule.extend(['rpy2', 'dsc'])
         # FIXME: maybe this should be allowed?
@@ -113,6 +113,8 @@ class DSC_Script:
         block[name] = block.pop(list(block.keys())[0])
         if block[name] is None:
             block[name] = dict()
+        if not isinstance(block[name], Mapping):
+            raise FormatError(f"Code block ``{name}`` has format issues! Please make sure variables follow from ``key:(space)item`` format.")
         if exe:
             exe = parse_exe(exe)
             block[name]['^EXEC'] = exe[0]
@@ -438,10 +440,7 @@ class DSC_Module:
             self.exe['header'], self.exe['content'] = self.pop_rlib(self.exe['content'])
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])
-        if len(self.exe['path']) == 0:
-            self.exe['signature'] = xxh(self.exe['content'] + (' '.join(self.exe['args']) if self.exe['args'] else '')).hexdigest()
-        else:
-            self.exe['signature'] = fileMD5(self.exe['path'], partial = False) + (f"_{xxh(' '.join(self.exe['args'])).hexdigest()}" if self.exe['args'] else '')
+        self.exe['signature'] = xxh((fileMD5(self.exe['path'], partial = False) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '')).hexdigest()
         self.plugin = Plugin(self.exe['type'], self.exe['signature'])
 
     def check_shell(self):
@@ -456,6 +455,8 @@ class DSC_Module:
         '''
         Figure out if output is a variable, file or plugin
         '''
+        if len(return_var) == 0:
+            raise FormatError(f"Please specify output variables for module ``{self.name}``.")
         for key, value in return_var.items():
             if len(value) > 1:
                 raise FormatError(f"Output ``{key}`` cannot contain multiple elements ``{value}``")
@@ -674,13 +675,15 @@ class DSC_Module:
 
 
 class DSC_Section:
-    def __init__(self, content, sequence, output):
+    def __init__(self, content, sequence, output, replicate):
         self.content = content
         if 'run' not in self.content:
             raise FormatError('Missing required ``DSC::run``.')
-        if 'output' not in self.content:
-            raise FormatError('Missing required ``DSC::output``.')
-        self.output = output if output else self.content['output'][0]
+        self.replicate = replicate if replicate else try_get_value(self.content, 'replicate')
+        if not isinstance(self.replicate, int) or self.replicate <= 0:
+            self.replicate = 1
+        self.replicate = [x+1 for x in range(self.replicate)]
+        self.output = output if output else try_get_value(self.content, 'output')
         self.OP = OperationParser()
         self.regularize_ensemble()
         # FIXME: check if sequence input is of the right type

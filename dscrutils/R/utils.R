@@ -21,3 +21,23 @@ read_dsc <- function(infile) {
     stop("DSC data conversion failed (returned a non-zero exit status)")
   return(readRDS(paste0(inbase, '.rds')))
 }
+
+thisFile <- function() {
+  cmdArgs <- commandArgs(trailingOnly = FALSE)
+  needle <- "--file="
+  match <- grep(needle, cmdArgs)
+  if (length(match) > 0) {
+    ## Rscript
+    path <- cmdArgs[match]
+    path <- gsub("\\~\\+\\~", " ", path)
+    return(normalizePath(sub(needle, "", path)))
+  } else {
+    ## 'source'd via R console
+    return(normalizePath(sys.frames()[[1]]$ofile))
+  }
+}
+
+load_script <- function() {
+  fileName <- thisFile()
+  return(readChar(fileName, file.info(fileName)$size))
+}

@@ -44,6 +44,9 @@ class DSC_Translator:
             for step in workflow.values():
                 flow = "_".join(['_'.join(keys[:keys.index(step.name)]), step.name]).strip('_')
                 depend = '_'.join(uniq_list([i[0] for i in step.depends]))
+                # beginning of pipeline := module that does not have any dependency
+                if len(step.depends) == 0:
+                    step.p['DSC_REPLICATE'] = runtime.replicate
                 # either different flow or different dependency will create a new entry
                 if (step.name, flow, depend) not in processed_steps:
                     name = (step.name, workflow_id + 1)
@@ -88,13 +91,12 @@ class DSC_Translator:
             ii = 1
             for y in sequence:
                 tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y})]"]
-                tmp_str.append(f"script_signature = {repr(exe_signatures[y])}")
                 if ii > 1:
                     tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output']"\
                                f", {y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], "\
-                               "DSC_STEP_ID_ = '_'.join(script_signature))")
+                               f"DSC_STEP_ID_ = {abs(hash(repr(exe_signatures[y]))) % (10**8)})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))
                 self.job_pool[(y, workflow_id + 1)] = '\n'.join(tmp_str)
@@ -348,17 +350,11 @@ class DSC_Translator:
                                                                 self.step.libpath if self.step.libpath else [],
                                                                 cmd['args'])
                         script_begin += '\n' + plugin.get_output(self.step.rf)
-                        script_begin = '{0}\n{2}\n{1}\n{3}'.\
-                                       format(cmd['header'],
-                                              script_begin.strip(),
-                                              '## BEGIN code by DSC2',
-                                              '## END code by DSC2')
+                        script_begin = '\n'.join([x for x in script_begin.split('\n') if x])
+                        script_begin = f"{cmd['header']}\n{script_begin.strip()}\n\n## BEGIN DSC CORE"
                         if len(self.step.rv):
                             script_end = plugin.get_return(self.step.rv)
-                            script_end = '{1}\n{0}\n{2}'.\
-                                         format(script_end.strip(),
-                                                '## BEGIN code by DSC2',
-                                                '## END code by DSC2')
+                            script_end = f'## END DSC CORE\n\n{script_end.strip()}'
                         else:
                             script_end = ''
                         script = '\n'.join([script_begin, cmd['content'], script_end])
