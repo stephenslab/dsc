@@ -1,7 +1,9 @@
 #!/usr/bin/env sos-runner
 #fileformat=SOS1.0
 
-[patch: shared='version']
+parameter: py = ""
+
+[patch: shared = "version"]
 parameter: version = str
 sh: expand = "${ }"
 	perl -pi.bak -e "s/^__version__ = .*/__version__ = '${version}'/" src/version.py
@@ -15,31 +17,31 @@ sh: workdir = '.'
 [pip]
 parameter: version = str
 # check the version of the latest version
-cur_ver = get_output("pip show dsc | grep Version | cut -d' ' -f2").strip()
+cur_ver = get_output(f"pip{py} show dsc | grep Version | cut -d' ' -f2").strip()
 
 # do not upload if the version on pip is the current one
 stop_if(cur_ver == version)
 
-sh:	workdir = '.', expand = "${ }"
-	python setup.py sdist && \
+sh:	workdir = '.', expand = True 
+	python{py} setup.py sdist && \
 	rm -rf /tmp/release_dsc && \
 	mkdir /tmp/release_dsc && \
-	cp dist/dsc-${version}.tar.gz /tmp/release_dsc && \
+	cp dist/dsc-{version}.tar.gz /tmp/release_dsc && \
 	cd /tmp/release_dsc && \
-	tar zxf dsc-${version}.tar.gz && \
-	cd dsc-${version} && \
-	python setup.py sdist bdist_wheel upload && \
-	python setup.py install
+	tar zxf dsc-{version}.tar.gz && \
+	cd dsc-{version} && \
+	python{py} setup.py sdist bdist_wheel upload && \
+	python{py} setup.py install --single-version-externally-managed --root /
 
 [upgrade]
-sh:
-  pip install --upgrade --upgrade-strategy only-if-needed --no-cache-dir dsc
+sh: expand = True
+  pip{py} install --upgrade --upgrade-strategy only-if-needed --no-cache-dir dsc
 
 [release]
 sos_run('readme+patch+pip')
 
 [default]
 depends: "README.rst"
-sh:
-  python setup.py install && \
+sh: expand = True
+	python{py} setup.py install --single-version-externally-managed --root / && \
   rm -rf *.egg-info build dist
