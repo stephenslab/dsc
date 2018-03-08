@@ -300,6 +300,9 @@ class DSC_Script:
         return out
 
     def init_dsc(self, args, env):
+        if args.__construct__ == 'none':
+            import shutil
+            shutil.rmtree('.sos')
         os.makedirs('.sos/.dsc', exist_ok = True)
         if os.path.dirname(self.runtime.output):
             os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)
@@ -309,8 +312,6 @@ class DSC_Script:
                 os.remove(env.logfile)
         if os.path.isfile('.sos/transcript.txt'):
             os.remove('.sos/transcript.txt')
-        if args.__construct__ == 'none' and os.path.isfile('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output))):
-            os.remove('.sos/.dsc/{}.lib-info'.format(os.path.basename(self.runtime.output)))
         conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
         with open(conf, 'w') as f:
             f.write('localhost: localhost\nhosts:\n  localhost:\n    address: localhost')
@@ -496,7 +497,15 @@ class DSC_Module:
                 self.rv[key] = value
 
     def set_options(self, common_option, spec_option):
-        # FIXME: have to ensure @CONF is a list
+        if isinstance(spec_option, Mapping):
+            valid = False
+            for module in spec_option:
+                if module == self.name or module == '?':
+                    spec_option = spec_option[module]
+                    valid = True
+                    break
+            if not valid:
+                raise FormatError(f"Cannot find module ``{self.name}`` in @CONF specification ``{list(spec_option.keys())}``.")
         spec_option = dict([(x.strip() for x in item.split('=', 1)) for item in spec_option]) if spec_option is not None else dict()
         workdir1 = try_get_value(common_option, 'work_dir')
         workdir2 = try_get_value(spec_option, 'work_dir')
@@ -539,8 +548,6 @@ class DSC_Module:
                     break
             if not valid:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @ALIAS specification ``{list(alias.keys())}``.")
-        if isinstance(alias, Mapping):
-            raise FormatError(f"Invalid @ALIAS format for module ``{self.name}`` (has to be formatted `alias = variable`).")
         alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
         # Swap parameter key with alias when applicable
         for k1, k2 in list(alias.items()):
