@@ -21,7 +21,10 @@ Goal for 0.2.7
 * [#90](https://github.com/stephenslab/dsc2/issues/90) and [#93](https://github.com/stephenslab/dsc2/issues/93) use `Rmd` files as module executables.
 * [#94](https://github.com/stephenslab/dsc2/issues/94) added `DSC::replicate` and command option `--replicate`.
 * Add, by default, a variable `DSC_DEBUG` to output files that saves various runtime info.
-* SoS bumped to 0.9.12.9 to support R github package force install when version mismatches.
+* SoS bumped to 0.9.12.10 
+  * Support R github package force install when version mismatches.
+  * Fix bug with `--touch` option.
+* [minor] Revert from `ruamel.yaml` to `yaml` for better performance.
 * [minor] Various bug fixes.
 
 ### 0.2.x

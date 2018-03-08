@@ -4,14 +4,31 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import sys, os, re, itertools, collections, sympy
+import sys, os, re, yaml, itertools, collections, sympy
 from itertools import cycle, chain, islice
 from fnmatch import fnmatch
-from ruamel.yaml import YAML
-from ruamel.yaml.compat import StringIO
 from difflib import SequenceMatcher
 from xxhash import xxh32 as xxh
 from .constant import HTML_CSS, HTML_JS
+
+def no_duplicates_constructor(loader, node, deep=False):
+    """YAML check for duplicate keys."""
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        value = loader.construct_object(value_node, deep=deep)
+        if key in mapping:
+            raise yaml.constructor.ConstructorError("while constructing a mapping", node.start_mark,
+                                   "found duplicate key (%s)" % key, key_node.start_mark)
+        mapping[key] = value
+    return collections.OrderedDict(loader.construct_pairs(node, deep))
+
+def dict_representer(dumper, data):
+    return dumper.represent_dict(data.iteritems())
+
+yaml.add_representer(collections.OrderedDict, dict_representer)
+yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
+yaml.Dumper.ignore_aliases = lambda self, value: True
 
 class Logger:
     def __init__(self):
@@ -76,18 +93,6 @@ class Logger:
         return re.sub(r'``([^`]*)``', f'\033[0m\033[1;4m\\1\033[0m\033[1;{level_color}m', str(msg))
 
 logger = Logger()
-
-class DYAML(YAML):
-    def dump(self, data, stream=None, **kw):
-        inefficient = False
-        if stream is None:
-            inefficient = True
-            stream = StringIO()
-        YAML.dump(self, data, stream, **kw)
-        if inefficient:
-            return stream.getvalue()
-
-yaml = DYAML()
 
 class FormatError(Exception):
     """Raised when format is illegal."""
@@ -524,7 +529,7 @@ def yaml2html(content, to_file, title = ''):
     if not os.path.splitext(to_file)[1] == '.html':
         to_file += '.html'
     with open(to_file, 'w') as f:
-        f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(title))
+        f.write('<!DOCTYPE html><html><head><title>DSC - {}</title>\n'.format(title))
         f.write('<style type="text/css">\n')
         f.write(HTML_CSS)
         f.write('\n</style>\n<script type="text/javascript">\n')
@@ -542,7 +547,7 @@ def transcript2html(content, to_file, title = ''):
     if not os.path.splitext(to_file)[1] == '.html':
         to_file += '.html'
     with open(to_file, 'w') as f:
-        f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(title))
+        f.write('<!DOCTYPE html><html><head><title>DSC - {}</title>\n'.format(title))
         f.write('<style type="text/css">\n')
         f.write(HTML_CSS)
         f.write('\n</style>\n<script type="text/javascript">\n')
@@ -592,7 +597,7 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
         output += '.html'
     with open(output, 'w') as f:
         # header and style/scripts
-        f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(os.path.basename(output)[:-5]))
+        f.write('<!DOCTYPE html><html><head><title>DSC - {}</title>\n'.format(os.path.basename(output)[:-5]))
         f.write('<style type="text/css">\n')
         f.write(HTML_CSS)
         f.write('\n</style>\n<script type="text/javascript">\n')
@@ -617,9 +622,8 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
             scripts = []
             seen = []
             for command in commands:
-                if isinstance(command, list):
+                if isinstance(command, str):
                     # for libs
-                    command = command.split()[0]
                     if command in seen:
                         continue
                     else:
@@ -661,7 +665,7 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
 def workflow2html(output, *multi_workflows):
     with open(output, 'w') as f:
         # header and style/scripts
-        f.write('<!DOCTYPE html><html><head><title>{} | DSC2</title>\n'.format(os.path.basename(output)[:-5]))
+        f.write('<!DOCTYPE html><html><head><title>DSC - {}</title>\n'.format(os.path.basename(output)[:-5]))
         f.write('<style type="text/css">\n')
         f.write(HTML_CSS)
         f.write('\n</style>\n<script type="text/javascript">\n')
@@ -676,7 +680,7 @@ def workflow2html(output, *multi_workflows):
                 f.write('<div class="accodion-section">\n'
                     '<a class="accordion-section-title" href="#{1}">{0}</a>\n'
                     '<div id={1} class="accordion-section-content">\n'.\
-                    format('&'.join(modules.keys()), make_html_name('_'.join(modules.keys()) + f'_{j+1}')))
+                    format('->'.join(modules.keys()), make_html_name('_'.join(modules.keys()) + f'_{j+1}')))
                 f.write('<div class="tabs">\n<ul class="tab-links">\n')
                 idx = 0
                 for key, module in modules.items():

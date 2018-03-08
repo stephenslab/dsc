@@ -30,49 +30,53 @@ class DSC_Script:
     def __init__(self, content, output = None, sequence = None, truncate = False, replicate = None):
         self.content = dict()
         if os.path.isfile(content):
-            dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
+            self._dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
             script_path = os.path.dirname(os.path.expanduser(content))
-            content = open(content).readlines()
+            content = [x.rstrip() for x in open(content).readlines() if x.strip()]
         else:
-            content = [x.rstrip() + '\n' for x in content.split('\n') if x.strip()]
+            content = [x.rstrip() for x in content.split('\n') if x.strip()]
             if len(content) == 0:
                 raise IOError(f"Invalid DSC script input!")
             if len(content) == 1:
                 raise IOError(f"Cannot find file ``{content[0]}``")
-            dsc_name = 'DSCStringIO'
+            self._dsc_name = 'DSCStringIO'
             script_path = None
-        res = exe = ''
+        res = []
+        exe = ''
         headline = False
         for line in content:
-            if len(line.strip()) == 0:
-                continue
-            if line.strip().startswith('#'):
+            if line.lstrip().startswith('#'):
                 continue
             text = parens_aware_split(line, ':')
             # FIXME: maybe this is good enough to identify a line of decorator keys ...
-            if line.strip().startswith('@') and len(text) > 1:
+            if line.lstrip().startswith('@') and len(text) > 1:
                 line = line.replace('@', '^', 1)
                 text[0] = text[0].replace('@', '^', 1)
-            if line.strip().startswith('*') and len(text) > 1:
+            if line.lstrip().startswith('*') and len(text) > 1:
                 line = line.replace('*', '?', 1)
                 text[0] = text[0].replace('*', '?', 1)
             if not DSC_BLOCK_CONTENT.search(line):
                 headline = True
                 if res:
                     self.update(res, exe)
-                    res = exe = ''
+                    res = []
+                    exe = ''
                 if len(text) != 2 or (len(text[1].strip()) == 0 and text[0].strip() != 'DSC' and not DSC_DERIVED_BLOCK.search(text[0].strip())):
-                    raise FormatError(f'Invalid syntax ``{line.strip()}``. '\
+                    raise FormatError(f'Invalid syntax ``{line}``. '\
                                       'Should be in the format of ``module names: module executables``')
-                res += f'{text[0]}:\n'
-                exe += text[1].strip()
+                res.append(f'{text[0]}:')
+                exe += text[1]
             else:
                 if headline and len(text) == 1:
                     # still contents for exe ...
-                    exe += line.strip()
+                    exe += line
                 else:
                     headline = False
-                    res += line
+                    if len(text) == 1:
+                        # handle line break
+                        res[-1] += ' ' + line.lstrip()
+                    else:
+                        res.append(line)
         self.update(res, exe)
         if 'DSC' not in self.content:
             raise FormatError('Cannot find required section ``DSC``!')
@@ -85,7 +89,7 @@ class DSC_Script:
                 continue
             self.extract_modules(block, derived[block] if block in derived else None)
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
-        self.runtime.output = self.runtime.output[0] if self.runtime.output else dsc_name
+        self.runtime.output = self.runtime.output[0] if self.runtime.output else self._dsc_name
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
                 raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
@@ -101,12 +105,14 @@ class DSC_Script:
 
     def update(self, text, exe):
         try:
-            block = yaml.load(''.join(text))
+            block = yaml.load('\n'.join(text))
         except Exception as e:
             if type(e).__name__ == 'DuplicateKeyError':
-                raise FormatError(f"Duplicate keys found in\n``{''.join(text)}``")
+                raise FormatError(f"Duplicate keys found in\n``{self._dsc_name}.dsc``")
             else:
-                raise FormatError(e)
+                import sys
+                sys.stderr.write(str(e) + "\n")
+                raise FormatError(f"``{self._dsc_name}.dsc`` has caused ``{type(e).__name__}`` (see above).\nIf this is related to string with quotes please remove them, or use the 'raw()' syntax.")
         for idx, k in enumerate(flatten_list(get_nested_keys(block))):
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
