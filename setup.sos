@@ -5,9 +5,9 @@ parameter: py = ""
 
 [patch: shared = "version"]
 parameter: version = str
-sh: expand = "${ }"
-	perl -pi.bak -e "s/^__version__ = .*/__version__ = '${version}'/" src/version.py
-	perl -pi.bak -e "s/^Version: .*/Version: ${version}/" dscrutils/DESCRIPTION
+sh: expand = True
+	perl -pi.bak -e "s/^__version__ = .*/__version__ = '{version}'/" src/version.py
+	perl -pi.bak -e "s/^Version: .*/Version: {version}/" dscrutils/DESCRIPTION
 
 [readme: provides = 'README.rst']
 depends: executable('pandoc')
