@@ -20,8 +20,8 @@ Goal for 0.2.7
 * [#92](https://github.com/stephenslab/dsc2/issues/92) paired parameter input convention.
 * [#90](https://github.com/stephenslab/dsc2/issues/90) and [#93](https://github.com/stephenslab/dsc2/issues/93) use `Rmd` files as module executables.
 * [#94](https://github.com/stephenslab/dsc2/issues/94) added `DSC::replicate` and command option `--replicate`.
-* Add, by default, a variable `DSC_DEBUG` to output files that saves parameters used to generate the output.
-* SoS bumped to 0.9.12.10 to support R github package force install when version mismatches.
+* Add, by default, a variable `DSC_DEBUG` to output files that saves various runtime info.
+* SoS bumped to 0.9.12.9 to support R github package force install when version mismatches.
 * [minor] Various bug fixes.
 
 ### 0.2.x
