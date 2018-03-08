@@ -515,16 +515,16 @@ def parse_filter(condition, groups = None, dotted = True):
             else:
                 value = value.strip()
                 is_not = False
-            tokens = [token[1] for token in tokenize.generate_tokens(StringIO(value.replace('.', '__DSC_DOT__')).readline) if token[1]]
-            if not (len(tokens) == 3 and tokens[1] in symbols):
+            tokens = [token[1] for token in tokenize.generate_tokens(StringIO(value).readline) if token[1]]
+            if not (len(tokens) == 3 and tokens[1] in symbols) and not (len(tokens) == 5 and tokens[1] == '.' and tokens[3] in symbols):
                 raise FormatError(f"Condition ``{value}`` is not a supported math expression.\nSupported expressions are ``{symbols}``")
-            tokens[0] = tokens[0].replace('__DSC_DOT__', '.').split('.')
+            if len(tokens) == 5:
+                tokens = [[tokens[0], tokens[2]], tokens[3], tokens[4]]
             if len(tokens[0]) != 2:
                 if dotted:
                     raise FormatError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
                 else:
                     tokens[0] = [''] + tokens[0]
-            tokens[2] = tokens[2].replace('__DSC_DOT__', '.')
             if not tokens[0][0] in groups:
                 tmp.append(('not' if is_not else '', tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
                 cond_tables.append((tokens[0][0], tokens[0][1]))
