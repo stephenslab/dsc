@@ -520,11 +520,11 @@ def parse_filter(condition, groups = None, dotted = True):
                 raise FormatError(f"Condition ``{value}`` is not a supported math expression.\nSupported expressions are ``{symbols}``")
             if len(tokens) == 5:
                 tokens = [[tokens[0], tokens[2]], tokens[3], tokens[4]]
-            if len(tokens[0]) != 2:
+            if isinstance(tokens[0], str):
                 if dotted:
                     raise FormatError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
                 else:
-                    tokens[0] = [''] + tokens[0]
+                    tokens[0] = ['', tokens[0]]
             if not tokens[0][0] in groups:
                 tmp.append(('not' if is_not else '', tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
                 cond_tables.append((tokens[0][0], tokens[0][1]))

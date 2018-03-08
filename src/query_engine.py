@@ -63,7 +63,7 @@ def find_partial_index(xx, ordering):
 class Query_Processor:
     def __init__(self, db, targets, condition = None, groups = None, add_path = False):
         self.db = db
-        self.targets = ' '.join(targets).split()
+        self.targets = uniq_list(' '.join(targets).split())
         self.raw_condition = condition
         self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
         # table: msg map
@@ -73,6 +73,7 @@ class Query_Processor:
         else:
             self.groups = dict()
         self.groups.update(self.get_grouped_tables(groups))
+        self.check_overlapping_groups()
         self.target_tables = self.get_table_fields(self.targets)
         self.condition, self.condition_tables = parse_filter(condition, groups = self.groups)
         # 1. only keep tables that do exist in database
@@ -147,11 +148,22 @@ class Query_Processor:
             if len(g.split(':')) != 2:
                 raise FormatError(f"Illegal module group option ``{g}``. Please use format ``group: module1, module2``")
             g = tuple(x.strip() for x in g.split(':'))
-            v = uniq_list([x.strip() for x in g[1].split(',')])
+            v = uniq_list([x.strip() for x in g[1].split(',') if x.strip()])
             if g[0] in v:
                 raise FormatError(f"Invalid group option: module group name ``{g[0]}``conflicts with module name ``{g[0]}``.")
             res[g[0]] = v
         return res
+
+    def check_overlapping_groups(self):
+        for k in list(self.groups.keys()):
+            if len(self.groups[k]) == 0:
+                del self.groups[k]
+        for i, k1 in enumerate(self.groups.keys()):
+            for j, k2 in enumerate(self.groups.keys()):
+                if i > j:
+                    overlap = set(self.groups[k1]).intersection(set(self.groups[k2]))
+                    if len(overlap):
+                        raise DBError(f"Overlapping groups ``{k1} = {self.groups[k1]}`` and ``{k2} = {self.groups[k2]}`` not allowed! You should drop the one that causes the conflict, or use, eg, -g \"{k1}:\" to erase the other one if it is build-in.")
 
     def get_table_fields(self, values):
         '''
@@ -365,6 +377,10 @@ class Query_Processor:
         return self.data
 
     def run_queries(self, add_path = False):
+        if len(self.queries) == 0:
+            raise DBError("Incompatible targets ``{}``{}".\
+                          format(', '.join(self.targets),
+                                 f' under condition ``{" AND ".join(["(%s)" % x for x in self.raw_condition])}``' if self.raw_condition is not None else ''))
         res = [('+'.join(pipeline), self.adjust_table(sqldf(query, self.data), pipeline, add_path)) \
                      for pipeline, query in zip(self.pipelines, self.queries)]
         res = [x for x in res if x[1] is not None]

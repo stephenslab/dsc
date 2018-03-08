@@ -596,7 +596,7 @@ class DSC_Module:
             for j in range(len(self.p[group[0]])):
                 tmp.append(" AND ".join(["{} = {}".format(g, repr(self.p[g][j]) if isinstance(self.p[g][j], str) else self.p[g][j]) for g in group]))
         if len(tmp):
-            ft.append(' OR '.join(tmp))
+            ft.append(' OR '.join([f"({x})" for x in tmp]))
         if len(ft) == 0:
             return None
         raw_rule = ft
