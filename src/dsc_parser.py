@@ -14,7 +14,7 @@ from sos.utils import env
 from sos.targets import fileMD5
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
-     parens_aware_split, remove_parens, rmd_to_r
+     parens_aware_split, remove_parens, remove_quotes, rmd_to_r
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, EntryFormatter, parse_filter, parse_exe
@@ -323,8 +323,8 @@ class DSC_Script:
         return res
 
     def __str__(self):
-        res = '# Modules\n' + '\n'.join([f'## {x}\n```yaml\n{y.dump()}\n```' for x, y in self.modules.items()]) \
-              + f'\n# DSC\n```yaml\n{self.runtime}\n```'
+        res = '# Modules\n' + '\n'.join([f'## {x}\n```yaml\n{y}```' for x, y in self.modules.items()]) \
+              + f'\n# DSC\n```yaml\n{self.runtime}```'
         return res
 
 class DSC_Module:
@@ -413,7 +413,7 @@ class DSC_Module:
                     # must be a system executable
                     self.exe['path'].append(item[0])
                     if etype in ['PY', 'R']:
-                        env.logger.warning(f'Cannot find script ``{item[0]}`` in given ``{self.path}``. DSC will treat it a command line executable.')
+                        env.logger.warning(f'Cannot find script ``{item[0]}`` in path ``{self.path}``. DSC will treat it a command line executable.')
                 else:
                     # try determine self.exe['type']
                     if etype == '':
@@ -506,7 +506,7 @@ class DSC_Module:
                     break
             if not valid:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @CONF specification ``{list(spec_option.keys())}``.")
-        spec_option = dict([(x.strip() for x in item.split('=', 1)) for item in spec_option]) if spec_option is not None else dict()
+        spec_option = dict([(remove_quotes(x.strip()) for x in item.split('=', 1)) for item in spec_option]) if spec_option is not None else dict()
         workdir1 = try_get_value(common_option, 'work_dir')
         workdir2 = try_get_value(spec_option, 'work_dir')
         libpath1 = try_get_value(common_option, 'lib_path')

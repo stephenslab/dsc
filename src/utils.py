@@ -180,7 +180,7 @@ def str2num(var):
                 else:
                     return var
             except ValueError:
-                return re.sub(r'''^"|^'|"$|'$''', "", var)
+                return remove_quotes(var)
     else:
         try:
             if var.is_integer():
@@ -705,9 +705,11 @@ def workflow2html(output, *multi_workflows):
 
 def locate_file(file_name, file_path):
     '''Use file_path information to try to complete the path of file'''
-    if file_path is None:
+    if file_path is None or os.path.isfile(file_name):
         return file_name
     res = None
+    if isinstance(file_path, str):
+        file_path = [file_path]
     for item in file_path:
         if os.path.isfile(os.path.join(item, file_name)):
             if res is not None:

@@ -12,7 +12,7 @@ sh: expand = True
 [readme: provides = 'README.rst']
 depends: executable('pandoc')
 sh: workdir = '.'
-  pandoc --from=markdown --to=rst --output=README.rst README.md
+	pandoc --from=markdown --to=rst --output=README.rst README.md
 
 [pip]
 parameter: version = str
@@ -35,7 +35,7 @@ sh:	workdir = '.', expand = True
 
 [upgrade]
 sh: expand = True
-  pip{py} install --upgrade --upgrade-strategy only-if-needed --no-cache-dir dsc
+	pip{py} install --upgrade --upgrade-strategy only-if-needed --no-cache-dir dsc
 
 [release]
 sos_run('readme+patch+pip')
@@ -44,4 +44,4 @@ sos_run('readme+patch+pip')
 depends: "README.rst"
 sh: expand = True
 	python{py} setup.py install --single-version-externally-managed --root / && \
-  rm -rf *.egg-info build dist
+	rm -rf *.egg-info build dist
