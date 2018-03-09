@@ -583,8 +583,8 @@ class DSC_Module:
                     tmp.append(f'{ii[0]} (_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]})'.strip())
                 else:
                     tmp.append(f'_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]}'.strip())
-            res.append(f"({' AND '.join(tmp)})")
-        return ' OR '.join(res)
+            res.append(f"({' and '.join(tmp)})")
+        return ' or '.join(res)
 
     def apply_input_filter(self, ft):
         # first handle module specific filter
@@ -609,6 +609,8 @@ class DSC_Module:
             ft.append(' OR '.join([f"({x})" for x in tmp]))
         if len(ft) == 0:
             return None
+        # in case people use parentheses
+        ft = flatten_list(ft)
         raw_rule = ft
         ft = self.make_filter_statement(ft)
         # Verify it

@@ -515,7 +515,11 @@ def parse_filter(condition, groups = None, dotted = True):
     res = []
     cond_tables = []
     symbols = ['=', '==', '!=', '>', '<', '>=', '<=', 'in']
-    for and_list in expand_logic(' and '.join(condition) if isinstance(condition, (list, tuple)) else condition):
+    try:
+        expanded_condition = expand_logic(' and '.join(condition) if isinstance(condition, (list, tuple)) else condition)
+    except Exception:
+        raise FormatError(f"Condition ``{' AND '.join(condition)}`` cannot be properly expanded by logic operators. Please ensure the correct use of logic syntax.")
+    for and_list in expanded_condition:
         tmp = []
         for value in and_list:
             if value.strip().lower().startswith('not '):
@@ -525,6 +529,8 @@ def parse_filter(condition, groups = None, dotted = True):
                 value = value.strip()
                 is_not = False
             tokens = [token[1] for token in tokenize.generate_tokens(StringIO(value).readline) if token[1]]
+            if tokens[1] == 'in':
+                tokens = [tokens[0], tokens[1], f"({remove_parens(''.join(tokens[2:]))})"]
             if not (len(tokens) == 3 and tokens[1] in symbols) and not (len(tokens) == 5 and tokens[1] == '.' and tokens[3] in symbols):
                 raise FormatError(f"Condition ``{value}`` is not a supported math expression.\nSupported expressions are ``{symbols}``")
             if len(tokens) == 5:
