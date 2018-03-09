@@ -154,6 +154,7 @@ def execute(args):
         mode = "build"
     content = {'__sig_mode__': mode,
                'script': script_prepare,
+               '__bin_dirs__': exec_path,
                'workflow': "deploy"}
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):

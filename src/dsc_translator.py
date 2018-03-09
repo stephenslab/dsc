@@ -9,7 +9,6 @@ This file defines methods to translate DSC into pipeline in SoS language
 import os, sys, msgpack, glob, inspect
 from xxhash import xxh32 as xxh
 from collections import OrderedDict
-from sos.targets import executable
 from .utils import flatten_list, uniq_list, dict2str, convert_null, n2a, \
     install_r_lib, install_py_module
 __all__ = ['DSC_Translator']
@@ -115,6 +114,7 @@ class DSC_Translator:
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
+                            f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '' + \
                             f"\ninput: '.sos/.dsc/{self.db}.prepare.py'\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
                             "\nrun: expand = True\n{} {{_input}}".format(sys.executable) + \
                             "\n[deploy_2 (Configuring output filenames)]\n" \
@@ -369,11 +369,7 @@ class DSC_Translator:
                         self.exe_signature.append(cmd['signature'])
                     else:
                         # FIXME: need to process $(?) in args change into ${_?}
-                        if self.conf is None:
-                            # check if it is locally installed
-                            executable(cmd['path'])
-                        else:
-                            self.exe_check.append(f"executable({repr(cmd['path'])})")
+                        self.exe_check.append(f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {' '.join(cmd['args']) if cmd['args'] else ''}\n"
 
         def dump(self):
