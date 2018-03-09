@@ -68,7 +68,7 @@ class DSC_Script:
                 exe += text[1]
             else:
                 if headline and len(text) == 1:
-                    # still contents for exe ...
+                    # still contents for exe
                     exe += line
                 else:
                     headline = False
@@ -100,7 +100,7 @@ class DSC_Script:
             self.runtime.rlib.append(f'dscrutils@stephenslab/dsc2/dscrutils ({__version__}+)')
         if 'R' in script_types and 'PY' in script_types:
             self.runtime.pymodule.extend(['rpy2', 'dsc'])
-        # FIXME: maybe this should be allowed?
+        # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
     def update(self, text, exe):
@@ -138,7 +138,6 @@ class DSC_Script:
                 keys = list(find_nested_key(v, self.content[block]))
                 for k in keys:
                     set_nested_value(self.content[block], k, gvars[v])
-        # FIXME: have to decide if we need to set global options, or not?
 
     @staticmethod
     def validate_var_name(val, is_parameter):
@@ -291,7 +290,7 @@ class DSC_Script:
         out.__remote__ = None
         out.dryrun = False
         out.__dag__ = f'.sos/.dsc/{name}.dot'
-        # FIXME: port the entire resume related features
+        # In DSC we will not support `resume` just to keep it simple
         out.__resume__ = False
         out.__config__ = f'.sos/.dsc/{name}.conf.yml'
         out.update(content)
@@ -366,7 +365,7 @@ class DSC_Module:
             self.chop_input()
         # parameter filter:
         self.ft = self.apply_input_filter(try_get_value(content, ('meta', 'filter')))
-        self.check_shell()
+        self.set_output_ext()
 
     @staticmethod
     def pop_rlib(vec):
@@ -383,7 +382,7 @@ class DSC_Module:
         - ['R', 'mse = (mean_est-true_mean)^2']
         - ('unknown', 'datamaker.py split')
         '''
-        # FIXME: handle $() in args (maybe later?) and ensure they exist in parameter list
+        # FIXME: need to handle $() in args ensure they exist in parameter list
         self.exe = {'path': [], 'content': [], 'args': None, 'signature': None,
                     'file': [], 'type': 'unknown', 'header': ''}
         for etype, item in zip(exe[0], exe[1:]):
@@ -450,8 +449,9 @@ class DSC_Module:
         self.exe['signature'] = xxh((fileMD5(self.exe['path'], partial = False) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '')).hexdigest()
         self.plugin = Plugin(self.exe['type'], self.exe['signature'])
 
-    def check_shell(self):
-        # FIXME: check if the exec is meant to be executed from shell
+    def set_output_ext(self):
+        # check if the exec is meant to be executed from shell
+        # and set extension for automatic output
         # True only if self.exe['path']
         # Also this conflicts with self.rv: self.exe['path'] && len(self.rv) == 0
         if len(self.exe['path']) == 0 and len(self.rv) > 0:
@@ -586,8 +586,8 @@ class DSC_Module:
                     tmp.append(f'{ii[0]} (_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]})'.strip())
                 else:
                     tmp.append(f'_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]}'.strip())
-            res.append(f"({' and '.join(tmp)})")
-        return ' or '.join(res)
+            res.append(f"({' AND '.join(tmp)})")
+        return ' OR '.join(res)
 
     def apply_input_filter(self, ft):
         # first handle module specific filter
@@ -621,7 +621,7 @@ class DSC_Module:
         statement += f';print(len([({value_str}) {loop_str} if {ft}]))'
         try:
             ret = subprocess.check_output(f"python -c '''{str(statement)}'''", shell = True).decode('utf-8').strip()
-        except:
+        except Exception:
             raise FormatError(f"Invalid @FILTER: ``{raw_rule}``!")
         if int(ret) == 0:
             raise FormatError(f"No parameter combination satisfies @FILTER ``{' AND '.join(raw_rule)}``!")
@@ -645,7 +645,7 @@ class DSC_Module:
                         file_ext = DSC_FILE_OP.search(p1).group(1).strip('.')
                         if k in self.rf:
                             # This file is to be saved as output
-                            # FIXME: have to figure out what is the index of the output
+                            # FIXME: for multiple output case have to figure out what is the index of the output
                             self.plugin.add_input(k, '${_output:r}')
                             continue
                         else:
@@ -656,7 +656,8 @@ class DSC_Module:
                         if not p1.startswith('$'):
                             p1 = repr(p1)
                 if isinstance(p1, tuple):
-                    # FIXME format_tuple has to be defined for shell as well
+                    # Supports nested tuples in R and Python
+                    # But not in shell
                     p1 = self.plugin.format_tuple(p1)
                 values.append(p1)
             if len(values) == 0:
@@ -837,7 +838,7 @@ class DSC_Pipeline:
                             if id_dependent[1][2] == 'var':
                                 module.plugin.add_input(k, p1)
                             else:
-                                # FIXME: should figure out the index of previous output
+                                # FIXME: for multiple output should figure out the index of previous output
                                 file_dependencies.append((id_dependent[0], k))
                             # FIXME: should not delete, but rather transform it, when this
                             # can be properly bypassed on scripts
