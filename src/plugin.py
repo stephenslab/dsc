@@ -55,7 +55,8 @@ class BasePlug:
     def reset(self):
         self.container = []
         self.container_vars = dict()
-        self.input_alias = []
+        self.module_input = []
+        self.alias_map = dict()
         self.tempfile = []
 
     def add_input(self, lhs, rhs):
@@ -82,6 +83,12 @@ class BasePlug:
     def get_output(self, params):
         return ''
 
+    def get_var(self, varname):
+        if varname in self.alias_map:
+            return self.alias_map[varname]
+        else:
+            return varname
+
     @staticmethod
     def format_tuple(value):
         return ' '.join(flatten_list(format_tuple(value)))
@@ -91,7 +98,8 @@ class BasePlug:
             ('ID', self.identifier),
             ('container', self.container),
                 ('container_variables', self.container_vars),
-                ('input_alias', self.input_alias),
+                ('module_input', self.module_input),
+                ('variable_alias', self.alias_map),
                 ('temp_file', self.tempfile)])
     @staticmethod
     def add_try(content, n_output):
@@ -108,10 +116,10 @@ class Shell(BasePlug):
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
             self.tempfile.append(f'TMP_{self.identifier[4:]}=`mktemp -d`')
-            self.tempfile.append(f'{lhs}="""$TMP_{self.identifier[4:]}/${{_output[0]:bn}}.{lhs}"""')
+            self.tempfile.append(f'{self.get_var(lhs)}="""$TMP_{self.identifier[4:]}/${{_output[0]:bn}}.{lhs}"""')
         else:
             temp_var = [f'${{_output[0]:n}}.{lhs}.{item.strip()}' for item in rhs.split(',')]
-            self.tempfile.append('{}="""{}"""'.format(lhs, ' '.join(temp_var)))
+            self.tempfile.append('{}="""{}"""'.format(self.get_var(lhs), ' '.join(temp_var)))
 
     @staticmethod
     def add_try(content, n_output):
@@ -125,7 +133,7 @@ class RPlug(BasePlug):
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
             # single value input add
-            self.input_alias.append('{} <- {}'.format(lhs,
+            self.module_input.append('{} <- {}'.format(self.get_var(lhs),
                                                       rhs if (not rhs.startswith('$'))
                                                       or rhs in ('${_output:r}', '${_input:r}')
                                                       else '{}{}'.format(self.identifier, rhs)))
@@ -133,19 +141,19 @@ class RPlug(BasePlug):
             # multiple value input add
             for idx, x in enumerate(lhs):
                 if rhs.startswith("$") and not rhs.startswith("${"):
-                    self.input_alias.append('{} <- {}{}'.format(x, self.identifier, rhs))
+                    self.module_input.append('{} <- {}{}'.format(self.get_var(x), self.identifier, rhs))
                 elif not rhs.startswith("$"):
-                    self.input_alias.append('{} <- {}'.format(x, rhs))
+                    self.module_input.append('{} <- {}'.format(self.get_var(x), rhs))
                 else:
-                    self.input_alias.append('{} <- {}'.format(x, rhs.replace(':r', '[{}]:r'.format(idx))))
+                    self.module_input.append('{} <- {}'.format(self.get_var(x), rhs.replace(':r', '[{}]:r'.format(idx))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
             self.tempfile.append(f'TMP_{self.identifier[4:]} <- tempdir()')
-            self.tempfile.append(f'{lhs} <- paste0(TMP_{self.identifier[4:]}, "/", ${{_output[0]:bnr}}, ".{lhs}")')
+            self.tempfile.append(f'{self.get_var(lhs)} <- paste0(TMP_{self.identifier[4:]}, "/", ${{_output[0]:bnr}}, ".{lhs}")')
         else:
             temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
-            self.tempfile.append('{} <- c({})'.format(lhs, ', '.join(temp_var)))
+            self.tempfile.append('{} <- c({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
     def load_env(self, input_num, index, autoload, customized):
         loader = 'readRDS' if not customized else 'dscrutils:::read_dsc'
@@ -171,8 +179,8 @@ class RPlug(BasePlug):
             pass
         if flag:
             res += load_out
-        if self.input_alias:
-            res += '\n' + '\n'.join(sorted(self.input_alias))
+        if self.module_input:
+            res += '\n' + '\n'.join(sorted(self.module_input))
         if self.tempfile:
             res += '\n' + '\n'.join(sorted(self.tempfile))
         return res
@@ -182,23 +190,28 @@ class RPlug(BasePlug):
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
         res += '\n' + '\n'.join(self.container)
+        for k in keys:
+            res += '\n%s <- ${_%s}' % (self.get_var(k), k)
+        # FIXME: will eventually allow for parameter input for non-shell scripts (at SoS level)
         if cmd_args:
             for item in cmd_args:
                 if "=" in item:
                     lhs, rhs = item.split('=')
-                    if rhs.startswith('$'):
-                        if rhs[1:] not in params:
-                            raise ValueError('Cannot find ``{}`` in parameter list'.format(rhs))
+                    groups = DSC_GV.search(rhs)
+                    if groups:
+                        if groups.group(1) not in params:
+                            raise ValueError('Cannot find ``{}`` in parameter list'.format(groups.group(0)))
                         else:
-                            res += '\n%s <- ${_%s}' % (lhs, rhs[1:])
-                            params.remove(rhs[1:])
+                            res += '\n%s <- ${_%s}' % (lhs, groups.group(1))
                     else:
-                        res += '\n%s <- %s' % (lhs, rhs)
+                        # FIXME: what if both lhs and rhs has $()?
+                        groups = DSC_GV.search(lhs)
+                        if groups:
+                            res += '\n%s <- %s' % (self.get_var(groups.group(1)) if groups.group(1) in params else groups.group(1), rhs)
+                        else:
+                            res += '\n%s <- %s' % (self.get_var(lhs) if lhs in params else lhs, rhs)
                 else:
                     pass
-                    # FIXME: will eventually allow for parameter input for plugins (at SoS level)
-        for k in keys:
-            res += '\n%s <- ${_%s}' % (k, k)
         # timer
         res += f'\nTIC_{self.identifier[4:]} <- proc.time()'
         # seed
@@ -281,7 +294,7 @@ class PyPlug(BasePlug):
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
             # single value input add
-            self.input_alias.append('{} = {}'.format(lhs,
+            self.module_input.append('{} = {}'.format(self.get_var(lhs),
                                                      rhs if (not rhs.startswith('$'))
                                                      or rhs in ('${_output:r}', '${_input:r}')
                                                      else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
@@ -289,19 +302,19 @@ class PyPlug(BasePlug):
             # multiple value input add
             for idx, x in enumerate(lhs):
                 if rhs.startswith("$") and not rhs.startswith("${"):
-                    self.input_alias.append('{} = {}[{}]'.format(x, self.identifier, repr(rhs[1:])))
+                    self.module_input.append('{} = {}[{}]'.format(self.get_var(x), self.identifier, repr(rhs[1:])))
                 elif not rhs.startswith("$"):
-                    self.input_alias.append('{} = {}'.format(x, rhs))
+                    self.module_input.append('{} = {}'.format(self.get_var(x), rhs))
                 else:
-                    self.input_alias.append('{} = {}'.format(x, rhs.replace(':r', '[{}]:r'.format(idx))))
+                    self.module_input.append('{} = {}'.format(self.get_var(x), rhs.replace(':r', '[{}]:r'.format(idx))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
             self.tempfile.append(f'TMP_{self.identifier[4:]} = tempfile.gettempdir()')
-            self.tempfile.append(f'{lhs} = os.path.join(TMP_{self.identifier[4:]}, ${{_output[0]:bnr}} + ".{lhs}")')
+            self.tempfile.append(f'{self.get_var(lhs)} = os.path.join(TMP_{self.identifier[4:]}, ${{_output[0]:bnr}} + ".{lhs}")')
         else:
             temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
-            self.tempfile.append('{} = ({})'.format(lhs, ', '.join(temp_var)))
+            self.tempfile.append('{} = ({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
     def load_env(self, input_num, index, autoload, customized):
         res = 'import sys, os, tempfile, timeit, pickle'
@@ -331,8 +344,8 @@ class PyPlug(BasePlug):
             pass
         if flag:
             res += load_out
-        if self.input_alias:
-            res += '\n' + '\n'.join(sorted(self.input_alias))
+        if self.module_input:
+            res += '\n' + '\n'.join(sorted(self.module_input))
         if self.tempfile:
             res += '\n' + '\n'.join(sorted(self.tempfile))
         return res
@@ -342,21 +355,21 @@ class PyPlug(BasePlug):
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
         res += '\n' + '\n'.join(self.container)
+        for k in keys:
+            res += '\n%s = ${_%s}' % (self.get_var(k), k)
         # FIXME: will eventually allow for parameter input for plugins (at SoS level)
         if cmd_args:
             cmd_list = []
             for item in cmd_args:
-                if item.startswith('$'):
-                    if item[1:] not in params:
-                        raise ValueError(f'Cannot find ``{item}`` in parameter list')
+                groups = DSC_GV.search(item)
+                if groups:
+                    if groups.group(1) not in params:
+                        raise ValueError('Cannot find ``{}`` in parameter list'.format(groups.group(0)))
                     else:
-                        cmd_list.append('${_%s}' % item[1:])
-                        params.remove(item[1:])
+                        cmd_list.append('${_%s}' % groups.group(1))
                 else:
                     cmd_list.append(repr(item))
             res += '\nsys.argv.extend([{}])'.format(', '.join(cmd_list))
-        for k in keys:
-            res += '\n%s = ${_%s}' % (k, k)
         res += f'\nTIC_{self.identifier[4:]} = timeit.default_timer()'
         res += '\nimport random\nrandom.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\nexcept Exception:\n\tpass'
         return res
@@ -394,9 +407,9 @@ class PyPlug(BasePlug):
                 j = None
             if not (isinstance(params[k][0], str) and params[k][0].startswith('$')) \
                and not (isinstance(params[k][0], str) and DSC_FILE_OP.search(params[k][0])):
-                res.append('%s[%s] <- ${_%s}' % (name, repr(str(j if j is not None else k)), k))
+                res.append('%s[%s] = ${_%s}' % (name, repr(str(j if j is not None else k)), k))
             else:
-                res.append('%s[%s] <- %s' % (name, repr(str(j if j is not None else k)), k))
+                res.append('%s[%s] = %s' % (name, repr(str(j if j is not None else k)), k))
             if k not in self.container_vars:
                 self.container_vars[k] = [j]
             else:

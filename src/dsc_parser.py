@@ -340,7 +340,7 @@ class DSC_Module:
         self.name = name
         # params: alias, value
         self.p = OrderedDict()
-        # return variables (to plugin): alias, value
+        # return variables: alias, value
         self.rv = OrderedDict()
         # return files: alias, ext
         self.rf = OrderedDict()
@@ -557,21 +557,16 @@ class DSC_Module:
             if not valid:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @ALIAS specification ``{list(alias.keys())}``.")
         alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
-        # Swap parameter key with alias when applicable
+        # Handle alias
         for k1, k2 in list(alias.items()):
-            if k2 in self.p:
-                self.p[k1] = self.p.pop(k2)
-                del alias[k1]
-                for i in range(len(self.pg)):
-                    for ii in range(len(self.pg[i])):
-                        if k2 == self.pg[i][ii]:
-                            self.pg[i][ii] = k1
-        # Handle special alias
-        # Currently it is list() / dict()
-        for k1, k2 in list(alias.items()):
+            # Currently group alias is list() / dict()
             groups = DSC_PACK_OP.search(k2)
             if groups:
                 self.plugin.set_container(k1, groups.group(2), self.p)
+                del alias[k1]
+                continue
+            if k2 in self.p:
+                self.plugin.alias_map[k2] = k1
                 del alias[k1]
         if len(alias):
             raise FormatError(f'Invalid @ALIAS for module ``{self.name}``:\n``{dict2str(alias)}``')
