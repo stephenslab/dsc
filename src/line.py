@@ -385,9 +385,8 @@ class EntryFormatter:
             if isinstance(value, collections.Mapping):
                 self.__Transform(value, actions)
             else:
-                if key != '^FILTER':
-                    for a in actions:
-                        value = a(value)
+                for a in actions:
+                    value = a(value)
                 # empty list
                 if is_null(value):
                     del cfg[key]
