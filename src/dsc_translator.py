@@ -37,6 +37,7 @@ class DSC_Translator:
         # name map for steps, very important
         # to be used to expand IO_DB after load
         self.step_map = dict()
+        self.exe_check = []
         # Get workflow steps
         for workflow_id, workflow in enumerate(workflows):
             self.step_map[workflow_id + 1] = dict()
@@ -59,6 +60,7 @@ class DSC_Translator:
                         job_str.append(job_translator.dump())
                         job_translator.clean()
                         exe_signatures[step.name] = job_translator.exe_signature
+                        self.exe_check.extend(job_translator.exe_check)
                     processed_steps[(step.name, flow, depend)] = name
                     conf_translator = self.Step_Translator(step, self.db,
                                                            self.step_map[workflow_id + 1],
@@ -144,8 +146,9 @@ class DSC_Translator:
         elif arg == 2:
             res = self.job_str
         else:
+            chk = (', ' + ', '.join(uniq_list(self.exe_check))) if len(self.exe_check) else ''
             res = '\n'.join([f'[default]\nparameter: to_host = [".sos/.dsc/{self.db}.conf.remote.yml", {repr(os.path.join(self.output, self.db + ".conf.mpk"))}, {repr(arg[0])}] + {repr(arg[1])}',
-                             'depends: executable("rsync"), executable("scp"), executable("ssh")',
+                             f'depends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
                              f'task: to_host = to_host', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
             for item in self.lib_depends:
                 res += f"\n {item}"
@@ -212,6 +215,7 @@ class DSC_Translator:
             self.try_catch = try_catch
             self.customized_loader = customized_loader
             self.exe_signature = []
+            self.exe_check = []
             self.prepare = 0 if step_map is None else 1
             self.step = step
             self.current_depends = uniq_list([x[0] for x in step.depends]) if step.depends else []
@@ -365,7 +369,11 @@ class DSC_Translator:
                         self.exe_signature.append(cmd['signature'])
                     else:
                         # FIXME: need to process $(?) in args change into ${_?}
-                        executable(cmd['path'])
+                        if self.conf is None:
+                            # check if it is locally installed
+                            executable(cmd['path'])
+                        else:
+                            self.exe_check.append(f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {' '.join(cmd['args']) if cmd['args'] else ''}\n"
 
         def dump(self):
