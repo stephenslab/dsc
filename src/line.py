@@ -183,8 +183,18 @@ class ExpandActions(YLine):
 
     @staticmethod
     def __Python(code):
-        # FIXME improve logic here the same way as `dscrutils::dsceval`
-        return ','.join(list(eval(code)))
+        if not isinstance(code, str):
+            return str(code)
+        try:
+            res = eval(code)
+        except Exception as e:
+            raise FormatError(f"Evaluation of the following Python expression failed:\n``{code}``.\nError message: ``{e}``")
+        if isinstance(res, (bool, int, float, str)):
+            return str(res)
+        elif isinstance(res, (list, tuple)):
+            return ','.join(map(str, res))
+        else:
+            raise FormatError(f"Evaluation of Python expression ``code`` resulted in unsupported type ``{type(res).__name__}``.")
 
     @staticmethod
     def __Shell(self, code):
