@@ -114,7 +114,7 @@ class DSC_Translator:
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
-                            f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '' + \
+                            (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \
                             f"\ninput: '.sos/.dsc/{self.db}.prepare.py'\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
                             "\nrun: expand = True\n{} {{_input}}".format(sys.executable) + \
                             "\n[deploy_2 (Configuring output filenames)]\n" \

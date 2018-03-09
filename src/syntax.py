@@ -22,3 +22,4 @@ DSC_BLOCK_CONTENT = LazyRegex(r'^\s(.*?)', re.VERBOSE)
 DSC_GVS = LazyRegex(r'\$\((.*?)\)\[(.*?)\]', re.VERBOSE) # global variable with slicing
 DSC_GV = LazyRegex(r'\$\((.*?)\)', re.VERBOSE)
 DSC_RLIB = LazyRegex(r'((^|\W|\()library|(^|\W|\()require)\((.*?)\)', re.VERBOSE)
+DSC_RESERVED_MODULE = LazyRegex(r'^default$|_\d$|^pipeline_|_$', re.VERBOSE)

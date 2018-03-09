@@ -110,8 +110,7 @@ class DSC_Script:
             if type(e).__name__ == 'DuplicateKeyError':
                 raise FormatError(f"Duplicate keys found in\n``{self._dsc_name}.dsc``")
             else:
-                import sys
-                sys.stderr.write(str(e) + "\n")
+                env.logger.warning(e)
                 raise FormatError(f"``{self._dsc_name}.dsc`` has caused ``{type(e).__name__}`` (see above).\nIf this is related to string with quotes please remove them, or use the 'raw()' syntax.")
         for idx, k in enumerate(flatten_list(get_nested_keys(block))):
             self.validate_var_name(str(k), idx)
@@ -128,6 +127,8 @@ class DSC_Script:
                 if k in block[name] and block[name][k] != v:
                     raise FormatError(f"Block ``{name}`` has property conflicts for ``k``: ``{block[name][k]}`` or ``{v}``?")
                 block[name][k] = v
+        if name in self.content:
+            raise FormatError(f'Duplicate block name ``{name}``.')
         self.content.update(block)
 
     def set_global_vars(self, gvars):
@@ -223,6 +224,8 @@ class DSC_Script:
         res = dict()
         # expand module executables
         modules = block.split(',') if derived is None else derived[0].split(',')
+        if len([x for n, x in enumerate(modules) if x in modules[:n]]):
+            raise FormatError(f"Duplicate module in block ``{','.join(modules)}``.")
         if derived is not None and '^EXEC' not in self.content[block]:
             self.content[block]['^EXEC'] = [self.content[derived[1]]['meta']['exec']]
         if len(modules) != len(self.content[block]['^EXEC']) and len(self.content[block]['^EXEC']) > 1:
@@ -258,12 +261,12 @@ class DSC_Script:
                     tmp[module]['global'][key] = self.content[block][key]
         # parse input / output / meta
         # output has $ prefix, meta has . prefix, input has no prefix
+        del self.content[block]
         for module in tmp:
-            # FIXME: also default_1 etc
-            if module == 'default':
-                raise FormatError(f'Cannot use ``"default"`` for module name -- please consider another name.')
-            if module in res:
-                raise FormatError(f'Duplicate module definition {module}')
+            if module in self.content:
+                raise FormatError(f'Duplicate module definition ``{module}``')
+            if DSC_RESERVED_MODULE.search(module):
+                raise FormatError(f'Invalid module name ``"{module}"``: cannot end with ``_[0-9]`` or conflict with DSC reserved keys.')
             if derived is not None:
                 res[module] = copy.deepcopy(self.content[derived[1]])
             else:
@@ -276,7 +279,6 @@ class DSC_Script:
                         res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
                     else:
                         res[module]['input'][key] = tmp[module][item][key]
-        del self.content[block]
         self.content.update(res)
 
     @staticmethod
@@ -466,7 +468,7 @@ class DSC_Module:
             raise FormatError(f"Please specify output variables for module ``{self.name}``.")
         for key, value in return_var.items():
             if len(value) > 1:
-                raise FormatError(f"Output ``{key}`` cannot contain multiple elements ``{value}``")
+                raise FormatError(f"Module output ``{key}`` cannot contain multiple elements ``{value}``")
             value = value[0]
             in_input = try_get_value(self.p, value)
             if in_input:
@@ -638,6 +640,8 @@ class DSC_Module:
             values = []
             for p1 in p:
                 if isinstance(p1, str):
+                    if p1.startswith('$') and len(p) > 1:
+                        raise FormatError(f'Module input ``{k}`` cannot contain multiple elements ``{p}``')
                     if DSC_ASIS_OP.search(p1):
                         p1 = DSC_ASIS_OP.search(p1).group(1)
                     elif DSC_FILE_OP.search(p1):
