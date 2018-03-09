@@ -10,8 +10,8 @@ import re, collections
 from io import StringIO
 import tokenize
 from sos.utils import get_output
-from .utils import is_null, str2num, cartesian_list, pairwise_list, \
-    get_slice, FormatError, do_parentheses_match, find_parens, parens_aware_split
+from .utils import FormatError, is_null, str2num, cartesian_list, pairwise_list, \
+    get_slice, remove_parens, do_parentheses_match, find_parens, parens_aware_split
 
 class YLine:
     '''
@@ -61,7 +61,7 @@ class YLine:
             if (var.startswith('(') and var.endswith(')') and do_parentheses_match(var[1:-1])) or \
                (var.startswith('[') and var.endswith(']') and do_parentheses_match(var[1:-1], l = '[', r = ']')):
                 is_tuple = var.startswith('(')
-                var = [self.decodeVar(x.strip()) for x in self.split(re.sub(r'^\(|^\[|\)$|\]$', "", var))]
+                var = [self.decodeVar(x.strip()) for x in self.split(remove_parens(var))]
                 if is_tuple:
                     var = tuple(var)
         return var
