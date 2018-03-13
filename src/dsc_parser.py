@@ -89,7 +89,8 @@ class DSC_Script:
                 continue
             self.extract_modules(block, derived[block] if block in derived else None)
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
-        self.runtime.output = self.runtime.output[0] if self.runtime.output else self._dsc_name
+        if self.runtime.output is None:
+            self.runtime.output = self._dsc_name
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
                 raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
@@ -699,6 +700,8 @@ class DSC_Section:
             self.replicate = 1
         self.replicate = [x+1 for x in range(self.replicate)]
         self.output = output if output else try_get_value(self.content, 'output')
+        if isinstance(self.output, list):
+            self.output = self.output[0]
         self.OP = OperationParser()
         self.regularize_ensemble()
         # FIXME: check if sequence input is of the right type
