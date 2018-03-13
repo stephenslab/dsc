@@ -112,7 +112,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
             for kk in k_core:
                 new_name.append(f'{kk}_{base_ids[key][kk] + lookup[key][kk].index(k_core[kk]) + 1}')
             # 3. construct name map
-            names[k] = '_'.join(new_name) + f'.{names[k][-1]}'
+            names[k] = f'{k.split(":", 1)[0]}/' + '_'.join(new_name) + f'.{names[k][-1]}'
         return names
 
     def update_map(names):
