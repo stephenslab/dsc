@@ -1,14 +1,11 @@
-
-# DSC2
+# Dynamic Statistical Comparisons (DSC)
 
 [![PyPI version](https://badge.fury.io/py/dsc.svg)](https://badge.fury.io/py/dsc)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/46bb573ea0414f6095f1b7fd4bedbfd3)](https://www.codacy.com/app/gaow/dsc2?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stephenslab/dsc2&amp;utm_campaign=Badge_Grade)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/46bb573ea0414f6095f1b7fd4bedbfd3)](https://www.codacy.com/app/gaow/dsc?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stephenslab/dsc&amp;utm_campaign=Badge_Grade)
 
-DSC2 is successor of the [Dynamic Statistical Comparisons in R](https://github.com/stephens999/dscr).
+The [project wiki](https://stephenslab.github.io/dsc-wiki) is the main source of documentation for both developers and users of the DSC project. If you are new to the concept of DSC, it may worth reading this [blog post](http://stephens999.github.io/blog/2014/10/Data-Driven-Discovery.html) to understand the motivation behind this project.
 
-The [project wiki](https://stephenslab.github.io/dsc-wiki) is the main source of documentation for both developers and users of the DSC2 project. If you are new to the concept of DSC, it may worth reading this [blog post](http://stephens999.github.io/blog/2014/10/Data-Driven-Discovery.html) to understand the motivation behind this project.
-
-This work is supported by the the Gordon and Betty Moore Foundation via an Investigator Award to Matthew Stephens, [Grant GBMF4559](https://www.moore.org/grants/list/GBMF4559), as part of the [Data-Driven Discovery program](https://www.moore.org/programs/science/data-driven-discovery). If you have any questions or want to share some information with the developer / user community, please open a [github issue](https://github.com/stephenslab/dsc2/issues).
+This work is supported by the the Gordon and Betty Moore Foundation via an Investigator Award to Matthew Stephens, [Grant GBMF4559](https://www.moore.org/grants/list/GBMF4559), as part of the [Data-Driven Discovery program](https://www.moore.org/programs/science/data-driven-discovery). If you have any questions or want to share some information with the developer / user community, please open a [github issue](https://github.com/stephenslab/dsc/issues).
 
 ## Change Log
 
@@ -16,10 +13,10 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 Goal for 0.2.7
 
-* Enhance `R()` operator due to use of [dscrutils](https://github.com/stephenslab/dsc2/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
-* [#92](https://github.com/stephenslab/dsc2/issues/92) paired parameter input convention.
-* [#90](https://github.com/stephenslab/dsc2/issues/90) and [#93](https://github.com/stephenslab/dsc2/issues/93) use `Rmd` files as module executables.
-* [#94](https://github.com/stephenslab/dsc2/issues/94) added `DSC::replicate` and command option `--replicate`.
+* Enhance `R()` operator due to use of [dscrutils](https://github.com/stephenslab/dsc/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
+* [#92](https://github.com/stephenslab/dsc/issues/92) paired parameter input convention.
+* [#90](https://github.com/stephenslab/dsc/issues/90) and [#93](https://github.com/stephenslab/dsc/issues/93) use `Rmd` files as module executables.
+* [#94](https://github.com/stephenslab/dsc/issues/94) added `DSC::replicate` and command option `--replicate`.
 * Add, by default, a variable `DSC_DEBUG` to output files that saves various runtime info.
 * SoS bumped to 0.9.12.10 
   * Support R github package force install when version mismatches.
@@ -32,7 +29,7 @@ Goal for 0.2.7
 
 0.2.6.5
 
-* Bring back partial mixed languages support. **Piplines with mixed R and Python code can communicate data of limited types (recursively support array, matrix, dataframe), via `rpy2` as in versions prior to 0.2.5.x**. Support for additional languages will be implemented on need basis with `HDF5` format [#86](https://github.com/stephenslab/dsc2/issues/86).
+* Bring back partial mixed languages support. **Piplines with mixed R and Python code can communicate data of limited types (recursively support array, matrix, dataframe), via `rpy2` as in versions prior to 0.2.5.x**. Support for additional languages will be implemented on need basis with `HDF5` format [#86](https://github.com/stephenslab/dsc/issues/86).
 
 0.2.6.4
 
@@ -67,7 +64,7 @@ Goal for 0.2.7
 
 0.2.5.1
 
-* Change in `seed` behavior: since this release `seed` will no longer be a DSC2 keyword. Users are responsible to set seeds on their own.
+* Change in `seed` behavior: since this release `seed` will no longer be a DSC keyword. Users are responsible to set seeds on their own.
 * [minor] Allow for both lower case and capitalized operator names `File/file, List/list, Dict/dict`.
 
 0.2.5

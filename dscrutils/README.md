@@ -6,7 +6,7 @@
    from Github:
 
    ```R
-   devtools::install_github("stephenslab/dsc2",subdir = "dscrutils",
+   devtools::install_github("stephenslab/dsc",subdir = "dscrutils",
                             force = TRUE)
    ```
 
@@ -32,7 +32,7 @@ the following command in R with the working directory set to the
 repository root:
 
 ```R
-getwd() # Should be .../dsc2
+getwd() # Should be .../dsc
 devtools::install_local("dscrutils")
 ```
 
@@ -40,7 +40,7 @@ To test a local copy of the package, run the following command from
 the repository root:
 
 ```R
-getwd() # Should be .../dsc2
+getwd() # Should be .../dsc
 devtools::test("dscrutils")
 ```
 
