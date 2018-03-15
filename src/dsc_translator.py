@@ -341,7 +341,7 @@ class DSC_Translator:
                 # Create fake loop for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     if self.conf is None:
-                        self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = None\n'
+                        self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = False\n'
                     else:
                         self.action += f'{plugin.name}: expand = "${{ }}"\n'
                     # Add action
@@ -349,7 +349,8 @@ class DSC_Translator:
                         script_begin = plugin.load_env(len(self.step.depends),
                                                        idx,
                                                        True if len([x for x in self.step.depends if x[2] == 'var']) else False,
-                                                       self.customized_loader)
+                                                       self.customized_loader,
+                                                       self.conf is None)
                         script_begin += '\n' + plugin.get_input(self.params,
                                                                 self.step.libpath if self.step.libpath else [],
                                                                 cmd['args'])

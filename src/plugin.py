@@ -74,7 +74,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def load_env(self, input_num, index, autoload, customized):
+    def load_env(self, input_num, index, autoload, customized, clear_err):
         return ''
 
     def get_input(self, params, lib, cmd_args):
@@ -155,9 +155,9 @@ class RPlug(BasePlug):
             temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, input_num, index, autoload, customized):
+    def load_env(self, input_num, index, autoload, customized, clear_err = True):
         loader = 'readRDS' if not customized else 'dscrutils:::read_dsc'
-        res = ''
+        res = 'dscrutils:::empty_text("${_output:n}.stderr")' if clear_err else ''
         # load files
         load_multi_in = f'\n{self.identifier} <- list()' + \
           '\ninput.files <- c(${_input:r,})\nfor (i in 1:length(input.files)) ' + \
@@ -239,7 +239,7 @@ class RPlug(BasePlug):
                            [f"DSC_DEBUG=list(time=proc.time() - TIC_{self.identifier[4:]}, " \
                             "script=dscrutils:::load_script(), replicate=DSC_REPLICATE, session=toString(sessionInfo()))"]))
         if remove_stderr:
-            res += '\nif (file.exists("${_output:n}.stderr") && file.size("${_output:n}.stderr")==0) file.remove("${_output:n}.stderr")'
+            res += '\ndscrutils:::rm_if_empty("${_output:n}.stderr")'
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -318,8 +318,10 @@ class PyPlug(BasePlug):
             temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, input_num, index, autoload, customized):
+    def load_env(self, input_num, index, autoload, customized, clear_err = True):
         res = 'import sys, os, tempfile, timeit, pickle'
+        if clear_err:
+            res += '\nif os.path.isfile("${_output:n}.stderr"): open("${_output:n}.stderr", "w").close()'
         # load files
         if customized:
             res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'

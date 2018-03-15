@@ -33,11 +33,19 @@ thisFile <- function() {
     return(normalizePath(sub(needle, "", path)))
   } else {
     ## 'source'd via R console
-    return(normalizePath(sys.frames()[[1]]$ofile))
+    return(sys.frames()[[1]]$ofile)
   }
 }
 
 load_script <- function() {
   fileName <- thisFile()
-  return(readChar(fileName, file.info(fileName)$size))
+  return(ifelse(!is.null(fileName), readChar(fileName, file.info(fileName)$size), ""))
+}
+
+empty_text <- function(fn) {
+  if (file.exists(fn) && file.size(fn) != 0) close(file(fn, open="w"))
+}
+
+rm_if_empty <- function(fn) {
+  if (file.exists(fn) && file.size(fn) == 0) file.remove(fn)
 }

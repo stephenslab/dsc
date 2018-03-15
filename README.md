@@ -24,6 +24,7 @@ Goal for 0.2.7
 * SoS bumped to 0.9.12.10 
   * Support R github package force install when version mismatches.
   * Fix bug with `--touch` option.
+  * Improved error logging and reporting behavior
 * [minor] Revert from `ruamel.yaml` to `yaml` for better performance.
 * [minor] Various bug fixes.
 
