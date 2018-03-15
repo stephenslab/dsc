@@ -68,7 +68,7 @@ class BasePlug:
     def add_return(self, lhs, rhs):
         pass
 
-    def get_return(self, output_vars):
+    def get_return(self, output_vars, remove_stderr):
         return ''
 
     def set_container(self, name, value, params):
@@ -231,13 +231,15 @@ class RPlug(BasePlug):
                 res.append(f'{k} <- paste0(${{_output:nr}}, ".{params[k][0]}")')
         return '\n'.join(res)
 
-    def get_return(self, output_vars):
+    def get_return(self, output_vars, remove_stderr = True):
         if len(output_vars) == 0:
             return ''
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
                            [f"DSC_DEBUG=list(time=proc.time() - TIC_{self.identifier[4:]}, " \
                             "script=dscrutils:::load_script(), replicate=DSC_REPLICATE, session=toString(sessionInfo()))"]))
+        if remove_stderr:
+            res += '\nif (file.exists("${_output:n}.stderr") && file.size("${_output:n}.stderr")==0) file.remove("${_output:n}.stderr")'
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -387,7 +389,7 @@ class PyPlug(BasePlug):
                 res.append(f'{k} = ${{_output:nr}} + ".{params[k][0]}"')
         return '\n'.join(res)
 
-    def get_return(self, output_vars):
+    def get_return(self, output_vars, remove_stderr = True):
         if len(output_vars) == 0:
             return ''
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
@@ -395,6 +397,8 @@ class PyPlug(BasePlug):
                            [f"'DSC_DEBUG': dict([('time', timeit.default_timer() - TIC_{self.identifier[4:]}), " \
                             "('script', open(__file__).read()), ('replicate', DSC_REPLICATE)])"]))
         # res += '\nfrom os import _exit; _exit(0)'
+        if remove_stderr:
+            res += '\nif (os.path.isfile("${_output:n}.stderr") and os.path.getsize("${_output:n}.stderr")==0): os.remove("${_output:n}.stderr")'
         return res.strip()
 
     def set_container(self, name, value, params):
