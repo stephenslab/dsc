@@ -97,7 +97,7 @@ class DSC_Translator:
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output']"\
                                f", {y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], "\
-                               f"DSC_STEP_ID_ = {abs(hash(repr(exe_signatures[y]))) % (10**8)})")
+                               f"DSC_STEP_ID_ = {abs(int(xxh(repr(exe_signatures[y])).hexdigest(), 16)) % (10**8)})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))
                 self.job_pool[(y, workflow_id + 1)] = '\n'.join(tmp_str)
