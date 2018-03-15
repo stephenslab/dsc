@@ -42,10 +42,14 @@ load_script <- function() {
   return(ifelse(!is.null(fileName), readChar(fileName, file.info(fileName)$size), ""))
 }
 
-empty_text <- function(fn) {
-  if (file.exists(fn) && file.size(fn) != 0) close(file(fn, open="w"))
+empty_text <- function(fns) {
+  for (fn in fns) {
+    if (file.exists(fn) && file.size(fn) != 0) close(file(fn, open="w"))
+  }
 }
 
-rm_if_empty <- function(fn) {
-  if (file.exists(fn) && file.size(fn) == 0) file.remove(fn)
+rm_if_empty <- function(fns) {
+  for (fn in fns) {
+    if (file.exists(fn) && file.size(fn) == 0) file.remove(fn)
+  }
 }

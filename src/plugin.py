@@ -157,7 +157,7 @@ class RPlug(BasePlug):
 
     def load_env(self, input_num, index, autoload, customized, clear_err = True):
         loader = 'readRDS' if not customized else 'dscrutils:::read_dsc'
-        res = 'dscrutils:::empty_text("${_output:n}.stderr")' if clear_err else ''
+        res = 'dscrutils:::empty_text(c("${_output:n}.stdout", "${_output:n}.stderr"))' if clear_err else ''
         # load files
         load_multi_in = f'\n{self.identifier} <- list()' + \
           '\ninput.files <- c(${_input:r,})\nfor (i in 1:length(input.files)) ' + \
@@ -239,7 +239,7 @@ class RPlug(BasePlug):
                            [f"DSC_DEBUG=list(time=proc.time() - TIC_{self.identifier[4:]}, " \
                             "script=dscrutils:::load_script(), replicate=DSC_REPLICATE, session=toString(sessionInfo()))"]))
         if remove_stderr:
-            res += '\ndscrutils:::rm_if_empty("${_output:n}.stderr")'
+            res += '\ndscrutils:::rm_if_empty(c("${_output:n}.stdout", "${_output:n}.stderr"))'
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -321,7 +321,7 @@ class PyPlug(BasePlug):
     def load_env(self, input_num, index, autoload, customized, clear_err = True):
         res = 'import sys, os, tempfile, timeit, pickle'
         if clear_err:
-            res += '\nif os.path.isfile("${_output:n}.stderr"): open("${_output:n}.stderr", "w").close()'
+            res += '\nfor _ in ["${_output:n}.stderr", "${_output:n}.stdout"]:\n\tif os.path.isfile(_): open(_, "w").close()'
         # load files
         if customized:
             res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
@@ -400,7 +400,7 @@ class PyPlug(BasePlug):
                             "('script', open(__file__).read()), ('replicate', DSC_REPLICATE)])"]))
         # res += '\nfrom os import _exit; _exit(0)'
         if remove_stderr:
-            res += '\nif (os.path.isfile("${_output:n}.stderr") and os.path.getsize("${_output:n}.stderr")==0): os.remove("${_output:n}.stderr")'
+            res += '\nfor _ in ["${_output:n}.stderr", "${_output:n}.stdout"]:\n\tif (os.path.isfile(_) and os.path.getsize(_)==0): os.remove(_)'
         return res.strip()
 
     def set_container(self, name, value, params):

@@ -341,7 +341,7 @@ class DSC_Translator:
                 # Create fake loop for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     if self.conf is None:
-                        self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = False\n'
+                        self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"\n'
                     else:
                         self.action += f'{plugin.name}: expand = "${{ }}"\n'
                     # Add action
