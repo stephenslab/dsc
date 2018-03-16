@@ -346,7 +346,8 @@ class Query_Processor:
         else:
             return ''
 
-    def adjust_table(self, table, ordering = None):
+    @staticmethod
+    def adjust_table(table, ordering = None):
         if len(table) == 0:
             return None
         table = pd.DataFrame(table)
@@ -390,7 +391,7 @@ class Query_Processor:
                     break
             for k in to_merge:
                 if len(to_merge[k]) > 1:
-                    table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(lambda x: tuple(x), 1)
+                    table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(tuple, 1)
                     non_na_idx = table[f'{g}{k}'].apply(lambda x: tuple([idx for idx, y in enumerate(x) if y == y]))
                     if not all([len(x) == 1 for x in non_na_idx]):
                         raise DBError(f'Modules ``{to_merge[k]}`` cannot be grouped into ``{g}{k}`` due to collating entries.')

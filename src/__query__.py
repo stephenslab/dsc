@@ -53,7 +53,7 @@ def query(args):
                     with warnings.catch_warnings():
                         warnings.filterwarnings("ignore", category = RRuntimeWarning)
                         convert_dsc(fns, njobs)
-                except ImportError as e:
+                except Exception as e:
                     logger.warning(f"Failed to convert {len(fns)} files to RDS: {e}")
         # write output
         if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb') and not args.output.endswith('.csv'):

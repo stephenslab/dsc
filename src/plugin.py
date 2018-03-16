@@ -7,7 +7,7 @@ __license__ = "MIT"
 Process R and Python plugin codes to DSC
 '''
 import re
-from .syntax import DSC_FILE_OP, DSC_ASIS_OP
+from .syntax import DSC_FILE_OP, DSC_ASIS_OP, DSC_GV
 from .utils import flatten_list
 
 R_SOURCE = '''
