@@ -36,12 +36,12 @@ def query(args):
         for query in qp.get_queries():
             logger.debug(query)
         # convert output database
-        if args.rds is not None and args.add_path:
+        if args.rds != "omit" and args.add_path:
             import warnings, psutil
             from rpy2.rinterface import RRuntimeWarning
             from .dsc_io import convert_dsc
             fns = sum([list(qp.output_table[x]) for x in qp.output_table.columns if x.endswith('.output')], [])
-            if args.rds == 'omit':
+            if args.rds is None:
                 fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl') and not os.path.isfile(x + '.rds')]
             else:
                 fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl')]
