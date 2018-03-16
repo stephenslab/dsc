@@ -12,8 +12,8 @@ dscquery(dsc.outdir, targets, conditions = NULL, groups, add.path = FALSE,
 
 \item{targets}{Query targets specified as a character vector, or,
 character string separated by space, e.g.,
-\code{targets = "simulate.n estimate mse.score"} and
-\code{targets = c("simulate.n","estimate","mse.score")} are equivalent.
+\code{targets = "simulate.n analyze score.error"} and
+\code{targets = c("simulate.n","analyze","score.error")} are equivalent.
 Using \code{paste}, eg \code{paste("simulate",c("n","p","df"),sep=".")}
 one can specify multiple properties from the same module.
 These will be the names of the columns in the returned data frame.}
@@ -62,12 +62,12 @@ This function may not work in Windows.
 \examples{
 
 # Retrieve results from the "one_sample_location" DSC experiment in
-# which the true mean is 1. The MSE (mean squared error) values
-# should be extracted into the "mse.mse" column.
+# which the sample size is greater than 10. The error (mean squared error) values
+# should be extracted into the "score.error" column.
 dsc.dir <- system.file("datafiles","one_sample_location",
                        "dsc_result",package = "dscrutils")
-dat <- dscquery(dsc.dir,targets = "simulate.n estimate mse.mse",
-                condition = "simulate.true_mean = 1")
+dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
+                condition = "simulate.n > 10")
 print(dat)
 
 # Retrieve some results from the "ash" DSC experiment. In this
@@ -81,7 +81,7 @@ dat2 <-
                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),
                              sep=".")),
            condition = paste("simulate.g =",
-                             "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"))
+                             "'list(c(2/3,1/3),c(0,0),c(1,2))'"))
 
 # This is the same as the previous example, but extracts the
 # vector-valued beta estimates into the outputted data frame. As a
@@ -92,15 +92,15 @@ dat3 <-
            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
                        "shrink.beta_est","shrink.pi0_est"),
            condition = paste("simulate.g =",
-                             "'ashr::normalmix(c(2/3,1/3),c(0,0),c(1,2))'"),
+                             "'list(c(2/3,1/3),c(0,0),c(1,2))'"),
            max.extract.vector = 1000)
 
-# This query should generate an error because there is no output
-# called "score" in the "mse" module.
-
 \dontrun{
-dat4 <- dscquery(dsc.dir,targets = c("simulate.n","estimate","mse.score"),
-                 condition = "simulate.true_mean = 1")
+# This query should generate an error because there is no output
+# called "mse" in the "score" module.
+dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
+                 condition = "simulate.n > 10")
+
 }
 
 }

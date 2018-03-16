@@ -278,9 +278,9 @@ class Query_Processor:
         for target in self.targets:
             target = target.split('.')
             if target[0] in self.groups:
-                target = [f'{x}.{target[1]}' if len(target) > 1 else x for x in self.groups[target[0]]]
+                target = [f'{x}.{target[1] if len(target) > 1 else "__output__"}' for x in self.groups[target[0]]]
             else:
-                target = ['.'.join(target)]
+                target = [f'{target[0]}.{target[1] if len(target) > 1 else "__output__"}']
             expanded_targets.append(target)
         expanded_targets = cartesian_list(*expanded_targets)
         fields = split(fields[1:])
