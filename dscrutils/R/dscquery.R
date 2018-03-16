@@ -146,7 +146,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   on.exit(unlink(outdir,recursive = TRUE),add = TRUE)
   
   # Build the command based on the inputs.
-  cmd.str <- paste(exec,dsc.outdir,"-o",outfile,
+  cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
                    "--target",paste(targets,collapse = " "))
   if (length(conditions) > 1)
     conditions <- paste(conditions,collapse = " & ")

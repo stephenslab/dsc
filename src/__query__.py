@@ -32,25 +32,29 @@ def query(args):
         get_database_notebook(db, fnb, args.title, args.description, args.limit)
     else:
         logger.info("Running queries ...")
-        qp = Query_Processor(db, args.target, args.condition, args.groups, args.add_path)
+        qp = Query_Processor(db, args.target, args.condition, args.groups)
         for query in qp.get_queries():
             logger.debug(query)
         # convert output database
-        if args.rds != "omit" and args.add_path:
-            import warnings, psutil
-            from rpy2.rinterface import RRuntimeWarning
-            from .dsc_io import convert_dsc
-            fns = sum([list(qp.output_table[x]) for x in qp.output_table.columns if x.endswith('.output')], [])
+        if args.rds != "omit":
+            fns = sum([list(qp.output_table[x]) for x in qp.output_table.columns if x.endswith(':output') or x.endswith('.output.file')], [])
+            fns = [os.path.join(os.path.dirname(db), x) for x in fns]
             if args.rds is None:
                 fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl') and not os.path.isfile(x + '.rds')]
             else:
                 fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl')]
             if len(fns):
-                njobs = max(psutil.cpu_count() - 1, 1)
-                logger.info(f'Converting ``{len(fns)}`` files to RDS using ``{njobs}`` processes ...')
-                with warnings.catch_warnings():
-                    warnings.filterwarnings("ignore", category = RRuntimeWarning)
-                    convert_dsc(fns, njobs)
+                try:
+                    import warnings, psutil
+                    from rpy2.rinterface import RRuntimeWarning
+                    from .dsc_io import convert_dsc
+                    njobs = max(psutil.cpu_count() - 1, 1)
+                    logger.info(f'Converting ``{len(fns)}`` files to RDS using ``{njobs}`` processes ...')
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings("ignore", category = RRuntimeWarning)
+                        convert_dsc(fns, njobs)
+                except ImportError as e:
+                    logger.warning(f"Failed to convert {len(fns)} files to RDS: {e}")
         # write output
         if not args.output.endswith('.xlsx') and not args.output.endswith('.ipynb') and not args.output.endswith('.csv'):
             fnb = args.output + '.ipynb'
@@ -126,8 +130,6 @@ def main():
                    help = '''Query conditions.''')
     p.add_argument('-g', '--groups', metavar = "G:A,B", nargs = '+',
                    help = '''Definition of module groups.''')
-    p.add_argument('--add-path', dest = 'add_path', action='store_true',
-                   help='''Save the complete path of data files, not just the base name of file.''')
     p.add_argument('--language', metavar = 'str', choices = ['R', 'Python3'],
                    help='''Language kernel to switch to for follow up analysis in notebook generated.''')
     p.add_argument('--addon', metavar = 'str', nargs = '+',

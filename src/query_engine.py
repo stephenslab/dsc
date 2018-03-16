@@ -63,7 +63,7 @@ def find_partial_index(xx, ordering):
     raise ValueError(f'{xx} not in list {ordering}')
 
 class Query_Processor:
-    def __init__(self, db, targets, condition = None, groups = None, add_path = False):
+    def __init__(self, db, targets, condition = None, groups = None):
         self.db = db
         self.targets = uniq_list(' '.join(targets).split())
         self.raw_condition = condition
@@ -92,7 +92,7 @@ class Query_Processor:
         where_clauses = self.get_where_clause(select_fields)
         self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
         # 5. run queries
-        self.output_tables = self.run_queries(add_path)
+        self.output_tables = self.run_queries()
         # 6. merge table
         self.output_table = self.merge_tables()
         # finally show warnings
@@ -346,7 +346,7 @@ class Query_Processor:
         else:
             return ''
 
-    def adjust_table(self, table, ordering = None, add_path = False):
+    def adjust_table(self, table, ordering = None):
         if len(table) == 0:
             return None
         table = pd.DataFrame(table)
@@ -366,10 +366,6 @@ class Query_Processor:
                           sorted([x for x in table if "_DSC_VAR_" in x])].rename(columns = rename)
         else:
             table = table[sorted(table.columns, key = lambda x: find_partial_index(x, ordering))].rename(columns = rename)
-        if add_path:
-            for x in table:
-                if x.endswith(".output.file") or x.endswith(':output'):
-                    table[x] = table[x].apply(lambda i: os.path.join(os.path.dirname(self.db), i))
         return table
 
     def merge_tables(self):
@@ -428,12 +424,12 @@ class Query_Processor:
     def get_data(self):
         return self.data
 
-    def run_queries(self, add_path = False):
+    def run_queries(self):
         if len(self.queries) == 0:
             raise DBError("Incompatible targets ``{}``{}".\
                           format(', '.join(self.targets),
                                  f' under condition ``{" AND ".join(["(%s)" % x for x in self.raw_condition])}``' if self.raw_condition is not None else ''))
-        res = [('+'.join(pipeline), self.adjust_table(sqldf(query, self.data), pipeline, add_path)) \
+        res = [('+'.join(pipeline), self.adjust_table(sqldf(query, self.data), pipeline)) \
                      for pipeline, query in zip(self.pipelines, self.queries)]
         res = [x for x in res if x[1] is not None]
         if len(res) == 0:
