@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-import os, re, itertools, copy, subprocess, platform
+import os, re, itertools, copy, subprocess, platform, glob
 from collections import Mapping, OrderedDict
 from xxhash import xxh32 as xxh
 from sos.utils import env
@@ -17,7 +17,7 @@ from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, me
      parens_aware_split, remove_parens, remove_quotes, rmd_to_r
 from .addict import Dict as dotdict
 from .syntax import *
-from .line import OperationParser, EntryFormatter, parse_filter, parse_exe
+from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
 from .plugin import Plugin
 from .version import __version__
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
@@ -101,6 +101,8 @@ class DSC_Script:
             self.runtime.rlib.append(f'dscrutils@stephenslab/dsc/dscrutils ({__version__}+)')
         if 'R' in script_types and 'PY' in script_types:
             self.runtime.pymodule.extend(['rpy2', 'dsc'])
+        self.runtime.rlib.extend(flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
+        self.runtime.pymodule.extend(flatten_list([x.pymodule for x in self.modules.values() if x.rlib]))
         # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
@@ -355,6 +357,9 @@ class DSC_Module:
         self.workdir = None
         self.libpath = None
         self.path = None
+        self.libpath_tracked = None
+        self.rlib = None
+        self.pymodule = None
         # dependencies
         self.depends = []
         # check if it runs in shell
@@ -447,9 +452,19 @@ class DSC_Module:
         if self.exe['type'] == 'R':
             # bump libraries import to front of script
             self.exe['header'], self.exe['content'] = self.pop_rlib(self.exe['content'])
+            if self.rlib is not None:
+                self.exe['header'] = '\n'.join([f'library({x.split()[0].split("@")[0]})' for x in self.rlib]) + \
+                                     '\n' + self.exe['header']
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])
-        self.exe['signature'] = xxh((fileMD5(self.exe['path'], partial = False) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '')).hexdigest()
+        # scan for library signatures
+        if self.libpath_tracked is not None:
+            libs = [glob.glob(os.path.join(os.path.expanduser(x), f'*.{self.exe["type"]}')) for x in self.libpath_tracked]
+            libs.extend([glob.glob(os.path.join(os.path.expanduser(x), f'*.{self.exe["type"].lower()}')) for x in self.libpath_tracked])
+            lib_signature = ' '.join([fileMD5(x) for x in flatten_list(libs)])
+        else:
+            lib_signature = ''
+        self.exe['signature'] = xxh((fileMD5(self.exe['path'], partial = False) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '') + lib_signature).hexdigest()
         self.plugin = Plugin(self.exe['type'], self.exe['signature'])
 
     def set_output_ext(self):
@@ -515,7 +530,9 @@ class DSC_Module:
                     break
             if not valid:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @CONF specification ``{list(spec_option.keys())}``.")
-        spec_option = dict([(remove_quotes(x.strip()) for x in item.split('=', 1)) for item in spec_option]) if spec_option is not None else dict()
+        spec_option = dict([(x.strip() for x in item.split('=', 1)) for item in spec_option]) if spec_option is not None else dict()
+        spec_option = {k: [remove_quotes(x) for x in Str2List()(remove_parens(v))] for k, v in spec_option.items()}
+        # Override global options
         workdir1 = try_get_value(common_option, 'work_dir')
         workdir2 = try_get_value(spec_option, 'work_dir')
         libpath1 = try_get_value(common_option, 'lib_path')
@@ -525,6 +542,9 @@ class DSC_Module:
         self.workdir = workdir2 if workdir2 is not None else workdir1
         self.libpath = libpath2 if libpath2 is not None else libpath1
         self.path = path2 if path2 is not None else path1
+        self.rlib = try_get_value(spec_option, 'R_libs')
+        self.pymodule = try_get_value(spec_option, 'python_modules')
+        self.libpath_tracked = libpath2
 
     def set_input(self, params, alias):
         if params is not None:
