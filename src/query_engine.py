@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, pickle
 import pandas as pd
-from .utils import uniq_list, flatten_list, filter_sublist, FormatError, DBError, logger
+from .utils import uniq_list, flatten_list, filter_sublist, cartesian_list, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
 from .line import parse_filter
 
@@ -215,13 +215,17 @@ class Query_Processor:
         tables = uniq_list([x[0].lower() for x in self.target_tables] + [x[0].lower() for x in self.condition_tables])
         for pipeline in self.pipelines:
             pidx = [l[0] for l in enumerate(pipeline) if l[1] in tables]
+            if len(pidx) == 0:
+                continue
             # The first module contains replicate info and have to show up
             if pidx[0] != 0:
                 pidx = [0] + pidx
-            if len(pidx) and not pipeline[pidx[0]:pidx[-1]+1] in res:
+            if not pipeline[pidx[0]:pidx[-1]+1] in res:
                 res.append(pipeline[pidx[0]:pidx[-1]+1])
                 heads.append(pipeline[0])
-        return filter_sublist(res), heads
+        res_filtered = filter_sublist(res)
+        heads = [heads[i] for i in range(len(heads)) if res[i] in res_filtered]
+        return res_filtered, heads
 
     def get_from_clause(self):
         res = []
@@ -254,15 +258,45 @@ class Query_Processor:
         clause = "SELECT " + ', '.join(clause)
         return clause, fields
 
+    def match_targets(self, fields):
+        '''
+        make sure fields in query do match required targets
+        1. Expand query by groups
+        2. Check for equality
+        '''
+        def split(items):
+            tb = set()
+            fl = set()
+            for item in items:
+                item = item.split('.')
+                tb.add(item[0])
+                if len(item) > 1:
+                    fl.add(item[1])
+            return tb, fl
+        #
+        expanded_targets = []
+        for target in self.targets:
+            target = target.split('.')
+            if target[0] in self.groups:
+                target = [f'{x}.{target[1]}' if len(target) > 1 else x for x in self.groups[target[0]]]
+            else:
+                target = ['.'.join(target)]
+            expanded_targets.append(target)
+        expanded_targets = cartesian_list(*expanded_targets)
+        fields = split(fields[1:])
+        expanded_targets = [split(x) for x in expanded_targets]
+        for x in expanded_targets:
+            if fields[0].issubset(x[0]) and fields[1] == x[1]:
+                return True
+        return False
+
     def get_select_clause(self):
         select = []
         select_fields = []
         new_pipelines = []
         for pipeline, first_module in zip(self.pipelines, self.first_modules):
             clause, fields = self.get_one_select_clause(pipeline, first_module)
-            # Caution: should have the same length as input target
-            # plus 1 because of "DSC_REPLICATE"
-            if len(fields) != len(self.targets) + 1:
+            if not self.match_targets(fields):
                 continue
             new_pipelines.append(pipeline)
             select.append(clause)
@@ -381,7 +415,7 @@ class Query_Processor:
         table = table.rename(columns = {f'{g}:id': g for g in self.groups})
         # Finally deal with the `DSC_REPLICATE` column
         rep_cols = [x for x in table.columns if x.endswith('.DSC_REPLICATE')]
-        table.insert(0, 'DSC', table.loc[:, rep_cols].apply(lambda x: x.dropna().tolist(), 1))
+        table.insert(0, 'DSC', table.loc[:, rep_cols].apply(lambda x: tuple(x.dropna().tolist()), 1))
         if not all(table['DSC'].apply(len) == 1):
             raise DBError(f'(Possible bug) DSC replicates cannot be merged due to collating entries.')
         table['DSC'] = table['DSC'].apply(lambda x: int(x[0]))
