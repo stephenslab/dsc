@@ -1,1 +1,1 @@
-y = mean(x)
+y <- mean(x)

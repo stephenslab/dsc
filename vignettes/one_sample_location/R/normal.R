@@ -1,1 +1,1 @@
-x = rnorm(n,0,1)
+x <- rnorm(n,mean = mu,sd = 1)

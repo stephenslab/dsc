@@ -1,1 +1,1 @@
-x = 3+rt(n,df)
+x <- mu + rt(n,df = 2)
