@@ -3,19 +3,21 @@
 # This DSC file should match up exactly, or very closely, with the example
 # presented in the "Introduction to DSC" tutorial.
 
-# Simulate samples from the standard normal distribution.
-normal: R(x = rnorm(n,mean = 0,sd = 1))
+# Simulate samples from the normal distribution with mean 0 and
+# standard deviation 1.
+normal: R(x = rnorm(n,mean = mu,sd = 1))
+  mu: 0
   n: 100
   $data: x
-  $true_mean: 0
+  $true_mean: mu
 
 # Simulate samples from the non-centered t-distribution with 3 degrees
 # of freedom.
-t: R(x = 3 + rt(n,df))
+t: R(x = mu + rt(n,df = 2))
+  mu: 3
   n: 100
-  df: 2
   $data: x
-  $true_mean: 3
+  $true_mean: mu
 
 # Estimate the population mean by computing the mean value of the
 # provided sample.
@@ -31,12 +33,16 @@ median: R(y = median(x))
 
 # Compute the error in the estimated mean by taking the squared
 # difference between the true mean and the estimated mean.
-sq_err: R(e = ($(est_mean) - $(true_mean))^2)
+sq_err: R(e = (x - y)^2)
+  x: $est_mean
+  y: $true_mean
   $error: e
  
 # Compute the error in the estimated mean by taking the absolute
 # difference between the true mean and the estimated mean.
-abs_err: R(e = abs($(est_mean) - $(true_mean)))
+abs_err: R(e = abs(x - y))
+  x: $est_mean
+  y: $true_mean
   $error: e 
   
 DSC:
