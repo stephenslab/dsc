@@ -2,6 +2,23 @@
 
 # This DSC file should match up exactly, or very closely, with the example
 # presented in the "Introduction to DSC" tutorial.
+#
+# SUMMARY
+# =======
+#
+# PIPELINE VARIABLES
+# $data       simulated data (vector)
+# $true_mean  population mean used to simulate $data (scalar)
+# $est_mean   population mean estimate (scalar)
+# $error      error in the estimate (scalar)
+# 
+# MODULE TYPES
+# name     inputs                outputs
+# ----     ------                -------
+# simulate none                  $data, $true_mean
+# analyze  $data                 $est_mean
+# score    $est_mean, $true_mean $error
+#
 
 # Simulate samples from the normal distribution with mean 0 and
 # standard deviation 1.
