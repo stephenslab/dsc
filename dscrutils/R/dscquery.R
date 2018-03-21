@@ -137,14 +137,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   # ---------------------
   # Generate a temporary directory where the query output will be
   # stored.
-  outdir  <- file.path(tempdir(),"dsc")
-  outfile <- file.path(outdir,"query.csv")
-  dir.create(outdir,showWarnings = FALSE,recursive = TRUE)
-  
-  # If something fails in subsequent steps, delete the temporary
-  # directory.
-  on.exit(unlink(outdir,recursive = TRUE),add = TRUE)
-  
+  outfile <- tempfile(fileext = ".csv")
+    
   # Build the command based on the inputs.
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
                    "--target",paste(targets,collapse = " "))
