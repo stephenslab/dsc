@@ -51,12 +51,12 @@
 #' @examples
 #'
 #' # Retrieve results from the "one_sample_location" DSC experiment in
-#' # which the sample size is greater than 10. The error (mean squared error) values
-#' # should be extracted into the "score.error" column.
+#' # which the sample size is greater than 10. The error (mean squared
+#' # error) values should be extracted into the "score.error" column.
 #' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
 #' dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-#'                 condition = "simulate.n > 10")
+#'                 conditions = "simulate.n > 10")
 #' print(dat)
 #'
 #' # Retrieve some results from the "ash" DSC experiment. In this
@@ -69,8 +69,8 @@
 #'            targets = c(paste("simulate",c("nsamp","g"),sep="."),
 #'                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),
 #'                              sep=".")),
-#'            condition = paste("simulate.g =",
-#'                              "'list(c(2/3,1/3),c(0,0),c(1,2))'"))
+#'            conditions = paste("simulate.g =",
+#'                               "'list(c(2/3,1/3),c(0,0),c(1,2))'"))
 #'
 #' # This is the same as the previous example, but extracts the
 #' # vector-valued beta estimates into the outputted data frame. As a
@@ -80,22 +80,23 @@
 #'   dscquery(dsc.dir2,
 #'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
 #'                        "shrink.beta_est","shrink.pi0_est"),
-#'            condition = paste("simulate.g =",
-#'                              "'list(c(2/3,1/3),c(0,0),c(1,2))'"),
+#'            conditions = paste("simulate.g =",
+#'                               "'list(c(2/3,1/3),c(0,0),c(1,2))'"),
 #'            max.extract.vector = 1000)
 #' 
 #' \dontrun{
-
+#'
 #' # This query should generate an error because there is no output
 #' # called "mse" in the "score" module.
 #' dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
-#'                  condition = "simulate.n > 10")
+#'                  conditions = "simulate.n > 10")
 #' 
 #' }
 #' 
 #' @importFrom utils read.csv
 #' 
 #' @export
+#' 
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
                       add.path = FALSE, exec = "dsc-query",
                       max.extract.vector = 10, verbose = TRUE) {
@@ -143,9 +144,9 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
                    "--target",paste(targets,collapse = " "))
   if (length(conditions) > 1)
-    conditions <- paste(conditions,collapse = " & ")
+    conditions <- paste(conditions,collapse = " AND ")
   if (!is.null(conditions))
-    cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
+      cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
   if (verbose) {
     cat("Running shell command:\n")
     cat(cmd.str,"\n")

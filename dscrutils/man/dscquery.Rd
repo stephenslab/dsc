@@ -62,12 +62,12 @@ This function may not work in Windows.
 \examples{
 
 # Retrieve results from the "one_sample_location" DSC experiment in
-# which the sample size is greater than 10. The error (mean squared error) values
-# should be extracted into the "score.error" column.
+# which the sample size is greater than 10. The error (mean squared
+# error) values should be extracted into the "score.error" column.
 dsc.dir <- system.file("datafiles","one_sample_location",
                        "dsc_result",package = "dscrutils")
 dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-                condition = "simulate.n > 10")
+                conditions = "simulate.n > 10")
 print(dat)
 
 # Retrieve some results from the "ash" DSC experiment. In this
@@ -80,8 +80,8 @@ dat2 <-
            targets = c(paste("simulate",c("nsamp","g"),sep="."),
                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),
                              sep=".")),
-           condition = paste("simulate.g =",
-                             "'list(c(2/3,1/3),c(0,0),c(1,2))'"))
+           conditions = paste("simulate.g =",
+                              "'list(c(2/3,1/3),c(0,0),c(1,2))'"))
 
 # This is the same as the previous example, but extracts the
 # vector-valued beta estimates into the outputted data frame. As a
@@ -91,15 +91,16 @@ dat3 <-
   dscquery(dsc.dir2,
            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
                        "shrink.beta_est","shrink.pi0_est"),
-           condition = paste("simulate.g =",
-                             "'list(c(2/3,1/3),c(0,0),c(1,2))'"),
+           conditions = paste("simulate.g =",
+                              "'list(c(2/3,1/3),c(0,0),c(1,2))'"),
            max.extract.vector = 1000)
 
 \dontrun{
+
 # This query should generate an error because there is no output
 # called "mse" in the "score" module.
 dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
-                 condition = "simulate.n > 10")
+                 conditions = "simulate.n > 10")
 
 }
 
