@@ -60,6 +60,7 @@
 #' }
 #' 
 #' @export
+#' 
 dscreval <- function (x, envir = baseenv()) {
 
   # Check that the input is a character string.
