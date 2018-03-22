@@ -303,9 +303,7 @@ class Query_Processor:
             select_fields.append(fields)
         # not all pipelines are useful
         self.pipelines = new_pipelines
-        output_fields = filter_sublist(select_fields, ordered = False)
-        select = [x for i, x in enumerate(select) if select_fields[i] in output_fields]
-        return select, output_fields
+        return select, select_fields
 
     def get_where_clause(self, select_fields):
         return [self.get_one_where_clause(s, list(p)) for s, p in zip(select_fields, self.pipelines)]
