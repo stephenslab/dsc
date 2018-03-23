@@ -54,8 +54,10 @@ abs_err: R(e <- abs(x - y))
   $error: e 
 
 DSC:
-    define:
-      simulate: normal, t
-      analyze: mean, median
-      score: abs_err, sq_err
-    run: simulate * analyze * score
+  define:
+    simulate: normal, t
+    analyze: mean, median, winsor
+    score: abs_err, sq_err
+  run: simulate * analyze * score
+  output: first_investigation
+  
