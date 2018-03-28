@@ -10,11 +10,9 @@ normal: R(x <- rnorm(n = 100,mean = 0,sd = 1))
 
 # Simulate samples from the non-centered t-distribution with 3 degrees
 # of freedom.
-t: R(x <- mu + rt(n,df = 2))
-  mu: 3
-  n: 100
+t: R(x <- 3 + rt(n = 100,df = 2))
   $data: x
-  $true_mean: mu
+  $true_mean: 3
 
 # Estimate the population mean by computing the mean value of the
 # provided sample.
@@ -48,3 +46,4 @@ DSC:
     analyze: mean, median
     score: abs_err, sq_err
   run: simulate * analyze * score
+  output: first_investigation
