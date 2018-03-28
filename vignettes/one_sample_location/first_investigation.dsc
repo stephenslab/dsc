@@ -1,7 +1,6 @@
 #!/usr/bin/env dsc
 
-# This DSC file should match up exactly, or very closely, with the example
-# presented in the "Introduction to DSC" tutorial.
+# This DSC file is used for the "DSC Essentials, Part I" tutorial.
 #
 # SUMMARY
 # =======
@@ -54,14 +53,14 @@ sq_err: R(e <- (x - y)^2)
   x: $est_mean
   y: $true_mean
   $error: e
- 
+
 # Compute the error in the estimated mean by taking the absolute
 # difference between the true mean and the estimated mean.
 abs_err: R(e <- abs(x - y))
   x: $est_mean
   y: $true_mean
-  $error: e 
-  
+  $error: e
+
 DSC:
   define:
     simulate: normal, t
