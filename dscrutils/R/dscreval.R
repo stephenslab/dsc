@@ -8,7 +8,7 @@
 #' @param x Text of R expression to be parsed by code{parse}.
 #' 
 #' @param envir Environment in which the expression is evaluated. By
-#' default, the expression is evaluated in the base R environment.
+#' default, the expression is evaluated in the global R environment.
 #' 
 #' @details The expression must evaluate to a logical, character or
 #' non-complex numeric vector, or a list of vectors of this form. An
@@ -42,7 +42,7 @@
 #' # numeric values.
 #' x5 <- dscreval("list(x = LETTERS[1:5],y = 1:5)")
 #' cat(x5,"\n")
-#'
+#' 
 #' \dontrun{
 #' 
 #' # Produces an error because NULL is not allowed.
@@ -61,7 +61,7 @@
 #' 
 #' @export
 #' 
-dscreval <- function (x, envir = baseenv()) {
+dscreval <- function (x, envir = globalenv()) {
 
   # Check that the input is a character string.
   if (!is.character(x))

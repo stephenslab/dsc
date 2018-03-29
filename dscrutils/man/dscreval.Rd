@@ -5,13 +5,13 @@
 \title{Evaluate R expression and create tuple-like string
 encoding of value to be used in DSC.}
 \usage{
-dscreval(x, envir = baseenv())
+dscreval(x, envir = globalenv())
 }
 \arguments{
 \item{x}{Text of R expression to be parsed by code{parse}.}
 
 \item{envir}{Environment in which the expression is evaluated. By
-default, the expression is evaluated in the base R environment.}
+default, the expression is evaluated in the global R environment.}
 }
 \value{
 The return value is a string representation the atomic
