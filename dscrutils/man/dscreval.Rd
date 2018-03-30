@@ -3,31 +3,34 @@
 \name{dscreval}
 \alias{dscreval}
 \title{Evaluate R expression and create tuple-like string
-encoding of value to be used in DSC.}
+  encoding of value to be used in DSC.}
 \usage{
-dscreval(x, envir = globalenv())
+dscreval(x, envir = globalenv(), init.env = quote(set.seed(0)))
 }
 \arguments{
 \item{x}{Text of R expression to be parsed by code{parse}.}
 
 \item{envir}{Environment in which the expression is evaluated. By
 default, the expression is evaluated in the global R environment.}
+
+\item{init.env}{R expression evaluated to initialize the
+environment chosen by argument `envir`.}
 }
 \value{
 The return value is a string representation the atomic
-vector, or list of atomic vectors, in a format similar to nested
-tuples in Python.
+  vector, or list of atomic vectors, in a format similar to nested
+  tuples in Python.
 }
 \description{
 Parse and evaluate R expression, and check that the
-value is a "simple" atomic object, or a list of simple atomic
-objects, then return a string representation of the object.
+  value is a "simple" atomic object, or a list of simple atomic
+  objects, then return a string representation of the object.
 }
 \details{
 The expression must evaluate to a logical, character or
-non-complex numeric vector, or a list of vectors of this form. An
-error is produced if the expression evaluates to an object that is
-not of this form.
+  non-complex numeric vector, or a list of vectors of this form. An
+  error is produced if the expression evaluates to an object that is
+  not of this form.
 }
 \examples{
 
