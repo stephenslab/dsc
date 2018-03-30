@@ -1,23 +1,26 @@
 #' @title Evaluate R expression and create tuple-like string
-#' encoding of value to be used in DSC.
+#'   encoding of value to be used in DSC.
 #'
 #' @description Parse and evaluate R expression, and check that the
-#' value is a "simple" atomic object, or a list of simple atomic
-#' objects, then return a string representation of the object.
+#'   value is a "simple" atomic object, or a list of simple atomic
+#'   objects, then return a string representation of the object.
 #'
 #' @param x Text of R expression to be parsed by code{parse}.
-#' 
+#'
 #' @param envir Environment in which the expression is evaluated. By
-#' default, the expression is evaluated in the global R environment.
+#'   default, the expression is evaluated in the global R environment.
+#'
+#' @param init.env R expression evaluated to initialize the
+#'   environment chosen by argument `envir`.
 #' 
 #' @details The expression must evaluate to a logical, character or
-#' non-complex numeric vector, or a list of vectors of this form. An
-#' error is produced if the expression evaluates to an object that is
-#' not of this form.
+#'   non-complex numeric vector, or a list of vectors of this form. An
+#'   error is produced if the expression evaluates to an object that is
+#'   not of this form.
 #'
 #' @return The return value is a string representation the atomic
-#' vector, or list of atomic vectors, in a format similar to nested
-#' tuples in Python.
+#'   vector, or list of atomic vectors, in a format similar to nested
+#'   tuples in Python.
 #'
 #' @examples
 #'
@@ -61,13 +64,22 @@
 #' 
 #' @export
 #' 
-dscreval <- function (x, envir = globalenv()) {
+dscreval <- function (x, envir = globalenv(),
+                      init.env = quote(set.seed(0))) {
 
   # Check that the input is a character string.
   if (!is.character(x))
     stop("dscreval input argument \"x\" should be a character string.")
-    
-  # Evaluate the R expression in environment of package:base.
+
+  # Initialize the environment.
+  out <- tryCatch(eval(init.env,envir = envir),
+                  error = function (e) {
+                    msg <- conditionMessage(e)
+                    stop(paste("Initialization of environment failed\n",
+                               "The error thrown:\n",conditionMessage(e)))
+                  })
+  
+  # Evaluate the R expression in selected environment.
   out <- tryCatch(eval(parse(text = x),envir = envir),
                   error = function (e) {
                     msg <- conditionMessage(e)
