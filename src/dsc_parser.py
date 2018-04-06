@@ -114,7 +114,7 @@ class DSC_Script:
                 raise FormatError(f"Duplicate keys found in\n``{self._dsc_name}.dsc``")
             else:
                 env.logger.warning(e)
-                raise FormatError(f"``{self._dsc_name}.dsc`` has caused ``{type(e).__name__}`` (see above).\nIf this is related to string with quotes please remove them, or use the 'raw()' syntax.")
+                raise FormatError(f"``{self._dsc_name}.dsc`` has caused ``{type(e).__name__}`` (see above).\nPlease ensure there is no duplicated variable names in modules. If this is related to string with quotes please remove them, or use the 'raw()' syntax.")
         for idx, k in enumerate(flatten_list(get_nested_keys(block))):
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
@@ -282,6 +282,11 @@ class DSC_Script:
                         res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
                     else:
                         res[module]['input'][key] = tmp[module][item][key]
+        for module in res:
+            conflict = [x for x in res[module]['input']
+                        if x in res[module]['output'] and not (isinstance(res[module]['input'][x][0], str) and res[module]['input'][x][0].startswith('$'))]
+            if len(conflict):
+                raise FormatError(f"Name ``{conflict[0]}`` cannot be used for both parameter and output for module ``{module}``")
         self.content.update(res)
 
     @staticmethod
