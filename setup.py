@@ -10,6 +10,7 @@ if _py_ver.major == 2 or (_py_ver.major == 3 and (_py_ver.minor, _py_ver.micro) 
     raise SystemError('Python 3.6 or higher is required. Please upgrade your Python {}.{}.{}.'
          .format(_py_ver.major, _py_ver.minor, _py_ver.micro))
 from setuptools import setup
+from setuptools.command.bdist_egg import bdist_egg
 from version import __version__
 
 try:
@@ -17,6 +18,16 @@ try:
         long_description = f.read()
 except FileNotFoundError:
     long_description = ''
+
+class bdist_egg_disabled(bdist_egg):
+    """Disabled version of bdist_egg
+    Prevents setup.py install performing setuptools' default easy_install,
+    which it should never ever do.
+    """
+    def run(self):
+        sys.exit("Aborting implicit building of eggs. Use \"pip install -U --upgrade-strategy only-if-needed .\" to install from source.")
+
+cmdclass = {'bdist_egg':  bdist_egg if 'bdist_egg' in sys.argv else bdist_egg_disabled }
 
 setup(name        = "dsc",
       description = "Implementation of Dynamic Statistical Comparisons",
@@ -39,9 +50,10 @@ setup(name        = "dsc",
         'Programming Language :: Python :: 3 :: Only',
         ],
       packages    = ['dsc'],
+      cmdclass    = cmdclass,
       package_dir = {'dsc': 'src'},
       install_requires = ['numpy', 'pandas>=0.22.0', 'sympy', 'numexpr',
-                          'sos>=0.9.12.10', 'sos-pbs>=0.9.10.4',
+                          'sos>=0.9.13.2', 'sos-pbs>=0.9.10.4',
                           'h5py', 'pyarrow>=0.5.0', 'sqlalchemy',
                           'msgpack-python']
       )

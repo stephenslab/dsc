@@ -31,11 +31,11 @@ sh:	workdir = '.', expand = True
 	tar zxf dsc-{version}.tar.gz && \
 	cd dsc-{version} && \
 	python{py} setup.py sdist bdist_wheel upload && \
-	python{py} setup.py install --single-version-externally-managed --root /
+	pip{py} install -U --upgrade-strategy only-if-needed .
 
 [upgrade]
 sh: expand = True
-	pip{py} install --upgrade --upgrade-strategy only-if-needed --no-cache-dir dsc
+	pip{py} install -U --upgrade-strategy only-if-needed dsc
 
 [release]
 sos_run('readme+patch+pip')
@@ -43,5 +43,5 @@ sos_run('readme+patch+pip')
 [default]
 depends: "README.rst"
 sh: expand = True
-	python{py} setup.py install --single-version-externally-managed --root / && \
+	pip{py} install -U --upgrade-strategy only-if-needed . && \
 	rm -rf *.egg-info build dist

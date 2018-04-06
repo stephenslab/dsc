@@ -18,9 +18,10 @@ Goal for 0.2.7
 * [#94](https://github.com/stephenslab/dsc/issues/94) and [#95](https://github.com/stephenslab/dsc/issues/95) added `DSC::replicate` and command option `--replicate`.
 * Enhance `R()` operator due to use of [dscrutils](https://github.com/stephenslab/dsc/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
 * Add, by default, a variable `DSC_DEBUG` to output files that saves various runtime info.
-* SoS bumped to 0.9.12.10 
+* SoS bumped to 0.9.13.3
   * Support R github package force install when version mismatches.
   * Fix bug with `--touch` option.
+  * Force use `pip` to install local development version.
   * [#97](https://github.com/stephenslab/dsc/issues/97) Improved error logging and reporting behavior.
 * [minor] Revert from `ruamel.yaml` to `yaml` for better performance.
 * [minor] [#96](https://github.com/stephenslab/dsc/issues/96), [#98](https://github.com/stephenslab/dsc/issues/98)
