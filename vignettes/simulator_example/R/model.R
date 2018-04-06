@@ -1,4 +1,3 @@
-set.seed(seed)
 simulate = function(n, prob, mu=2) {
   contam <- runif(n) < prob
   x <- rep(NA, n)
