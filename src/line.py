@@ -144,14 +144,26 @@ class ExpandActions(YLine):
     def __call__(self, value):
         if isinstance(value, str):
             for name in list(self.method.keys()):
-                pos = [m.end() - 1 for m in re.finditer(f'{name}\(', value)]
+                pos = [m.end() - 1 for m in re.finditer(f'{name}(\(|\{{)', value)]
                 p_end = 0
                 replacements = []
                 for p in pos:
+                    if value[p] == '(':
+                        shatter = False
+                        start = '('
+                        end = ')'
+                    else:
+                        shatter = True
+                        start = '{'
+                        end = '}'
                     if p < p_end:
                         raise FormatError(f"Invalid parentheses pattern in ``{value}``")
-                    p_end = find_parens(value[p:])[0]
-                    replacements.append((f'{name}{value[p:p_end+p+1]}', self.method[name](value[p:p_end+p+1])))
+                    try:
+                        p_end = find_parens(value[p:], start = start, end = end)[0]
+                    except IndexError:
+                        raise FormatError(f"Invalid parentheses pattern in ``{value}``")
+                    replacements.append((f'{name}{value[p:p_end+p+1]}',
+                                         ('(' if shatter == False else '') + self.method[name](value[p:p_end+p+1]) + (')' if shatter == False else '')))
                 for r in replacements:
                     value = value.replace(r[0], r[1], 1)
         return value
@@ -160,8 +172,8 @@ class ExpandActions(YLine):
         raw_value = value
         value = [self.decodeVar(x) for x in self.split(value)]
         if len(value) == 1:
-            raise FormatError('Cannot produce combinations for single value ``{}``! '\
-                             ' Please use "," to separate input string to multiple values.'.format(raw_value))
+            raise FormatError(f'Cannot produce combinations for single value ``{raw_value}``! '\
+                             ' Please use "," to separate input string to multiple values.')
         value = [x if isinstance(x, (list, tuple)) else [x] for x in value]
         return cartesian_list(*value)
 

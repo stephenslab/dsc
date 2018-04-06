@@ -790,16 +790,16 @@ def do_parentheses_match(input_string, l = '(', r = ')'):
         index += 1
     return balanced and len(s) == 0
 
-def find_parens(s, lenient = True):
+def find_parens(s, lenient = True, start = '(', end = ')'):
     '''
     return all pairs of matching parentheses
     '''
     toret = {}
     pstack = []
     for i, c in enumerate(s):
-        if c == '(':
+        if c == start:
             pstack.append(i)
-        elif c == ')':
+        elif c == end:
             if len(pstack) == 0:
                 if not lenient:
                     raise IndexError("No matching closing parens at: " + str(i))
