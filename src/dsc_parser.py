@@ -8,7 +8,7 @@ This file defines methods to load and preprocess DSC scripts
 '''
 
 import os, re, itertools, copy, subprocess, platform, glob
-from collections import Mapping, OrderedDict
+from collections import Mapping, OrderedDict, Counter
 from xxhash import xxh32 as xxh
 from sos.utils import env
 from sos.targets import fileMD5
@@ -582,7 +582,14 @@ class DSC_Module:
                     break
             if not valid:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @ALIAS specification ``{list(alias.keys())}``.")
-        alias = dict([(x.strip() for x in item.split('=', 1)) for item in alias]) if alias is not None else dict()
+        if alias is not None:
+            alias = [tuple(x.strip() for x in item.split('=', 1)) for item in alias]
+            dups = [item for item, count in Counter([x[0] for x in alias]).items() if count > 1]
+            if len(dups):
+                raise FormatError(f"Duplicated @ALIAS ``{dups}`` in module ``{self.name}``")
+            alias = dict(alias)
+        else:
+            alias = dict()
         # Handle alias
         for k1, k2 in list(alias.items()):
             # Currently group alias is list() / dict()
