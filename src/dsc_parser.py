@@ -740,9 +740,22 @@ class DSC_Section:
         # and are valid modules
         self.groups = dict()
         self.concats = dict()
-        self.sequence = self.content['run']
+        self.sequence = []
+        if isinstance(self.content['run'], Mapping):
+            self.named_sequence = self.content['run']
+        else:
+            self.named_sequence = None
         if sequence is not None:
-            self.sequence = sequence
+            for item in sequence:
+                if isinstance(self.content['run'], Mapping) and item in self.content['run']:
+                    self.sequence.extend(self.content['run'][item])
+                else:
+                    self.sequence.append(item)
+        else:
+            if isinstance(self.content['run'], Mapping):
+                self.sequence = flatten_list(self.content['run'].values())
+            else:
+                self.sequence = self.content['run']
         self.sequence = [(x,) if isinstance(x, str) else x
                          for x in sum([self.OP(self.expand_ensemble(y)) for y in self.sequence], [])]
         self.sequence = filter_sublist(self.sequence)
