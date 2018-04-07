@@ -378,7 +378,7 @@ class DSC_Script:
         env.logger.info("``PIPELINES``")
         print(res['pipelines'] + '\n')
         env.logger.info("``PIPELINES EXPANDED``")
-        print('\n'.join([f'{i+1}. ' + ' -> '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
+        print('\n'.join([f'{i+1}: ' + ' -> '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
 
 class DSC_Module:
     def __init__(self, name, content, global_options = None, script_path = None, lite = False):
