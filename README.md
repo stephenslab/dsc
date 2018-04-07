@@ -11,14 +11,21 @@ This work is supported by the the Gordon and Betty Moore Foundation via an Inves
 
 ### Upcoming release
 
-Goal for 0.2.7
+Goal for 0.2.8
+
+* Support for multiple outputs per module, for shell executables
+* Improve command options for scripts
+
+### 0.2.x
+
+0.2.7
 
 * [#92](https://github.com/stephenslab/dsc/issues/92) paired parameter input convention.
 * [#90](https://github.com/stephenslab/dsc/issues/90) and [#93](https://github.com/stephenslab/dsc/issues/93) use `Rmd` files as module executables.
 * [#94](https://github.com/stephenslab/dsc/issues/94) and [#95](https://github.com/stephenslab/dsc/issues/95) added `DSC::replicate` and command option `--replicate`.
 * Enhance `R()` operator due to use of [dscrutils](https://github.com/stephenslab/dsc/tree/master/dscrutils) package. This packages is now required to parse DSC file when `R` modules are involved.
 * Add, by default, a variable `DSC_DEBUG` to output files that saves various runtime info.
-* SoS bumped to 0.9.13.3
+* SoS bumped to 0.9.13.2
   * Support R github package force install when version mismatches.
   * Fix bug with `--touch` option.
   * Force use `pip` to install local development version.
@@ -26,8 +33,6 @@ Goal for 0.2.7
 * [minor] Revert from `ruamel.yaml` to `yaml` for better performance.
 * [minor] [#96](https://github.com/stephenslab/dsc/issues/96), [#98](https://github.com/stephenslab/dsc/issues/98)
 * [minor] Various bug fixes.
-
-### 0.2.x
 
 0.2.6.5
 
