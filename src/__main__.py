@@ -294,6 +294,14 @@ def main():
     ot.add_argument("-h", "--help", action="help", help="show this help message and exit")
     ot.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.set_defaults(func = execute)
+    if len(sys.argv) > 2 and '-h' in sys.argv:
+        try:
+            from .dsc_parser import DSC_Script
+            script = DSC_Script(sys.argv[1])
+            script.print_help()
+            sys.exit(0)
+        except Exception as e:
+            sys.exit('No help information is available for script {}: {}'.format(sys.argv[1], e))
     try:
         args = p.parse_args()
     except Exception as e:

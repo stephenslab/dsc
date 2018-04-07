@@ -342,6 +342,44 @@ class DSC_Script:
               + f'\n# DSC\n```yaml\n{self.runtime}```'
         return res
 
+    def print_help(self):
+        res = {'modules': OrderedDict([(' ', []), ('parameters', []),
+                                       ('input', []), ('output', [])])}
+        for k in self.content:
+            if k == 'DSC':
+                pipelines = self.content[k]['run']
+                if isinstance(pipelines, Mapping):
+                    pipelines = [(k, v) for k, v in pipelines.items()]
+                else:
+                    pipelines = [(k+1, v) for k, v in enumerate(pipelines)]
+                res['pipelines'] = '\n'.join([f'{x[0]}: ' + x[1].replace('*', ' -> ') for x in pipelines])
+                if 'define' in self.content[k]:
+                    res['groups'] = self.content[k]['define']
+            else:
+                res['modules'][' '].append(k)
+                res['modules']['output'].append(', '.join(self.content[k]['output'].keys()))
+                inputs = []
+                params = []
+                for x in self.content[k]['input']:
+                    if isinstance(self.content[k]['input'][x][0], str) and self.content[k]['input'][x][0].startswith('$'):
+                        inputs.append(x)
+                    else:
+                        params.append(x)
+                res['modules']['input'].append(', '.join(inputs))
+                res['modules']['parameters'].append(', '.join(params))
+        from .prettytable import PrettyTable
+        t = PrettyTable()
+        for key, value in res['modules'].items():
+            t.add_column(key, value)
+        print('')
+        env.logger.info("``MODULES``")
+        print(t)
+        print('')
+        env.logger.info("``PIPELINES``")
+        print(res['pipelines'] + '\n')
+        env.logger.info("``PIPELINES EXPANDED``")
+        print('\n'.join([f'{i+1}. ' + ' -> '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
+
 class DSC_Module:
     def __init__(self, name, content, global_options = None, script_path = None, lite = False):
         # module name
