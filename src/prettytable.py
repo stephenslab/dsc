@@ -35,29 +35,16 @@ import copy
 import csv
 import random
 import re
-import sys
 import textwrap
-import itertools
 import unicodedata
 
-py3k = sys.version_info[0] >= 3
-if py3k:
-    unicode = str
-    basestring = str
-    itermap = map
-    iterzip = zip
-    uni_chr = chr
-    from html.parser import HTMLParser
-else: 
-    itermap = itertools.imap
-    iterzip = itertools.izip
-    uni_chr = unichr
-    from HTMLParser import HTMLParser
-
-if py3k and sys.version_info[1] >= 2:
-    from html import escape
-else:
-    from cgi import escape
+unicode = str
+basestring = str
+itermap = map
+iterzip = zip
+uni_chr = chr
+from html.parser import HTMLParser
+from html import escape
 
 # hrule styles
 FRAME = 0
@@ -78,7 +65,7 @@ def _get_size(text):
     height = len(lines)
     width = max([_str_block_width(line) for line in lines])
     return (width, height)
-        
+
 class PrettyTable(object):
 
     def __init__(self, field_names=None, **kwargs):
@@ -232,12 +219,8 @@ class PrettyTable(object):
             raise Exception("Index %s is invalid, must be an integer or slice" % str(index))
         return new
 
-    if py3k:
-        def __str__(self):
-           return self.__unicode__()
-    else:
-        def __str__(self):
-           return self.__unicode__().encode(self.encoding)
+    def __str__(self):
+        return self.__unicode__()
 
     def __unicode__(self):
         return self.get_string()
@@ -1344,10 +1327,7 @@ def from_csv(fp, field_names = None, delimiter = None, **kwargs):
     if field_names:
         table.field_names = field_names
     else:
-        if py3k:
-            table.field_names = [x.strip() for x in next(reader)]
-        else:
-            table.field_names = [x.strip() for x in reader.next()]
+        table.field_names = [x.strip() for x in next(reader)]
 
     for row in reader:
         table.add_row([x.strip() for x in row])
