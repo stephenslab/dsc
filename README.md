@@ -20,7 +20,7 @@ Goal for 0.2.8
 
 0.2.7.1
 
-* Dump individual data object with `dsc-query *.pkl` and `dsc-query *.rds`
+* Dump individual data object with scripts using `dsc-query *.pkl` and `dsc-query *.rds`
 
 0.2.7
 

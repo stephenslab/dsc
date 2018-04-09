@@ -348,10 +348,10 @@ class DSC_Script:
             if k == 'DSC':
                 pipelines = self.content[k]['run']
                 if isinstance(pipelines, Mapping):
-                    pipelines = [(k, v) for k, v in pipelines.items()]
+                    pipelines = [(k, ', '.join(v)) for k, v in pipelines.items()]
                 else:
                     pipelines = [(k+1, v) for k, v in enumerate(pipelines)]
-                res['pipelines'] = '\n'.join([f'{x[0]}: ' + x[1].replace('*', ' -> ') for x in pipelines])
+                res['pipelines'] = '\n'.join([f'{x[0]}: ' + re.sub(r"\s\*\s", '->', x[1]) for x in pipelines])
                 if 'define' in self.content[k]:
                     res['groups'] = self.content[k]['define']
             else:
