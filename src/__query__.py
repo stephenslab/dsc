@@ -14,14 +14,14 @@ def preview(fn, output):
         from .dsc_io import load_dsc
         data = load_dsc(fn)
         debug = data.pop('DSC_DEBUG')
+        debug = [f'# replicate: {int(debug["replicate"])}', f'# time: {debug["time"]}', ''.join(debug['script'])]
         import pprint
         with open(output, 'w') as f:
             pp = pprint.PrettyPrinter(indent=2, stream=f)
             pp.pprint(data)
-        with open(output + '.debug', 'w') as f:
-            pp = pprint.PrettyPrinter(indent=2, stream=f)
-            pp.pprint(debug)
-        logger.info(f'Data dumped to text files ``{output}`` and ``{output}.debug``.')
+        with open(output + '.script', 'w') as f:
+            f.write('\n'.join(debug))
+        logger.info(f'Data dumped to text files ``{output}`` and ``{output}.script``.')
 
 def query(args):
     logger.info("Loading database ...")
@@ -129,7 +129,7 @@ def main():
     p = MyArgParser(description = "An internal command to extract meta-table for DSC results (requires 'sos-essentials' package to use notebook output).", formatter_class = ArgumentDefaultsHelpFormatter)
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('--version', action = 'version', version = __version__)
-    p.add_argument('dsc_output', metavar = "DSC output folder", help = 'Path to DSC output.')
+    p.add_argument('dsc_output', metavar = "DSC output folder or a single output file", help = '')
     p.add_argument('-o', metavar = "str", dest = 'output', required = True,
                    help = '''Output notebook / data file name.
                    In query applications if file name ends with ".csv", ".ipynb" or ".xlsx" then only data file will be saved
