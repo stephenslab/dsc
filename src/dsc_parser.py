@@ -343,7 +343,7 @@ class DSC_Script:
 
     def print_help(self):
         res = {'modules': OrderedDict([(' ', []), ('parameters', []),
-                                       ('input', []), ('output', [])])}
+                                       ('input', []), ('output', []), ('type', [])])}
         for k in self.content:
             if k == 'DSC':
                 pipelines = self.content[k]['run']
@@ -366,6 +366,7 @@ class DSC_Script:
                         params.append(x)
                 res['modules']['input'].append(', '.join(inputs))
                 res['modules']['parameters'].append(', '.join(params))
+                res['modules']['type'].append(self.modules[k].exe['type'])
         from .prettytable import PrettyTable
         t = PrettyTable()
         for key, value in res['modules'].items():
