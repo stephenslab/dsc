@@ -418,10 +418,10 @@ class DSC_Module:
         self.set_output_ext()
 
     @staticmethod
-    def pop_rlib(vec):
+    def pop_lib(vec, lib):
         res = []
         for item in vec:
-            if DSC_RLIB.search(item):
+            if lib.search(item):
                 res.append(vec.pop(vec.index(item)).strip())
         return '\n'.join(res), vec
 
@@ -493,9 +493,14 @@ class DSC_Module:
             raise FormatError(f"Contents in ``{self.exe['file']}`` is empty!")
         if self.exe['type'] == 'R':
             # bump libraries import to front of script
-            self.exe['header'], self.exe['content'] = self.pop_rlib(self.exe['content'])
+            self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_RLIB)
             if self.rlib is not None:
                 self.exe['header'] = '\n'.join([f'library({x.split()[0].split("@")[0]})' for x in self.rlib]) + \
+                                     '\n' + self.exe['header']
+        elif self.exe['type'] == 'PY':
+            self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_PYMODULE)
+            if self.pymodule is not None:
+                self.exe['header'] = '\n'.join([f'import {x.split()[0]})' for x in self.pymodule]) + \
                                      '\n' + self.exe['header']
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])
