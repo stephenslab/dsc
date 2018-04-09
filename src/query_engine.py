@@ -391,11 +391,11 @@ class Query_Processor:
                 if len(to_merge[k]) > 1:
                     table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(tuple, 1)
                     non_na_idx = table[f'{g}{k}'].apply(lambda x: tuple([idx for idx, y in enumerate(x) if y == y]))
-                    if not all([len(x) == 1 for x in non_na_idx]):
+                    if not all([len(x) <= 1 for x in non_na_idx]):
                         raise DBError(f'Modules ``{to_merge[k]}`` cannot be grouped into ``{g}{k}`` due to collating entries.')
-                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0])
+                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0] if len([y for y in x if y == y]) else "NaN")
                     if not g in table:
-                        table[g] = [self.groups[g][kk[0]] for kk in non_na_idx]
+                        table[g] = [self.groups[g][kk[0]] if len(kk) else "NaN" for kk in non_na_idx]
                 else:
                     # simply rename it
                     table[f'{g}{k}'] = table[to_merge[k][0]]
