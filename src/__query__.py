@@ -9,6 +9,20 @@ import pandas as pd
 from .utils import logger
 from .version import __version__
 
+def preview(fn, output):
+    if fn.endswith('.pkl') or fn.endswith('.rds'):
+        from .dsc_io import load_dsc
+        data = load_dsc(fn)
+        debug = data.pop('DSC_DEBUG')
+        import pprint
+        with open(output, 'w') as f:
+            pp = pprint.PrettyPrinter(indent=2, stream=f)
+            pp.pprint(data)
+        with open(output + '.debug', 'w') as f:
+            pp = pprint.PrettyPrinter(indent=2, stream=f)
+            pp.pprint(debug)
+        logger.info(f'Data dumped to text files ``{output}`` and ``{output}.debug``.')
+
 def query(args):
     logger.info("Loading database ...")
     from sos.__main__ import AnswerMachine
@@ -18,7 +32,11 @@ def query(args):
     from .utils import uniq_list
     am = AnswerMachine(always_yes = args.force)
     if os.path.isfile(args.dsc_output):
-        args.dsc_output = os.path.dirname(args.dsc_output)
+        if args.dsc_output.endswith('.db'):
+            args.dsc_output = os.path.dirname(args.dsc_output)
+        else:
+            preview(args.dsc_output, args.output)
+            sys.exit(0)
     args.output = args.output.strip('.')
     db = os.path.join(args.dsc_output, os.path.basename(args.dsc_output) + '.db')
     if args.target is None:

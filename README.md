@@ -18,6 +18,10 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.1
+
+* Dump individual data object with `dsc-query *.pkl` and `dsc-query *.rds`
+
 0.2.7
 
 * [#92](https://github.com/stephenslab/dsc/issues/92) paired parameter input convention.
