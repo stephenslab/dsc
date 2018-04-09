@@ -22,7 +22,6 @@ from .plugin import Plugin
 from .version import __version__
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
-
 class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
@@ -685,15 +684,16 @@ class DSC_Module:
         raw_rule = ft
         ft = self.make_filter_statement(ft)
         # Verify it
-        statement = ';'.join([f"{k} = {str(self.p[k])}" for k in self.p])
+        statement = '\n'.join([f"{k} = {str(self.p[k])}" for k in self.p])
         value_str = ','.join([f'_{x}' for x in self.p.keys()])
         loop_str = ' '.join([f"for _{x} in {x}" for x in self.p])
-        statement += f';print(len([({value_str}) {loop_str} if {ft}]))'
+        statement += f'\nret = len([({value_str}) {loop_str} if {ft}])'
+        exec_env = dict()
         try:
-            ret = subprocess.check_output(f"python -c '''{str(statement)}'''", shell = True).decode('utf-8').strip()
+            exec(statement, exec_env)
         except Exception:
             raise FormatError(f"Invalid @FILTER: ``{raw_rule}``!")
-        if int(ret) == 0:
+        if exec_env['ret'] == 0:
             raise FormatError(f"No parameter combination satisfies @FILTER ``{' AND '.join(raw_rule)}``!")
         return ft
 
