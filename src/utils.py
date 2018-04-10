@@ -639,7 +639,9 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
                            if len(command['header'] + command['content']) else command['path']
                     if command['args']:
                         text = f"# Command arguments: {command['args']}\n" + text
-                    scripts.append((('+'.join(command['file'])  + f' ({command["signature"]})').strip(),
+                    cmd_files = '+'.join(command['file'])
+                    scripts.append((((cmd_files or languages[command['type'].lower()].capitalize()) + \
+                                     f' ({command["signature"]})').strip(),
                                     command['type'].lower(), text))
             if len(scripts) == 0:
                 continue
