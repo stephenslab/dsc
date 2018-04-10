@@ -68,6 +68,8 @@ def load_rds(filename, types = None):
               res = np.matrix(data)
          elif isinstance(data, RV.Array):
               res = np.array(data)
+         elif isinstance(data, RI.NULL):
+              res = None
          else:
               # I do not know what to do for this
               # But I do not want to throw an error either
@@ -101,6 +103,7 @@ def save_rds(data, filename):
     import pandas as pd
     import numpy as np
     import rpy2.robjects as RO
+    import rpy2.rinterface as RI
     from rpy2.robjects import numpy2ri
     numpy2ri.activate()
     from rpy2.robjects import pandas2ri
@@ -126,6 +129,8 @@ def save_rds(data, filename):
         elif isinstance(value, pd.DataFrame):
             # FIXME: does not always work well for pd.DataFrame
             RO.r.assign(name, value)
+        elif value is None:
+            RO.r.assign(name, RI.NULL)
         else:
             raise ValueError("Saving ``{}`` to RDS file is not supported!".format(str(type(value))))
     #
