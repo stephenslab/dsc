@@ -279,11 +279,11 @@ class DSC_Script:
             for item in ['global', 'local']:
                 for key in tmp[module][item]:
                     if key.startswith('$'):
-                        res[module]['output'][key[1:]] = tmp[module][item][key]
+                        res[module]['output'][key[1:]] = uniq_list(tmp[module][item][key])
                     elif key.startswith('^'):
                         res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
                     else:
-                        res[module]['input'][key] = tmp[module][item][key]
+                        res[module]['input'][key] = uniq_list(tmp[module][item][key])
         for module in res:
             conflict = [x for x in res[module]['input']
                         if x in res[module]['output'] and not (isinstance(res[module]['input'][x][0], str) and res[module]['input'][x][0].startswith('$'))]

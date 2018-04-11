@@ -20,7 +20,9 @@ Goal for 0.2.8
 
 0.2.7.1
 
-* Dump individual data object with scripts using `dsc-query *.pkl` and `dsc-query *.rds`
+* Dump individual data object with scripts using `dsc-query *.pkl` and `dsc-query *.rds`.
+* [minor] Improve behavior for length 1 vector in R's list with `R()` operator.
+* [minor] Various bug fixes.
 
 0.2.7
 
