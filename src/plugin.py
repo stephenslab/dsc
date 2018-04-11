@@ -236,7 +236,7 @@ class RPlug(BasePlug):
             return ''
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
-                           [f"DSC_DEBUG=list(time=proc.time() - TIC_{self.identifier[4:]}, " \
+                           [f"DSC_DEBUG=list(time=as.list(proc.time() - TIC_{self.identifier[4:]}), " \
                             "script=dscrutils:::load_script(), replicate=DSC_REPLICATE, session=toString(sessionInfo()))"]))
         if remove_stderr:
             res += '\ndscrutils:::rm_if_empty(c("${_output:n}.stdout", "${_output:n}.stderr"))'
