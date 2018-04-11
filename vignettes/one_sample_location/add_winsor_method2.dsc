@@ -11,7 +11,7 @@ normal: normal.R
   $data: x
   $true_mean: mu
 
-# Simulate samples from the non-centered t-distribution with 3 degrees
+# Simulate samples from the non-centered t-distribution with 2 degrees
 # of freedom.
 t: t.R
   mu: 3

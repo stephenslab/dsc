@@ -27,7 +27,7 @@ normal: R(x <- rnorm(n,mean = mu,sd = 1))
   $data: x
   $true_mean: mu
 
-# Simulate samples from the non-centered t-distribution with 3 degrees
+# Simulate samples from the non-centered t-distribution with 2 degrees
 # of freedom.
 t: R(x <- mu + rt(n,df = 2))
   mu: 3
