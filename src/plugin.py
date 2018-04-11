@@ -281,7 +281,7 @@ class RPlug(BasePlug):
         # this is the best I'd like to do for R ...
         has_tuple = any([isinstance(v, tuple) or re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
         if has_tuple:
-            return 'list({})'.format(','.join([f'c({",".join([qs(vv) for vv in v])})' if isinstance(v, tuple) else qs(v) for v in value]))
+            return 'list({})'.format(','.join([(f'c({",".join([qs(vv) for vv in v])})' if len(v) > 1 else qs(v[0])) if isinstance(v, tuple) else qs(v) for v in value]))
         else:
             return 'c({})'.format(','.join(value))
 

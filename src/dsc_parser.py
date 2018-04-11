@@ -78,7 +78,10 @@ class DSC_Script:
                         res.append(line)
         self.update(res, exe)
         if 'DSC' not in self.content:
-            raise FormatError('Cannot find required section ``DSC``!')
+            if sequence is None:
+                raise FormatError('Cannot find section ``DSC`` or command input ``--target`` that defines benchmarks to execute!')
+            else:
+                self.content['DSC'] = dict()
         global_vars = try_get_value(self.content, ('DSC', 'global'))
         self.set_global_vars(global_vars)
         self.content = EntryFormatter()(self.content, global_vars)
@@ -710,6 +713,7 @@ class DSC_Module:
         * strip off raw() operator
         * Handle file() parameter based on context
         '''
+        raw_keys = []
         for k, p in list(self.p.items()):
             values = []
             for p1 in p:
@@ -717,6 +721,7 @@ class DSC_Module:
                     if p1.startswith('$') and len(p) > 1:
                         raise FormatError(f'Module input ``{k}`` cannot contain multiple elements ``{p}``')
                     if DSC_ASIS_OP.search(p1):
+                        raw_keys.append(k)
                         p1 = DSC_ASIS_OP.search(p1).group(1)
                     elif DSC_FILE_OP.search(p1):
                         # p1 is file extension
@@ -742,6 +747,9 @@ class DSC_Module:
                 del self.p[k]
             else:
                 self.p[k] = values
+        for k in raw_keys:
+            if k in self.p:
+                self.p[k] = self.p.pop(k)
 
     def chop_input(self):
         '''
@@ -770,7 +778,10 @@ class DSC_Section:
     def __init__(self, content, sequence, output, replicate):
         self.content = content
         if 'run' not in self.content:
-            raise FormatError('Missing required ``DSC::run``.')
+            if sequence is None:
+                raise FormatError('Missing required ``DSC::run``.')
+            else:
+                self.content['run'] = []
         self.replicate = replicate if replicate else try_get_value(self.content, 'replicate')
         if not isinstance(self.replicate, int) or self.replicate <= 0:
             self.replicate = 1

@@ -9,19 +9,23 @@ import pandas as pd
 from .utils import logger
 from .version import __version__
 
-def preview(fn, output):
+def preview(fn, output, am):
     if fn.endswith('.pkl') or fn.endswith('.rds'):
         from .dsc_io import load_dsc
         data = load_dsc(fn)
         debug = data.pop('DSC_DEBUG')
         debug = [f'# replicate: {int(debug["replicate"])}', f'# time: {debug["time"]}', ''.join(debug['script'])]
+        if os.path.isfile(output + '.out') and not am.get(f"Overwrite existing file \"{output}.out\"?"):
+            sys.exit("Aborted!")
+        if os.path.isfile(output + '.script') and not am.get(f"Overwrite existing file \"{output}.script\"?"):
+            sys.exit("Aborted!")
         import pprint
-        with open(output, 'w') as f:
+        with open(output + '.out', 'w') as f:
             pp = pprint.PrettyPrinter(indent=2, stream=f)
             pp.pprint(data)
         with open(output + '.script', 'w') as f:
             f.write('\n'.join(debug))
-        logger.info(f'Data dumped to text files ``{output}`` and ``{output}.script``.')
+        logger.info(f'Data dumped to text files ``{output}.out`` and ``{output}.script``.')
 
 def query(args):
     logger.info("Loading database ...")
@@ -35,7 +39,7 @@ def query(args):
         if args.dsc_output.endswith('.db'):
             args.dsc_output = os.path.dirname(args.dsc_output)
         else:
-            preview(args.dsc_output, args.output)
+            preview(args.dsc_output, args.output, am)
             sys.exit(0)
     args.output = args.output.strip('.')
     db = os.path.join(args.dsc_output, os.path.basename(args.dsc_output) + '.db')
