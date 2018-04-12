@@ -11,7 +11,7 @@ import os, re, itertools, copy, subprocess, platform, glob
 from collections import Mapping, OrderedDict, Counter
 from xxhash import xxh32 as xxh
 from sos.utils import env
-from sos.targets import fileMD5
+from sos.targets import fileMD5, executable
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
      parens_aware_split, remove_parens, remove_quotes, rmd_to_r
@@ -438,7 +438,7 @@ class DSC_Module:
         '''
         # FIXME: need to handle $() in args ensure they exist in parameter list
         self.exe = {'path': [], 'content': [], 'args': None, 'signature': None,
-                    'file': [], 'type': 'unknown', 'header': ''}
+                    'file': [], 'type': 'unknown', 'header': '', 'interpreter': None}
         for etype, item in zip(exe[0], exe[1:]):
             if etype != 'unknown':
                 # is inline code
@@ -496,6 +496,9 @@ class DSC_Module:
         if len(self.exe['path']) == 0 and len(self.exe['content']) == 0:
             raise FormatError(f"Contents in ``{self.exe['file']}`` is empty!")
         if self.exe['type'] == 'R':
+            # check if Rscript command exists
+            if self.exe['interpreter'] is None and not executable('Rscript').target_exists():
+                raise ValueError(f'Executable ``Rscript`` is required to run module ``"{self.name}"`` yet is not available from command-line console.')
             # bump libraries import to front of script
             self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_RLIB)
             if self.rlib is not None:
