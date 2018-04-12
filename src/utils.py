@@ -24,7 +24,7 @@ def no_duplicates_constructor(loader, node, deep=False):
     return collections.OrderedDict(loader.construct_pairs(node, deep))
 
 def dict_representer(dumper, data):
-    return dumper.represent_dict(data.iteritems())
+    return dumper.represent_dict(data.items())
 
 yaml.add_representer(collections.OrderedDict, dict_representer)
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
