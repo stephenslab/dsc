@@ -275,13 +275,11 @@ class RPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        def qs(s):
-            return str(s) if not isinstance(s, str) else repr(s)
         value = format_tuple(value)
         # this is the best I'd like to do for R ...
         has_tuple = any([isinstance(v, tuple) or re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
         if has_tuple:
-            return 'list({})'.format(','.join([(f'c({",".join([qs(vv) for vv in v])})' if len(v) > 1 else qs(v[0])) if isinstance(v, tuple) else qs(v) for v in value]))
+            return 'list({})'.format(','.join([(f'c({",".join([vv for vv in v])})' if len(v) > 1 else v[0]) if isinstance(v, tuple) else v for v in value]))
         else:
             return 'c({})'.format(','.join(value))
 
@@ -433,9 +431,8 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        def qs(s):
-            return str(s) if not isinstance(s, str) else repr(s)
-        return '({})'.format(','.join([f'({",".join([qs(vv) for vv in v])})' if isinstance(v, tuple) else qs(v) for v in value]))
+        value = format_tuple(value)
+        return '({})'.format(','.join([f'({",".join([vv for vv in v])})' if isinstance(v, tuple) else v for v in value]))
 
     def __str__(self):
         return 'python'
