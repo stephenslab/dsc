@@ -9,6 +9,7 @@ This file defines methods to translate DSC into pipeline in SoS language
 import os, sys, msgpack, glob, inspect
 from xxhash import xxh32 as xxh
 from collections import OrderedDict
+from sos.targets import path
 from .utils import flatten_list, uniq_list, dict2str, convert_null, n2a, \
     install_r_lib, install_py_module
 __all__ = ['DSC_Translator']
@@ -116,7 +117,9 @@ class DSC_Translator:
                             "\n[deploy_1 (Hashing output files)]" + \
                             (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \
                             f"\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
-                            "\npython:\n{}\n".format('\n'.join(['\t' + x for x in conf_str_py.split('\n')])) + \
+                            "\nscript: interpreter={}\n{}\n".\
+                            format(f'{path(sys.executable):er}',
+                                   '\n'.join(['\t' + x for x in conf_str_py.split('\n')])) + \
                             "\n[deploy_2 (Configuring output filenames)]\n" \
                             f"parameter: vanilla = {rerun}\n"\
                             f"input: '.sos/.dsc/{self.db}.io.mpk'\n"\
@@ -147,7 +150,8 @@ class DSC_Translator:
             chk = (', ' + ', '.join(uniq_list(self.exe_check))) if len(self.exe_check) else ''
             res = '\n'.join([f'[default]\nparameter: to_host = [".sos/.dsc/{self.db}.conf.remote.yml", {repr(os.path.join(self.output, self.db + ".conf.mpk"))}, {repr(arg[0])}] + {repr(arg[1])}',
                              f'depends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
-                             f'task: to_host = to_host', 'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
+                             f'task: to_host = to_host',
+                             f'script: interpreter={path(sys.executable):er}\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
             for item in self.lib_depends:
                 res += f"\n {item}"
         output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
