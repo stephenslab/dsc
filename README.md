@@ -20,6 +20,7 @@ Goal for 0.2.8
 
 0.2.7.2
 
+* Improved Windows path support.
 * [minor] Fix a bug with nested tuple with `raw()`.
 
 0.2.7.1
