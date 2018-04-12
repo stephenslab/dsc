@@ -7,7 +7,7 @@ __license__ = "MIT"
 Process R and Python plugin codes to DSC
 '''
 import re
-from .syntax import DSC_FILE_OP, DSC_ASIS_OP, DSC_GV
+from .syntax import DSC_FILE_OP, DSC_GV
 from .utils import flatten_list
 
 R_SOURCE = '''
@@ -28,23 +28,6 @@ source <- function(x) {
  }
 }
 '''
-def format_tuple(value):
-    res = []
-    # has_raw = False
-    for v in value:
-        if isinstance(v, str):
-            groups = DSC_ASIS_OP.search(v)
-            if groups:
-                res.append(groups.group(1))
-                # has_raw = True
-            else:
-                res.append(repr(v))
-        elif isinstance(v, tuple):
-            res.append(v)
-        else:
-            res.append(str(v))
-    return res
-
 
 class BasePlug:
     def __init__(self, name = 'run', identifier = ''):
@@ -91,7 +74,7 @@ class BasePlug:
 
     @staticmethod
     def format_tuple(value):
-        return ' '.join(flatten_list(format_tuple(value)))
+        return ' '.join(flatten_list(value))
 
     def dump(self):
         return dict([
@@ -275,7 +258,6 @@ class RPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        value = format_tuple(value)
         # this is the best I'd like to do for R ...
         has_tuple = any([isinstance(v, tuple) or re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
         if has_tuple:
@@ -431,7 +413,6 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        value = format_tuple(value)
         return '({})'.format(','.join([f'({",".join([vv for vv in v])})' if isinstance(v, tuple) else v for v in value]))
 
     def __str__(self):

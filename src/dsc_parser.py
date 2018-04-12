@@ -741,7 +741,7 @@ class DSC_Module:
                 if isinstance(p1, tuple):
                     # Supports nested tuples in R and Python
                     # But not in shell
-                    p1 = self.plugin.format_tuple(p1)
+                    p1 = self.plugin.format_tuple(self.format_tuple(p1))
                 values.append(p1)
             if len(values) == 0:
                 del self.p[k]
@@ -757,6 +757,24 @@ class DSC_Module:
         '''
         for k in self.p:
             self.p[k] = [self.p[k][0]]
+
+    @staticmethod
+    def format_tuple(value):
+        res = []
+        # has_raw = False
+        for v in value:
+            if isinstance(v, tuple):
+                res.append(format_tuple(v))
+            elif isinstance(v, str):
+                groups = DSC_ASIS_OP.search(v)
+                if groups:
+                    res.append(groups.group(1))
+                    # has_raw = True
+                else:
+                    res.append(repr(v))
+            else:
+                res.append(str(v))
+        return res
 
     def __str__(self):
         return dict2str(self.dump())

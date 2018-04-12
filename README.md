@@ -18,6 +18,10 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.2
+
+* [minor] Fix a bug with nested tuple with `raw()`.
+
 0.2.7.1
 
 * Dump individual data object with scripts using `dsc-query *.pkl` and `dsc-query *.rds`.
