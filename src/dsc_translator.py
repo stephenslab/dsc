@@ -117,7 +117,7 @@ class DSC_Translator:
                             "\n[deploy_1 (Hashing output files)]" + \
                             (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \
                             f"\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
-                            "\nscript: interpreter={}\n{}\n".\
+                            "\nscript: interpreter={}, suffix='.py'\n{}\n".\
                             format(f'{path(sys.executable):er}',
                                    '\n'.join(['\t' + x for x in conf_str_py.split('\n')])) + \
                             "\n[deploy_2 (Configuring output filenames)]\n" \
@@ -151,7 +151,7 @@ class DSC_Translator:
             res = '\n'.join([f'[default]\nparameter: to_host = [".sos/.dsc/{self.db}.conf.remote.yml", {repr(os.path.join(self.output, self.db + ".conf.mpk"))}, {repr(arg[0])}] + {repr(arg[1])}',
                              f'depends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
                              f'task: to_host = to_host',
-                             f'script: interpreter={path(sys.executable):er}\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
+                             f'script: interpreter={path(sys.executable):er}, suffix=".py"\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
             for item in self.lib_depends:
                 res += f"\n {item}"
         output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
