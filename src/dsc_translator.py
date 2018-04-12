@@ -102,21 +102,21 @@ class DSC_Translator:
                     self.last_steps.append((y, workflow_id + 1))
                 self.job_pool[(y, workflow_id + 1)] = '\n'.join(tmp_str)
                 ii += 1
-        self.conf_str_py = 'import msgpack\nfrom collections import OrderedDict\n' + \
-                           'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' + \
-                           '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
-                           '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
-                           f'\n\t__io_db__ = OrderedDict()\n\t' + \
-                           '\n\t'.join('\n'.join(conf_str).split('\n')) + \
-                           f"\n\topen('.sos/.dsc/{self.db}.io.mpk', 'wb').write(msgpack.packb(__io_db__))\n\n" + \
-                           "if __name__ == '__main__':\n\tprepare_io()"
+        conf_str_py = 'import msgpack\nfrom collections import OrderedDict\n' + \
+                      'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' + \
+                      '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
+                      '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
+                      f'\n\t__io_db__ = OrderedDict()\n\t' + \
+                      '\n\t'.join('\n'.join(conf_str).split('\n')) + \
+                      f"\n\topen('.sos/.dsc/{self.db}.io.mpk', 'wb').write(msgpack.packb(__io_db__))\n\n" + \
+                      "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
                             (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \
-                            f"\ninput: '.sos/.dsc/{self.db}.prepare.py'\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
-                            "\nrun: expand = True\n{} {{_input}}".format(sys.executable) + \
+                            f"\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
+                            "\npython:\n{}\n".format('\n'.join(['\t' + x for x in conf_str_py.split('\n')])) + \
                             "\n[deploy_2 (Configuring output filenames)]\n" \
                             f"parameter: vanilla = {rerun}\n"\
                             f"input: '.sos/.dsc/{self.db}.io.mpk'\n"\
@@ -140,8 +140,6 @@ class DSC_Translator:
     def write_pipeline(self, arg):
         if arg == 1:
             res = self.conf_str_sos
-            with open(f'.sos/.dsc/{self.db}.prepare.py', 'w') as f:
-                f.write(self.conf_str_py)
             open(f'.sos/.dsc/{self.db}.io.meta.mpk', 'wb').write(msgpack.packb(self.step_map))
         elif arg == 2:
             res = self.job_str
