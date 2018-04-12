@@ -1,6 +1,0 @@
-Notes
-=====
-
-* Come up with better names for .dsc files; first_investigation.dsc, etc?
-
-* Change name of output to "first_investigation"?
