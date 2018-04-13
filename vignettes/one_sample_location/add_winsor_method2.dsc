@@ -51,9 +51,11 @@ abs_err: abs.R
   $error: e 
   
 DSC:
-    define:
-      simulate: normal, t
-      analyze: mean, median, winsor
-      score: abs_err, sq_err
-    run: simulate * analyze * score
-    exec_path: R
+  define:
+    simulate: normal, t
+    analyze: mean, median, winsor
+    score: abs_err, sq_err
+  run: simulate * analyze * score
+  R_libs: psych
+  exec_path: R
+  output: first_investigation

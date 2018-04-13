@@ -59,5 +59,5 @@ DSC:
     analyze: mean, median, winsor
     score: abs_err, sq_err
   run: simulate * analyze * score
+  R_libs: psych
   output: first_investigation
-  
