@@ -18,6 +18,11 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.3
+
+* [minor] Fix a regression bug on path due to 0.2.7.2.
+* [minor] Check and properly quit on error when `Rscript` command is not found for R modules.
+
 0.2.7.2
 
 * Improved Windows path support.

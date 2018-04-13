@@ -354,7 +354,7 @@ class DSC_Script:
                     pipelines = [(k, ', '.join(v)) for k, v in pipelines.items()]
                 else:
                     pipelines = [(k+1, v) for k, v in enumerate(pipelines)]
-                res['pipelines'] = '\n'.join([f'{x[0]}: ' + re.sub(r"\s\*\s", '->', x[1]) for x in pipelines])
+                res['pipelines'] = '\n'.join([f'{x[0]}: ' + re.sub(r"\s\*\s", ' -> ', x[1]) for x in pipelines])
                 if 'define' in self.content[k]:
                     res['groups'] = self.content[k]['define']
             else:
@@ -381,7 +381,7 @@ class DSC_Script:
         env.logger.info("``PIPELINES``")
         print(res['pipelines'] + '\n')
         env.logger.info("``PIPELINES EXPANDED``")
-        print('\n'.join([f'{i+1}: ' + '->'.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
+        print('\n'.join([f'{i+1}: ' + ' -> '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
 
 class DSC_Module:
     def __init__(self, name, content, global_options = None, script_path = None, lite = False):
