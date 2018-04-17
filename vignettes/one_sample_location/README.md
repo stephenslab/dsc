@@ -1,6 +1,8 @@
 # One sample location vignette
 
-*Provide brief description of vignette here.*
+This vignette illustrates the "simulate-analyze-score" design pattern
+for a very simple task: estimate the mean of a population given a
+random sample from the population.
 
 ## Setup instructions
 
