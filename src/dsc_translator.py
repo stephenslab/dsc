@@ -196,6 +196,8 @@ class DSC_Translator:
                     ret = install_py_module(lib)
                 if ret:
                     new_libs.append(f'{lib_type} {lib}')
+                else:
+                    raise ValueError(f"DSC aborted! Please manually install {lib_type.replace('_', ' ')} ``{lib}``.")
         with open(fn, 'w') as f:
             f.write('\n'.join(installed_libs + new_libs))
 
