@@ -804,12 +804,12 @@ def find_parens(s, lenient = True, start = '(', end = ')'):
         elif c == end:
             if len(pstack) == 0:
                 if not lenient:
-                    raise IndexError("No matching closing parens at: " + str(i))
+                    raise IndexError(f"No matching closing ``{end}`` at position {i+1}, near ``{s}``")
                 else:
                     break
             toret[pstack.pop()] = i
     if len(pstack) > 0:
-        raise IndexError("No matching opening parens at: " + str(pstack.pop()))
+        raise IndexError(f"No matching opening ``{start}`` at position {pstack.pop() + 1}, near ``{s}``")
     return toret
 
 def parens_aware_split(value, sep = ','):
