@@ -6,16 +6,16 @@
 # Simulate samples from the normal distribution with mean 0 and
 # standard deviation 1.
 normal: R(x <- rnorm(n,mean = mu,sd = 1))
-  mu: 0
   n: 100, 1000
+  mu: 0
   $data: x
   $true_mean: mu
 
 # Simulate samples from the non-centered t-distribution.
 t: R(x <- mu + rt(n,df = 2))
+  n: 100, 1000
   mu: 3
   df: 2, 4, 10
-  n: 100, 1000
   $data: x
   $true_mean: mu
 

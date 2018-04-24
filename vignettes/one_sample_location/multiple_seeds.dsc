@@ -6,8 +6,8 @@
 # pseudorandom numbers.
 normal: R(set.seed(seed); x <- rnorm(n,mean = mu,sd = 1))
   seed: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-  mu: 0
   n: 100
+  mu: 0
   $data: x
   $true_mean: mu
 
