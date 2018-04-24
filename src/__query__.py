@@ -41,8 +41,8 @@ def query(args):
         else:
             preview(args.dsc_output, args.output, am)
             sys.exit(0)
-    args.output = os.path.normpath(args.output.strip('.'))
-    db = os.path.join(args.dsc_output, os.path.basename(args.dsc_output) + '.db')
+    args.output = args.output.strip('.')
+    db = os.path.join(args.dsc_output, os.path.basename(os.path.normpath(args.dsc_output)) + '.db')
     if args.target is None:
         if not args.output.endswith('.ipynb'):
             fnb = args.output + '.ipynb'
