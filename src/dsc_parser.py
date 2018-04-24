@@ -425,7 +425,7 @@ class DSC_Module:
     def pop_lib(vec, lib):
         res = []
         for item in vec:
-            if lib.search(item):
+            if lib.search(item) and ';' not in item:
                 res.append(vec.pop(vec.index(item)).strip())
         return '\n'.join(res), vec
 
