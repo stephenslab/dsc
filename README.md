@@ -21,8 +21,7 @@ DSC is closely developed in parallel with
 version of DSC (maintained in the `master` branch of the GitHub
 repository) typically requires the development version of SoS.
 
-First, download the SoS repository and install the latest development
-version of SoS:
+#### Install the latest SoS
 
 ```
 git clone https://github.com/vatlab/SoS.git
@@ -30,12 +29,12 @@ cd SoS
 pip install -U --upgrade-strategy only-if-needed . 
 ```
 
-Next, download the DSC repository and install the latest version of DSC:
+#### Install DSC from source
 
 ```
 git clone https://github.com/stephenslab/dsc.git
 cd dsc
-pip install -U --upgrade-strategy only-if-needed .
+./setup.sos
 ```
 
 ## Change Log
