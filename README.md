@@ -21,7 +21,7 @@ DSC is closely developed in parallel with
 version of DSC (maintained in the `master` branch of the GitHub
 repository) typically requires the development version of SoS.
 
-First, downqload the SoS repository and install the latest development
+First, download the SoS repository and install the latest development
 version of SoS:
 
 ```
