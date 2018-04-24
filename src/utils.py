@@ -636,7 +636,7 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
                 else:
                     # for exec is dict
                     text = (command['header'] + '\n' + command['content']) \
-                           if len(command['header'] + command['content']) else command['path']
+                           if len(command['header'] + command['content']) else ' '.join(command['path'])
                     if command['args']:
                         text = f"# Command arguments: {command['args']}\n" + text
                     cmd_files = '+'.join(command['file'])
