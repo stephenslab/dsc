@@ -20,8 +20,8 @@ Goal for 0.2.8
 
 0.2.7.3
 
+* More stringent R library and command executable check.
 * [minor] Fix a regression bug on path due to 0.2.7.2.
-* [minor] Check and properly quit on error when `Rscript` command is not found for R modules.
 
 0.2.7.2
 
@@ -47,7 +47,8 @@ Goal for 0.2.8
   * Force use `pip` to install local development version.
   * [#97](https://github.com/stephenslab/dsc/issues/97) Improved error logging and reporting behavior.
 * [minor] Revert from `ruamel.yaml` to `yaml` for better performance.
-* [minor] [#96](https://github.com/stephenslab/dsc/issues/96), [#98](https://github.com/stephenslab/dsc/issues/98)
+* [minor] [#96](https://github.com/stephenslab/dsc/issues/96)
+* [minor] [#98](https://github.com/stephenslab/dsc/issues/98)
 * [minor] Various bug fixes.
 
 0.2.6.5
