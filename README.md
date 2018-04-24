@@ -7,6 +7,37 @@ The [project wiki](https://stephenslab.github.io/dsc-wiki) is the main source of
 
 This work is supported by the the Gordon and Betty Moore Foundation via an Investigator Award to Matthew Stephens, [Grant GBMF4559](https://www.moore.org/grants/list/GBMF4559), as part of the [Data-Driven Discovery program](https://www.moore.org/programs/science/data-driven-discovery). If you have any questions or want to share some information with the developer / user community, please open a [github issue](https://github.com/stephenslab/dsc/issues).
 
+## Developer notes
+
+### Upgrading DSC to latest development version
+
+For most users, we recommend installing the [most recent stable
+release](https://stephenslab.github.io/dsc-wiki/installation.html). If
+you would like to upgrade your existing installation of DSC to the
+most recent (unstable) development version, follow these steps.
+
+DSC is closely developed in parallel with
+[SoS](http://github.com/vatlab/sos). Therefore, the development
+version of DSC (maintained in the `master` branch of the GitHub
+repository) typically requires the development version of SoS.
+
+First, downqload the SoS repository and install the latest development
+version of SoS:
+
+```
+git clone https://github.com/vatlab/SoS.git
+cd SoS
+pip install -U --upgrade-strategy only-if-needed . 
+```
+
+Next, download the DSC repository and install the latest version of DSC:
+
+```
+git clone https://github.com/stephenslab/dsc.git
+cd dsc
+pip install -U --upgrade-strategy only-if-needed .
+```
+
 ## Change Log
 
 ### Upcoming release
