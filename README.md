@@ -37,6 +37,14 @@ cd dsc
 ./setup.sos
 ```
 
+Or, if you have downloaded it before,
+
+```
+cd dsc
+git pull
+./setup.sos
+```
+
 ## Change Log
 
 ### Upcoming release
@@ -47,6 +55,10 @@ Goal for 0.2.8
 - Improve command options for scripts
 
 ### 0.2.x
+
+0.2.7.4
+
+- [minor] Bug fixes and error message improvements.
 
 0.2.7.3
 
