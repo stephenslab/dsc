@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, pickle
-import pandas as pd
+import pandas as pd, numpy as np
 from .utils import uniq_list, flatten_list, filter_sublist, cartesian_list, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
 from .line import parse_filter
@@ -76,6 +76,9 @@ class Query_Processor:
             self.groups = dict()
         self.groups.update(self.get_grouped_tables(groups))
         self.check_overlapping_groups()
+        # 0. Fix the case when some module in the group has some parameter but others do not
+        # changes will be applied to self.data
+        self.add_na_group_parameters()
         self.target_tables = self.get_table_fields(self.targets)
         self.condition, self.condition_tables = parse_filter(condition, groups = self.groups)
         # 1. only keep tables that do exist in database
@@ -95,6 +98,8 @@ class Query_Processor:
         self.output_tables = self.run_queries()
         # 6. merge table
         self.output_table = self.merge_tables()
+        # 7. fillna
+        self.fillna()
         # finally show warnings
         self.warn()
 
@@ -168,6 +173,17 @@ class Query_Processor:
                     overlap = set(self.groups[k1]).intersection(set(self.groups[k2]))
                     if len(overlap):
                         raise DBError(f"Overlapping groups ``{k1} = {self.groups[k1]}`` and ``{k2} = {self.groups[k2]}`` not allowed! You should drop the one that causes the conflict, or use, eg, -g \"{k1}:\" to erase the other one if it is build-in.")
+
+    def add_na_group_parameters(self):
+        if len(self.groups) == 0:
+            return
+        for group in self.groups:
+            params = uniq_list(flatten_list([self.data[item].columns.tolist() for item in self.groups[group]]))
+            params = [x for x in params if not x in ['__id__', '__parent__', '__output__', 'DSC_REPLICATE']]
+            for param in params:
+                for module in self.groups[group]:
+                    if param not in self.data[module].columns:
+                        self.data[module][param] = np.nan
 
     def get_table_fields(self, values):
         '''
@@ -393,9 +409,9 @@ class Query_Processor:
                     non_na_idx = table[f'{g}{k}'].apply(lambda x: tuple([idx for idx, y in enumerate(x) if y == y]))
                     if not all([len(x) <= 1 for x in non_na_idx]):
                         raise DBError(f'Modules ``{to_merge[k]}`` cannot be grouped into ``{g}{k}`` due to collating entries.')
-                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0] if len([y for y in x if y == y]) else "NaN")
+                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0] if len([y for y in x if y == y]) else "NA")
                     if not g in table:
-                        table[g] = [self.groups[g][kk[0]] if len(kk) else "NaN" for kk in non_na_idx]
+                        table[g] = [self.groups[g][kk[0]] if len(kk) else "NA" for kk in non_na_idx]
                 else:
                     # simply rename it
                     table[f'{g}{k}'] = table[to_merge[k][0]]
@@ -416,6 +432,11 @@ class Query_Processor:
         table['DSC'] = table['DSC'].apply(lambda x: int(x[0]))
         table.drop(columns = rep_cols, inplace = True)
         return table
+
+    def fillna(self):
+        self.output_table.fillna('NA', inplace = True)
+        for k in self.output_tables:
+            self.output_tables[k].fillna('NA', inplace = True)
 
     def get_queries(self):
         return self.queries
