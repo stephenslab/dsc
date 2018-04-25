@@ -1,3 +1,4 @@
+#' @export
 merge_lists <- function(x, y, ...)
 {
   if(length(x) == 0)
@@ -11,6 +12,7 @@ merge_lists <- function(x, y, ...)
 
 #' @importFrom tools file_ext
 #' @importFrom tools file_path_sans_ext
+#' @export
 read_dsc <- function(infile) {
   inbase = file_path_sans_ext(infile)
   inext = file_ext(infile)
@@ -42,14 +44,25 @@ load_script <- function() {
   return(ifelse(!is.null(fileName), readChar(fileName, file.info(fileName)$size), ""))
 }
 
+#' @export
 empty_text <- function(fns) {
   for (fn in fns) {
     if (file.exists(fn) && file.size(fn) != 0) close(file(fn, open="w"))
   }
 }
 
+#' @export
 rm_if_empty <- function(fns) {
   for (fn in fns) {
     if (file.exists(fn) && file.size(fn) == 0) file.remove(fn)
   }
+}
+
+#' @export
+save_session <- function(start_time, id) {
+
+  time <- as.list(proc.time() - start_time)
+  script <- load_script()
+  session <- capture.output(print(sessionInfo()))
+  return(list(time=time, script=script, replicate=id, session=session))
 }

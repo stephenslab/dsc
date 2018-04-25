@@ -58,6 +58,7 @@ Goal for 0.2.8
 
 0.2.7.4
 
+- Improved R's sessionInfo format.
 - Bug fixes #119, #121
 - [minor] Error message improvements.
 

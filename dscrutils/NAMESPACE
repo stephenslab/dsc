@@ -2,6 +2,11 @@
 
 export(dscquery)
 export(dscreval)
+export(empty_text)
+export(merge_lists)
+export(read_dsc)
+export(rm_if_empty)
+export(save_session)
 importFrom(tools,file_ext)
 importFrom(tools,file_path_sans_ext)
 importFrom(utils,read.csv)

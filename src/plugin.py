@@ -139,12 +139,12 @@ class RPlug(BasePlug):
             self.tempfile.append('{} <- c({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
     def load_env(self, input_num, index, autoload, customized, clear_err = True):
-        loader = 'readRDS' if not customized else 'dscrutils:::read_dsc'
-        res = 'dscrutils:::empty_text(c("${_output:n}.stdout", "${_output:n}.stderr"))' if clear_err else ''
+        loader = 'readRDS' if not customized else 'dscrutils::read_dsc'
+        res = 'dscrutils::empty_text(c("${_output:n}.stdout", "${_output:n}.stderr"))' if clear_err else ''
         # load files
         load_multi_in = f'\n{self.identifier} <- list()' + \
           '\ninput.files <- c(${_input:r,})\nfor (i in 1:length(input.files)) ' + \
-          f'{self.identifier} <- dscrutils:::merge_lists({self.identifier}, {loader}(input.files[i]))'
+          f'{self.identifier} <- dscrutils::merge_lists({self.identifier}, {loader}(input.files[i]))'
         load_single_in = f'\n{self.identifier} <- {loader}("${{_input}}")'
         load_out = f'\nattach({loader}("${{_output}}"), warn.conflicts = F)'
         flag = False
@@ -219,10 +219,9 @@ class RPlug(BasePlug):
             return ''
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
-                           [f"DSC_DEBUG=list(time=as.list(proc.time() - TIC_{self.identifier[4:]}), " \
-                            "script=dscrutils:::load_script(), replicate=DSC_REPLICATE, session=toString(sessionInfo()))"]))
+                           [f"DSC_DEBUG=dscrutils::save_session(TIC_{self.identifier[4:]}, DSC_REPLICATE)"]))
         if remove_stderr:
-            res += '\ndscrutils:::rm_if_empty(c("${_output:n}.stdout", "${_output:n}.stderr"))'
+            res += '\ndscrutils::rm_if_empty(c("${_output:n}.stdout", "${_output:n}.stderr"))'
         return res.strip()
 
     def set_container(self, name, value, params):
