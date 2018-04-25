@@ -58,7 +58,8 @@ Goal for 0.2.8
 
 0.2.7.4
 
-- [minor] Bug fixes and error message improvements.
+- Bug fixes #119, #121
+- [minor] Error message improvements.
 
 0.2.7.3
 
