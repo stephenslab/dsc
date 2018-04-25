@@ -203,7 +203,9 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
       dsc.module.files <- dat[[j]][[1]]
       for (i in 1:n) {
         dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
-        out     <- readRDS(dscfile)
+        if (!file.exists(dscfile))
+          stop(paste("Unable to read",dscfile,"because it does not exist"))
+        out <- readRDS(dscfile)
 
         # Check that the variable is one of the outputs in the file.
         if (!is.element(var,names(out)))
