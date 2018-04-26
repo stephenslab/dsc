@@ -370,7 +370,7 @@ class DSC_Script:
                         params.append(x)
                 res['modules']['input'].append(', '.join(inputs))
                 res['modules']['parameters'].append(', '.join(params))
-                res['modules']['type'].append(self.modules[k].exe['type'])
+                res['modules']['type'].append(self.modules[k].exe['type'] if k in self.modules else 'unused')
         from .prettytable import PrettyTable
         t = PrettyTable()
         for key, value in res['modules'].items():

@@ -301,8 +301,11 @@ def main():
             script.print_help()
             sys.exit(0)
         except Exception as e:
-            env.logger.error(f'No help information is available for script {sys.argv[1]}: ``{e}``')
-            sys.exit(1)
+            if '--debug' in sys.argv:
+                raise
+            else:
+                env.logger.error(f'No help information is available for script {sys.argv[1]}: ``{e}``')
+                sys.exit(1)
     try:
         args = p.parse_args()
     except Exception as e:
