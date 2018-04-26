@@ -394,15 +394,19 @@ class Query_Processor:
                 continue
             # For each group, find common fields to merge
             to_merge = dict()
+            ordered_group = []
             for col in table.columns:
                 for k in self.groups[g]:
                     if not col.startswith(k + '.'):
                         continue
+                    if not k in ordered_group:
+                        ordered_group.append(k)
                     k = col[len(k):]
                     if not k in to_merge:
                         to_merge[k] = []
                     to_merge[k].append(col)
                     break
+            self.groups[g] = ordered_group
             for k in to_merge:
                 if len(to_merge[k]) > 1:
                     table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(tuple, 1)
