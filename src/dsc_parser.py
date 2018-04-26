@@ -43,10 +43,11 @@ class DSC_Script:
         res = []
         exe = ''
         headline = False
+        parens_counter = Counter('()')
         for line in content:
             if line.lstrip().startswith('#'):
                 continue
-            text = parens_aware_split(line, ':')
+            text = parens_aware_split(line, ':', True)
             # FIXME: maybe this is good enough to identify a line of decorator keys ...
             if line.lstrip().startswith('@') and len(text) > 1:
                 line = line.replace('@', '^', 1)
@@ -64,18 +65,21 @@ class DSC_Script:
                     raise FormatError(f'Invalid syntax ``{line}``. '\
                                       'Should be in the format of ``module names: module executables``')
                 res.append(f'{text[0]}:')
-                exe += text[1].strip().strip('\\')
+                exe += text[1].strip('\\')
+                parens_counter.update(Counter(text[1]))
             else:
-                if headline and len(text) == 1:
+                if (headline and parens_counter['('] != parens_counter[')']) \
+                   or (headline and len(text) == 1):
                     # still contents for exe
-                    exe += line.strip().strip('\\')
+                    exe += line.strip('\\')
                 else:
                     headline = False
                     if len(text) == 1:
                         # handle line break
                         res[-1] += ' ' + line.lstrip()
                     else:
-                        res.append(line)
+                        res.append(line.rstrip())
+                parens_counter.update(line)
         self.update(res, exe)
         if 'DSC' not in self.content:
             if sequence is None:

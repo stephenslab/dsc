@@ -812,36 +812,36 @@ def find_parens(s, lenient = True, start = '(', end = ')'):
         raise IndexError(f"No matching opening ``{start}`` at position {pstack.pop() + 1}, near ``{s}``")
     return toret
 
-def parens_aware_split(value, sep = ','):
+def parens_aware_split(value, sep = ',', quote_protect = False, strip = True):
     if not isinstance(value, str):
         if isinstance(value, (int, float, bool)):
             return [value]
         else:
             return value
-    counts = {'(': 0,
-              ')': 0,
-              '[': 0,
-              ']': 0,
-              '{': 0,
-              '}': 0}
+    counts = dict([('(', 0), (')', 0), ('[', 0), (']', 0), ('{', 0), ('}', 0)])
     res = []
     unit = ''
+    between_quotes = False
+    keys = list(counts.keys())
     for item in list(value):
+        if item in ['"', "'"]:
+            between_quotes = not between_quotes
         if item != sep:
             unit += item
             if item in counts.keys():
                 counts[item] += 1
         else:
-            if counts['('] != counts[')'] or \
-              counts['['] != counts[']'] or \
-              counts['{'] != counts['}']:
+            if any([counts[keys[i]] != counts[keys[i+1]] for i in range(0, len(keys), 2)]):
                 # sep is inside some parenthesis
                 unit += item
             else:
-                # sep is outside any parenthesis, time to split
-                res.append(unit.strip())
-                unit = ''
-    res.append(unit.strip())
+                if quote_protect and between_quotes:
+                    unit += item
+                else:
+                    # sep is outside any parenthesis or quotes, time to split
+                    res.append(unit.strip() if strip else unit)
+                    unit = ''
+    res.append(unit.strip() if strip else unit)
     return res
 
 def remove_multiple_strings(cur_string, replace_list):
@@ -929,11 +929,11 @@ def rmd_to_r(infile, chunk_pattern = None, outfile = None, md_as_comments = Fals
     return res
 
 def find_git_repo():
-    from sos.targets import executable
     from sos.utils import get_output
-    if executable('git').target_exists() and get_output('git rev-parse --is-inside-work-tree').strip() == 'true':
-        return get_output('git rev-parse --show-toplevel').strip()
-    else:
+    try:
+        res = get_output('git rev-parse --is-inside-work-tree').strip()
+        return get_output('git rev-parse --show-toplevel').strip() if res == 'true' else None
+    except:
         return None
 
 def update_gitignore():
