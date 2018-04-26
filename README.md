@@ -58,7 +58,7 @@ Goal for 0.2.8
 
 0.2.7.6
 
-- [minor] Display unused modules with `-h` option
+- [minor] Display unused modules with `-h` option.
 
 0.2.7.5
 

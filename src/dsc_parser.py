@@ -95,7 +95,10 @@ class DSC_Script:
             self.runtime.output = self._dsc_name
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
-                raise FormatError(f"Module ``{k}`` is not defined!\nAvailable modules are ``{[x for x in self.content.keys() if x != 'DSC']}``")
+                raise FormatError(f"Module or group name ``{k}`` is not defined!\n" \
+                                  f"Available modules are ``{', '.join([x for x in self.content.keys() if x != 'DSC'])}``" + \
+                                  (f"\nAvailable groups are ``{', '.join(try_get_value(self.content, ('DSC', 'define')).keys())}``"
+                                   if try_get_value(self.content, ('DSC', 'define')) else ''))
         self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path, truncate))
                              for x in self.runtime.sequence_ordering.keys()])
         script_types =  [m.exe['type'] for m in self.modules.values()]
