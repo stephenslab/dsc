@@ -393,6 +393,8 @@ class Query_Processor:
             if g not in targets:
                 continue
             # For each group, find common fields to merge
+            # FIXME: the continue / break / reorder logic works here,
+            # but can possibly be optimized
             to_merge = dict()
             ordered_group = []
             for col in table.columns:
