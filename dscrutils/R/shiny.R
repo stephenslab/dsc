@@ -11,6 +11,8 @@ shiny_plot=function(res, s = "scenario", m = "method"){
   list.of.packages <- c("ggplot2", "shiny")
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
   if(length(new.packages)) install.packages(new.packages)
+  require(shiny)
+  require(ggplot2)
   scenario_names = as.character(unique(res[[s]]))
   method_names = as.character(unique(res[[m]]))
   numeric_criteria = names(res)[unlist(lapply(res,is.numeric))]
