@@ -927,3 +927,25 @@ def rmd_to_r(infile, chunk_pattern = None, outfile = None, md_as_comments = Fals
         with open(outfile, "w") as f:
             f.write('\n'.join(res), outfile)
     return res
+
+def find_git_repo():
+    from sos.targets import executable
+    from sos.utils import get_output
+    if executable('git').target_exists() and get_output('git rev-parse --is-inside-work-tree').strip() == 'true':
+        return get_output('git rev-parse --show-toplevel').strip()
+    else:
+        return None
+
+def update_gitignore():
+    ignore_file = find_git_repo()
+    if ignore_file is None:
+        return
+    ignore_file = os.path.join(ignore_file, '.gitignore')
+    flag = True
+    if os.path.isfile(ignore_file):
+      lines = [x.strip() for x in open(ignore_file).readlines()]
+      if '**/.sos' in lines:
+        flag = False
+    if flag:
+      with open(ignore_file, 'a') as f:
+        f.write('\n**/.sos')

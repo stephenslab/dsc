@@ -14,7 +14,7 @@ from sos.utils import env
 from sos.targets import fileMD5, executable
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
-     parens_aware_split, remove_parens, remove_quotes, rmd_to_r
+     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitignore
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
@@ -64,11 +64,11 @@ class DSC_Script:
                     raise FormatError(f'Invalid syntax ``{line}``. '\
                                       'Should be in the format of ``module names: module executables``')
                 res.append(f'{text[0]}:')
-                exe += text[1]
+                exe += text[1].strip().strip('\\')
             else:
                 if headline and len(text) == 1:
                     # still contents for exe
-                    exe += line
+                    exe += line.strip().strip('\\')
                 else:
                     headline = False
                     if len(text) == 1:
@@ -332,6 +332,7 @@ class DSC_Script:
         conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
         with open(conf, 'w') as f:
             f.write('localhost: localhost\nhosts:\n  localhost:\n    address: localhost')
+        update_gitignore()
 
     def dump(self):
         res = dict([('Modules', self.modules),

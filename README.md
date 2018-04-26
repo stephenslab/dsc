@@ -56,6 +56,12 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.5
+
+- Add package installation and version display with `-h` option.
+- Add `.gitignore` to cache folder when a git environment is detected.
+- SoS bumped to 0.9.13.3 that now bundles the `pbs` module.
+
 0.2.7.4
 
 - Improved R's sessionInfo format.
