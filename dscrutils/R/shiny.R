@@ -8,7 +8,7 @@
 shiny_plot=function(res, s = "scenario", m = "method"){
   ## Do not make these packages dependency
   ## install them on need only when this function is called
-  list.of.packages <- c("ggplot2", "shiny")
+  list.of.packages <- c("ggplot2", "shiny", "dplyr", "rlang")
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
   if(length(new.packages)) install.packages(new.packages)
   require(shiny)
