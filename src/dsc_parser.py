@@ -348,7 +348,9 @@ class DSC_Script:
     def print_help(self):
         res = {'modules': OrderedDict([(' ', []), ('parameters', []),
                                        ('input', []), ('output', []), ('type', [])])}
-        for k in self.content:
+        modules = list(self.runtime.sequence_ordering.keys())
+        modules = sorted(list(self.content.keys()), key=lambda x: modules.index(x) if x in modules else 10**5)
+        for k in modules:
             if k == 'DSC':
                 pipelines = self.content[k]['run']
                 if isinstance(pipelines, Mapping):
