@@ -58,6 +58,7 @@ Goal for 0.2.8
 
 0.2.7.6
 
+- Add new feature `dscrutils::shiny_plot` to display simple benchmark results.
 - [minor] Display unused modules with `-h` option.
 
 0.2.7.5
