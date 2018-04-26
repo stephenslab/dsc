@@ -383,6 +383,26 @@ class DSC_Script:
         print(res['pipelines'] + '\n')
         env.logger.info("``PIPELINES EXPANDED``")
         print('\n'.join([f'{i+1}: ' + ' -> '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
+        if len([x for x in self.runtime.rlib if not x.startswith('dscrutils')]):
+            from .utils import get_rlib_versions
+            env.logger.info("``R LIBRARIES``")
+            env.logger.info("Scanning package versions ...")
+            libs, versions = get_rlib_versions(self.runtime.rlib)
+            t = PrettyTable()
+            t.add_column('name', libs)
+            t.add_column('version', versions)
+            print(t)
+            print('')
+        if len(self.runtime.pymodule):
+            from .utils import get_pymodule_versions
+            env.logger.info("``PYTHON MODULES``")
+            libs, versions = get_pymodule_versions(self.runtime.pymodule)
+            t = PrettyTable()
+            t.add_column('name', libs)
+            t.add_column('version', versions)
+            print(t)
+            print('')
+
 
 class DSC_Module:
     def __init__(self, name, content, global_options = None, script_path = None, lite = False):

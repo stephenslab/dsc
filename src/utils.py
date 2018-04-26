@@ -949,3 +949,24 @@ def update_gitignore():
     if flag:
       with open(ignore_file, 'a') as f:
         f.write('\n**/.sos')
+
+def get_rlib_versions(rlibs):
+    from sos.utils import get_output
+    rlibs = sorted([x.split()[0].split('@')[0] for x in rlibs if not x.startswith('dscrutils')])
+    versions = []
+    for l in rlibs:
+        try:
+            versions.append(get_output(f'Rscript -e "cat(toString(packageVersion(\'{l}\')))"'))
+        except:
+            versions.append('No version info available on local machine')
+    return rlibs, versions
+
+def get_pymodule_versions(pym):
+    import pkg_resources
+    versions = []
+    for m in sorted(pym):
+        try:
+            versions.append(pkg_resources.get_distribution(m).version)
+        except:
+            versions.append('No version info available on local machine')
+    return pym, versions
