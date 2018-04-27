@@ -58,12 +58,15 @@ class YLine:
         if isinstance(var, str):
             # see if str can be converted to a list or tuple
             # and apply the same procedure to their elements
-            if (var.startswith('(') and var.endswith(')')) or \
-               (var.startswith('[') and var.endswith(']')):
-                is_tuple = var.startswith('(')
+            p1 = list(find_parens(var).items())
+            p2 = list(find_parens(var, start='[', end=']').items())
+            if ((len(p1) == 1 and p1[0][0] == 0 and p1[0][1] == len(var) - 1) or \
+               (len(p2) == 1 and p2[0][0] == 0 and p2[0][1] == len(var) - 1)):
                 var = [self.decodeVar(x.strip()) for x in self.split(remove_parens(var))]
-                if is_tuple:
+                if len(p1) == 1:
                     var = tuple(var)
+                if len(var) == 1:
+                    var = var[0]
         return var
 
 
