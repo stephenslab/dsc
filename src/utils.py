@@ -776,21 +776,32 @@ def filter_sublist(lists, ordered = True):
             max_lists.append(x)
     return max_lists
 
-def do_parentheses_match(input_string, l = '(', r = ')'):
-    s = []
-    balanced = True
-    index = 0
-    while index < len(input_string) and balanced:
-        unit = input_string[index]
-        if unit == l:
-            s.append(unit)
-        elif unit == r:
-            if len(s) == 0:
-                balanced = False
-            else:
-                s.pop()
-        index += 1
-    return balanced and len(s) == 0
+def do_parentheses_match(expression, quote_protect = True):
+    """
+    Finds out how balanced an expression is.
+    With a string containing only brackets.
+
+    >>> is_matched('[]()()(((([])))')
+    False
+    >>> is_matched('[](){{{[]}}}')
+    True
+    """
+    opening = tuple('({[')
+    closing = tuple(')}]')
+    mapping = dict(zip(opening, closing))
+    queue = []
+    between_quotes = False
+    for letter in expression:
+        if letter in ['"', "'"]:
+            between_quotes = not between_quotes
+        if between_quotes and quote_protect:
+            continue
+        if letter in opening:
+            queue.append(mapping[letter])
+        elif letter in closing:
+            if not queue or letter != queue.pop():
+                return False
+    return not queue
 
 def find_parens(s, lenient = True, start = '(', end = ')'):
     '''

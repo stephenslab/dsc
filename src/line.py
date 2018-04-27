@@ -58,8 +58,8 @@ class YLine:
         if isinstance(var, str):
             # see if str can be converted to a list or tuple
             # and apply the same procedure to their elements
-            if (var.startswith('(') and var.endswith(')') and do_parentheses_match(var[1:-1])) or \
-               (var.startswith('[') and var.endswith(']') and do_parentheses_match(var[1:-1], l = '[', r = ']')):
+            if (var.startswith('(') and var.endswith(')')) or \
+               (var.startswith('[') and var.endswith(']')):
                 is_tuple = var.startswith('(')
                 var = [self.decodeVar(x.strip()) for x in self.split(remove_parens(var))]
                 if is_tuple:
@@ -408,6 +408,8 @@ class EntryFormatter:
             if isinstance(value, collections.Mapping):
                 self.__Transform(value, actions)
             else:
+                if not do_parentheses_match(str(value)):
+                    raise FormatError(f"Invalid parentheses matching pattern in ``{str(value)}``")
                 for a in actions:
                     value = a(value)
                 # empty list
@@ -422,6 +424,8 @@ def parse_exe(string):
     input: eg. R(some, code) + (a.R cmd_args, b.R cmd_args) + R(some, code)
     output: (R(some, code), a.R cmd_args, R(some, code)), (R(some, code), b.R cmd_args, R(some, code))
     '''
+    if not do_parentheses_match(string):
+        raise FormatError(f"Invalid parentheses matching pattern in ``{string}``")
     pattern = re.compile(r'\$\((.*?)\)')
     def parse_inline(inline):
         replaced_inline = []
