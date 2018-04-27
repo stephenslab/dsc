@@ -157,7 +157,8 @@ class ExpandActions(YLine):
                         start = '{'
                         end = '}'
                     if p < p_end:
-                        raise FormatError(f"Invalid parentheses pattern in ``{value}``")
+                        # Run into nested pattern, no problem: eg R(some_function_R())
+                        continue
                     try:
                         p_end = find_parens(value[p:], start = start, end = end)[0]
                     except IndexError:
@@ -438,7 +439,7 @@ def parse_exe(string):
         replacements = []
         for p in pos:
             if p < p_end:
-                raise FormatError(f"Invalid parentheses pattern in ``{string}``")
+                continue
             p_end = find_parens(string[p:])[0]
             key = f'__DSC_INLINE_{idx}__'
             action_dict[key] = (ext_map[name], string[(p+1):(p_end+p)])

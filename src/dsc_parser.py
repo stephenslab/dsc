@@ -797,7 +797,7 @@ class DSC_Module:
         # has_raw = False
         for v in value:
             if isinstance(v, tuple):
-                res.append(format_tuple(v))
+                res.append(DSC_Module.format_tuple(v))
             elif isinstance(v, str):
                 groups = DSC_ASIS_OP.search(v)
                 if groups:
@@ -807,7 +807,7 @@ class DSC_Module:
                     res.append(repr(v))
             else:
                 res.append(str(v))
-        return res
+        return tuple(res)
 
     def __str__(self):
         return dict2str(self.dump())

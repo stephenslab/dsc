@@ -812,7 +812,7 @@ def find_parens(s, lenient = True, start = '(', end = ')'):
         raise IndexError(f"No matching opening ``{start}`` at position {pstack.pop() + 1}, near ``{s}``")
     return toret
 
-def parens_aware_split(value, sep = ',', quote_protect = False, strip = True):
+def parens_aware_split(value, sep = ',', quote_protect = True, strip = True):
     if not isinstance(value, str):
         if isinstance(value, (int, float, bool)):
             return [value]
