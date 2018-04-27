@@ -1,6 +1,6 @@
 #!/usr/bin/env dsc
 
-datasim: R(x <- rnorm(1e6))
+a: R(x <- rnorm(1e6))
   $x: abs(x)
   r: 0
 
@@ -23,7 +23,8 @@ t2: R(x <- x^2)
 
 DSC:
   define:
-    ab: a, b
+    d
+    datasim: ab, c
     ac: a, c
-  run: (ab * t1), (ac * t2)
+  run: datasim
 
