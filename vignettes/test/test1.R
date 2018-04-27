@@ -1,7 +1,8 @@
 library(dscrutils)
 
 # Run the DSC.
-system("dsc temp1.dsc")
+system("dsc test1.dsc")
 
-# Load the DSC results.
-out <- dscquery("temp1","gen.x")
+# Query the DSC results.
+out <- dscquery("test1",c("gen.x","gen.m","gen.r"))
+
