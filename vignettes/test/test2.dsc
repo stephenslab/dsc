@@ -1,6 +1,6 @@
 #!/usr/bin/env dsc
 
-a: R(x <- rnorm(1e6))
+datasim: R(x <- rnorm(1e6))
   $x: abs(x)
   r: 0
 
