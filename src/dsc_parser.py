@@ -498,6 +498,10 @@ class DSC_Module:
                 fpath = locate_file(item[0], self.path)
                 if fpath is None:
                     # must be a system executable
+                    # FIXME: need to do it differently if host is involved
+                    # ie, to check the remote computer not the current computer
+                    if not executable(item[0]).target_exists():
+                        raise FormatError(f"Cannot find specified executable ``{item[0]}`` in system PATH.")
                     self.exe['path'].append(item[0])
                     if etype in ['PY', 'R']:
                         env.logger.warning(f'Cannot find script ``{item[0]}`` in path ``{self.path}``. DSC will treat it a command line executable.')
@@ -546,7 +550,7 @@ class DSC_Module:
             lib_signature = ' '.join([fileMD5(x) for x in flatten_list(libs)])
         else:
             lib_signature = ''
-        self.exe['signature'] = xxh((fileMD5(self.exe['path'], partial = False) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '') + lib_signature).hexdigest()
+        self.exe['signature'] = xxh(((executable(self.exe['path']).target_signature() if executable(self.exe['path']).target_exists() else fileMD5(self.exe['path'], partial = False)) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '') + lib_signature).hexdigest()
         self.plugin = Plugin(self.exe['type'], self.exe['signature'])
 
     def set_output_ext(self):

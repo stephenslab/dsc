@@ -429,17 +429,27 @@ def parse_exe(string):
     '''
     if not do_parentheses_match(string):
         raise FormatError(f"Invalid parentheses matching pattern in ``{string}``")
-    def parse_inline(inline, ext):
+    #
+    def parse_inline(inline, sigil):
+        #
+        def get_item(item):
+            if sigil == '$':
+                return f'${item}'
+            elif sigil == '{}':
+                return '{%s}' % item
+            else:
+                return item
+        #
         replaced_inline = []
         # for global variable
         pattern = re.compile(r'\${(.*?)\}')
         for m in re.finditer(pattern, inline):
-            inline = inline.replace(m.group(0), f'${m.group(1)}' if ext == 'SH' else m.group(1))
+            inline = inline.replace(m.group(0), get_item(m.group(1)))
             replaced_inline.append((m.group(1), '${%s}' % m.group(1)))
         # for module variable
         pattern = re.compile(r'\$\((.*?)\)')
         for m in re.finditer(pattern, inline):
-            inline = inline.replace(m.group(0), f'${m.group(1)}' if ext == 'SH' else m.group(1))
+            inline = inline.replace(m.group(0), get_item(m.group(1)))
             replaced_inline.append((m.group(1), f'${m.group(1)}'))
         return inline, replaced_inline
     #
@@ -474,13 +484,16 @@ def parse_exe(string):
             x = list(x)
         exe_type = []
         for idx, item in enumerate(x):
-            x[idx] = item.replace('__DSC_STAR__', '*').split()
+            x[idx] = item.replace('__DSC_STAR__', '*').split(None, 1)
             # After split, the first element is script or command variable
-            # the rest are command arguments
+            # the other is command arguments
+            if len(x[idx]) > 1:
+                x[idx][1], content = parse_inline(x[idx][1], '{}')
+                replaced.extend(content)
             is_typed = False
             for key, value in action_dict.items():
                 if key in x[idx][0]:
-                    content = parse_inline(value[1], value[0])
+                    content = parse_inline(value[1], '$' if value[0] == 'SH' else None)
                     x[idx][0] = x[idx][0].replace(key, content[0], 1)
                     replaced.extend(content[1])
                     exe_type.append(value[0])
