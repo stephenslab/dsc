@@ -1,3 +1,4 @@
+#' @export
 merge_lists <- function(x, y, ...)
 {
   if(length(x) == 0)
