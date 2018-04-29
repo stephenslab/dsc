@@ -7,7 +7,7 @@ __license__ = "MIT"
 Process R and Python plugin codes to DSC
 '''
 import re
-from .syntax import DSC_FILE_OP, DSC_GV
+from .syntax import DSC_FILE_OP
 from .utils import flatten_list
 
 R_SOURCE = '''
@@ -60,7 +60,7 @@ class BasePlug:
     def load_env(self, input_num, index, autoload, customized, clear_err):
         return ''
 
-    def get_input(self, params, lib, cmd_args):
+    def get_input(self, params, lib):
         return ''
 
     def get_output(self, params):
@@ -71,6 +71,24 @@ class BasePlug:
             return self.alias_map[varname]
         else:
             return varname
+
+    def get_cmd_args(self, args, params):
+        '''
+        Use plain variable name with underscore prefix
+        Note that cmd arguments can therefore not contain { } eg for awk
+        '''
+        # FIXME: does not yet address to the case of input / output in shell
+        pattern = re.compile(r'\{(.*?)\}')
+        if args:
+            res = ' '.joion(args)
+            for m in re.finditer(pattern, args):
+                if m.group(1) not in params:
+                    raise ValueError('Cannot find ``{}`` in parameter list'.format(m.group(1)))
+                else:
+                    res = res.replace(m.group(0), f'{_%s}' % m.group(1))
+            return ', args = "{}"\n'.format(res)
+        else:
+            return '\n'
 
     @staticmethod
     def format_tuple(value):
@@ -91,7 +109,17 @@ class BasePlug:
 
 class Shell(BasePlug):
     def __init__(self, identifier = ''):
-        super().__init__(name = 'run', identifier = identifier)
+        super().__init__(name = 'bash', identifier = identifier)
+
+    def get_input(self, params, lib):
+        res = '\n'.join([f'for i in `ls {item}/*.sh`; do source $i; done' for item in lib]) if len(lib) else ''
+        # load parameters
+        for k in sorted(params):
+            res += '\n%s=${_%s}' % (self.get_var(k), k)
+        # FIXME: may need a timer
+        # seed
+        res += '\nRANDOM=$(($DSC_REPLICATE + ${DSC_STEP_ID_}))'
+        return res
 
     def add_input(self, lhs, rhs):
         self.add_tempfile(lhs, rhs)
@@ -166,33 +194,13 @@ class RPlug(BasePlug):
             res += '\n' + '\n'.join(sorted(self.tempfile))
         return res
 
-    def get_input(self, params, lib, cmd_args):
+    def get_input(self, params, lib):
         res = ('DSC_LIBPATH <- c({})\n'.format(','.join([repr(x) for x in lib])) + R_SOURCE) if len(lib) else ''
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
         res += '\n' + '\n'.join(self.container)
         for k in keys:
             res += '\n%s <- ${_%s}' % (self.get_var(k), k)
-        # FIXME: will eventually allow for parameter input for non-shell scripts (at SoS level)
-        if cmd_args:
-            for item in cmd_args:
-                if "=" in item:
-                    lhs, rhs = item.split('=')
-                    groups = DSC_GV.search(rhs)
-                    if groups:
-                        if groups.group(1) not in params:
-                            raise ValueError('Cannot find ``{}`` in parameter list'.format(groups.group(0)))
-                        else:
-                            res += '\n%s <- ${_%s}' % (lhs, groups.group(1))
-                    else:
-                        # FIXME: what if both lhs and rhs has $()?
-                        groups = DSC_GV.search(lhs)
-                        if groups:
-                            res += '\n%s <- %s' % (self.get_var(groups.group(1)) if groups.group(1) in params else groups.group(1), rhs)
-                        else:
-                            res += '\n%s <- %s' % (self.get_var(lhs) if lhs in params else lhs, rhs)
-                else:
-                    pass
         # timer
         res += f'\nTIC_{self.identifier[4:]} <- proc.time()'
         # seed
@@ -331,26 +339,13 @@ class PyPlug(BasePlug):
             res += '\n' + '\n'.join(sorted(self.tempfile))
         return res
 
-    def get_input(self, params, lib, cmd_args):
+    def get_input(self, params, lib):
         res = '\n'.join([f'sys.path.append(os.path.expanduser("{item}"))' for item in lib])
         # load parameters
         keys = sorted([x for x in params if not x in self.container_vars])
         res += '\n' + '\n'.join(self.container)
         for k in keys:
             res += '\n%s = ${_%s}' % (self.get_var(k), k)
-        # FIXME: will eventually allow for parameter input for plugins (at SoS level)
-        if cmd_args:
-            cmd_list = []
-            for item in cmd_args:
-                groups = DSC_GV.search(item)
-                if groups:
-                    if groups.group(1) not in params:
-                        raise ValueError('Cannot find ``{}`` in parameter list'.format(groups.group(0)))
-                    else:
-                        cmd_list.append('${_%s}' % groups.group(1))
-                else:
-                    cmd_list.append(repr(item))
-            res += '\nsys.argv.extend([{}])'.format(', '.join(cmd_list))
         res += f'\nTIC_{self.identifier[4:]} = timeit.default_timer()'
         res += '\nimport random\nrandom.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\nexcept Exception:\n\tpass'
         return res

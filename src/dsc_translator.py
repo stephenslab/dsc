@@ -347,9 +347,10 @@ class DSC_Translator:
                 # Create fake loop for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     if self.conf is None:
-                        self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"\n'
+                        self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
-                        self.action += f'{plugin.name}: expand = "${{ }}"\n'
+                        self.action += f'{plugin.name}: expand = "${{ }}"'
+                    self.action += plugin.get_cmd_args(cmd['args'], self.params)
                     # Add action
                     if len(cmd['path']) == 0:
                         script_begin = plugin.load_env(len(self.step.depends),
@@ -358,16 +359,12 @@ class DSC_Translator:
                                                        self.customized_loader,
                                                        self.conf is None)
                         script_begin += '\n' + plugin.get_input(self.params,
-                                                                self.step.libpath if self.step.libpath else [],
-                                                                cmd['args'])
+                                                                self.step.libpath if self.step.libpath else [])
                         script_begin += '\n' + plugin.get_output(self.step.rf)
                         script_begin = '\n'.join([x for x in script_begin.split('\n') if x])
                         script_begin = f"{cmd['header']}\n{script_begin.strip()}\n\n## BEGIN DSC CORE"
-                        if len(self.step.rv):
-                            script_end = plugin.get_return(self.step.rv, self.conf is None)
-                            script_end = f'## END DSC CORE\n\n{script_end.strip()}'
-                        else:
-                            script_end = ''
+                        script_end = plugin.get_return(self.step.rv, self.conf is None) if len(self.step.rv) else ''
+                        script_end = f'## END DSC CORE\n\n{script_end.strip()}'.strip()
                         script = '\n'.join([script_begin, cmd['content'], script_end])
                         if self.try_catch:
                             script = plugin.add_try(script, len(flatten_list([self.step.rf.values()])))
@@ -375,9 +372,8 @@ class DSC_Translator:
                         self.action += script
                         self.exe_signature.append(cmd['signature'])
                     else:
-                        # FIXME: need to process $(?) in args change into ${_?}
                         self.exe_check.append(f"executable({repr(cmd['path'])})")
-                        self.action += f"\t{cmd['path']} {' '.join(cmd['args']) if cmd['args'] else ''}\n"
+                        self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
 
         def dump(self):
             return '\n'.join([x for x in
