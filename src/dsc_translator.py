@@ -310,7 +310,7 @@ class DSC_Translator:
                 self.output_string += "{3} = sos_hash_output(['{0}'{1} {2}])".\
                                       format(' '.join([self.step.name, str(self.step.exe['args']) if self.step.exe['args'] else ''] \
                                                       + self.step.exe['file'] + [f'{k}:{self.step.rv[k]}' for k in sorted(self.step.rv)] \
-                                                      + [f'{k}:{self.step.rf[k]}' for k in sorted(self.step.rf) if k != 'DSC_AUTO_OUTPUT_'] \
+                                                      + [f'{k}:{" ".join(self.step.rf[k])}' for k in sorted(self.step.rf) if k != 'DSC_AUTO_OUTPUT_'] \
                                                       + [f'{x}:{{}}' for x in reversed(self.params)]),
                                              format_string, self.loop_string[0] + self.filter_string, output_lhs)
                 if len(self.current_depends):

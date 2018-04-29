@@ -105,7 +105,7 @@ class ExpandVars(YLine):
         for idx, item in enumerate(value):
             if isinstance(item, str):
                 # find pattern with slicing first
-                pattern = re.compile(r'\$\((.*?)\)\[(.*?)\]')
+                pattern = re.compile(r'\$\{(.*?)\}\[(.*?)\]')
                 for m in re.finditer(pattern, item):
                     if m.group(1) not in self.global_var:
                         raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
@@ -113,7 +113,7 @@ class ExpandVars(YLine):
                     tmp = ','.join([tmp[i] for i in get_slice('slice[' + m.group(2) + ']')[1]])
                     item = item.replace(m.group(0), '[' + tmp + ']')
                 # then pattern without slicing
-                pattern = re.compile(r'\$\((.*?)\)')
+                pattern = re.compile(r'\$\{(.*?)\}')
                 for m in re.finditer(pattern, item):
                     if m.group(1) not in self.global_var:
                         raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
@@ -429,18 +429,24 @@ def parse_exe(string):
     '''
     if not do_parentheses_match(string):
         raise FormatError(f"Invalid parentheses matching pattern in ``{string}``")
-    pattern = re.compile(r'\$\((.*?)\)')
-    def parse_inline(inline):
+    def parse_inline(inline, ext):
         replaced_inline = []
+        # for global variable
+        pattern = re.compile(r'\${(.*?)\}')
         for m in re.finditer(pattern, inline):
-            inline = inline.replace(m.group(0), m.group(1))
-            replaced_inline.append((m.group(1), f"${m.group(1)}"))
+            inline = inline.replace(m.group(0), f'${m.group(1)}' if ext == 'SH' else m.group(1))
+            replaced_inline.append((m.group(1), '${%s}' % m.group(1)))
+        # for module variable
+        pattern = re.compile(r'\$\((.*?)\)')
+        for m in re.finditer(pattern, inline):
+            inline = inline.replace(m.group(0), f'${m.group(1)}' if ext == 'SH' else m.group(1))
+            replaced_inline.append((m.group(1), f'${m.group(1)}'))
         return inline, replaced_inline
     #
-    ext_map = {'R': 'R', 'Python': 'PY'}
+    ext_map = {'R': 'R', 'Python': 'PY', 'Shell': 'SH'}
     action_dict = dict()
     idx = 0
-    for name in ['R', 'Python']:
+    for name in ext_map:
         pos = [m.end() - 1 for m in re.finditer(f'{name}\(', string)]
         p_end = 0
         replacements = []
@@ -457,8 +463,11 @@ def parse_exe(string):
     string = string.replace('*', '__DSC_STAR__').replace('+', '*')
     res = []
     replaced = []
-    op = OperationParser()
-    for x in op(string):
+    try:
+        string_parsed = OperationParser()(string)
+    except Exception as e:
+        raise RuntimeError(f'Invalid executable operator: {string}')
+    for x in string_parsed:
         if isinstance(x, str):
             x = [x]
         else:
@@ -469,7 +478,7 @@ def parse_exe(string):
             is_typed = False
             for key, value in action_dict.items():
                 if key in x[idx]:
-                    content = parse_inline(value[1])
+                    content = parse_inline(value[1], value[0])
                     x[idx] = x[idx].replace(key, content[0], 1)
                     replaced.extend(content[1])
                     exe_type.append(value[0])
