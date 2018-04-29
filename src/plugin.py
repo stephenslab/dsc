@@ -142,9 +142,7 @@ class RPlug(BasePlug):
         loader = 'readRDS' if not customized else 'dscrutils::read_dsc'
         res = 'dscrutils::empty_text(c("${_output:n}.stdout", "${_output:n}.stderr"))' if clear_err else ''
         # load files
-        load_multi_in = f'\n{self.identifier} <- list()' + \
-          '\ninput.files <- c(${_input:r,})\nfor (i in 1:length(input.files)) ' + \
-          f'{self.identifier} <- dscrutils::merge_lists({self.identifier}, {loader}(input.files[i]))'
+        load_multi_in = f'\n{self.identifier} <- dscrutils::load_inputs(c(${{_input:r,}}), {loader})'
         load_single_in = f'\n{self.identifier} <- {loader}("${{_input}}")'
         load_out = f'\nattach({loader}("${{_output}}"), warn.conflicts = F)'
         flag = False

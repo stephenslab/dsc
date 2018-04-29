@@ -1,4 +1,3 @@
-#' @export
 merge_lists <- function(x, y, ...)
 {
   if(length(x) == 0)
@@ -23,6 +22,16 @@ read_dsc <- function(infile) {
     stop("DSC data conversion failed (returned a non-zero exit status)")
   return(readRDS(paste0(inbase, '.rds')))
 }
+
+#' @export
+load_inputs <- function(files, loader) {
+  out <- list()
+  for (i in 1:length(files)) {
+    out <- merge_lists(out, loader(files[i]))
+  }
+  return(out)
+}
+
 
 thisFile <- function() {
   cmdArgs <- commandArgs(trailingOnly = FALSE)

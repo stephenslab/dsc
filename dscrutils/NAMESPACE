@@ -3,7 +3,7 @@
 export(dscquery)
 export(dscreval)
 export(empty_text)
-export(merge_lists)
+export(load_inputs)
 export(read_dsc)
 export(rm_if_empty)
 export(save_session)
