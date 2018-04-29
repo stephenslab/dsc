@@ -207,6 +207,9 @@ class RPlug(BasePlug):
             pass
         if flag:
             res += load_out
+        else:
+            # FIXME: to be implemented better
+            res += '\nDSC_REPLICATE <- 0'
         if self.module_input:
             res += '\n' + '\n'.join(sorted(self.module_input))
         if self.tempfile:
@@ -352,6 +355,9 @@ class PyPlug(BasePlug):
             pass
         if flag:
             res += load_out
+        else:
+            # FIXME: to be implemented better
+            res += '\nDSC_REPLICATE = 0'
         if self.module_input:
             res += '\n' + '\n'.join(sorted(self.module_input))
         if self.tempfile:
