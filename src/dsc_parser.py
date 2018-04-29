@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-import os, re, itertools, copy, subprocess, platform, glob
+import os, re, itertools, copy, platform, glob
 from collections import Mapping, OrderedDict, Counter
 from xxhash import xxh32 as xxh
 from sos.utils import env

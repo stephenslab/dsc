@@ -80,13 +80,13 @@ class BasePlug:
         # FIXME: does not yet address to the case of input / output in shell
         pattern = re.compile(r'\{(.*?)\}')
         if args:
-            res = ' '.joion(args)
-            for m in re.finditer(pattern, args):
+            res = ' '.join(args)
+            for m in re.finditer(pattern, res):
                 if m.group(1) not in params:
                     raise ValueError('Cannot find ``{}`` in parameter list'.format(m.group(1)))
                 else:
-                    res = res.replace(m.group(0), f'{_%s}' % m.group(1))
-            return ', args = "{}"\n'.format(res)
+                    res = res.replace(m.group(0), '{_%s}' % m.group(1))
+            return ', args = "{{filename:q}}" + f" {}"\n'.format(res)
         else:
             return '\n'
 
@@ -209,7 +209,8 @@ class RPlug(BasePlug):
             res += load_out
         else:
             # FIXME: to be implemented better
-            res += '\nDSC_REPLICATE <- 0'
+            if input_num > 0:
+                res += '\nDSC_REPLICATE <- 0'
         if self.module_input:
             res += '\n' + '\n'.join(sorted(self.module_input))
         if self.tempfile:
@@ -357,7 +358,8 @@ class PyPlug(BasePlug):
             res += load_out
         else:
             # FIXME: to be implemented better
-            res += '\nDSC_REPLICATE = 0'
+            if input_num > 0:
+                res += '\nDSC_REPLICATE = 0'
         if self.module_input:
             res += '\n' + '\n'.join(sorted(self.module_input))
         if self.tempfile:
@@ -388,7 +390,7 @@ class PyPlug(BasePlug):
                 res.append(f'{k} = ${{_output:nr}} + ".{params[k][0]}"')
         return '\n'.join(res)
 
-    def get_return(self, output_vars, remove_stderr = True):
+    def get_return(self, output_vars, remove_stderr = False):
         if len(output_vars) == 0:
             return ''
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
@@ -396,6 +398,8 @@ class PyPlug(BasePlug):
                            [f"'DSC_DEBUG': dict([('time', timeit.default_timer() - TIC_{self.identifier[4:]}), " \
                             "('script', open(__file__).read()), ('replicate', DSC_REPLICATE)])"]))
         # res += '\nfrom os import _exit; _exit(0)'
+        # FIXME: remove in Python does not work -- it seems to remove the file before the buffer writes to it from SoS
+        # So I have to keep it around
         if remove_stderr:
             res += '\nfor _ in ["${_output:n}.stderr", "${_output:n}.stdout"]:\n\tif (os.path.isfile(_) and os.path.getsize(_)==0): os.remove(_)'
         return res.strip()
