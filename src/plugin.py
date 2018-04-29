@@ -390,7 +390,7 @@ class PyPlug(BasePlug):
                 res.append(f'{k} = ${{_output:nr}} + ".{params[k][0]}"')
         return '\n'.join(res)
 
-    def get_return(self, output_vars, remove_stderr = False):
+    def get_return(self, output_vars, remove_stderr = True):
         if len(output_vars) == 0:
             return ''
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
@@ -400,7 +400,7 @@ class PyPlug(BasePlug):
         # res += '\nfrom os import _exit; _exit(0)'
         # FIXME: remove in Python does not work -- it seems to remove the file before the buffer writes to it from SoS
         # So I have to keep it around
-        if remove_stderr:
+        if remove_stderr and False:
             res += '\nfor _ in ["${_output:n}.stderr", "${_output:n}.stdout"]:\n\tif (os.path.isfile(_) and os.path.getsize(_)==0): os.remove(_)'
         return res.strip()
 

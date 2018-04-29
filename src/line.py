@@ -474,17 +474,19 @@ def parse_exe(string):
             x = list(x)
         exe_type = []
         for idx, item in enumerate(x):
-            x[idx] = item.replace('__DSC_STAR__', '*')
+            x[idx] = item.replace('__DSC_STAR__', '*').split()
+            # After split, the first element is script or command variable
+            # the rest are command arguments
             is_typed = False
             for key, value in action_dict.items():
-                if key in x[idx]:
+                if key in x[idx][0]:
                     content = parse_inline(value[1], value[0])
-                    x[idx] = x[idx].replace(key, content[0], 1)
+                    x[idx][0] = x[idx][0].replace(key, content[0], 1)
                     replaced.extend(content[1])
                     exe_type.append(value[0])
                     is_typed = True
                     if all([x in exe_type for x in ext_map.values()]):
-                        raise FormatError(f"Cannot mix executable types ``{[x for x in exe_type if x != 'unknown']}``, near ``{x[idx]}``")
+                        raise FormatError(f"Cannot mix executable types ``{[x for x in exe_type if x != 'unknown']}``, near ``{x[idx][0]}``")
             if not is_typed:
                 exe_type.append('unknown')
         res.append(tuple([tuple(exe_type)] + x))

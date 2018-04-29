@@ -461,26 +461,29 @@ class DSC_Module:
 
     def set_exec(self, exe):
         '''
-        Example input exec:
-        - ['unknown', 'MSE.R']
-        - ['R', 'mse = (mean_est-true_mean)^2']
-        - ('unknown', 'datamaker.py split')
+        Example input exec for example of length 3:
+        - ['unknown', ['MSE.R']]
+        - ['R', ['mse = (mean_est-true_mean)^2']]
+        - ('unknown', ['datamaker.py', 'split'])
         '''
-        # FIXME: need to handle $() in args ensure they exist in parameter list
         self.exe = {'path': [], 'content': [], 'args': None, 'signature': None,
                     'file': [], 'type': 'unknown', 'header': '', 'interpreter': None}
         for etype, item in zip(exe[0], exe[1:]):
+            if len(item) > 1:
+                if self.exe['args'] is not None:
+                    raise FormatError(f"Executable arguments conflict near ``{item[0]}``: ``{' '.join(self.exe['args'])}`` or ``{' '.join(item[1:])}``?")
+                else:
+                    self.exe['args'] = item[1:]
             if etype != 'unknown':
                 # is inline code
                 if etype != self.exe['type']:
                     if self.exe['type'] == 'unknown':
                         self.exe['type'] = etype
                     else:
-                        raise FormatError(f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item}``.")
-                self.exe['content'].append(item)
+                        raise FormatError(f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item[0]}``.")
+                self.exe['content'].append(item[0])
             else:
                 # is executable
-                item = item.split()
                 etype = os.path.splitext(item[0])[1].lstrip('.').upper()
                 is_rmd = False
                 rmd_chunk_pattern = None
@@ -492,11 +495,6 @@ class DSC_Module:
                     if len(tmp_chunk_name) > 1:
                         rmd_chunk_pattern = tmp_chunk_name[0]
                         item[0] = tmp_chunk_name[-1]
-                if len(item) > 1:
-                    if self.exe['args'] is not None:
-                        raise FormatError(f"Executable arguments conflict near ``{item[0]}``: ``{' '.join(self.exe['args'])}`` or ``{' '.join(item[1:])}``?")
-                    else:
-                        self.exe['args'] = item[1:]
                 fpath = locate_file(item[0], self.path)
                 if fpath is None:
                     # must be a system executable
