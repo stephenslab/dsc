@@ -112,14 +112,33 @@ class Shell(BasePlug):
         super().__init__(name = 'bash', identifier = identifier)
 
     def get_input(self, params, lib):
-        res = '\n'.join([f'for i in `ls {item}/*.sh`; do source $i; done' for item in lib]) if len(lib) else ''
+        res = 'set -e\n'
+        if len(lib):
+            res += '\n'.join([f'for i in `ls {item}/*.sh`; do source $i; done' for item in lib])
         # load parameters
         for k in sorted(params):
-            res += '\n%s=${_%s}' % (self.get_var(k), k)
+            # FIXME: better idea?
+            res += '\n{0}=${{_{1}[1:-1] if isinstance(_{1}, str) and (_{1}.startswith("\'") or _{1}.startswith(\'"\')) else _{1}}}'.format(self.get_var(k), k)
         # FIXME: may need a timer
         # seed
         res += '\nRANDOM=$(($DSC_REPLICATE + ${DSC_STEP_ID_}))'
         return res
+
+    def get_output(self, params):
+        '''
+        FIXME: assume for now that shell output produces one single file
+        accessible as `${_output}`.
+        '''
+        res = []
+        for k in params:
+            if k == 'DSC_AUTO_OUTPUT_':
+                continue
+            if len(params[k]) > 1:
+                res.append(f'{k}=({" ".join(["${{_output:n}}.{x}" for x in params[k]])})')
+            else:
+
+                res.append(f'{k}=${{_output:n}}.{params[k][0]}')
+        return '\n'.join(res)
 
     def add_input(self, lhs, rhs):
         self.add_tempfile(lhs, rhs)
