@@ -763,7 +763,7 @@ class DSC_Module:
                         file_ext = DSC_FILE_OP.search(p1).group(1).strip('.')
                         if k in self.rf:
                             # This file is to be saved as output
-                            # FIXME: for multiple output case have to figure out what is the index of the output
+                            # FIXME: need support for multiple output
                             self.plugin.add_input(k, '${_output:r}')
                             continue
                         else:
