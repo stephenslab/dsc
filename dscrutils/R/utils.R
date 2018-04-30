@@ -54,20 +54,6 @@ load_script <- function() {
 }
 
 #' @export
-empty_text <- function(fns) {
-  for (fn in fns) {
-    if (file.exists(fn) && file.size(fn) != 0) close(file(fn, open="w"))
-  }
-}
-
-#' @export
-rm_if_empty <- function(fns) {
-  for (fn in fns) {
-    if (file.exists(fn) && file.size(fn) == 0) file.remove(fn)
-  }
-}
-
-#' @export
 save_session <- function(start_time, id) {
 
   time <- as.list(proc.time() - start_time)

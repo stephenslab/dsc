@@ -2,10 +2,8 @@
 
 export(dscquery)
 export(dscreval)
-export(empty_text)
 export(load_inputs)
 export(read_dsc)
-export(rm_if_empty)
 export(save_session)
 export(shiny_plot)
 importFrom(tools,file_ext)
