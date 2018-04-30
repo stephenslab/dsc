@@ -10,7 +10,7 @@ import os, sys, msgpack, glob, inspect
 from xxhash import xxh32 as xxh
 from collections import OrderedDict
 from sos.targets import path
-from .utils import flatten_list, uniq_list, dict2str, convert_null, n2a, \
+from .utils import uniq_list, dict2str, convert_null, n2a, \
     install_r_lib, install_py_module
 __all__ = ['DSC_Translator']
 
@@ -213,7 +213,7 @@ class DSC_Translator:
              - will construct the actual script to run
             '''
             # FIXME
-            if len(flatten_list(list(step.rf.values()))) > 1:
+            if len(step.rf.values()) > 1:
                 raise ValueError('Multiple output files not implemented')
             self.step_map = step_map
             self.try_catch = try_catch
@@ -250,7 +250,7 @@ class DSC_Translator:
         def get_header(self):
             if self.prepare:
                 self.header = f"## Codes for {self.step.name}\n"
-                self.header += f"__out_vars__ = {repr([x for x in list(self.step.rv.keys()) + list(self.step.rf.keys()) if x != 'DSC_AUTO_OUTPUT_'])}"
+                self.header += f"__out_vars__ = {repr([x for x in list(self.step.rv.keys()) + list(self.step.rf.keys())])}"
             else:
                 self.header = f"\n[{self.step.name}]\n"
                 self.header += f"parameter: DSC_STEP_ID_ = None\nparameter: {self.step.name}_output_files = list"
@@ -311,7 +311,7 @@ class DSC_Translator:
                                       format(' '.join([self.step.name,
                                                        ' '.join([x.replace('{', '{{').replace('}', '}}') for x in self.step.exe['args']]) if self.step.exe['args'] else ''] \
                                                       + self.step.exe['file'] + [f'{k}:{self.step.rv[k]}' for k in sorted(self.step.rv)] \
-                                                      + [f'{k}:{" ".join(self.step.rf[k])}' for k in sorted(self.step.rf) if k != 'DSC_AUTO_OUTPUT_'] \
+                                                      + [f'{k}:{self.step.rf[k]}' for k in sorted(self.step.rf)] \
                                                       + [f'{x}:{{}}' for x in reversed(self.params)]),
                                              format_string, self.loop_string[0] + self.filter_string, output_lhs)
                 if len(self.current_depends):
@@ -339,26 +339,27 @@ class DSC_Translator:
                 input_str = '[]' if self.input_vars is None else '{0} if {0} is not None else []'.format(self.input_vars)
                 output_str = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
                 # FIXME: multiple output to be implemented
+                ext_str = ('rds' if self.step.plugin.name == 'R' else 'pkl') if (len(self.step.exe['path']) == 0 and len(self.step.rv) > 0) else 'meta'
                 if self.step.depends:
-                    self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(' '.join((y, x[1])), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{flatten_list(self.step.rf.values())[0]}')])\n"
+                    self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(' '.join((y, x[1])), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
                 else:
-                    self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(y, dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{flatten_list(self.step.rf.values())[0]}')])\n"
+                    self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(y, dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
             else:
-                # FIXME: have not considered super-step yet
-                # Create fake loop for now
+                # FIXME: have not considered multi-action module (or compound module) yet
+                # Create fake loop for now with idx going around
+                if self.conf is None:
+                    self.action += "if _output.with_suffix('.stderr').exists():\n\topen(_output.with_suffix('.stderr'), 'w').close()\n" \
+                                   "if _output.with_suffix('.stdout').exists():\n\topen(_output.with_suffix('.stdout'), 'w').close()\n"
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     if self.conf is None:
-                        self.action += "if _output.with_suffix('.stderr').exists():\n\topen(_output.with_suffix('.stderr'), 'w').close()\n" \
-                                       "if _output.with_suffix('.stdout').exists():\n\topen(_output.with_suffix('.stdout'), 'w').close()\n"
                         self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
                         self.action += f'{plugin.name}: expand = "${{ }}"'
                     self.action += plugin.get_cmd_args(cmd['args'], self.params)
                     # Add action
                     if len(cmd['path']) == 0:
-                        script_begin = plugin.load_env(len(self.step.depends),
-                                                       idx,
-                                                       True if len([x for x in self.step.depends if len(x[2]) == 0]) else False,
+                        script_begin = plugin.load_env(self.step.depends,
+                                                       idx > 0 and len(self.step.rv),
                                                        self.customized_loader)
                         script_begin += '\n' + plugin.get_input(self.params,
                                                                 self.step.libpath if self.step.libpath else [])
@@ -369,7 +370,7 @@ class DSC_Translator:
                         script_end = f'## END DSC CORE\n\n{script_end.strip()}'.strip()
                         script = '\n'.join([script_begin, cmd['content'], script_end])
                         if self.try_catch:
-                            script = plugin.add_try(script, len(flatten_list([self.step.rf.values()])))
+                            script = plugin.add_try(script, len([self.step.rf.values()]))
                         script = f"""## {str(plugin)} script UUID: ${{DSC_STEP_ID_}}\n{script}\n"""
                         script = '\n'.join([f'  {x}' for x in script.split('\n')])
                         self.action += script
@@ -377,9 +378,9 @@ class DSC_Translator:
                     else:
                         self.exe_check.append(f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
-                    if self.conf is None:
-                        self.action += "\ntry:\n\tif _output.with_suffix('.stderr').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stderr'))\nexcept Exception:\n\tpass\n" \
-                                       "try:\n\tif _output.with_suffix('.stdout').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stdout'))\nexcept Exception:\n\tpass"
+                if self.conf is None:
+                    self.action += "\ntry:\n\tif _output.with_suffix('.stderr').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stderr'))\nexcept Exception:\n\tpass\n" \
+                                   "try:\n\tif _output.with_suffix('.stdout').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stdout'))\nexcept Exception:\n\tpass"
 
         def dump(self):
             return '\n'.join([x for x in

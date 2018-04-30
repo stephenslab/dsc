@@ -9,7 +9,7 @@ This file defines DSC syntax templates
 import re
 from sos.syntax import LazyRegex, SOS_DIRECTIVES
 
-DSC_KW = ['DSC_AUTO_OUTPUT_', 'DSC_TIMER'] # engineering keywords, reserved
+DSC_KW = ['DSC_DEBUG'] # engineering keywords, reserved
 DSC_KW.extend(SOS_DIRECTIVES)
 DSC_MODP = ['^EXEC', '^FILTER', '^ALIAS', '^CONF'] # module properties
 

@@ -449,7 +449,6 @@ class DSC_Module:
             self.chop_input()
         # parameter filter:
         self.ft = self.apply_input_filter(try_get_value(content, ('meta', 'filter')))
-        self.set_output_ext()
 
     @staticmethod
     def pop_lib(vec, lib):
@@ -553,14 +552,6 @@ class DSC_Module:
         self.exe['signature'] = xxh(((executable(self.exe['path']).target_signature() if executable(self.exe['path']).target_exists() else fileMD5(self.exe['path'], partial = False)) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '') + lib_signature).hexdigest()
         self.plugin = Plugin(self.exe['type'], self.exe['signature'])
 
-    def set_output_ext(self):
-        # check if the exec is meant to be executed from shell
-        # and set extension for automatic output
-        # True only if self.exe['path']
-        # Also this conflicts with self.rv: self.exe['path'] && len(self.rv) == 0
-        if len(self.exe['path']) == 0 and len(self.rv) > 0:
-            # make it a list in order to readily merge with other self.rf items
-            self.rf['DSC_AUTO_OUTPUT_'] = ['rds' if self.plugin.name == 'R' else 'pkl']
 
     def set_output(self, return_var):
         '''
@@ -602,7 +593,7 @@ class DSC_Module:
             # For file
             groups = DSC_FILE_OP.search(value)
             if groups:
-                self.rf[key] = [groups.group(1).strip('.')]
+                self.rf[key] = groups.group(1).strip('.')
             else:
                 self.rv[key] = value
 
@@ -992,7 +983,7 @@ class DSC_Pipeline:
                                                                module.name)
                             if id_dependent[1] not in module.depends:
                                 module.depends.append(id_dependent[1])
-                            if len(id_dependent[1][2]) == 0:
+                            if id_dependent[1][2] in ['rds', 'pkl', None]:
                                 module.plugin.add_input(k, p1)
                             else:
                                 # FIXME: for multiple output should figure out the index of previous output
@@ -1023,11 +1014,12 @@ class DSC_Pipeline:
         while curr_idx >= 0:
             # Look up backwards for the corresponding block, looking at the output of the first step
             if variable in [x for x in pipeline[curr_idx].rv]:
-                dependent = (pipeline[curr_idx].name, variable, [])
+                # None for variable output, not an explicit file
+                dependent = (pipeline[curr_idx].name, variable, None)
             if variable in [x for x in pipeline[curr_idx].rf]:
                 if dependent is not None:
-                    raise ValueError(f'[BUG]: ``{variable}`` cannot be both a variable and a file!')
-                dependent = (pipeline[curr_idx].name, variable, flatten_list(pipeline[curr_idx].rf.values()))
+                    raise FormatError(f'[BUG]: ``{variable}`` cannot be both a variable and a file!')
+                dependent = (pipeline[curr_idx].name, variable, pipeline[curr_idx].rf[variable])
             if dependent is not None:
                 break
             else:

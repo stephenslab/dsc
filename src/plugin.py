@@ -57,7 +57,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def load_env(self, input_num, index, autoload, customized):
+    def load_env(self, depends, depends_self, customized):
         return ''
 
     def get_input(self, params, lib):
@@ -131,8 +131,6 @@ class Shell(BasePlug):
         '''
         res = []
         for k in params:
-            if k == 'DSC_AUTO_OUTPUT_':
-                continue
             if len(params[k]) > 1:
                 res.append(f'{k}=({" ".join(["${{_output:n}}.{x}" for x in params[k]])})')
             else:
@@ -188,31 +186,29 @@ class RPlug(BasePlug):
             temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, input_num, index, autoload, customized):
+    def load_env(self, depends, depends_self, customized):
+        '''
+        depends: [(name, var, ext), ...]
+        '''
+        res = f'{self.identifier} <- list()' if len(depends) else ''
+        load_idx = [i for i, item in enumerate(depends) if item[2] is None]
+        assign_idx = [i for i, item in enumerate(depends) if item[2] in ['rds', 'pkl']]
         loader = 'readRDS' if not customized else 'dscrutils::read_dsc'
         # load files
-        load_multi_in = f'\n{self.identifier} <- dscrutils::load_inputs(c(${{_input:r,}}), {loader})'
-        load_single_in = f'\n{self.identifier} <- {loader}("${{_input}}")'
-        load_out = f'\nattach({loader}("${{_output}}"), warn.conflicts = F)'
-        flag = False
-        if input_num > 1 and autoload:
-            res = load_multi_in
+        load_in = f'\n{self.identifier} <- dscrutils::load_inputs(c(${{paths([_input[i] for i in {load_idx}]):r,}}), {loader})'
+        assign_in = '\n' + '\n'.join([f'{self.identifier}${depends[i][1]} <- {loader}("${{_input[{i}]}}")' for i in assign_idx])
+        load_out = f'\nif (file.exists("${{_output}}")) attach({loader}("${{_output}}"), warn.conflicts = F)'
+        if len(load_idx):
+            res += load_in
             res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
-            if index > 0:
-                flag = True
-        elif input_num == 1 and autoload:
-            res = load_single_in
-            res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
-            if index > 0:
-                flag = True
         else:
-            res = ''
-        if flag:
-            res += load_out
-        else:
-            # FIXME: to be implemented better
-            if input_num > 0:
+            if len(depends):
+                # FIXME: have to find another way to pass this down
                 res += '\nDSC_REPLICATE <- 0'
+        if len(assign_idx):
+            res += assign_in
+        if depends_self:
+            res += load_out
         if self.module_input:
             res += '\n' + '\n'.join(sorted(self.module_input))
         if self.tempfile:
@@ -235,8 +231,6 @@ class RPlug(BasePlug):
     def get_output(self, params):
         res = []
         for k in params:
-            if k == 'DSC_AUTO_OUTPUT_':
-                continue
             if len(params[k]) > 1:
                 res.append(f'{k} <- rep(NA, {len(params[k])})')
                 for idx, item in enumerate(params[k]):
@@ -326,38 +320,37 @@ class PyPlug(BasePlug):
             temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, input_num, index, autoload, customized):
-        res = 'import sys, os, tempfile, timeit, pickle'
+    def load_env(self, depends, depends_self, customized):
+        '''
+        depends: [(name, var, ext), ...]
+        '''
+        res = 'import sys, os, tempfile, timeit, pickle\n'
+        if len(depends):
+            res += f'{self.identifier} = dict()'
+        load_idx = [i for i, item in enumerate(depends) if item[2] is None]
+        assign_idx = [i for i, item in enumerate(depends) if item[2] in ['rds', 'pkl']]
         # load files
         if customized:
             res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
-            load_multi_in = f'\n{self.identifier} = __load_dsc__([${{_input:r,}}])'
-            load_single_in = f'\n{self.identifier} = __load_dsc__("${{_input}}")'
-            load_out = '\nglobals().update(__load_dsc__("${_output}"))'
+            load_in = f'\n{self.identifier} = __load_dsc__([${{paths([_input[i] for i in {load_idx}]):r,}}])'
+            assign_in = '\n' + '\n'.join([f'{self.identifier}["{depends[i][1]}"] = __load_dsc__("${{_input[{i}]}}")' for i in assign_idx])
+            load_out = '\nif os.path.isfile("${_output}"): globals().update(__load_dsc__("${_output}"))'
         else:
-            load_multi_in = f'\n{self.identifier} = {{}}' + \
-                            f'\nfor item in [${{_input:r,}}]:\n\t{self.identifier}.update(pickle.load(open(item, "rb")))'
-            load_single_in = f'\n{self.identifier} = pickle.load(open("${{_input}}", "rb"))'
-            load_out = '\nglobals().update(pickle.load(open("${_output}", "rb")))'
-        flag = False
-        if input_num > 1 and autoload:
-            res += load_multi_in
+            load_in = f'\n{self.identifier} = {{}}' + \
+                            f'\nfor item in [${{paths([_input[i] for i in {load_idx}]):r,}}]:\n\t{self.identifier}.update(pickle.load(open(item, "rb")))'
+            assign_in = '\n' + '\n'.join([f'{self.identifier}["{depends[i][1]}"] = pickle.load(open("${{_input[{i}]}}", "rb"))' for i in assign_idx])
+            load_out = '\nif os.path.isfile("${_output}"): globals().update(pickle.load(open("${_output}", "rb")))'
+        if len(load_idx):
+            res += load_in
             res += f'\nDSC_REPLICATE = {self.identifier}["DSC_DEBUG"]["replicate"]'
-            if index > 0:
-                flag = True
-        elif input_num == 1 and autoload:
-            res += load_single_in
-            res += f'\nDSC_REPLICATE = {self.identifier}["DSC_DEBUG"]["replicate"]'
-            if index > 0:
-                flag = True
         else:
-            pass
-        if flag:
-            res += load_out
-        else:
-            # FIXME: to be implemented better
-            if input_num > 0:
+            if len(depends):
+                # FIXME: have to find another way to pass this down
                 res += '\nDSC_REPLICATE = 0'
+        if len(assign_idx):
+            res += assign_in
+        if depends_self:
+            res += load_out
         if self.module_input:
             res += '\n' + '\n'.join(sorted(self.module_input))
         if self.tempfile:
@@ -378,8 +371,6 @@ class PyPlug(BasePlug):
     def get_output(self, params):
         res = []
         for k in params:
-            if k == 'DSC_AUTO_OUTPUT_':
-                continue
             if len(params[k]) > 1:
                 res.append(f'{k} = [None for x in range({len(params[k])})]')
                 for idx, item in enumerate(params[k]):

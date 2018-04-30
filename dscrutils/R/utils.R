@@ -25,6 +25,9 @@ read_dsc <- function(infile) {
 
 #' @export
 load_inputs <- function(files, loader) {
+  if (length(files) == 1) {
+    return(loader(files[1]))
+  }
   out <- list()
   for (i in 1:length(files)) {
     out <- merge_lists(out, loader(files[i]))
