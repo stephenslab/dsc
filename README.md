@@ -45,6 +45,14 @@ git pull
 ./setup.sos
 ```
 
+#### Install dscrutils from github
+
+In R,
+
+```r
+devtools::install_github("stephenslab/dsc",subdir = "dscrutils", force = TRUE)
+```
+
 ## Change Log
 
 ### Upcoming release

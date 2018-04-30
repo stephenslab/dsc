@@ -57,7 +57,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def load_env(self, depends, depends_self, customized):
+    def load_env(self, depends, depends_self):
         return ''
 
     def get_input(self, params, lib):
@@ -129,14 +129,9 @@ class Shell(BasePlug):
         FIXME: assume for now that shell output produces one single file
         accessible as `${_output}`.
         '''
-        res = []
-        for k in params:
-            if len(params[k]) > 1:
-                res.append(f'{k}=({" ".join(["${{_output:n}}.{x}" for x in params[k]])})')
-            else:
-
-                res.append(f'{k}=${{_output:n}}.{params[k][0]}')
-        return '\n'.join(res)
+        res = '\n'.join([f'{k}=${{_output:n}}.{params[k]}' for k in params])
+        res += f"\necho '''{res}''' > ${{_output}}"
+        return res
 
     def add_input(self, lhs, rhs):
         self.add_tempfile(lhs, rhs)
@@ -186,17 +181,17 @@ class RPlug(BasePlug):
             temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, depends, depends_self, customized):
+    def load_env(self, depends, depends_self):
         '''
         depends: [(name, var, ext), ...]
         '''
         res = f'{self.identifier} <- list()' if len(depends) else ''
         load_idx = [i for i, item in enumerate(depends) if item[2] is None]
         assign_idx = [i for i, item in enumerate(depends) if item[2] in ['rds', 'pkl']]
-        loader = 'readRDS' if not customized else 'dscrutils::read_dsc'
+        loader = 'dscrutils::read_dsc'
         # load files
         load_in = f'\n{self.identifier} <- dscrutils::load_inputs(c(${{paths([_input[i] for i in {load_idx}]):r,}}), {loader})'
-        assign_in = '\n' + '\n'.join([f'{self.identifier}${depends[i][1]} <- {loader}("${{_input[{i}]}}")' for i in assign_idx])
+        assign_in = '\n' + '\n'.join([f'{self.identifier}${depends[i][1]} <- {loader}("${{_input[{i}]:n}}.{depends[i][2]}")' for i in assign_idx])
         load_out = f'\nif (file.exists("${{_output}}")) attach({loader}("${{_output}}"), warn.conflicts = F)'
         if len(load_idx):
             res += load_in
@@ -320,7 +315,7 @@ class PyPlug(BasePlug):
             temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, depends, depends_self, customized):
+    def load_env(self, depends, depends_self):
         '''
         depends: [(name, var, ext), ...]
         '''
@@ -330,16 +325,10 @@ class PyPlug(BasePlug):
         load_idx = [i for i, item in enumerate(depends) if item[2] is None]
         assign_idx = [i for i, item in enumerate(depends) if item[2] in ['rds', 'pkl']]
         # load files
-        if customized:
-            res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
-            load_in = f'\n{self.identifier} = __load_dsc__([${{paths([_input[i] for i in {load_idx}]):r,}}])'
-            assign_in = '\n' + '\n'.join([f'{self.identifier}["{depends[i][1]}"] = __load_dsc__("${{_input[{i}]}}")' for i in assign_idx])
-            load_out = '\nif os.path.isfile("${_output}"): globals().update(__load_dsc__("${_output}"))'
-        else:
-            load_in = f'\n{self.identifier} = {{}}' + \
-                            f'\nfor item in [${{paths([_input[i] for i in {load_idx}]):r,}}]:\n\t{self.identifier}.update(pickle.load(open(item, "rb")))'
-            assign_in = '\n' + '\n'.join([f'{self.identifier}["{depends[i][1]}"] = pickle.load(open("${{_input[{i}]}}", "rb"))' for i in assign_idx])
-            load_out = '\nif os.path.isfile("${_output}"): globals().update(pickle.load(open("${_output}", "rb")))'
+        res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
+        load_in = f'\n{self.identifier} = __load_dsc__([${{paths([_input[i] for i in {load_idx}]):r,}}])'
+        assign_in = '\n' + '\n'.join([f'{self.identifier}["{depends[i][1]}"] = __load_dsc__("${{_input[{i}]:n}}.{depends[i][2]}")' for i in assign_idx])
+        load_out = '\nif os.path.isfile("${_output}"): globals().update(__load_dsc__("${_output}"))'
         if len(load_idx):
             res += load_in
             res += f'\nDSC_REPLICATE = {self.identifier}["DSC_DEBUG"]["replicate"]'
