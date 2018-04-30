@@ -187,7 +187,7 @@ class RPlug(BasePlug):
         '''
         res = f'{self.identifier} <- list()' if len(depends) else ''
         load_idx = [i for i, item in enumerate(depends) if item[2] is None]
-        assign_idx = [i for i, item in enumerate(depends) if item[2] in ['rds', 'pkl']]
+        assign_idx = [i for i, item in enumerate(depends) if i not in load_idx and item[2].split('.')[-1] in ['rds', 'pkl']]
         loader = 'dscrutils::read_dsc'
         # load files
         load_in = f'\n{self.identifier} <- dscrutils::load_inputs(c(${{paths([_input[i] for i in {load_idx}]):r,}}), {loader})'
@@ -323,7 +323,7 @@ class PyPlug(BasePlug):
         if len(depends):
             res += f'{self.identifier} = dict()'
         load_idx = [i for i, item in enumerate(depends) if item[2] is None]
-        assign_idx = [i for i, item in enumerate(depends) if item[2] in ['rds', 'pkl']]
+        assign_idx = [i for i, item in enumerate(depends) if i not in load_idx and item[2].split('.')[-1] in ['rds', 'pkl']]
         # load files
         res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
         load_in = f'\n{self.identifier} = __load_dsc__([${{paths([_input[i] for i in {load_idx}]):r,}}])'

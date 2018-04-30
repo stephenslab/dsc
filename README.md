@@ -59,13 +59,15 @@ devtools::install_github("stephenslab/dsc",subdir = "dscrutils", force = TRUE)
 
 Goal for 0.2.8
 
-- Support for multiple outputs per module, for shell executables
-- Improve command options for scripts
+- Support for multiple output per modules.
+- Improve scripts command options.
 
 ### 0.2.x
 
 0.2.7.7
 
+- Some improvements for module with shell executables.
+- Some improvements for command options.
 - Improved logging.
 - Bug fixes #126, #127.
 - SoS bumped to version 0.9.13.4 for #128 and related.

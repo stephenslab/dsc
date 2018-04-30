@@ -593,7 +593,7 @@ class DSC_Module:
             # For file
             groups = DSC_FILE_OP.search(value)
             if groups:
-                self.rf[key] = groups.group(1).strip('.')
+                self.rf[key] = '{}.{}'.format(key, groups.group(1).strip('.'))
             else:
                 self.rv[key] = value
 
@@ -983,7 +983,7 @@ class DSC_Pipeline:
                                                                module.name)
                             if id_dependent[1] not in module.depends:
                                 module.depends.append(id_dependent[1])
-                            if id_dependent[1][2] in ['rds', 'pkl', None]:
+                            if id_dependent[1][2] is None or id_dependent[1][2].split('.')[-1] in ['rds', 'pkl']:
                                 module.plugin.add_input(k, p1)
                             else:
                                 # FIXME: for multiple output should figure out the index of previous output
