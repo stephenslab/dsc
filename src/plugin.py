@@ -51,13 +51,13 @@ class BasePlug:
     def add_return(self, lhs, rhs):
         pass
 
-    def get_return(self, output_vars, remove_stderr):
+    def get_return(self, output_vars):
         return ''
 
     def set_container(self, name, value, params):
         pass
 
-    def load_env(self, input_num, index, autoload, customized, clear_err):
+    def load_env(self, input_num, index, autoload, customized):
         return ''
 
     def get_input(self, params, lib):
@@ -155,6 +155,9 @@ class Shell(BasePlug):
     def add_try(content, n_output):
         return ''
 
+    def __str__(self):
+        return 'bash'
+
 
 class RPlug(BasePlug):
     def __init__(self, identifier = ''):
@@ -185,26 +188,25 @@ class RPlug(BasePlug):
             temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, input_num, index, autoload, customized, clear_err = True):
+    def load_env(self, input_num, index, autoload, customized):
         loader = 'readRDS' if not customized else 'dscrutils::read_dsc'
-        res = 'dscrutils::empty_text(c("${_output:n}.stdout", "${_output:n}.stderr"))' if clear_err else ''
         # load files
         load_multi_in = f'\n{self.identifier} <- dscrutils::load_inputs(c(${{_input:r,}}), {loader})'
         load_single_in = f'\n{self.identifier} <- {loader}("${{_input}}")'
         load_out = f'\nattach({loader}("${{_output}}"), warn.conflicts = F)'
         flag = False
         if input_num > 1 and autoload:
-            res += load_multi_in
+            res = load_multi_in
             res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
             if index > 0:
                 flag = True
         elif input_num == 1 and autoload:
-            res += load_single_in
+            res = load_single_in
             res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
             if index > 0:
                 flag = True
         else:
-            pass
+            res = ''
         if flag:
             res += load_out
         else:
@@ -243,14 +245,12 @@ class RPlug(BasePlug):
                 res.append(f'{k} <- paste0(${{_output:nr}}, ".{params[k][0]}")')
         return '\n'.join(res)
 
-    def get_return(self, output_vars, remove_stderr = True):
+    def get_return(self, output_vars):
         if len(output_vars) == 0:
             return ''
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
                            [f"DSC_DEBUG=dscrutils::save_session(TIC_{self.identifier[4:]}, DSC_REPLICATE)"]))
-        if remove_stderr:
-            res += '\ndscrutils::rm_if_empty(c("${_output:n}.stdout", "${_output:n}.stderr"))'
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -326,10 +326,8 @@ class PyPlug(BasePlug):
             temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, input_num, index, autoload, customized, clear_err = True):
+    def load_env(self, input_num, index, autoload, customized):
         res = 'import sys, os, tempfile, timeit, pickle'
-        if clear_err:
-            res += '\nfor _ in ["${_output:n}.stderr", "${_output:n}.stdout"]:\n\tif os.path.isfile(_): open(_, "w").close()'
         # load files
         if customized:
             res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
@@ -390,7 +388,7 @@ class PyPlug(BasePlug):
                 res.append(f'{k} = ${{_output:nr}} + ".{params[k][0]}"')
         return '\n'.join(res)
 
-    def get_return(self, output_vars, remove_stderr = True):
+    def get_return(self, output_vars):
         if len(output_vars) == 0:
             return ''
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
@@ -398,10 +396,6 @@ class PyPlug(BasePlug):
                            [f"'DSC_DEBUG': dict([('time', timeit.default_timer() - TIC_{self.identifier[4:]}), " \
                             "('script', open(__file__).read()), ('replicate', DSC_REPLICATE)])"]))
         # res += '\nfrom os import _exit; _exit(0)'
-        # FIXME: remove in Python does not work -- it seems to remove the file before the buffer writes to it from SoS
-        # So I have to keep it around
-        if remove_stderr and False:
-            res += '\nfor _ in ["${_output:n}.stderr", "${_output:n}.stdout"]:\n\tif (os.path.isfile(_) and os.path.getsize(_)==0): os.remove(_)'
         return res.strip()
 
     def set_container(self, name, value, params):

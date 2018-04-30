@@ -348,6 +348,8 @@ class DSC_Translator:
                 # Create fake loop for now
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     if self.conf is None:
+                        self.action += "if _output.with_suffix('.stderr').exists():\n\topen(_output.with_suffix('.stderr'), 'w').close()\n" \
+                                       "if _output.with_suffix('.stdout').exists():\n\topen(_output.with_suffix('.stdout'), 'w').close()\n"
                         self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
                         self.action += f'{plugin.name}: expand = "${{ }}"'
@@ -356,25 +358,28 @@ class DSC_Translator:
                     if len(cmd['path']) == 0:
                         script_begin = plugin.load_env(len(self.step.depends),
                                                        idx,
-                                                       True if len([x for x in self.step.depends if x[2] == 'var']) else False,
-                                                       self.customized_loader,
-                                                       self.conf is None)
+                                                       True if len([x for x in self.step.depends if len(x[2]) == 0]) else False,
+                                                       self.customized_loader)
                         script_begin += '\n' + plugin.get_input(self.params,
                                                                 self.step.libpath if self.step.libpath else [])
                         script_begin += '\n' + plugin.get_output(self.step.rf)
                         script_begin = '\n'.join([x for x in script_begin.split('\n') if x])
                         script_begin = f"{cmd['header']}\n{script_begin.strip()}\n\n## BEGIN DSC CORE"
-                        script_end = plugin.get_return(self.step.rv, self.conf is None) if len(self.step.rv) else ''
+                        script_end = plugin.get_return(self.step.rv) if len(self.step.rv) else ''
                         script_end = f'## END DSC CORE\n\n{script_end.strip()}'.strip()
                         script = '\n'.join([script_begin, cmd['content'], script_end])
                         if self.try_catch:
                             script = plugin.add_try(script, len(flatten_list([self.step.rf.values()])))
                         script = f"""## {str(plugin)} script UUID: ${{DSC_STEP_ID_}}\n{script}\n"""
+                        script = '\n'.join([f'  {x}' for x in script.split('\n')])
                         self.action += script
                         self.exe_signature.append(cmd['signature'])
                     else:
                         self.exe_check.append(f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
+                    if self.conf is None:
+                        self.action += "\ntry:\n\tif _output.with_suffix('.stderr').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stderr'))\nexcept Exception:\n\tpass\n" \
+                                       "try:\n\tif _output.with_suffix('.stdout').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stdout'))\nexcept Exception:\n\tpass"
 
         def dump(self):
             return '\n'.join([x for x in

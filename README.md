@@ -58,6 +58,7 @@ Goal for 0.2.8
 
 0.2.7.7
 
+- Improved logging.
 - Bug fixes #126, #127.
 - SoS bumped to version 0.9.13.4 for #128 and related.
 

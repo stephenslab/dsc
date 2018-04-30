@@ -992,7 +992,7 @@ class DSC_Pipeline:
                                                                module.name)
                             if id_dependent[1] not in module.depends:
                                 module.depends.append(id_dependent[1])
-                            if id_dependent[1][2] == 'var':
+                            if len(id_dependent[1][2]) == 0:
                                 module.plugin.add_input(k, p1)
                             else:
                                 # FIXME: for multiple output should figure out the index of previous output
@@ -1023,11 +1023,11 @@ class DSC_Pipeline:
         while curr_idx >= 0:
             # Look up backwards for the corresponding block, looking at the output of the first step
             if variable in [x for x in pipeline[curr_idx].rv]:
-                dependent = (pipeline[curr_idx].name, variable, 'var')
+                dependent = (pipeline[curr_idx].name, variable, [])
             if variable in [x for x in pipeline[curr_idx].rf]:
                 if dependent is not None:
                     raise ValueError(f'[BUG]: ``{variable}`` cannot be both a variable and a file!')
-                dependent = (pipeline[curr_idx].name, variable, 'file')
+                dependent = (pipeline[curr_idx].name, variable, flatten_list(pipeline[curr_idx].rf.values()))
             if dependent is not None:
                 break
             else:
