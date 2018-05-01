@@ -119,7 +119,7 @@ class BasePlug:
 
     @staticmethod
     def format_tuple(value):
-        return repr(' '.join(flatten_list(value)))
+        return flatten_list(value)
 
     def dump(self):
         return dict([
@@ -137,6 +137,7 @@ class BasePlug:
 class Shell(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'bash', identifier = identifier)
+        self.output_ext = 'yml'
 
     def get_input(self, params, lib):
         res = 'rm -f $[_output]\n'
@@ -145,7 +146,7 @@ class Shell(BasePlug):
         # load parameters
         for k in sorted(params):
             # FIXME: better idea?
-            res += '\n{0}=$(expandPath $[_{1}])'.format(self.get_var(k), k)
+            res += '\n{0}=$(expandPath $[paths(_{1}) if isinstance(_{1}, list) else _{1}])'.format(self.get_var(k), k)
         # FIXME: may need a timer
         # seed
         res += '\nRANDOM=$(($DSC_REPLICATE + $[DSC_STEP_ID_]))'
@@ -158,7 +159,8 @@ class Shell(BasePlug):
         '''
         res = dict([('DSC_OUTPUT', dict())])
         res['DSC_OUTPUT'] = dict([(k,  f'$[_output:n].{params[k]}') for k in params])
-        return '\n'.join([f'{k}=$[_output:n].{params[k]}' for k in params]) + f"\necho '''{dict2yaml(res)}''' >> $[_output]"
+        return '\n'.join([f'{k}=$[_output:n].{params[k]}' for k in params]) + \
+            f"\ncat >> $[_output] << EOF\n{dict2yaml(res)}\nEOF"
 
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
@@ -202,7 +204,7 @@ class Shell(BasePlug):
                 self.container_vars[k] = [j]
             else:
                 self.container_vars[k].append(j)
-        self.container.extend(dict2yaml(dict(res)))
+        self.container.append(res)
 
     def load_env(self, depends, depends_self):
         '''
@@ -210,7 +212,7 @@ class Shell(BasePlug):
         '''
         # and assign the parameters to flat bash variables
         res = f'set -e{BASH_UTILS}'
-        # FIXME: need to make it work for loading at least "meta" file
+        # FIXME: need to make it work for loading at least "meta" yaml file
         # Now just list all the names here
         # including meta file
         res += '\n'.join(['\n{}={}'.format(f"{self.identifier}_{item[1]}", "$[_output]") if item[2] is None else (item[1], "$[_output:n].%s" % item[2]) for item in depends])
@@ -226,10 +228,14 @@ class Shell(BasePlug):
         if len(output_vars) == 0:
             return ''
         res = {'DSC_VARS': deepcopy(output_vars)}
+        container = dict(pair for d in self.container for pair in d.items())
         # FIXME: need more variables here
+        for key, val in res['DSC_VARS'].items():
+            if val in container:
+                res['DSC_VARS'][key] = container[val]
         res['DSC_VARS']['DSC_DEBUG'] = dict()
         res['DSC_VARS']['DSC_DEBUG']['DSC_REPLICATE'] = 0
-        return f"\necho '''{dict2yaml(res)}''' >> $[_output]"
+        return f"\ncat >> $[_output] << EOF\n{dict2yaml(res)}\nEOF"
 
     @staticmethod
     def add_try(content, n_output):
@@ -242,6 +248,7 @@ class Shell(BasePlug):
 class RPlug(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'R', identifier = identifier)
+        self.output_ext = 'rds'
 
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
@@ -376,6 +383,7 @@ class RPlug(BasePlug):
 class PyPlug(BasePlug):
     def __init__(self, identifier = ''):
         super().__init__(name = 'python', identifier = identifier)
+        self.output_ext = 'pkl'
 
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
