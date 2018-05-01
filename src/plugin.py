@@ -146,7 +146,7 @@ class Shell(BasePlug):
         # load parameters
         for k in sorted(params):
             # FIXME: better idea?
-            res += '\n{0}=$(expandPath $[paths(_{1}) if isinstance(_{1}, list) else _{1}])'.format(self.get_var(k), k)
+            res += '\n{0}=$(expandPath $[repr(_{1}) if isinstance(_{1}, list) else _{1}])'.format(self.get_var(k), k)
         # FIXME: may need a timer
         # seed
         res += '\nRANDOM=$(($DSC_REPLICATE + $[DSC_STEP_ID_]))'

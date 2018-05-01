@@ -63,10 +63,10 @@ class YLine:
             if ((len(p1) >= 1 and p1[-1][0] == 0 and p1[-1][1] == len(var) - 1) or \
                (len(p2) >= 1 and p2[-1][0] == 0 and p2[-1][1] == len(var) - 1)):
                 var = [self.decodeVar(x.strip()) for x in self.split(remove_parens(var))]
-                if len(p1) == 1:
-                    var = tuple(var)
                 if len(var) == 1:
                     var = var[0]
+                else:
+                    var = tuple(var)
         return var
 
 

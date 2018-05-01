@@ -797,9 +797,9 @@ class DSC_Module:
                     res.append(groups.group(1))
                     # has_raw = True
                 else:
-                    res.append(repr(v))
+                    res.append(v)
             else:
-                res.append(str(v))
+                res.append(v)
         return tuple(res)
 
     def __str__(self):
