@@ -9,6 +9,7 @@ Process R and Python plugin codes to DSC
 import yaml, re
 from collections import OrderedDict
 from copy import deepcopy
+from sos.targets import path
 from .syntax import DSC_FILE_OP
 from .utils import flatten_list
 
@@ -119,7 +120,7 @@ class BasePlug:
 
     @staticmethod
     def format_tuple(value):
-        return flatten_list(value)
+        return [str(x) if isinstance(x, path) else x for x in flatten_list(value)]
 
     def dump(self):
         return dict([
@@ -382,7 +383,7 @@ class RPlug(BasePlug):
     @staticmethod
     def format_tuple(value):
         # this is the best I'd like to do for R ...
-        value = [repr(v) if isinstance(v, str) else str(v) for v in value]
+        value = [repr(v) if isinstance(v, path) else str(v) for v in value]
         has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
         if has_tuple:
             return 'list({})'.format(','.join([(f'c({",".join([vv for vv in v])})' if len(v) > 1 else v[0]) if isinstance(v, tuple) else v for v in value]))
@@ -527,7 +528,7 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        value = [repr(v) if isinstance(v, str) else str(v) for v in value]
+        value = [repr(v) if isinstance(v, path) else str(v) for v in value]
         return '({})'.format(','.join(value))
 
     def __str__(self):

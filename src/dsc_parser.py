@@ -11,7 +11,7 @@ import os, re, itertools, copy, platform, glob
 from collections import Mapping, OrderedDict, Counter
 from xxhash import xxh32 as xxh
 from sos.utils import env
-from sos.targets import fileMD5, executable
+from sos.targets import fileMD5, executable, path
 from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
      parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitignore
@@ -797,7 +797,8 @@ class DSC_Module:
                     res.append(groups.group(1))
                     # has_raw = True
                 else:
-                    res.append(v)
+                    # FIXME: need a datatype for true string
+                    res.append(path(v))
             else:
                 res.append(v)
         return tuple(res)
