@@ -151,7 +151,7 @@ def save_rds(data, filename):
     RO.r("saveRDS(res, '%s')" % filename)
 
 def load_dsc(infiles):
-    import pickle
+    import pickle, yaml
     if isinstance(infiles, str):
         infiles = [infiles]
     res = dict()
@@ -160,6 +160,8 @@ def load_dsc(infiles):
             res.update(pickle.load(open(infile, 'rb')))
         elif infile.endswith('.rds'):
             res.update(load_rds(infile))
+        elif infile.endswith('.yml'):
+            res.update(yaml.load(open(infile).read()))
         else:
             raise ValueError(f'``{infile}`` is not supported DSC data format')
     return res

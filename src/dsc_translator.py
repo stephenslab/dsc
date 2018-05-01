@@ -337,7 +337,7 @@ class DSC_Translator:
                 output_str = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
                 # FIXME: multiple output to be implemented
                 ext_str = self.step.plugin.output_ext if (len(self.step.exe['path']) == 0 and len(self.step.rv) > 0) else 'yml'
-                if self.step.depends:
+                if len(self.current_depends):
                     self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(' '.join((y, x[1])), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
                 else:
                     self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(y, dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"

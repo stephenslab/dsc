@@ -84,7 +84,7 @@ class BasePlug:
     def set_container(self, name, value, params):
         pass
 
-    def load_env(self, depends, depends_self):
+    def load_env(self, depends_other, depends_self):
         return ''
 
     def get_input(self, params, lib):
@@ -227,14 +227,14 @@ class Shell(BasePlug):
     def get_return(self, output_vars):
         if len(output_vars) == 0:
             return ''
-        res = {'DSC_VARS': deepcopy(output_vars)}
+        res = deepcopy(output_vars)
         container = dict(pair for d in self.container for pair in d.items())
         # FIXME: need more variables here
-        for key, val in res['DSC_VARS'].items():
+        for key, val in res.items():
             if val in container:
-                res['DSC_VARS'][key] = container[val]
-        res['DSC_VARS']['DSC_DEBUG'] = dict()
-        res['DSC_VARS']['DSC_DEBUG']['DSC_REPLICATE'] = 0
+                res[key] = container[val]
+        res['DSC_DEBUG'] = dict()
+        res['DSC_DEBUG']['replicate'] = 0
         return f"\ncat >> $[_output] << EOF\n{dict2yaml(res)}\nEOF"
 
     @staticmethod
@@ -275,17 +275,29 @@ class RPlug(BasePlug):
             temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
             self.tempfile.append('{} <- c({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, depends, depends_self):
+    def load_env(self, depends_other, depends_self):
         '''
-        depends: [(name, var, ext), ...]
+        depends_other: [(name, var, ext), (name, var, ext), ...]
+        depends: {name: [(var, ext), (var, ext)], ...}
         '''
+        depends = OrderedDict()
+        for x in depends_other:
+            if x[0] not in depends:
+                depends[x[0]] = [(x[1], x[2])]
+            else:
+                depends[x[0]].append((x[1], x[2]))
         res = f'{self.identifier} <- list()' if len(depends) else ''
-        load_idx = [i for i, item in enumerate(depends) if item[2] is None]
-        assign_idx = [i for i, item in enumerate(depends) if i not in load_idx and item[2].split('.')[-1] in ['rds', 'pkl']]
+        load_idx = [i for i, k in enumerate(depends.keys()) if any([x[1] is None for x in depends[k]])]
+        assign_idx = [(i, k) for i, k in enumerate(depends.keys()) if any([x[1].split('.')[-1] in ['rds', 'pkl', 'yml'] for x in depends[k] if x[1] is not None])]
         loader = 'dscrutils::read_dsc'
         # load files
         load_in = f'\n{self.identifier} <- dscrutils::load_inputs(c(${{paths([_input[i] for i in {load_idx}]):r,}}), {loader})'
-        assign_in = '\n' + '\n'.join([f'{self.identifier}${depends[i][1]} <- {loader}("${{_input[{i}]:n}}.{depends[i][2]}")' for i in assign_idx])
+        assign_in = ['\n']
+        for i, k in assign_idx:
+            for j in depends[k]:
+                if j[1] is not None:
+                    assign_in.append(f'{self.identifier}${j[0]} <- {loader}("${{_input[{i}]:n}}.{j[1]}")')
+        assign_in = '\n'.join(assign_in)
         load_out = f'\nif (file.exists("${{_output}}")) attach({loader}("${{_output}}"), warn.conflicts = F)'
         if len(load_idx):
             res += load_in
@@ -370,7 +382,8 @@ class RPlug(BasePlug):
     @staticmethod
     def format_tuple(value):
         # this is the best I'd like to do for R ...
-        has_tuple = any([isinstance(v, tuple) or re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
+        value = [repr(v) if isinstance(v, str) else str(v) for v in value]
+        has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
         if has_tuple:
             return 'list({})'.format(','.join([(f'c({",".join([vv for vv in v])})' if len(v) > 1 else v[0]) if isinstance(v, tuple) else v for v in value]))
         else:
@@ -410,19 +423,30 @@ class PyPlug(BasePlug):
             temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
             self.tempfile.append('{} = ({})'.format(self.get_var(lhs), ', '.join(temp_var)))
 
-    def load_env(self, depends, depends_self):
+    def load_env(self, depends_other, depends_self):
         '''
         depends: [(name, var, ext), ...]
         '''
         res = 'import sys, os, tempfile, timeit, pickle\n'
+        depends = OrderedDict()
+        for x in depends_other:
+            if x[0] not in depends:
+                depends[x[0]] = [(x[1], x[2])]
+            else:
+                depends[x[0]].append((x[1], x[2]))
         if len(depends):
             res += f'{self.identifier} = dict()'
-        load_idx = [i for i, item in enumerate(depends) if item[2] is None]
-        assign_idx = [i for i, item in enumerate(depends) if i not in load_idx and item[2].split('.')[-1] in ['rds', 'pkl']]
+        load_idx = [i for i, k in enumerate(depends.keys()) if any([x[1] is None for x in depends[k]])]
+        assign_idx = [(i, k) for i, k in enumerate(depends.keys()) if any([x[1].split('.')[-1] in ['rds', 'pkl', 'yml'] for x in depends[k] if x[1] is not None])]
         # load files
         res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
         load_in = f'\n{self.identifier} = __load_dsc__([${{paths([_input[i] for i in {load_idx}]):r,}}])'
-        assign_in = '\n' + '\n'.join([f'{self.identifier}["{depends[i][1]}"] = __load_dsc__("${{_input[{i}]:n}}.{depends[i][2]}")' for i in assign_idx])
+        assign_in = ['\n']
+        for i, k in assign_idx:
+            for j in depends[k]:
+                if j[1] is not None:
+                    assign_in.append(f'{self.identifier}[{repr(j[0])}] = __load_dsc__("${{_input[{i}]:n}}.{j[1]}")')
+        assign_in = '\n'.join(assign_in)
         load_out = '\nif os.path.isfile("${_output}"): globals().update(__load_dsc__("${_output}"))'
         if len(load_idx):
             res += load_in
@@ -503,7 +527,8 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        return '({})'.format(','.join([f'({",".join([vv for vv in v])})' if isinstance(v, tuple) else v for v in value]))
+        value = [repr(v) if isinstance(v, str) else str(v) for v in value]
+        return '({})'.format(','.join(value))
 
     def __str__(self):
         return 'python'

@@ -14,11 +14,12 @@ Description: Various R functions for interacting with and analyzing the
 Depends: R (>= 3.2.0)
 Imports:
     utils,
-    tools
+    tools,
+    yaml
 Suggests: testthat
 License: MIT + file LICENSE
 NeedsCompilation: no
 LazyData: true
 URL: https://github.com/stephenslab/dsc
 BugReports: https://github.com/stephenslab/dsc/issues
-RoxygenNote: 6.0.1.9000
+RoxygenNote: 6.0.1

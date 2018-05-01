@@ -156,10 +156,10 @@ def is_null(var):
     return False
 
 def convert_null(var, language):
+    # FIXME: need to consider language context: its downstream language ...
     if var is None:
-        if language.lower() == 'r':
+        if language.lower() in ['r', 'bash']:
             return "NULL"
-        # FIXME: more to comce
         else:
             return None
     else:

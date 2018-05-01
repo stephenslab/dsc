@@ -807,7 +807,8 @@ class DSC_Module:
 
     def dump(self):
         return strip_dict(dict([('name', self.name),
-                                ('dependencies', self.depends), ('command', '+'.join(self.exe['file'])),
+                                ('dependencies', self.depends),
+                                ('command', '+'.join(self.exe['file']) if len(self.exe['file']) else self.exe['content']),
                                 ('input', self.p), ('input_filter', self.ft),
                                 ('output_variables', self.rv),
                                 ('output_files', self.rf),  ('shell_status', len(self.exe['path'])),
