@@ -113,10 +113,13 @@ def execute(args):
         conf = remote_config_parser(args.host, exec_path)
         args.host = conf['default']['queue']
         conf['DSC'][args.host]['job_template'] += 'sos execute {task} -v {verbosity} -s {sig_mode}'
-        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}', 'queue_type': 'process', 'status_check_interval': 3,
-                                               'job_template': '\n'.join([x for x in conf['DSC'][args.host]['job_template'].split("\n") if not x.startswith('#')])
+        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}',
+                                               'queue_type': 'process',
+                                               'status_check_interval': 3,
+                                               'job_template': '; '.join([x for x in conf['DSC'][args.host]['job_template'].split("\n") if not x.startswith('#')])
                                                }
-        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
+        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'),
+                  default_flow_style=False)
     else:
         if args.to_host:
             raise ValueError('Cannot set option ``--to-host`` without specifying ``--host``!')
@@ -177,7 +180,8 @@ def execute(args):
         address = conf['DSC'][args.host]['address']
         conf['DSC'][args.host]['address'] = 'localhost'
         del conf['DSC'][f'{args.host}-process']
-        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.remote.yml', 'w'))
+        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.remote.yml', 'w'),
+                  default_flow_style=False)
         conf['DSC'][args.host]['address'] = address
         env.logger.info(f"Sending & installing resources to remote computer ``{args.host}`` (may take a while) ...")
         content = {'__sig_mode__': 'force',
@@ -197,7 +201,8 @@ def execute(args):
         return
     if args.host:
         conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -J %s -v %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.remote.yml', args.__max_jobs__, args.verbosity)
-        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'))
+        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'),
+                  default_flow_style=False)
     for item in [f'{db}.scripts.html', '.sos/transcript.txt']:
         if os.path.isfile(item): os.remove(item)
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")

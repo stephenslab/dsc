@@ -829,6 +829,8 @@ class DSC_Section:
             else:
                 self.content['run'] = []
         self.replicate = replicate if replicate else try_get_value(self.content, 'replicate')
+        if isinstance(self.replicate, list):
+            self.replicate = self.replicate[0]
         if not isinstance(self.replicate, int) or self.replicate <= 0:
             self.replicate = 1
         self.replicate = [x+1 for x in range(self.replicate)]
@@ -1048,7 +1050,12 @@ def remote_config_parser(host, paths):
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
-    default = dict([('time_per_instance', '5m'), ('instances_per_job', 2), ('n_cpu', 1), ('mem_per_cpu', '2G'), ('trunk_workers', 1), ('queue', list(conf['DSC'].keys())[0])])
+    default = dict([('time_per_instance', '5m'),
+                    ('instances_per_job', 2),
+                    ('n_cpu', 1),
+                    ('mem_per_cpu', '2G'),
+                    ('trunk_workers', 1),
+                    ('queue', list(conf['DSC'].keys())[0])])
     if len(paths):
         default['prepend_path'] = paths
     if 'default' in conf:
