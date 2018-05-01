@@ -137,7 +137,7 @@ class DSC_Script:
             block[name]['^EXEC'] = exe[0]
             for k, v in exe[1].items():
                 if k in block[name] and block[name][k] != v:
-                    raise FormatError(f"Block ``{name}`` has property conflicts for ``k``: ``{block[name][k]}`` or ``{v}``?")
+                    raise FormatError(f"Block ``{name}`` has property conflicts for ``{k}``: ``{block[name][k]}`` or ``{v}``?")
                 block[name][k] = v
         if name in self.content:
             raise FormatError(f'Duplicate block name ``{name}``.')

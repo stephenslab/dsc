@@ -6,9 +6,14 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-import re
+import yaml, re
+from collections import OrderedDict
+from copy import deepcopy
 from .syntax import DSC_FILE_OP
 from .utils import flatten_list
+
+def dict2yaml(value):
+    return yaml.dump(value, default_flow_style=False).strip()
 
 R_SOURCE = '''
 source.file <- source
@@ -26,6 +31,28 @@ source <- function(x) {
    }
  if (!found) source.file(x)
  }
+}
+'''
+
+BASH_UTILS = '''
+expandPath() {
+  case $1 in
+    ~[+-]*)
+      local content content_q
+      printf -v content_q '%q' "${1:2}"
+      eval "content=${1:0:2}${content_q}"
+      printf '%s\n' "$content"
+      ;;
+    ~*)
+      local content content_q
+      printf -v content_q '%q' "${1:1}"
+      eval "content=~${content_q}"
+      printf '%s\n' "$content"
+      ;;
+    *)
+      printf '%s\n' "$1"
+      ;;
+  esac
 }
 '''
 
@@ -92,7 +119,7 @@ class BasePlug:
 
     @staticmethod
     def format_tuple(value):
-        return ' '.join(flatten_list(value))
+        return repr(' '.join(flatten_list(value)))
 
     def dump(self):
         return dict([
@@ -112,16 +139,16 @@ class Shell(BasePlug):
         super().__init__(name = 'bash', identifier = identifier)
 
     def get_input(self, params, lib):
-        res = 'set -e\n'
+        res = 'rm -f $[_output]\n'
         if len(lib):
             res += '\n'.join([f'for i in `ls {item}/*.sh`; do source $i; done' for item in lib])
         # load parameters
         for k in sorted(params):
             # FIXME: better idea?
-            res += '\n{0}=${{_{1}[1:-1] if isinstance(_{1}, str) and (_{1}.startswith("\'") or _{1}.startswith(\'"\')) else _{1}}}'.format(self.get_var(k), k)
+            res += '\n{0}=$(expandPath $[_{1}])'.format(self.get_var(k), k)
         # FIXME: may need a timer
         # seed
-        res += '\nRANDOM=$(($DSC_REPLICATE + ${DSC_STEP_ID_}))'
+        res += '\nRANDOM=$(($DSC_REPLICATE + $[DSC_STEP_ID_]))'
         return res
 
     def get_output(self, params):
@@ -129,20 +156,80 @@ class Shell(BasePlug):
         FIXME: assume for now that shell output produces one single file
         accessible as `${_output}`.
         '''
-        res = '\n'.join([f'{k}=${{_output:n}}.{params[k]}' for k in params])
-        res += f"\necho '''{res}''' > ${{_output}}"
-        return res
+        res = dict([('DSC_OUTPUT', dict())])
+        res['DSC_OUTPUT'] = dict([(k,  f'$[_output:n].{params[k]}') for k in params])
+        return '\n'.join([f'{k}=$[_output:n].{params[k]}' for k in params]) + f"\necho '''{dict2yaml(res)}''' >> $[_output]"
 
     def add_input(self, lhs, rhs):
-        self.add_tempfile(lhs, rhs)
+        if isinstance(lhs, str):
+            # single value input add
+            self.module_input.append('{}={}'.format(self.get_var(lhs),
+                                                     rhs if (not rhs.startswith('$'))
+                                                     or rhs in ('$[_output:r]', '$[_input:r]')
+                                                     else '{}_{}'.format(self.identifier, repr(rhs[1:]))))
+        elif isinstance(lhs, (list, tuple)):
+            # multiple value input add
+            for idx, x in enumerate(lhs):
+                if rhs.startswith("$") and not rhs.startswith("$["):
+                    self.module_input.append('{}=${}_{}'.format(self.get_var(x), self.identifier, repr(rhs[1:])))
+                elif not rhs.startswith("$"):
+                    self.module_input.append('{}={}'.format(self.get_var(x), rhs))
+                else:
+                    self.module_input.append('{}={}'.format(self.get_var(x), rhs.replace(':r', '[{}]:r'.format(idx))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
             self.tempfile.append(f'TMP_{self.identifier[4:]}=`mktemp -d`')
-            self.tempfile.append(f'{self.get_var(lhs)}="""$TMP_{self.identifier[4:]}/${{_output[0]:bn}}.{lhs}"""')
+            self.tempfile.append(f'{self.get_var(lhs)}="""$TMP_{self.identifier[4:]}/$[_output[0]:bn].{lhs}"""')
         else:
-            temp_var = [f'${{_output[0]:n}}.{lhs}.{item.strip()}' for item in rhs.split(',')]
+            temp_var = [f'$[_output[0]:n].{lhs}.{item.strip()}' for item in rhs.split(',')]
             self.tempfile.append('{}="""{}"""'.format(self.get_var(lhs), ' '.join(temp_var)))
+
+    def set_container(self, name, value, params):
+        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
+        res = OrderedDict([(name, OrderedDict())])
+        for k in keys:
+            if '=' in k:
+                j, k = (x.strip() for x in k.split('='))
+            else:
+                j = None
+            if not (isinstance(params[k][0], str) and params[k][0].startswith('$')) \
+               and not (isinstance(params[k][0], str) and DSC_FILE_OP.search(params[k][0])):
+                res[name][str(j if j is not None else k)] = '$[_%s]' % k
+            else:
+                res[name][str(j if j is not None else k)] = k
+            if k not in self.container_vars:
+                self.container_vars[k] = [j]
+            else:
+                self.container_vars[k].append(j)
+        self.container.extend(dict2yaml(dict(res)))
+
+    def load_env(self, depends, depends_self):
+        '''
+        depends: [(name, var, ext), ...]
+        '''
+        # and assign the parameters to flat bash variables
+        res = f'set -e{BASH_UTILS}'
+        # FIXME: need to make it work for loading at least "meta" file
+        # Now just list all the names here
+        # including meta file
+        res += '\n'.join(['\n{}={}'.format(f"{self.identifier}_{item[1]}", "$[_output]") if item[2] is None else (item[1], "$[_output:n].%s" % item[2]) for item in depends])
+        if len(depends):
+            res += '\nDSC_REPLICATE=0'
+        if self.module_input:
+            res += '\n' + '\n'.join(sorted(self.module_input))
+        if self.tempfile:
+            res += '\n' + '\n'.join(sorted(self.tempfile))
+        return res
+
+    def get_return(self, output_vars):
+        if len(output_vars) == 0:
+            return ''
+        res = {'DSC_VARS': deepcopy(output_vars)}
+        # FIXME: need more variables here
+        res['DSC_VARS']['DSC_DEBUG'] = dict()
+        res['DSC_VARS']['DSC_DEBUG']['DSC_REPLICATE'] = 0
+        return f"\necho '''{dict2yaml(res)}''' >> $[_output]"
 
     @staticmethod
     def add_try(content, n_output):

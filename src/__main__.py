@@ -259,11 +259,11 @@ def main():
                    "none": executes DSC from scratch.
                    "all": skips all execution yet build DSC database of what the specified benchmark is
                    supposed to look like, thus making it possible to explore partial benchmark results.''')
-    mt.add_argument('--touch', action='store_true', dest='__recover__',
-                   help = '''"Touch" output files if exist, to mark them "up-to-date".
-                   This option is useful when executed benchmark files are transferred from one computer to another
-                   during which file signatures are lost. It will override "--skip" option.
-                   Note that time stamp is irrelevant to whether or not a file is up-to-date.''')
+    mt.add_argument('--touch', action='store_true', dest='__recover__', help=SUPPRESS)
+                   # help = '''"Touch" output files if exist, to mark them "up-to-date".
+                   # This option is useful when executed benchmark files are transferred from one computer to another
+                   # during which file signatures are lost. It will override "--skip" option.
+                   # Note that time stamp is irrelevant to whether or not a file is up-to-date.''')
     mt.add_argument('--clean', metavar = "option", choices = ["remove", "replace", "purge"],
                    dest = 'to_remove',
                    help = '''Behavior of how DSC removes files.
@@ -292,7 +292,7 @@ def main():
     ot = p.add_argument_group('Other options')
     ot.add_argument('--version', action = 'version', version = __version__)
     ot.add_argument("-h", "--help", action="help", help="show this help message and exit")
-    ot.add_argument('--debug', action='store_true', help = SUPPRESS)
+    ot.add_argument('--debug', action='store_true', help=SUPPRESS)
     p.set_defaults(func = execute)
     if len(sys.argv) > 2 and '-h' in sys.argv:
         try:

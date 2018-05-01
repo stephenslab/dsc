@@ -348,10 +348,11 @@ class DSC_Translator:
                     self.action += "if _output.with_suffix('.stderr').exists():\n\topen(_output.with_suffix('.stderr'), 'w').close()\n" \
                                    "if _output.with_suffix('.stdout').exists():\n\topen(_output.with_suffix('.stdout'), 'w').close()\n"
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
+                    sigil = '$[ ]' if plugin.name == 'bash' else '${ }'
                     if self.conf is None:
-                        self.action += f'{plugin.name}: expand = "${{ }}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
+                        self.action += f'{plugin.name}: expand = "{sigil}", workdir = {repr(self.step.workdir)}, stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
-                        self.action += f'{plugin.name}: expand = "${{ }}"'
+                        self.action += f'{plugin.name}: expand = "{sigil}"'
                     self.action += plugin.get_cmd_args(cmd['args'], self.params)
                     # Add action
                     if len(cmd['path']) == 0:

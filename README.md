@@ -67,7 +67,7 @@ Goal for 0.2.8
 0.2.7.7
 
 - Some improvements for module with shell executables.
-- Some improvements for command options.
+- Some improvements for shell command options.
 - Improved logging.
 - Bug fixes #126, #127.
 - SoS bumped to version 0.9.13.4 for #128 and related.
@@ -114,7 +114,6 @@ Goal for 0.2.8
 - Add, by default, a variable `DSC_DEBUG` to output files that saves various runtime info.
 - SoS bumped to 0.9.13.2
 	- Support R github package force install when version mismatches.
-	- Fix bug with `--touch` option.
 	- Force use `pip` to install local development version.
 	- [#97](https://github.com/stephenslab/dsc/issues/97) Improved error logging and reporting behavior.
 - [minor] Revert from `ruamel.yaml` to `yaml` for better performance.
