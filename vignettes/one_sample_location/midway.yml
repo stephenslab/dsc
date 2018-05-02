@@ -5,7 +5,6 @@ DSC:
     paths:
       home: /home/gaow
     queue_type: pbs
-    wait_for_tasks: True
     status_check_interval: 60
     max_running_jobs: 30
     max_cores: 40
@@ -42,7 +41,7 @@ DSC:
     account: "SBATCH --account=pi-mstephens"
 
 default:
-  queue: midway2
+  queue: midway2_head
   time_per_instance: 10m
   instances_per_job: 2
   n_cpu: 1
