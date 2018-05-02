@@ -48,7 +48,8 @@ git pull
 #### Install dscrutils from source
 
 Assuming the working directory in your R environment is the `dsc`
-repository
+repository, run the following code in R to install the latest
+development version of the dscrutils R package:
 
 ```r
 getwd() # Should be ... /dsc
