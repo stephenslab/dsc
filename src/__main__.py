@@ -221,12 +221,13 @@ def execute(args):
             raise RuntimeError(e)
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
+    cfg_file = (script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml')) if args.host else f'.sos/.dsc/{db}.conf.yml'
     content = {'__max_running_jobs__': args.__max_jobs__,
                '__max_procs__': args.__max_jobs__,
                '__sig_mode__': mode,
                '__bin_dirs__': exec_path,
                '__remote__': args.host if len(args.to_host) else None,
-               '__config__': script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml'),
+               '__config__': cfg_file,
                'script': script_run,
                'workflow': "DSC"}
     try:
