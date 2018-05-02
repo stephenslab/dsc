@@ -15,6 +15,7 @@ sh: workdir = '.'
 	pandoc --from=markdown --to=rst --output=README.rst README.md
 
 [pip]
+depends: "README.rst"
 parameter: version = str
 # check the version of the latest version
 cur_ver = get_output(f"pip{py} show dsc | grep Version | cut -d' ' -f2").strip()
@@ -41,7 +42,7 @@ sh: expand = True
 sos_run('readme+patch+pip')
 
 [default]
-depends: "README.rst"
 sh: expand = True
+  touch README.rst
 	pip{py} install -U --upgrade-strategy only-if-needed . && \
 	rm -rf *.egg-info build dist
