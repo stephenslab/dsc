@@ -219,8 +219,8 @@ def execute(args):
                '__max_procs__': args.__max_jobs__,
                '__sig_mode__': mode,
                '__bin_dirs__': exec_path,
-               '__remote__': args.host,
-               '__config__': script_run[:-3] + 'local.yml' if len(args.to_host) else 'localhost.yml',
+               '__remote__': args.host if len(args.to_host) else None,
+               '__config__': script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml'),
                'script': script_run,
                'workflow': "DSC"}
     try:
