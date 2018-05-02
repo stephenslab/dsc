@@ -165,6 +165,12 @@ def execute(args):
                   default_flow_style=False)
         if  conf['DSC'][args.host]['address'] == 'localhost':
             # the only version of config file to use
+            # make a copy of it to current workdir, for maintenance purpose
+            yaml.dump({'localhost':'localhost',
+                       'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}},
+                      open(script.runtime.output + '.queue.yml', 'w'),
+                      default_flow_style=False)
+            # set to_host to empty because there is no need for it
             args.to_host = []
         else:
             # need 2 versions, local and remote
