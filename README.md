@@ -66,10 +66,9 @@ Goal for 0.2.8
 
 0.2.7.7
 
-- Some improvements for module with shell executables.
-- Some improvements for shell command options.
+- Improvements for module with shell executables and command options.
+- Improvements for remote execution #131.
 - Improved logging.
-- Improved remote execution #131.
 - Bug fixes #126, #127.
 - SoS bumped to version 0.9.13.4 for #128 and related.
 
