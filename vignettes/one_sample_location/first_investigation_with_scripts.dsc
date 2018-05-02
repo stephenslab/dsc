@@ -51,4 +51,5 @@ DSC:
       analyze: mean, median
       score: abs_err, sq_err
     run: simulate * analyze * score
+    output: first_investigation
     exec_path: R

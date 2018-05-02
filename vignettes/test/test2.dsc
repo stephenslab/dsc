@@ -23,7 +23,7 @@ t2: R(x <- x^2)
 
 DSC:
   define:
-    d
+    ab: a, b
     datasim: ab, c
     ac: a, c
   run: datasim
