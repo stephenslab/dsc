@@ -302,8 +302,8 @@ class DSC_Script:
     def get_sos_options(name, content):
         out = dotdict()
         out.verbosity = env.verbosity
-        out.__wait__ = None
-        out.__no_wait__ = None
+        out.__wait__ = True
+        out.__no_wait__ = False
         out.__targets__ = []
         out.__queue__ = None
         out.__remote__ = None
@@ -330,15 +330,17 @@ class DSC_Script:
         os.makedirs('.sos/.dsc', exist_ok = True)
         if os.path.dirname(self.runtime.output):
             os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)
+        conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
+        with open(conf, 'w') as f:
+            f.write('localhost: localhost\nhosts:\n  localhost:\n    address: localhost')
         if env.verbosity > 2:
             env.logfile = os.path.basename(self.runtime.output) + '.log'
             if os.path.isfile(env.logfile):
                 os.remove(env.logfile)
         if os.path.isfile('.sos/transcript.txt'):
             os.remove('.sos/transcript.txt')
-        conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
-        with open(conf, 'w') as f:
-            f.write('localhost: localhost\nhosts:\n  localhost:\n    address: localhost')
+        if os.path.isfile(os.path.basename(self.runtime.output) + 'scripts.html'):
+            os.remove(os.path.basename(self.runtime.output) + 'scripts.html')
         update_gitignore()
 
     def dump(self):
@@ -1041,6 +1043,42 @@ class DSC_Pipeline:
         return res
 
 
+def process_based_on(cfg, item):
+    if 'based_on' in item:
+        if not isinstance(item['based_on'], (str, list)) or not item['based_on']:
+            raise ValueError(
+                f'A string is expected for key based_on. {item["based_on"]} obtained')
+
+        referred_keys = [item['based_on']] if isinstance(
+            item['based_on'], str) else item['based_on']
+        item.pop('based_on')
+        for rkey in referred_keys:
+            # find item...
+            val = cfg
+            for key in rkey.split('.'):
+                if not isinstance(val, dict):
+                    raise ValueError(f'Based on key {item} not found')
+                if key not in val:
+                    raise ValueError(f'Based on key {key} not found in config')
+                else:
+                    val = val[key]
+            #
+            if not isinstance(val, dict):
+                raise ValueError('Based on item must be a dictionary')
+            if 'based_on' in val:
+                val = process_based_on(cfg, val)
+            # ok, we have got a dictionary, let us use it to replace item
+            for k, v in val.items():
+                if k not in item:
+                    item[k] = v
+        return item
+    else:
+        for k, v in item.items():
+            if isinstance(v, dict):
+                # v should be processed in place
+                process_based_on(cfg, v)
+        return item
+
 def remote_config_parser(host, paths):
     conf = None
     for h in [host, f'{host}.yml', f'{host}.yaml']:
@@ -1079,5 +1117,25 @@ def remote_config_parser(host, paths):
             del conf[key]
         else:
             conf[key] = tmp
-    conf['DSC']['localhost'] = {'paths': {'home': '/Users/{user_name}' if platform.system() == 'Darwin' else '/home/{user_name}'}, 'address': 'localhost'}
+    #
+    for k, v in conf['DSC'].items():
+        if isinstance(v, dict):
+            process_based_on(conf['DSC'], v)
+    #
+    conf['DSC']['localhost'] = {'paths':
+                                {'home': '/Users/{user_name}' if platform.system() == 'Darwin' else '/home/{user_name}'},
+                                'address': 'localhost'}
+    for k in list(conf['DSC'].keys()):
+        if 'job_template' in conf['DSC'][k]:
+            # SBATCH template has to start from non-space
+            tpl = [x.strip() for x in conf['DSC'][k]['job_template'].split('\n') if x.strip()] + ['sos execute {task} -v {verbosity} -s {sig_mode}']
+            conf['DSC'][k]['job_template'] = '\n'.join(tpl)
+        else:
+            tpl = None
+        if 'queue_type' in conf['DSC'][k] and conf['DSC'][k]['queue_type'] != 'process':
+            conf['DSC'][f'{k}-process'] = {'based_on': f'hosts.{k}',
+                                           'queue_type': 'process',
+                                           'status_check_interval': 3}
+            if tpl is not None:
+                conf['DSC'][f'{k}-process']['job_template'] = '\n'.join([x for x in tpl if not x.startswith('#')])
     return conf

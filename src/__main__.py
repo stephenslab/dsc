@@ -101,6 +101,7 @@ def execute(args):
     script.init_dsc(args, env)
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines
+    master_tables = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
     #
     import platform
     # FIXME: always assume args.host is a Linux machine; thus not checking it
@@ -112,14 +113,6 @@ def execute(args):
         from .dsc_parser import remote_config_parser
         conf = remote_config_parser(args.host, exec_path)
         args.host = conf['default']['queue']
-        conf['DSC'][args.host]['job_template'] += 'sos execute {task} -v {verbosity} -s {sig_mode}'
-        conf['DSC'][f'{args.host}-process'] = {'based_on': f'hosts.{args.host}',
-                                               'queue_type': 'process',
-                                               'status_check_interval': 3,
-                                               'job_template': '; '.join([x for x in conf['DSC'][args.host]['job_template'].split("\n") if not x.startswith('#')])
-                                               }
-        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'),
-                  default_flow_style=False)
     else:
         if args.to_host:
             raise ValueError('Cannot set option ``--to-host`` without specifying ``--host``!')
@@ -162,55 +155,72 @@ def execute(args):
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         cmd_run(script.get_sos_options(db, content), [])
+    # Get the executed pipeline
+    pipeline.filter_execution()
+    script_run = pipeline.write_pipeline(2)
+    # Configure job templates
+    if args.host:
+        # write default config
+        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(script_run[:-3] + 'localhost.yml', 'w'),
+                  default_flow_style=False)
+        if  conf['DSC'][args.host]['address'] == 'localhost':
+            # the only version of config file to use
+            args.to_host = []
+        else:
+            # need 2 versions, local and remote
+            # write local config
+            conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -J %s -v %s\'"' % (script_run, script_run[:-3] + 'remote.yml', args.__max_jobs__, args.verbosity)
+            yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']},
+                      open(script_run[:-3] + 'local.yml', 'w'),
+                      default_flow_style=False)
+            # write remote config
+            del conf['DSC'][args.host]['execute_cmd']
+            conf['DSC'][args.host]['address'] = 'localhost'
+            yaml.dump({'localhost':'localhost',
+                       'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}},
+                      open(script_run[:-3] + 'remote.yml', 'w'),
+                      default_flow_style=False)
+            args.to_host.extend([script_run,
+                                 script_run[:-3] + 'remote.yml',
+                                 f'{script.runtime.output}/{db}.db',
+                                 f'{script.runtime.output}/{db}.conf.mpk'])
+    if args.debug:
+        script_to_html(os.path.abspath(script_run), f'.sos/.dsc/{db}.run.html')
+        return
     # Recover DSC database alone from meta-file
-    if args.__construct__ == "all":
+    if args.host or args.__construct__ == "all":
         if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
                  and os.path.isfile(f'.sos/.dsc/{db}.io.mpk'))):
             env.logger.warning('Cannot build DSC database because meta-data for this project is corrupted.')
         else:
-            master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
             env.logger.info("Building DSC database ...")
-            ResultDB(f'{script.runtime.output}/{db}', master).\
+            ResultDB(f'{script.runtime.output}/{db}', master_tables).\
                 Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
-        return
-    pipeline.filter_execution()
-    script_run = pipeline.write_pipeline(2)
-    # Send files to remote host
+        if args.__construct__ == "all":
+            return
+    # Run
     if args.host:
-        address = conf['DSC'][args.host]['address']
-        conf['DSC'][args.host]['address'] = 'localhost'
-        del conf['DSC'][f'{args.host}-process']
-        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.remote.yml', 'w'),
-                  default_flow_style=False)
-        conf['DSC'][args.host]['address'] = address
-        env.logger.info(f"Sending & installing resources to remote computer ``{args.host}`` (may take a while) ...")
-        content = {'__sig_mode__': 'force',
+        # send files to remote
+        env.logger.info(f"Syncing & installing resources on ``{args.host}`` (may take a while) ...")
+        content = {'__sig_mode__': mode,
                    '__queue__': f'{args.host}-process',
-                   'script': pipeline.write_pipeline((script_run, args.to_host if args.to_host is not None else []))}
+                   '__config__': script_run[:-3] + 'localhost.yml',
+                   'script': pipeline.write_pipeline(args.to_host)}
         try:
-            with Silencer(args.verbosity if args.debug else max(0, args.verbosity - 1)):
+            with Silencer(args.verbosity):
                 cmd_run(script.get_sos_options(db, content), [])
         except Exception as e:
             env.logger.error(f"Failed to communicate with ``{args.host}``")
-            env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"sos\" on ``{args.host}``.")
+            env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"dsc\" on ``{args.host}``.")
             raise RuntimeError(e)
-    # Run
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
-    if args.debug:
-        script_to_html(os.path.abspath(script_run), f'.sos/.dsc/{db}.run.html')
-        return
-    if args.host:
-        conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -J %s -v %s\'"' % (script_run, f'.sos/.dsc/{db}.conf.remote.yml', args.__max_jobs__, args.verbosity)
-        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(f'.sos/.dsc/{db}.conf.yml', 'w'),
-                  default_flow_style=False)
-    for item in [f'{db}.scripts.html', '.sos/transcript.txt']:
-        if os.path.isfile(item): os.remove(item)
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
     content = {'__max_running_jobs__': args.__max_jobs__,
                '__max_procs__': args.__max_jobs__,
                '__sig_mode__': mode,
                '__bin_dirs__': exec_path,
                '__remote__': args.host,
+               '__config__': script_run[:-3] + 'local.yml' if len(args.to_host) else 'localhost.yml',
                'script': script_run,
                'workflow': "DSC"}
     try:
@@ -224,11 +234,11 @@ def execute(args):
                                f"``{db}.scripts.html``.")
         sys.exit(1)
     # Build database
-    master = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
-    env.logger.info("Building DSC database ...")
-    ResultDB('{}/{}'.format(script.runtime.output, db), master).\
-        Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
-    env.logger.info("DSC complete!")
+    if args.host is None:
+        env.logger.info("Building DSC database ...")
+        ResultDB(f'{script.runtime.output}/{db}', master_tables).\
+            Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
+        env.logger.info("DSC complete!")
 
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
@@ -292,7 +302,7 @@ def main():
                    information.''')
     rt = p.add_argument_group('Remote execution')
     rt.add_argument('--host', metavar='file', help = '''Configuration file for remote computer.''')
-    rt.add_argument('--to-host', metavar='dir', dest = 'to_host', nargs = '+',
+    rt.add_argument('--to-host', metavar='dir', dest = 'to_host', nargs = '+', default = [],
                    help = '''Files and directories to be sent to remote host for use in benchmark.''')
     ot = p.add_argument_group('Other options')
     ot.add_argument('--version', action = 'version', version = __version__)

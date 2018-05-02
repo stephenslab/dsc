@@ -145,13 +145,15 @@ class DSC_Translator:
         elif arg == 2:
             res = self.job_str
         else:
+            # args is a list of files to send to host
             chk = (', ' + ', '.join(uniq_list(self.exe_check))) if len(self.exe_check) else ''
-            res = '\n'.join([f'[default]\nparameter: to_host = [".sos/.dsc/{self.db}.conf.remote.yml", {repr(os.path.join(self.output, self.db + ".conf.mpk"))}, {repr(arg[0])}] + {repr(arg[1])}',
-                             f'depends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
-                             f'task: to_host = to_host',
-                             f'script: interpreter={path(sys.executable):er}, suffix=".py"\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
+            res = '\n'.join([f'[1]\ndepends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
+                             f'output: ".sos/{self.db}.remote_lib-info"',
+                             f'task: to_host = {repr(arg)}' if len(arg) else '',
+                             f'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
             for item in self.lib_depends:
-                res += f"\n {item}"
+                res += "\n %s" % item
+            res += '\n print({}, file=open(".sos/{}.remote_lib-info", "w"))'.format(repr(arg), self.db)
         output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
         with open(output, 'w') as f:
             f.write(res)

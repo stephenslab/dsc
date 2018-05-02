@@ -5,7 +5,7 @@ DSC:
     paths:
       home: /home/gaow
     queue_type: pbs
-    wait_for_tasks: false
+    wait_for_tasks: True
     status_check_interval: 60
     max_running_jobs: 30
     max_cores: 40
@@ -30,8 +30,11 @@ DSC:
     submit_cmd_output: "Submitted batch job {job_id}"
     status_cmd: squeue --job {job_id}
     kill_cmd: scancel {job_id}
+  midway2_head:
+    based_on: midway2
+    address: localhost
   stephenslab:
-    based_on: hosts.midway2
+    based_on: midway2
     max_cores: 28
     max_mem: 128G
     max_walltime: "10d"
