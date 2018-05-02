@@ -45,12 +45,15 @@ git pull
 ./setup.sos
 ```
 
-#### Install dscrutils from github
+#### Install dscrutils from source
 
-In R,
+Assuming the working directory in your R environment is the `dsc`
+repository, run the following code in R to install the latest
+development version of the dscrutils R package:
 
 ```r
-devtools::install_github("stephenslab/dsc",subdir = "dscrutils", force = TRUE)
+getwd() # Should be ... /dsc
+install.packages("dscrutils",repos = NULL,type = "source")
 ```
 
 ## Change Log
