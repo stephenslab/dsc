@@ -272,9 +272,9 @@ class Query_Processor:
                     else:
                         clause.append("{0}.{1} AS {0}_DSC_FIELD_{1}".format(item[0], item[1]))
         clause = "SELECT " + ', '.join(clause)
-        return clause, fields
+        return clause, tables, fields
 
-    def match_targets(self, fields):
+    def match_targets(self, tables, fields):
         '''
         make sure fields in query do match required targets
         1. Expand query by groups
@@ -290,29 +290,21 @@ class Query_Processor:
                     fl.add(item[1])
             return tb, fl
         #
-        expanded_targets = []
-        for target in self.targets:
-            target = target.split('.')
-            if target[0] in self.groups:
-                target = [f'{x}.{target[1] if len(target) > 1 else "__output__"}' for x in self.groups[target[0]]]
-            else:
-                target = [f'{target[0]}.{target[1] if len(target) > 1 else "__output__"}']
-            expanded_targets.append(target)
-        expanded_targets = cartesian_list(*expanded_targets)
+        targets = [f'{x[0]}.{x[1]}' for x in tables if x[1] != 'DSC_REPLICATE']
         fields = split(fields[1:])
-        expanded_targets = [split(x) for x in expanded_targets]
-        for x in expanded_targets:
-            if fields[0].issubset(x[0]) and fields[1] == x[1]:
-                return True
-        return False
+        targets = split(targets)
+        if fields[0].issubset(targets[0]) and fields[1] == targets[1]:
+            return True
+        else:
+            return False
 
     def get_select_clause(self):
         select = []
         select_fields = []
         new_pipelines = []
         for pipeline, first_module in zip(self.pipelines, self.first_modules):
-            clause, fields = self.get_one_select_clause(pipeline, first_module)
-            if not self.match_targets(fields):
+            clause, tables, fields = self.get_one_select_clause(pipeline, first_module)
+            if not self.match_targets(tables, fields):
                 continue
             new_pipelines.append(pipeline)
             select.append(clause)
