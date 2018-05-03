@@ -1031,8 +1031,9 @@ class DSC_Pipeline:
             else:
                 curr_idx = curr_idx - 1
         if dependent is None:
-            raise FormatError(f'Cannot find output variable for ``${variable}`` in any of its upstream modules.'\
-                              f' This variable is required by module ``{module_name}``.')
+            upstream_modules = ', '.join([pipeline[i].name for i in range(len(pipeline))])
+            raise FormatError(f'Output variable ``${variable}`` is required by module ``{module_name}``, but is not available from '\
+                              f'any of its upstream modules: ``{upstream_modules}``.')
         return curr_idx, dependent
 
     def __str__(self):
