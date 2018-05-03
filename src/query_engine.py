@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, pickle
 import pandas as pd, numpy as np
-from .utils import uniq_list, flatten_list, filter_sublist, cartesian_list, FormatError, DBError, logger
+from .utils import uniq_list, flatten_list, filter_sublist, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
 from .line import parse_filter
 
