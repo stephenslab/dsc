@@ -24,6 +24,12 @@ class DSC_Translator:
         # FIXME: to be replaced by the R utils package
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
+        if host_conf is not None:
+            for k in list(host_conf.keys()):
+                if k in runtime.groups:
+                    for kk in runtime.groups[k]:
+                        host_conf[kk] = host_conf[k]
+                    del host_conf[k]
         conf_header = 'from dsc.dsc_database import build_config_db\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      f"IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
