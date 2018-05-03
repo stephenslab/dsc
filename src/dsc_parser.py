@@ -558,12 +558,12 @@ class DSC_Module:
                 raise ValueError(f'Executable ``Rscript`` is required to run module ``"{self.name}"`` yet is not available from command-line console.')
             # bump libraries import to front of script
             self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_RLIB)
-            if self.rlib is not None:
+            if self.rlib:
                 self.exe['header'] = '\n'.join([f'library({x.split()[0].split("@")[0]})' for x in self.rlib]) + \
                                      '\n' + self.exe['header']
         elif self.exe['type'] == 'PY':
             self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_PYMODULE)
-            if self.pymodule is not None:
+            if self.pymodule:
                 self.exe['header'] = '\n'.join([f'import {x.split()[0]})' for x in self.pymodule]) + \
                                      '\n' + self.exe['header']
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
@@ -645,8 +645,8 @@ class DSC_Module:
         self.workdir = workdir2 if workdir2 is not None else workdir1
         self.libpath = libpath2 if libpath2 is not None else libpath1
         self.path = path2 if path2 is not None else path1
-        self.rlib = try_get_value(spec_option, 'R_libs')
-        self.pymodule = try_get_value(spec_option, 'python_modules')
+        self.rlib = try_get_value(spec_option, 'R_libs', [])
+        self.pymodule = try_get_value(spec_option, 'python_modules', [])
         self.libpath_tracked = libpath2
 
     def set_input(self, params, alias):
