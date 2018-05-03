@@ -192,6 +192,8 @@ class Shell(BasePlug):
         keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
         res = OrderedDict([(name, OrderedDict())])
         for k in keys:
+            if k.startswith('!'):
+                continue
             if '=' in k:
                 j, k = (x.strip() for x in k.split('='))
             else:
@@ -353,6 +355,8 @@ class RPlug(BasePlug):
         keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
         res = ['{} <- list()'.format(name)]
         for k in keys:
+            if k.startswith('!'):
+                continue
             if '=' in k:
                 j, k = (x.strip() for x in k.split('='))
             else:
@@ -502,6 +506,8 @@ class PyPlug(BasePlug):
         keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
         res = [f'{name} = dict()']
         for k in keys:
+            if k.startswith('!'):
+                continue
             if '=' in k:
                 j, k = (x.strip() for x in k.split('='))
             else:

@@ -85,6 +85,11 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.8
+
+- Implement `%include` feature to facilitate collaborations.
+- Allow for `!` operator in `List()` and `Dict()`.
+
 0.2.7.7
 
 - Improvements for module with shell executables and command options.
