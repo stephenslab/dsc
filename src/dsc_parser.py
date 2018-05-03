@@ -29,17 +29,12 @@ class DSC_Script:
     def __init__(self, content, output = None, sequence = None, truncate = False, replicate = None):
         self.content = dict()
         if os.path.isfile(content):
-            self._dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
+            script_name = os.path.split(os.path.splitext(content)[0])[-1]
             script_path = os.path.dirname(os.path.expanduser(content))
-            content = [x.rstrip() for x in open(content).readlines() if x.strip()]
         else:
-            content = [x.rstrip() for x in content.split('\n') if x.strip()]
-            if len(content) == 0:
-                raise IOError(f"Invalid DSC script input!")
-            if len(content) == 1:
-                raise IOError(f"Cannot find file ``{content[0]}``")
-            self._dsc_name = 'DSCStringIO'
+            script_name = 'DSCStringIO'
             script_path = None
+        content = self.load_dsc(content)
         res = []
         exe = ''
         headline = False
@@ -96,7 +91,7 @@ class DSC_Script:
             self.extract_modules(block, derived[block] if block in derived else None)
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
-            self.runtime.output = self._dsc_name
+            self.runtime.output = script_name
         for k in self.runtime.groups:
             if k in self.content or k in ['default', 'DSC']:
                 raise FormatError(f"Group name ``{k}`` conflicts with existing module name or DSC keywords!")
@@ -118,15 +113,41 @@ class DSC_Script:
         # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
+    @staticmethod
+    def load_dsc(fn):
+        if os.path.isfile(fn):
+            content = [x.rstrip() for x in open(fn).readlines() if x.strip()]
+        else:
+            content = [x.rstrip() for x in fn.split('\n') if x.strip()]
+            if len(content) == 0:
+                raise IOError(f"Invalid DSC script input!")
+            if len(content) == 1:
+                raise IOError(f"Cannot find file ``{fn}``")
+        new_content = []
+        for line in content:
+            if line.startswith('%'):
+                line = line.split()
+                if not line[0] == '%include':
+                    raise FormatError(f'Invalid statement ``{line[0]}``. Perhaps you meant to use ``%include``?')
+                if len(line) != 2:
+                    raise FormatError(f'Invalid %include statement ``{" ".join(line)}``. Should be ``%include filename.dsc``')
+                if not os.path.isfile(line[1]) and os.path.isfile(line[1] + '.dsc'):
+                    new_content.extend(DSC_Script.load_dsc(line[1] + '.dsc'))
+                elif os.path.isfile(line[1]):
+                    new_content.extend(DSC_Script.load_dsc(line[1]))
+                else:
+                    raise FormatError(f'Cannot find file ``{line[1]}`` to include.')
+        return [x for x in content if not x.startswith('%')] + new_content
+
     def update(self, text, exe):
         try:
             block = yaml.load('\n'.join(text))
         except Exception as e:
             if type(e).__name__ == 'DuplicateKeyError':
-                raise FormatError(f"Duplicate keys found in\n``{self._dsc_name}.dsc``")
+                raise FormatError("Duplicate keys found in DSC configuration:\n``{}``".format('\n'.join(text)))
             else:
                 env.logger.warning(e)
-                raise FormatError(f"``{self._dsc_name}.dsc`` has caused ``{type(e).__name__}`` (see above).\nPlease ensure there is no duplicated variable names in modules. If this is related to string with quotes please remove them, or use the 'raw()' syntax.")
+                raise FormatError(f"DSC configuration has caused ``{type(e).__name__}`` (see above).\nPlease ensure there is no duplicated variable names in modules. If this is related to string with quotes please remove them, or use the 'raw()' syntax.")
         for idx, k in enumerate(flatten_list(get_nested_keys(block))):
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
