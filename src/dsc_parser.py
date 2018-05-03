@@ -97,6 +97,9 @@ class DSC_Script:
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
             self.runtime.output = self._dsc_name
+        for k in self.runtime.groups:
+            if k in self.content or k in ['default', 'DSC']:
+                raise FormatError(f"Group name ``{k}`` conflicts with existing module name or DSC keywords!")
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
                 raise FormatError(f"Module or group name ``{k}`` is not defined!\n" \
