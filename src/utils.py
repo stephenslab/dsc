@@ -350,13 +350,13 @@ def find_nested_key(key, dictionary):
                     for result in find_nested_key(key, d):
                         yield [k] + result
 
-def get_nested_keys(dictionary):
-    for k, v in dictionary.items():
-        if not isinstance(v, collections.Mapping):
-            yield [k]
+def recursive_items(dictionary):
+    for key, value in dictionary.items():
+        if isinstance(value, collections.Mapping):
+            yield (key, value)
+            yield from recursive_items(value)
         else:
-            for result in get_nested_keys(v):
-                yield [k] + result
+            yield (key, value)
 
 def dict2str(value):
     res = yaml.dump(strip_dict(value, into_list = True))

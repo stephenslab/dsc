@@ -12,7 +12,7 @@ from collections import Mapping, OrderedDict, Counter
 from xxhash import xxh32 as xxh
 from sos.utils import env
 from sos.targets import fileMD5, executable, path
-from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
+from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
      parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitignore
 from .addict import Dict as dotdict
@@ -137,7 +137,7 @@ class DSC_Script:
                     new_content.extend(DSC_Script.load_dsc(line[1]))
                 else:
                     raise FormatError(f'Cannot find file ``{line[1]}`` to include.')
-        return [x for x in content if not x.startswith('%')] + new_content
+        return new_content + [x for x in content if not x.startswith('%')]
 
     def update(self, text, exe):
         try:
@@ -148,7 +148,7 @@ class DSC_Script:
             else:
                 env.logger.warning(e)
                 raise FormatError(f"DSC configuration has caused ``{type(e).__name__}`` (see above).\nPlease ensure there is no duplicated variable names in modules. If this is related to string with quotes please remove them, or use the 'raw()' syntax.")
-        for idx, k in enumerate(flatten_list(get_nested_keys(block))):
+        for idx, k in enumerate([x[0] for x in recursive_items(block)]):
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
         block[name] = block.pop(list(block.keys())[0])
@@ -164,7 +164,8 @@ class DSC_Script:
                     raise FormatError(f"Block ``{name}`` has property conflicts for ``{k}``: ``{block[name][k]}`` or ``{v}``?")
                 block[name][k] = v
         if name in self.content:
-            raise FormatError(f'Duplicate block name ``{name}``.')
+            if name != 'DSC':
+                env.logger.warning(f'Overwriting existing module definition ``{name}``...')
         self.content.update(block)
 
     def set_global_vars(self, gvars):
@@ -179,6 +180,7 @@ class DSC_Script:
     @staticmethod
     def validate_var_name(val, is_parameter):
         tip = f"If this limitation is irrelevant to your problem, and you really cannot rename variable in your code, then at your own risk you can rename ``{val}`` to, eg, ``name`` in DSC and use ``@ALIAS: {val} = name``."
+        identifier = 'Variable identifiers compatible to most programming languages are the uppercase and lowercase letters ``A`` through ``Z``, the underscore ``_``, and, except for the first character, the digits ``0`` through ``9``.'
         groups = DSC_DERIVED_BLOCK.search(val)
         if groups:
             val = (groups.group(1).strip(), groups.group(2).strip())
@@ -187,20 +189,20 @@ class DSC_Script:
         val = flatten_list([[vv.strip() for vv in v.split(',') if vv.strip()] for v in val])
         for vv in val:
             if is_parameter == 0 and (not vv.isidentifier() or vv.startswith('_') or vv.endswith('_')):
-                raise FormatError(f'Invalid module name ``{vv.replace("^", "?")}``')
+                raise FormatError(f'Invalid module name ``{vv.replace("^", "?")}``.\n{identifier} ')
             if is_parameter == 0:
                 continue
             if vv.startswith('_') or vv.endswith('_'):
-                raise FormatError(f"Names cannot start or end with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R. {tip}")
+                raise FormatError(f"Names cannot start or end with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R.\n{tip}")
             if '.' in vv:
-                raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
+                raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL.\n{tip}")
             if '$' in vv[1:] or vv == '$':
                 raise FormatError(f"``$`` is not allowed in module / variable names, in ``{vv}``.")
             if '^' in vv[1:]:
                 raise FormatError(f'Invalid variable name ``{vv}``')
             if not (vv == '?' or vv.startswith('^') or vv.startswith('$')):
                 if not vv.isidentifier():
-                    raise FormatError(f'Invalid variable name ``{vv.replace("^", "?")}``')
+                    raise FormatError(f'Invalid variable name ``{vv.replace("^", "?")}``.\n{identifier}')
 
     def get_derived_blocks(self):
         '''
