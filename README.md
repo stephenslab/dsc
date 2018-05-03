@@ -56,6 +56,24 @@ getwd() # Should be ... /dsc
 install.packages("dscrutils",repos = NULL,type = "source")
 ```
 
+#### Project maintenance
+
+Although relatively stable and usable in practice, DSC is still actively being developed.
+Occasionally upgrades to the most recent version will lead to changes of file signatures that 
+triggers rerun of existing benchmark even if they have not been changed. It is therefore our suggestion that
+after major DSC upgrades that you clean up cached file signatures by:
+
+```
+rm -rf .sos
+```
+
+under your DSC project directory, and rerun with `-s none` for the first time. This is optional,
+but recommended. You can also do this from time to time if you want to rerun your DSC benchmark from
+scratch.
+
+We will indicate in bold in our release note below when such maintenance is strongly suggested 
+(see release note 0.2.7.7 for example).
+
 ## Change Log
 
 ### Upcoming release
@@ -74,6 +92,8 @@ Goal for 0.2.8
 - Improved logging.
 - Bug fixes #126, #127.
 - SoS bumped to version 0.9.13.4 for #128 and related.
+
+**A file signature clean up is recommended after this upgrade.**
 
 0.2.7.6
 
