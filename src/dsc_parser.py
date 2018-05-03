@@ -340,8 +340,6 @@ class DSC_Script:
             env.logfile = os.path.basename(self.runtime.output) + '.log'
             if os.path.isfile(env.logfile):
                 os.remove(env.logfile)
-        if os.path.isfile('.sos/transcript.txt'):
-            os.remove('.sos/transcript.txt')
         if os.path.isfile(os.path.basename(self.runtime.output) + 'scripts.html'):
             os.remove(os.path.basename(self.runtime.output) + 'scripts.html')
         update_gitignore()

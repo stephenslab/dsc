@@ -155,6 +155,8 @@ def execute(args):
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         cmd_run(script.get_sos_options(db, content), [])
+    if os.path.isfile('.sos/transcript.txt'):
+        os.remove('.sos/transcript.txt')
     # Get the executed pipeline
     pipeline.filter_execution()
     script_run = pipeline.write_pipeline(2)
