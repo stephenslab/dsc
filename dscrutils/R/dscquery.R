@@ -246,7 +246,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
           names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
         } else {
           names(dat[[j]]) <- col.new
-          if (verbose) cat("not extracted (filenames provided)\n")
+          if (verbose)
+            cat("not extracted (filenames provided)\n")
         }
       }
     }
