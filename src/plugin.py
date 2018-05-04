@@ -189,11 +189,11 @@ class Shell(BasePlug):
             self.tempfile.append('{}="""{}"""'.format(self.get_var(lhs), ' '.join(temp_var)))
 
     def set_container(self, name, value, params):
-        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
+        keys = sorted([v.strip() for v in value.split(',') if not v.strip().startswith('!')] if value else list(params.keys()))
+        if len(keys) == 0:
+            return
         res = OrderedDict([(name, OrderedDict())])
         for k in keys:
-            if k.startswith('!'):
-                continue
             if '=' in k:
                 j, k = (x.strip() for x in k.split('='))
             else:
@@ -352,11 +352,11 @@ class RPlug(BasePlug):
         return res.strip()
 
     def set_container(self, name, value, params):
-        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
+        keys = sorted([v.strip() for v in value.split(',') if not v.strip().startswith('!')] if value else list(params.keys()))
+        if len(keys) == 0:
+            return
         res = ['{} <- list()'.format(name)]
         for k in keys:
-            if k.startswith('!'):
-                continue
             if '=' in k:
                 j, k = (x.strip() for x in k.split('='))
             else:
@@ -503,11 +503,11 @@ class PyPlug(BasePlug):
         return res.strip()
 
     def set_container(self, name, value, params):
-        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
+        keys = sorted([v.strip() for v in value.split(',') if not v.strip().startswith('!')] if value else list(params.keys()))
+        if len(keys) == 0:
+            return
         res = [f'{name} = dict()']
         for k in keys:
-            if k.startswith('!'):
-                continue
             if '=' in k:
                 j, k = (x.strip() for x in k.split('='))
             else:
