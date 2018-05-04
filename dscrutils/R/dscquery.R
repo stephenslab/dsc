@@ -225,11 +225,14 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
         # the same length, and (3) the vector lengths to not exceed
         # the maximum allowed vector length, then incorporate the
         # vector values into the data frame.
-        extract.values <- FALSE
+        extract.values   <- FALSE
+        all.lengths.same <- FALSE
         if (all(sapply(values,is.vector)))
-          if (length(unique(sapply(values,length))) == 1 &
-              max(sapply(values,length)) <= max.extract.vector)
-            extract.values <- TRUE
+          if (length(unique(sapply(values,length))) == 1) {
+            all.lengths.same <- TRUE
+            if (max(sapply(values,length)) <= max.extract.vector)
+              extract.values <- TRUE
+          }
         if (extract.values) {
           if (verbose)
             cat("extracted vector values\n")
@@ -240,7 +243,11 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
         } else {
           names(dat[[j]]) <- col.new
           if (verbose)
-            cat("not extracted (filenames provided)\n")
+            if (all.lengths.same)
+              cat("vectors not extracted (set max.extract.vector =",
+                  max(sapply(values,length)),"to extract)\n")
+            else
+              cat("not extracted (filenames provided)\n")
         }
       }
     }
