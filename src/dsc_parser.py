@@ -395,7 +395,7 @@ class DSC_Script:
                     res['groups'] = self.content[k]['define']
             else:
                 res['modules'][' '].append(k)
-                res['modules']['output'].append(', '.join(self.content[k]['output'].keys()))
+                res['modules']['output'].append(', '.join(sorted(self.content[k]['output'].keys())))
                 inputs = []
                 params = []
                 for x in self.content[k]['input']:
@@ -403,8 +403,8 @@ class DSC_Script:
                         inputs.append(self.content[k]['input'][x][0][1:])
                     else:
                         params.append(x)
-                res['modules']['input'].append(', '.join(inputs))
-                res['modules']['parameters'].append(', '.join(params))
+                res['modules']['input'].append(', '.join(sorted(inputs)))
+                res['modules']['parameters'].append(', '.join(sorted(params)))
                 res['modules']['type'].append(self.modules[k].exe['type'] if k in self.modules else 'unused')
         from .prettytable import PrettyTable
         t = PrettyTable()
