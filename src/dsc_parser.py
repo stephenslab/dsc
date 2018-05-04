@@ -400,7 +400,7 @@ class DSC_Script:
                 params = []
                 for x in self.content[k]['input']:
                     if isinstance(self.content[k]['input'][x][0], str) and self.content[k]['input'][x][0].startswith('$'):
-                        inputs.append(x)
+                        inputs.append(self.content[k]['input'][x][0][1:])
                     else:
                         params.append(x)
                 res['modules']['input'].append(', '.join(inputs))
