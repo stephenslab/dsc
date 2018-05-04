@@ -73,8 +73,8 @@ save_session <- function(start_time, id) {
 #' @export
 run_cmd <- function(cmd_str, verbose=TRUE) {
   if (verbose) {
-    cat("Running shell command:\n", stderr())
-    cat(cmd_str,"\n", stderr())
+    write("Running shell command:", stderr())
+    write(cmd_str, stderr())
   }
   out <- system(cmd_str,ignore.stdout = !verbose,ignore.stderr = !verbose)
   if (out != 0)
