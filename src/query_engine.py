@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, pickle
 import pandas as pd, numpy as np
-from .utils import uniq_list, flatten_list, filter_sublist, cartesian_list, FormatError, DBError, logger
+from .utils import uniq_list, flatten_list, filter_sublist, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
 from .line import parse_filter
 
@@ -439,10 +439,9 @@ class Query_Processor:
         # or groups completely non-overlapping, that might result in
         # creating blocks of missing structure.
         # We should consolidate them
-
         self.output_table.replace('NA', np.nan, inplace = True)
         self.output_table = self.output_table.groupby(self.output_table.columns[self.output_table.notnull().all()].tolist(),
-                                  as_index=False).first().fillna('NA')
+                                  as_index=False).first().fillna('NA')[self.output_table.columns]
 
     def get_queries(self):
         return self.queries

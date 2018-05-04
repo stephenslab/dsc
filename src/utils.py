@@ -350,13 +350,13 @@ def find_nested_key(key, dictionary):
                     for result in find_nested_key(key, d):
                         yield [k] + result
 
-def get_nested_keys(dictionary):
-    for k, v in dictionary.items():
-        if not isinstance(v, collections.Mapping):
-            yield [k]
+def recursive_items(dictionary):
+    for key, value in dictionary.items():
+        if isinstance(value, collections.Mapping):
+            yield (key, value)
+            yield from recursive_items(value)
         else:
-            for result in get_nested_keys(v):
-                yield [k] + result
+            yield (key, value)
 
 def dict2str(value):
     res = yaml.dump(strip_dict(value, into_list = True))
@@ -591,8 +591,6 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
     section_content = [('->'.join(x), flatten_list([modules[i] for i in x])) for x in sequences]
     section_content = dict(lib_content + section_content)
     languages = {'py': 'python', 'sh': 'bash', 'rb': 'ruby', 'r': 'r', 'm': 'matlab', 'pl': 'perl'}
-    if os.path.isfile(dsc_conf):
-        dsc_conf = open(dsc_conf).read()
     if not os.path.splitext(output)[1] == '.html':
         output += '.html'
     with open(output, 'w') as f:
@@ -947,23 +945,26 @@ def find_git_repo():
     except:
         return None
 
-def update_gitignore():
-    ignore_file = find_git_repo()
-    if ignore_file is None:
+def update_gitconf():
+    def add_to_file(line, filename):
+        flag = True
+        if os.path.isfile(filename):
+          lines = [x.strip() for x in open(filename).readlines()]
+          if line in lines:
+            flag = False
+        if flag:
+          with open(filename, 'a') as f:
+            f.write('\n' + line)
+    #
+    repo_path = find_git_repo()
+    if repo_path is None:
         return
-    ignore_file = os.path.join(ignore_file, '.gitignore')
-    flag = True
-    if os.path.isfile(ignore_file):
-      lines = [x.strip() for x in open(ignore_file).readlines()]
-      if '**/.sos' in lines:
-        flag = False
-    if flag:
-      with open(ignore_file, 'a') as f:
-        f.write('\n**/.sos')
+    add_to_file('**/.sos', os.path.join(repo_path, '.gitignore'))
+    add_to_file('*.dsc linguist-language=YAML', os.path.join(repo_path, '.gitattributes'))
 
 def get_rlib_versions(rlibs):
     from sos.utils import get_output
-    rlibs = sorted([x.split()[0].split('@')[0] for x in rlibs if not x.startswith('dscrutils')])
+    rlibs = uniq_list(sorted([x.split()[0].split('@')[0] for x in rlibs if not x.startswith('dscrutils')]))
     versions = []
     for l in rlibs:
         try:
@@ -974,8 +975,9 @@ def get_rlib_versions(rlibs):
 
 def get_pymodule_versions(pym):
     import pkg_resources
+    pym = uniq_list(sorted(pym))
     versions = []
-    for m in sorted(pym):
+    for m in pym:
         try:
             versions.append(pkg_resources.get_distribution(m).version)
         except:

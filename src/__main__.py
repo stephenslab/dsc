@@ -121,7 +121,8 @@ def execute(args):
         workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
     # FIXME: make sure try_catch works, or justify that it is not necessary to have.
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
-                              args.__max_jobs__, args.try_catch, conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'})
+                              args.__max_jobs__, args.try_catch, conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'},
+                              args.verbosity)
     # Apply clean-up
     if args.to_remove:
         remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
@@ -133,7 +134,7 @@ def execute(args):
                    for k in script.runtime.options['lib_path'] or []]
     exec_content = [(k, script.modules[k].exe)
                     for k in script.runtime.sequence_ordering]
-    dsc2html(open(args.dsc_file).read(), script.runtime.output,
+    dsc2html('\n'.join(script.transcript), script.runtime.output,
              script.runtime.sequence, exec_content, lib_content)
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
     # Setup
@@ -155,6 +156,8 @@ def execute(args):
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         cmd_run(script.get_sos_options(db, content), [])
+    if os.path.isfile('.sos/transcript.txt'):
+        os.remove('.sos/transcript.txt')
     # Get the executed pipeline
     pipeline.filter_execution()
     script_run = pipeline.write_pipeline(2)

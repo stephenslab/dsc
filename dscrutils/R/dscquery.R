@@ -140,21 +140,14 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   # stored.
   outfile <- tempfile(fileext = ".csv")
     
-  # Build the command based on the inputs.
+  # Build and run command based on the inputs.
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
                    "--target",paste(targets,collapse = " "))
   if (length(conditions) > 1)
     conditions <- paste(conditions,collapse = " AND ")
   if (!is.null(conditions))
       cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
-  if (verbose) {
-    cat("Running shell command:\n")
-    cat(cmd.str,"\n")
-  }
-  out <- system(cmd.str,ignore.stdout = !verbose,ignore.stderr = !verbose)
-  if (out != 0)
-    stop("dsc-query command failed (returned a non-zero exit status)")
-  
+  run_cmd(cmd.str, verbose)
   # LOAD DSC QUERY
   # --------------
   if (verbose)

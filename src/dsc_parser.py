@@ -12,9 +12,9 @@ from collections import Mapping, OrderedDict, Counter
 from xxhash import xxh32 as xxh
 from sos.utils import env
 from sos.targets import fileMD5, executable, path
-from .utils import FormatError, strip_dict, find_nested_key, get_nested_keys, merge_lists, flatten_list, uniq_list, \
+from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
-     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitignore
+     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
@@ -29,22 +29,17 @@ class DSC_Script:
     def __init__(self, content, output = None, sequence = None, truncate = False, replicate = None):
         self.content = dict()
         if os.path.isfile(content):
-            self._dsc_name = os.path.split(os.path.splitext(content)[0])[-1]
+            script_name = os.path.split(os.path.splitext(content)[0])[-1]
             script_path = os.path.dirname(os.path.expanduser(content))
-            content = [x.rstrip() for x in open(content).readlines() if x.strip()]
         else:
-            content = [x.rstrip() for x in content.split('\n') if x.strip()]
-            if len(content) == 0:
-                raise IOError(f"Invalid DSC script input!")
-            if len(content) == 1:
-                raise IOError(f"Cannot find file ``{content[0]}``")
-            self._dsc_name = 'DSCStringIO'
+            script_name = 'DSCStringIO'
             script_path = None
+        self.transcript = self.load_dsc(content)
         res = []
         exe = ''
         headline = False
         parens_counter = Counter('()')
-        for line in content:
+        for line in self.transcript:
             if line.lstrip().startswith('#'):
                 continue
             text = parens_aware_split(line, ':', True)
@@ -96,7 +91,10 @@ class DSC_Script:
             self.extract_modules(block, derived[block] if block in derived else None)
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
-            self.runtime.output = self._dsc_name
+            self.runtime.output = script_name
+        for k in self.runtime.groups:
+            if k in self.content or k in ['default', 'DSC']:
+                raise FormatError(f"Group name ``{k}`` conflicts with existing module name or DSC keywords!")
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
                 raise FormatError(f"Module or group name ``{k}`` is not defined!\n" \
@@ -115,16 +113,42 @@ class DSC_Script:
         # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
+    @staticmethod
+    def load_dsc(fn):
+        if os.path.isfile(fn):
+            content = [x.rstrip() for x in open(fn).readlines() if x.strip()]
+        else:
+            content = [x.rstrip() for x in fn.split('\n') if x.strip()]
+            if len(content) == 0:
+                raise IOError(f"Invalid DSC script input!")
+            if len(content) == 1:
+                raise IOError(f"Cannot find file ``{fn}``")
+        new_content = []
+        for line in content:
+            if line.startswith('%'):
+                line = line.split()
+                if not line[0] == '%include':
+                    raise FormatError(f'Invalid statement ``{line[0]}``. Perhaps you meant to use ``%include``?')
+                if len(line) != 2:
+                    raise FormatError(f'Invalid %include statement ``{" ".join(line)}``. Should be ``%include filename.dsc``')
+                if not os.path.isfile(line[1]) and os.path.isfile(line[1] + '.dsc'):
+                    new_content.extend(DSC_Script.load_dsc(line[1] + '.dsc'))
+                elif os.path.isfile(line[1]):
+                    new_content.extend(DSC_Script.load_dsc(line[1]))
+                else:
+                    raise FormatError(f'Cannot find file ``{line[1]}`` to include.')
+        return new_content + [x for x in content if not x.startswith('%') and not x.startswith('#!')]
+
     def update(self, text, exe):
         try:
             block = yaml.load('\n'.join(text))
         except Exception as e:
             if type(e).__name__ == 'DuplicateKeyError':
-                raise FormatError(f"Duplicate keys found in\n``{self._dsc_name}.dsc``")
+                raise FormatError("Duplicate keys found in DSC configuration:\n``{}``".format('\n'.join(text)))
             else:
                 env.logger.warning(e)
-                raise FormatError(f"``{self._dsc_name}.dsc`` has caused ``{type(e).__name__}`` (see above).\nPlease ensure there is no duplicated variable names in modules. If this is related to string with quotes please remove them, or use the 'raw()' syntax.")
-        for idx, k in enumerate(flatten_list(get_nested_keys(block))):
+                raise FormatError(f"DSC configuration has caused ``{type(e).__name__}`` (see above).\nPlease ensure there is no duplicated variable names in modules. If this is related to string with quotes please remove them, or use the 'raw()' syntax.")
+        for idx, k in enumerate([x[0] for x in recursive_items(block)]):
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
         block[name] = block.pop(list(block.keys())[0])
@@ -140,7 +164,8 @@ class DSC_Script:
                     raise FormatError(f"Block ``{name}`` has property conflicts for ``{k}``: ``{block[name][k]}`` or ``{v}``?")
                 block[name][k] = v
         if name in self.content:
-            raise FormatError(f'Duplicate block name ``{name}``.')
+            if name != 'DSC':
+                env.logger.warning(f'Overwriting existing module definition ``{name}``...')
         self.content.update(block)
 
     def set_global_vars(self, gvars):
@@ -155,6 +180,7 @@ class DSC_Script:
     @staticmethod
     def validate_var_name(val, is_parameter):
         tip = f"If this limitation is irrelevant to your problem, and you really cannot rename variable in your code, then at your own risk you can rename ``{val}`` to, eg, ``name`` in DSC and use ``@ALIAS: {val} = name``."
+        identifier = 'Variable identifiers compatible to most programming languages are the uppercase and lowercase letters ``A`` through ``Z``, the underscore ``_``, and, except for the first character, the digits ``0`` through ``9``.'
         groups = DSC_DERIVED_BLOCK.search(val)
         if groups:
             val = (groups.group(1).strip(), groups.group(2).strip())
@@ -163,20 +189,20 @@ class DSC_Script:
         val = flatten_list([[vv.strip() for vv in v.split(',') if vv.strip()] for v in val])
         for vv in val:
             if is_parameter == 0 and (not vv.isidentifier() or vv.startswith('_') or vv.endswith('_')):
-                raise FormatError(f'Invalid module name ``{vv.replace("^", "?")}``')
+                raise FormatError(f'Invalid module name ``{vv.replace("^", "?")}``.\n{identifier} ')
             if is_parameter == 0:
                 continue
             if vv.startswith('_') or vv.endswith('_'):
-                raise FormatError(f"Names cannot start or end with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R. {tip}")
+                raise FormatError(f"Names cannot start or end with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R.\n{tip}")
             if '.' in vv:
-                raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL. {tip}")
+                raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL.\n{tip}")
             if '$' in vv[1:] or vv == '$':
                 raise FormatError(f"``$`` is not allowed in module / variable names, in ``{vv}``.")
             if '^' in vv[1:]:
                 raise FormatError(f'Invalid variable name ``{vv}``')
             if not (vv == '?' or vv.startswith('^') or vv.startswith('$')):
                 if not vv.isidentifier():
-                    raise FormatError(f'Invalid variable name ``{vv.replace("^", "?")}``')
+                    raise FormatError(f'Invalid variable name ``{vv.replace("^", "?")}``.\n{identifier}')
 
     def get_derived_blocks(self):
         '''
@@ -337,11 +363,9 @@ class DSC_Script:
             env.logfile = os.path.basename(self.runtime.output) + '.log'
             if os.path.isfile(env.logfile):
                 os.remove(env.logfile)
-        if os.path.isfile('.sos/transcript.txt'):
-            os.remove('.sos/transcript.txt')
         if os.path.isfile(os.path.basename(self.runtime.output) + 'scripts.html'):
             os.remove(os.path.basename(self.runtime.output) + 'scripts.html')
-        update_gitignore()
+        update_gitconf()
 
     def dump(self):
         res = dict([('Modules', self.modules),
@@ -371,16 +395,16 @@ class DSC_Script:
                     res['groups'] = self.content[k]['define']
             else:
                 res['modules'][' '].append(k)
-                res['modules']['output'].append(', '.join(self.content[k]['output'].keys()))
+                res['modules']['output'].append(', '.join(sorted(self.content[k]['output'].keys())))
                 inputs = []
                 params = []
                 for x in self.content[k]['input']:
                     if isinstance(self.content[k]['input'][x][0], str) and self.content[k]['input'][x][0].startswith('$'):
-                        inputs.append(x)
+                        inputs.append(self.content[k]['input'][x][0][1:])
                     else:
                         params.append(x)
-                res['modules']['input'].append(', '.join(inputs))
-                res['modules']['parameters'].append(', '.join(params))
+                res['modules']['input'].append(', '.join(sorted(inputs)))
+                res['modules']['parameters'].append(', '.join(sorted(params)))
                 res['modules']['type'].append(self.modules[k].exe['type'] if k in self.modules else 'unused')
         from .prettytable import PrettyTable
         t = PrettyTable()
@@ -393,7 +417,7 @@ class DSC_Script:
         env.logger.info("``PIPELINES``")
         print(res['pipelines'] + '\n')
         env.logger.info("``PIPELINES EXPANDED``")
-        print('\n'.join([f'{i+1}: ' + ' -> '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
+        print('\n'.join([f'{i+1}: ' + ' * '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
         if len([x for x in self.runtime.rlib if not x.startswith('dscrutils')]):
             from .utils import get_rlib_versions
             env.logger.info("``R LIBRARIES``")
@@ -534,12 +558,12 @@ class DSC_Module:
                 raise ValueError(f'Executable ``Rscript`` is required to run module ``"{self.name}"`` yet is not available from command-line console.')
             # bump libraries import to front of script
             self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_RLIB)
-            if self.rlib is not None:
+            if self.rlib:
                 self.exe['header'] = '\n'.join([f'library({x.split()[0].split("@")[0]})' for x in self.rlib]) + \
                                      '\n' + self.exe['header']
         elif self.exe['type'] == 'PY':
             self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_PYMODULE)
-            if self.pymodule is not None:
+            if self.pymodule:
                 self.exe['header'] = '\n'.join([f'import {x.split()[0]})' for x in self.pymodule]) + \
                                      '\n' + self.exe['header']
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
@@ -621,8 +645,8 @@ class DSC_Module:
         self.workdir = workdir2 if workdir2 is not None else workdir1
         self.libpath = libpath2 if libpath2 is not None else libpath1
         self.path = path2 if path2 is not None else path1
-        self.rlib = try_get_value(spec_option, 'R_libs')
-        self.pymodule = try_get_value(spec_option, 'python_modules')
+        self.rlib = try_get_value(spec_option, 'R_libs', [])
+        self.pymodule = try_get_value(spec_option, 'python_modules', [])
         self.libpath_tracked = libpath2
 
     def set_input(self, params, alias):
@@ -1031,8 +1055,9 @@ class DSC_Pipeline:
             else:
                 curr_idx = curr_idx - 1
         if dependent is None:
-            raise FormatError(f'Cannot find output variable for ``${variable}`` in any of its upstream modules.'\
-                              f' This variable is required by module ``{module_name}``.')
+            upstream_modules = ', '.join([pipeline[i].name for i in range(len(pipeline))])
+            raise FormatError(f'Output variable ``${variable}`` is required by module ``{module_name}``, but is not available from '\
+                              f'any of its upstream modules: ``{upstream_modules}``.')
         return curr_idx, dependent
 
     def __str__(self):

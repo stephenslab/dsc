@@ -189,7 +189,15 @@ class Shell(BasePlug):
             self.tempfile.append('{}="""{}"""'.format(self.get_var(lhs), ' '.join(temp_var)))
 
     def set_container(self, name, value, params):
-        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
+        value = [v.strip() for v in value.split(',') if v.strip()]
+        excluded = [v[1:] for v in value if v.startswith('!')]
+        if len(value) == len(excluded):
+            # empty or all ! input
+            keys = sorted([x for x in params.keys() if x not in excluded])
+        else:
+            keys = sorted([x for x in value if x not in excluded])
+        if len(keys) == 0:
+            return
         res = OrderedDict([(name, OrderedDict())])
         for k in keys:
             if '=' in k:
@@ -350,7 +358,15 @@ class RPlug(BasePlug):
         return res.strip()
 
     def set_container(self, name, value, params):
-        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
+        value = [v.strip() for v in value.split(',') if v.strip()]
+        excluded = [v[1:] for v in value if v.startswith('!')]
+        if len(value) == len(excluded):
+            # empty or all ! input
+            keys = sorted([x for x in params.keys() if x not in excluded])
+        else:
+            keys = sorted([x for x in value if x not in excluded])
+        if len(keys) == 0:
+            return
         res = ['{} <- list()'.format(name)]
         for k in keys:
             if '=' in k:
@@ -383,7 +399,7 @@ class RPlug(BasePlug):
     @staticmethod
     def format_tuple(value):
         # this is the best I'd like to do for R ...
-        value = [repr(v) if isinstance(v, path) else str(v) for v in value]
+        value = [repr(str(v)) if isinstance(v, path) else str(v) for v in value]
         has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
         if has_tuple:
             return 'list({})'.format(','.join([(f'c({",".join([vv for vv in v])})' if len(v) > 1 else v[0]) if isinstance(v, tuple) else v for v in value]))
@@ -499,7 +515,15 @@ class PyPlug(BasePlug):
         return res.strip()
 
     def set_container(self, name, value, params):
-        keys = sorted([x.strip() for x in value.split(',')] if value else list(params.keys()))
+        value = [v.strip() for v in value.split(',') if v.strip()]
+        excluded = [v[1:] for v in value if v.startswith('!')]
+        if len(value) == len(excluded):
+            # empty or all ! input
+            keys = sorted([x for x in params.keys() if x not in excluded])
+        else:
+            keys = sorted([x for x in value if x not in excluded])
+        if len(keys) == 0:
+            return
         res = [f'{name} = dict()']
         for k in keys:
             if '=' in k:
@@ -528,7 +552,7 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        value = [repr(v) if isinstance(v, path) else str(v) for v in value]
+        value = [repr(str(v)) if isinstance(v, path) else str(v) for v in value]
         return '({})'.format(','.join(value))
 
     def __str__(self):
