@@ -87,7 +87,7 @@ Goal for 0.2.8
 
 0.2.7.8
 
-- Implement `%include` feature to facilitate collaborations.
+- Implement a prelimilary `%include` feature to facilitate collaboration.
 - Allow for `!` operator in `List()` and `Dict()`.
 
 0.2.7.7

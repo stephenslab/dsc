@@ -34,12 +34,12 @@ class DSC_Script:
         else:
             script_name = 'DSCStringIO'
             script_path = None
-        content = self.load_dsc(content)
+        self.transcript = self.load_dsc(content)
         res = []
         exe = ''
         headline = False
         parens_counter = Counter('()')
-        for line in content:
+        for line in self.transcript:
             if line.lstrip().startswith('#'):
                 continue
             text = parens_aware_split(line, ':', True)
@@ -137,7 +137,7 @@ class DSC_Script:
                     new_content.extend(DSC_Script.load_dsc(line[1]))
                 else:
                     raise FormatError(f'Cannot find file ``{line[1]}`` to include.')
-        return new_content + [x for x in content if not x.startswith('%')]
+        return new_content + [x for x in content if not x.startswith('%') and not x.startswith('#!')]
 
     def update(self, text, exe):
         try:

@@ -591,8 +591,6 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
     section_content = [('->'.join(x), flatten_list([modules[i] for i in x])) for x in sequences]
     section_content = dict(lib_content + section_content)
     languages = {'py': 'python', 'sh': 'bash', 'rb': 'ruby', 'r': 'r', 'm': 'matlab', 'pl': 'perl'}
-    if os.path.isfile(dsc_conf):
-        dsc_conf = open(dsc_conf).read()
     if not os.path.splitext(output)[1] == '.html':
         output += '.html'
     with open(output, 'w') as f:
@@ -963,7 +961,7 @@ def update_gitignore():
 
 def get_rlib_versions(rlibs):
     from sos.utils import get_output
-    rlibs = sorted([x.split()[0].split('@')[0] for x in rlibs if not x.startswith('dscrutils')])
+    rlibs = uniq_list(sorted([x.split()[0].split('@')[0] for x in rlibs if not x.startswith('dscrutils')]))
     versions = []
     for l in rlibs:
         try:
@@ -974,8 +972,9 @@ def get_rlib_versions(rlibs):
 
 def get_pymodule_versions(pym):
     import pkg_resources
+    pym = uniq_list(sorted(pym))
     versions = []
-    for m in sorted(pym):
+    for m in pym:
         try:
             versions.append(pkg_resources.get_distribution(m).version)
         except:
