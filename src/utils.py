@@ -945,19 +945,22 @@ def find_git_repo():
     except:
         return None
 
-def update_gitignore():
-    ignore_file = find_git_repo()
-    if ignore_file is None:
+def update_gitconf():
+    def add_to_file(line, filename):
+        flag = True
+        if os.path.isfile(filename):
+          lines = [x.strip() for x in open(filename).readlines()]
+          if line in lines:
+            flag = False
+        if flag:
+          with open(filename, 'a') as f:
+            f.write('\n' + line)
+    #
+    repo_path = find_git_repo()
+    if repo_path is None:
         return
-    ignore_file = os.path.join(ignore_file, '.gitignore')
-    flag = True
-    if os.path.isfile(ignore_file):
-      lines = [x.strip() for x in open(ignore_file).readlines()]
-      if '**/.sos' in lines:
-        flag = False
-    if flag:
-      with open(ignore_file, 'a') as f:
-        f.write('\n**/.sos')
+    add_to_file('**/.sos', os.path.join(repo_path, '.gitignore'))
+    add_to_file('*.dsc linguist-language=YAML', os.path.join(repo_path, '.gitattributes'))
 
 def get_rlib_versions(rlibs):
     from sos.utils import get_output

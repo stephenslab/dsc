@@ -14,7 +14,7 @@ from sos.utils import env
 from sos.targets import fileMD5, executable, path
 from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
-     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitignore
+     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
@@ -365,7 +365,7 @@ class DSC_Script:
                 os.remove(env.logfile)
         if os.path.isfile(os.path.basename(self.runtime.output) + 'scripts.html'):
             os.remove(os.path.basename(self.runtime.output) + 'scripts.html')
-        update_gitignore()
+        update_gitconf()
 
     def dump(self):
         res = dict([('Modules', self.modules),

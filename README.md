@@ -60,19 +60,13 @@ install.packages("dscrutils",repos = NULL,type = "source")
 
 Although relatively stable and usable in practice, DSC is still actively being developed.
 Occasionally upgrades to the most recent version will lead to changes of file signatures that 
-triggers rerun of existing benchmark even if they have not been changed. It is therefore our suggestion that
-after major DSC upgrades that you clean up cached file signatures by:
-
-```
-rm -rf .sos
-```
-
-under your DSC project directory, and rerun with `-s none` for the first time. This is optional,
-but recommended. You can also do this from time to time if you want to rerun your DSC benchmark from
-scratch.
-
-We will indicate in bold in our release note below when such maintenance is strongly suggested 
-(see release note 0.2.7.7 for example).
+triggers rerun of existing benchmark even if they have not been changed. When this happens we will
+indicate in bold in our release note below that "a file signature clean up is recommended" 
+(see release note 0.2.7.7 for example). That means after such DSC upgrades you should 
+rerun your benchmark from scratch with `-s none` to skip all existing files. This is optional, 
+but recommended, because such upgrades will trigger your existing benchmark to rerun anyways, it may well
+take this opportunity to clean up cached file signature (`-s none` will remove `.sos` folder 
+under current directory, and rebuild file database).
 
 ## Change Log
 
