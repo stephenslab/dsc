@@ -417,7 +417,7 @@ class DSC_Script:
         env.logger.info("``PIPELINES``")
         print(res['pipelines'] + '\n')
         env.logger.info("``PIPELINES EXPANDED``")
-        print('\n'.join([f'{i+1}: ' + ' -> '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
+        print('\n'.join([f'{i+1}: ' + ' * '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
         if len([x for x in self.runtime.rlib if not x.startswith('dscrutils')]):
             from .utils import get_rlib_versions
             env.logger.info("``R LIBRARIES``")
