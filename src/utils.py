@@ -225,6 +225,14 @@ def uniq_list(seq):
     seen_add = seen.add
     return [x for x in seq if not (repr(x) in seen or seen_add(repr(x)))]
 
+def case_insensitive_uniq_list(data):
+    seen, result = set(), []
+    for item in data:
+        if item.lower() not in seen:
+            seen.add(item.lower())
+            result.append(item)
+    return result
+
 def merge_lists(seq1, seq2):
     '''
     >>> keys1 = ['A', 'B', 'C', 'D', 'E',           'H', 'I']

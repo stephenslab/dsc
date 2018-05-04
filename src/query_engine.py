@@ -5,7 +5,7 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, pickle
 import pandas as pd, numpy as np
-from .utils import uniq_list, flatten_list, filter_sublist, FormatError, DBError, logger
+from .utils import uniq_list, case_insensitive_uniq_list, flatten_list, filter_sublist, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
 from .line import parse_filter
 
@@ -228,7 +228,7 @@ class Query_Processor:
         '''
         res = []
         heads = []
-        tables = uniq_list([x[0].lower() for x in self.target_tables] + [x[0].lower() for x in self.condition_tables])
+        tables = case_insensitive_uniq_list([x[0] for x in self.target_tables] + [x[0] for x in self.condition_tables])
         for pipeline in self.pipelines:
             pidx = [l[0] for l in enumerate(pipeline) if l[1] in tables]
             if len(pidx) == 0:
@@ -322,8 +322,8 @@ class Query_Processor:
         the outer lists are connected by OR
         the inner lists are connected by AND
         '''
-        select_tables = uniq_list([x.split('.')[0].lower() for x in one_select_fields])
-        valid_tables = [x[0].lower() for x in self.condition_tables if x[0].lower() in select_tables + pipeline_tables]
+        select_tables = uniq_list([x.split('.')[0] for x in one_select_fields])
+        valid_tables = [x[0] for x in self.condition_tables if x[0] in select_tables + pipeline_tables]
         # to decide which part of the conditions is relevant to which pipeline we have to
         # dissect it to reveal table/field names
         condition = []
@@ -336,7 +336,7 @@ class Query_Processor:
                 else:
                     for vv in value:
                         self.check_table_field(vv[1], 2)
-                valid_idx = [idx for idx, vv in enumerate(value) if vv[1][0].lower() in valid_tables]
+                valid_idx = [idx for idx, vv in enumerate(value) if vv[1][0] in valid_tables]
                 if len(valid_idx) >= 1:
                     value = ' OR '.join([f"{value[i][0]} ({'.'.join(value[i][1])} {value[i][2]} {value[i][3]})" if len(value[i][0]) else f"{'.'.join(value[i][1])} {value[i][2]} {value[i][3]}" for i in valid_idx])
                     if len(valid_idx) > 1:
