@@ -362,7 +362,7 @@ class DSC_Translator:
                     if self.conf is None:
                         self.action += f'{plugin.name}: expand = "{sigil}", workdir = {repr(self.step.workdir)}'
                         if self.use_log:
-                            self.action += ', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
+                            self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
                         self.action += f'{plugin.name}: expand = "{sigil}"'
                     self.action += plugin.get_cmd_args(cmd['args'], self.params)
