@@ -69,3 +69,15 @@ save_session <- function(start_time, id) {
   session <- capture.output(print(sessionInfo()))
   return(list(time=time, script=script, replicate=id, session=session))
 }
+
+#' @export
+run_cmd <- function(cmd_str, verbose=TRUE) {
+  if (verbose) {
+    cat("Running shell command:\n", stderr())
+    cat(cmd_str,"\n", stderr())
+  }
+  out <- system(cmd_str,ignore.stdout = !verbose,ignore.stderr = !verbose)
+  if (out != 0)
+    stop(paste(strsplit(cmd_str, " +")[[1]][1], "command failed (returned a non-zero exit status)"))
+  return(out)
+}
