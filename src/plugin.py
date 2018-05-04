@@ -189,7 +189,13 @@ class Shell(BasePlug):
             self.tempfile.append('{}="""{}"""'.format(self.get_var(lhs), ' '.join(temp_var)))
 
     def set_container(self, name, value, params):
-        keys = sorted([v.strip() for v in value.split(',') if not v.strip().startswith('!')] if value else list(params.keys()))
+        value = [v.strip() for v in value.split(',') if v.strip()]
+        excluded = [v[1:] for v in value if v.startswith('!')]
+        if len(value) == len(excluded):
+            # empty or all ! input
+            keys = sorted([x for x in params.keys() if x not in excluded])
+        else:
+            keys = sorted([x for x in value if x not in excluded])
         if len(keys) == 0:
             return
         res = OrderedDict([(name, OrderedDict())])
@@ -352,7 +358,13 @@ class RPlug(BasePlug):
         return res.strip()
 
     def set_container(self, name, value, params):
-        keys = sorted([v.strip() for v in value.split(',') if not v.strip().startswith('!')] if value else list(params.keys()))
+        value = [v.strip() for v in value.split(',') if v.strip()]
+        excluded = [v[1:] for v in value if v.startswith('!')]
+        if len(value) == len(excluded):
+            # empty or all ! input
+            keys = sorted([x for x in params.keys() if x not in excluded])
+        else:
+            keys = sorted([x for x in value if x not in excluded])
         if len(keys) == 0:
             return
         res = ['{} <- list()'.format(name)]
@@ -503,7 +515,13 @@ class PyPlug(BasePlug):
         return res.strip()
 
     def set_container(self, name, value, params):
-        keys = sorted([v.strip() for v in value.split(',') if not v.strip().startswith('!')] if value else list(params.keys()))
+        value = [v.strip() for v in value.split(',') if v.strip()]
+        excluded = [v[1:] for v in value if v.startswith('!')]
+        if len(value) == len(excluded):
+            # empty or all ! input
+            keys = sorted([x for x in params.keys() if x not in excluded])
+        else:
+            keys = sorted([x for x in value if x not in excluded])
         if len(keys) == 0:
             return
         res = [f'{name} = dict()']
