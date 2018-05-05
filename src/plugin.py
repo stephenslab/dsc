@@ -215,7 +215,7 @@ class Shell(BasePlug):
                 self.container_vars[k].append(j)
         self.container.append(res)
 
-    def load_env(self, depends, depends_self):
+    def load_env(self, depends_other, depends_self):
         '''
         depends: [(name, var, ext), ...]
         '''
@@ -224,8 +224,8 @@ class Shell(BasePlug):
         # FIXME: need to make it work for loading at least "meta" yaml file
         # Now just list all the names here
         # including meta file
-        res += '\n'.join(['\n{}={}'.format(f"{self.identifier}_{item[1]}", "$[_output]") if item[2] is None else (item[1], "$[_output:n].%s" % item[2]) for item in depends])
-        if len(depends):
+        res += '\n'.join(['\n{}={}'.format(f"{self.identifier}_{item[1]}", "$[_output]") if item[2] is None else (item[1], "$[_output:n].%s" % item[2]) for item in depends_other])
+        if len(depends_other):
             res += '\nDSC_REPLICATE=0'
         if self.module_input:
             res += '\n' + '\n'.join(sorted(self.module_input))

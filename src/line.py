@@ -475,7 +475,7 @@ def parse_exe(string):
     replaced = []
     try:
         string_parsed = OperationParser()(string)
-    except Exception as e:
+    except Exception:
         raise RuntimeError(f'Invalid executable operator: {string}')
     for x in string_parsed:
         if isinstance(x, str):
@@ -541,7 +541,7 @@ def expand_logic(string):
             x = [x]
         else:
             x = list(x)
-        for idx in range(len(x)):
+        for idx, item in enumerate(x):
             x[idx] = x[idx].replace('__DSC_BAR__', '|')
             x[idx] = x[idx].replace('__DSC_TA__', '~')
             x[idx] = x[idx].replace('__DSC_N__', '&')
