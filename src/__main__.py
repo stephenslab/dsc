@@ -88,7 +88,7 @@ def execute(args):
     from .utils import workflow2html, dsc2html, transcript2html, yaml
     if args.to_remove:
         if args.target is None and args.to_remove != 'purge':
-            raise ValueError("``--remove`` must be specified with ``--target``.")
+            raise ValueError("``--clean`` must be specified with ``--target``.")
         rm_objects = args.target
         args.target = None
     if args.target:
@@ -297,7 +297,7 @@ def main():
                    so that pipelines involving these files will continue to run without regenerating them
                    unless they are directly required by another module.
                    This is useful to swap out large intermediate files.
-                   "purge" cleans up obsolete outputs in folder "DSC::output", after DSC is executed with "-s none".''')
+                   "purge" cleans up obsolete outputs in folder "DSC::output".''')
     ro = p.add_argument_group('Runtime behavior')
     ro.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
                    dest='__max_jobs__',

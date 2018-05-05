@@ -33,7 +33,7 @@ __version__ = "0.7.2"
 
 import copy
 import csv
-import random
+import secrets
 import re
 import textwrap
 import unicodedata
@@ -269,114 +269,79 @@ class PrettyTable(object):
     def _validate_field_names(self, val):
         # Check for appropriate length
         if self._field_names:
-            try:
-               assert len(val) == len(self._field_names)
-            except AssertionError:
+            if not len(val) == len(self._field_names):
                raise Exception("Field name list has incorrect number of values, (actual) %d!=%d (expected)" % (len(val), len(self._field_names)))
         if self._rows:
-            try:
-               assert len(val) == len(self._rows[0])
-            except AssertionError:
+            if not len(val) == len(self._rows[0]):
                raise Exception("Field name list has incorrect number of values, (actual) %d!=%d (expected)" % (len(val), len(self._rows[0])))
         # Check for uniqueness
-        try:
-            assert len(val) == len(set(val))
-        except AssertionError:
+        if not len(val) == len(set(val)):
             raise Exception("Field names must be unique!")
 
     def _validate_header_style(self, val):
-        try:
-            assert val in ("cap", "title", "upper", "lower", None)
-        except AssertionError:
+        if not val in ("cap", "title", "upper", "lower", None):
             raise Exception("Invalid header style, use cap, title, upper, lower or None!")
 
     def _validate_align(self, val):
-        try:
-            assert val in ["l","c","r"]
-        except AssertionError:
+        if not val in ["l","c","r"]:
             raise Exception("Alignment %s is invalid, use l, c or r!" % val)
 
     def _validate_valign(self, val):
-        try:
-            assert val in ["t","m","b",None]
-        except AssertionError:
+        if not val in ["t","m","b",None]:
             raise Exception("Alignment %s is invalid, use t, m, b or None!" % val)
 
     def _validate_nonnegative_int(self, name, val):
-        try:
-            assert int(val) >= 0
-        except AssertionError:
+        if not int(val) >= 0:
             raise Exception("Invalid value for %s: %s!" % (name, self._unicode(val)))
 
     def _validate_true_or_false(self, name, val):
-        try:
-            assert val in (True, False)
-        except AssertionError:
+        if not val in (True, False):
             raise Exception("Invalid value for %s!  Must be True or False." % name)
 
     def _validate_int_format(self, name, val):
         if val == "":
             return
-        try:
-            assert type(val) in (str, unicode)
-            assert val.isdigit()
-        except AssertionError:
+        if not (isinstance(val, (str, unicode)) and val.isdigit()):
             raise Exception("Invalid value for %s!  Must be an integer format string." % name)
 
     def _validate_float_format(self, name, val):
         if val == "":
             return
-        try:
-            assert type(val) in (str, unicode)
-            assert "." in val
-            bits = val.split(".")
-            assert len(bits) <= 2
-            assert bits[0] == "" or bits[0].isdigit()
-            assert bits[1] == "" or bits[1].isdigit()
-        except AssertionError:
+        if not (isinstance(val, (str, unicode)) and "." in val):
+            raise Exception("Invalid value for %s!  Must be a float format string." % name)
+        bits = val.split(".")
+        if not (len(bits) <= 2 and bits[0] == "" or bits[0].isdigit() and bits[1] == "" or bits[1].isdigit()):
             raise Exception("Invalid value for %s!  Must be a float format string." % name)
 
     def _validate_function(self, name, val):
-        try:
-            assert hasattr(val, "__call__")
-        except AssertionError:
+        if not hasattr(val, "__call__"):
             raise Exception("Invalid value for %s!  Must be a function." % name)
 
     def _validate_hrules(self, name, val):
-        try:
-            assert val in (ALL, FRAME, HEADER, NONE)
-        except AssertionError:
+        if not val in (ALL, FRAME, HEADER, NONE):
             raise Exception("Invalid value for %s!  Must be ALL, FRAME, HEADER or NONE." % name)
 
     def _validate_vrules(self, name, val):
-        try:
-            assert val in (ALL, FRAME, NONE)
-        except AssertionError:
+        if not val in (ALL, FRAME, NONE):
             raise Exception("Invalid value for %s!  Must be ALL, FRAME, or NONE." % name)
 
     def _validate_field_name(self, name, val):
-        try:
-            assert (val in self._field_names) or (val is None)
-        except AssertionError:
+        if not (val in self._field_names) or (val is None):
             raise Exception("Invalid field name: %s!" % val)
 
     def _validate_all_field_names(self, name, val):
         try:
             for x in val:
                 self._validate_field_name(name, x)
-        except AssertionError:
+        except Exception:
             raise Exception("fields must be a sequence of field names!")
 
     def _validate_single_char(self, name, val):
-        try:
-            assert _str_block_width(val) == 1
-        except AssertionError:
+        if not _str_block_width(val) == 1:
             raise Exception("Invalid value for %s!  Must be a string of length 1." % name)
 
     def _validate_attributes(self, name, val):
-        try:
-            assert isinstance(val, dict)
-        except AssertionError:
+        if not isinstance(val, dict):
             raise Exception("attributes must be a dictionary of name/value pairs!")
 
     ##############################
@@ -774,15 +739,15 @@ class PrettyTable(object):
     def _set_random_style(self):
 
         # Just for fun!
-        self.header = random.choice((True, False))
-        self.border = random.choice((True, False))
-        self._hrules = random.choice((ALL, FRAME, HEADER, NONE))
-        self._vrules = random.choice((ALL, FRAME, NONE))
-        self.left_padding_width = random.randint(0,5)
-        self.right_padding_width = random.randint(0,5)
-        self.vertical_char = random.choice("~!@#$%^&*()_+|-=\{}[];':\",./;<>?")
-        self.horizontal_char = random.choice("~!@#$%^&*()_+|-=\{}[];':\",./;<>?")
-        self.junction_char = random.choice("~!@#$%^&*()_+|-=\{}[];':\",./;<>?")
+        self.header = secrets.choice((True, False))
+        self.border = secrets.choice((True, False))
+        self._hrules = secrets.choice((ALL, FRAME, HEADER, NONE))
+        self._vrules = secrets.choice((ALL, FRAME, NONE))
+        self.left_padding_width = secrets.randbelow(5)
+        self.right_padding_width = secrets.randbelow(5)
+        self.vertical_char = secrets.choice("~!@#$%^&*()_+|-=\{}[];':\",./;<>?")
+        self.horizontal_char = secrets.choice("~!@#$%^&*()_+|-=\{}[];':\",./;<>?")
+        self.junction_char = secrets.choice("~!@#$%^&*()_+|-=\{}[];':\",./;<>?")
 
     ##############################
     # DATA INPUT METHODS         #
@@ -1426,9 +1391,7 @@ def from_html_one(html_code, **kwargs):
     """
 
     tables = from_html(html_code, **kwargs)
-    try:
-        assert len(tables) == 1
-    except AssertionError:
+    if not len(tables) == 1:
         raise Exception("More than one <table> in provided HTML code!  Use from_html instead.")
     return tables[0]
 
