@@ -541,7 +541,7 @@ def expand_logic(string):
             x = [x]
         else:
             x = list(x)
-        for idx, item in enumerate(x):
+        for idx in range(len(x)):
             x[idx] = x[idx].replace('__DSC_BAR__', '|')
             x[idx] = x[idx].replace('__DSC_TA__', '~')
             x[idx] = x[idx].replace('__DSC_N__', '&')

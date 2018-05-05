@@ -274,7 +274,8 @@ class Query_Processor:
         clause = "SELECT " + ', '.join(clause)
         return clause, tables, fields
 
-    def match_targets(self, tables, fields):
+    @staticmethod
+    def match_targets(tables, fields):
         '''
         make sure fields in query do match required targets
         1. Expand query by groups

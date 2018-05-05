@@ -950,7 +950,7 @@ def find_git_repo():
     try:
         res = get_output('git rev-parse --is-inside-work-tree').strip()
         return get_output('git rev-parse --show-toplevel').strip() if res == 'true' else None
-    except:
+    except Exception:
         return None
 
 def update_gitconf():
