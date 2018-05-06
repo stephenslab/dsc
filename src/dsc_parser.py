@@ -482,7 +482,7 @@ class DSC_Module:
         for item in vec:
             if lib.search(item) and ';' not in item:
                 res.append(vec.pop(vec.index(item)).strip())
-        return '\n'.join(res), vec
+        return res, vec
 
     def set_exec(self, exe):
         '''
@@ -559,13 +559,12 @@ class DSC_Module:
             # bump libraries import to front of script
             self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_RLIB)
             if self.rlib:
-                self.exe['header'] = '\n'.join([f'library({x.split()[0].split("@")[0]})' for x in self.rlib]) + \
-                                     '\n' + self.exe['header']
+                self.exe['header'] = [f'library({x.split()[0].split("@")[0]})' for x in self.rlib] + self.exe['header']
         elif self.exe['type'] == 'PY':
             self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_PYMODULE)
             if self.pymodule:
-                self.exe['header'] = '\n'.join([f'import {x.split()[0]})' for x in self.pymodule]) + \
-                                     '\n' + self.exe['header']
+                self.exe['header'] = [f'import {x.split()[0]})' for x in self.pymodule] + self.exe['header']
+        self.exe['header'] = '\n'.join(uniq_list(self.exe['header']))
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])
         # scan for library signatures
