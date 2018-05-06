@@ -10,16 +10,15 @@ merge_lists <- function(x, y, ...)
 }
 
 #' @importFrom tools file_ext
-#' @importFrom tools file_path_sans_ext
 #' @importFrom files file.exists
 #' @importFrom yaml yaml.load_file
 #' @export
 read_dsc <- function(infile) {
-  inbase = file_path_sans_ext(infile)
   inext = file_ext(infile)
   if (inext == 'pkl') {
-    outfile = paste0(inbase, '.rds')
-    run_cmd(paste('dsc-io', infile, outfile), verbose = FALSE)
+    ## FIXME: not an efficient method
+    outfile = tempfile(fileext = '.rds')
+    run_cmd(paste('dsc-io', infile, outfile), verbose=FALSE)
     if (!file.exists(outfile))
       stop(paste("DSC data conversion failed for", outfile))
     return(readRDS(outfile))

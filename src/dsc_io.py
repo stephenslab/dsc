@@ -188,19 +188,34 @@ def convert_dsc(pkl_files, jobs = 2):
         job.join()
     return 0
 
+def symlink_force(target, link_name):
+    import os, errno
+    try:
+        os.symlink(target, link_name)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            os.remove(link_name)
+            os.symlink(target, link_name)
+        else:
+            raise e
+
 def main():
-    import sys, pickle
+    import os, sys, pickle
     if len(sys.argv) < 3:
         sys.exit(0)
+    from sos.targets import fileMD5
     # Input is pkl, output is rds
     infile = sys.argv[1]
     outfile = sys.argv[2]
-    if infile.endswith('.pkl') and outfile.endswith('.rds'):
-        save_rds(pickle.load(open(infile, 'rb')), outfile)
-    elif infile.endswith('.rds') and outfile.endswith('.pkl'):
-        pickle.dump(load_rds(infile), open(outfile, 'wb'))
-    else:
-        sys.exit(1)
+    outfile_md5 = outfile + '-' + fileMD5(infile)
+    if not os.path.isfile(outfile_md5):
+        if infile.endswith('.pkl') and outfile.endswith('.rds'):
+            save_rds(pickle.load(open(infile, 'rb')), outfile_md5)
+        elif infile.endswith('.rds') and outfile.endswith('.pkl'):
+            pickle.dump(load_rds(infile), open(outfile_md5, 'wb'))
+        else:
+            sys.exit(1)
+    symlink_force(outfile_md5, outfile)
 
 if __name__ == '__main__':
     import warnings

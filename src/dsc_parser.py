@@ -630,8 +630,11 @@ class DSC_Module:
                     break
             if not valid:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @CONF specification ``{list(spec_option.keys())}``.")
-        spec_option = dict([(x.strip() for x in item.split('=', 1)) for item in spec_option]) if spec_option is not None else dict()
-        spec_option = {k: [remove_quotes(x) for x in Str2List()(remove_parens(v))] for k, v in spec_option.items()}
+        spec_option = [tuple(x.strip() for x in item.split('=', 1)) for item in spec_option] if spec_option is not None else []
+        for x in spec_option:
+            if not len(x) == 2:
+                raise FormatError(f'Format error in @CONFIG ``{"=".join(x)}`` of module ``{self.name}``\nTip: should be "option = value" or "option = (value_1, value_2, ...)"\neg, "R_libs = (package_1 (version), package_2)".')
+        spec_option = dict([(k, [remove_quotes(x) for x in Str2List()(remove_parens(v))]) for k, v in spec_option])
         # Override global options
         workdir1 = try_get_value(common_option, 'work_dir')
         workdir2 = try_get_value(spec_option, 'work_dir')
@@ -679,6 +682,8 @@ class DSC_Module:
                 raise FormatError(f"Cannot find module ``{self.name}`` in @ALIAS specification ``{list(alias.keys())}``.")
         if alias is not None:
             alias = [tuple(x.strip() for x in item.split('=', 1)) for item in alias]
+            if any([len(x) != 2 for x in alias]):
+                raise FormatError(f'Format error in @ALIAS of module ``{self.name}`` (should be @ALIAS: lhs = rhs).')
             dups = [item for item, count in Counter([x[0] for x in alias]).items() if count > 1]
             if len(dups):
                 raise FormatError(f"Duplicated @ALIAS ``{dups}`` in module ``{self.name}``")
