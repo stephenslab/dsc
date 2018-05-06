@@ -977,7 +977,7 @@ def get_rlib_versions(rlibs):
     for l in rlibs:
         try:
             versions.append(get_output(f'Rscript -e "cat(toString(packageVersion(\'{l}\')))"'))
-        except:
+        except Exception:
             versions.append('No version info available on local machine')
     return rlibs, versions
 
@@ -988,6 +988,6 @@ def get_pymodule_versions(pym):
     for m in pym:
         try:
             versions.append(pkg_resources.get_distribution(m).version)
-        except:
+        except Exception:
             versions.append('No version info available on local machine')
     return pym, versions

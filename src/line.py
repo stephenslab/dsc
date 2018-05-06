@@ -10,8 +10,9 @@ import re, collections
 from io import StringIO
 import tokenize
 from sos.utils import get_output
-from .utils import FormatError, is_null, str2num, cartesian_list, pairwise_list, \
+from .utils import FormatError, is_null, str2num, cartesian_list, pairwise_list, uniq_list, \
     get_slice, remove_parens, do_parentheses_match, find_parens, parens_aware_split
+from .syntax import DSC_FILE_OP
 
 class YLine:
     '''
@@ -229,7 +230,7 @@ class CastData(YLine):
         # Properly convert lists and tuples
         if len(value) == 1 and isinstance(value[0], list):
             if not is_null(value[0]):
-                return list(value[0])
+                return value[0]
             else:
                 return [None]
         else:
@@ -243,8 +244,22 @@ class CastData(YLine):
                     res.append(tuple(x))
                 else:
                     res.append(x)
-            return res
+            return uniq_list(res)
 
+class CheckFile(YLine):
+    def __init__(self):
+        YLine.__init__(self)
+
+    def __call__(self, value):
+        for item in value:
+            if isinstance(item, tuple):
+                for ii in item:
+                    if isinstance(ii, str) and DSC_FILE_OP.search(ii):
+                        raise FormatError(f'File operator inside tuple ``{item}`` is not allowed!')
+            else:
+                if isinstance(item, str) and DSC_FILE_OP.search(item) and len(value) > 1:
+                    raise FormatError(f'Cannot mix file operator ``{item}`` with other values ``{[i for i in value if i != item]}``!')
+        return value
 
 class OperationParser(YLine):
     '''
@@ -400,7 +415,8 @@ class EntryFormatter:
         actions = [ExpandActions(),
                    Str2List(),
                    ExpandVars(variables),
-                   CastData()]
+                   CastData(),
+                   CheckFile()]
         return self.__Transform(data, actions)
 
     def __Transform(self, cfg, actions):

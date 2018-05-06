@@ -312,11 +312,11 @@ class DSC_Script:
             for item in ['global', 'local']:
                 for key in tmp[module][item]:
                     if key.startswith('$'):
-                        res[module]['output'][key[1:]] = uniq_list(tmp[module][item][key])
+                        res[module]['output'][key[1:]] = tmp[module][item][key]
                     elif key.startswith('^'):
                         res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
                     else:
-                        res[module]['input'][key] = uniq_list(tmp[module][item][key])
+                        res[module]['input'][key] = tmp[module][item][key]
         for module in res:
             conflict = [x for x in res[module]['input']
                         if x in res[module]['output'] and not (isinstance(res[module]['input'][x][0], str) and res[module]['input'][x][0].startswith('$'))]
@@ -526,7 +526,7 @@ class DSC_Module:
                     # FIXME: need to do it differently if host is involved
                     # ie, to check the remote computer not the current computer
                     if not executable(item[0]).target_exists():
-                        raise FormatError(f"Cannot find specified executable ``{item[0]}`` in system PATH.")
+                        raise FormatError(f"Cannot find executable ``{item[0]}`` in DSC \"exec_path\" or system \"PATH\".")
                     self.exe['path'].append(item[0])
                     if etype in ['PY', 'R']:
                         env.logger.warning(f'Cannot find script ``{item[0]}`` in path ``{self.path}``. DSC will treat it a command line executable.')
@@ -586,7 +586,7 @@ class DSC_Module:
         if len(return_var) == 0:
             raise FormatError(f"Please specify output variables for module ``{self.name}``.")
         for key, value in return_var.items():
-            if len(value) > 1:
+            if len(value) > 1 or isinstance(value[0], tuple):
                 raise FormatError(f"Module output ``{key}`` cannot contain multiple elements ``{value}``")
             value = value[0]
             in_input = try_get_value(self.p, value)
@@ -599,13 +599,10 @@ class DSC_Module:
                         continue
                     groups = DSC_FILE_OP.search(p)
                     if groups:
-                        try:
-                            self.rf[key].append(groups.group(1).strip('.'))
-                        except Exception:
-                            self.rf[key] = [groups.group(1).strip('.')]
-                # are there remaining values not file()?
-                if key in self.rf and len(self.rf[key]) < len(in_input):
-                    raise FormatError(f"Return ``{key}`` in ``{in_input}`` cannot be a mixture of file() and module input")
+                        if len(groups.group(1).strip('.')) == 0:
+                            raise FormatError(f'Parameter ``{value}``, when used as output file ``{key}``, must have an extension specified!')
+                        self.rf[key] = '{}.{}'.format(value, groups.group(1).strip('.').strip())
+                        break
             if key in self.rf:
                 continue
             # now decide this new variable is a file or else
@@ -619,7 +616,7 @@ class DSC_Module:
             # For file
             groups = DSC_FILE_OP.search(value)
             if groups:
-                self.rf[key] = '{}.{}'.format(key, groups.group(1).strip('.'))
+                self.rf[key] = '{}.{}'.format(key, groups.group(1).strip('.').strip())
             else:
                 self.rv[key] = value
 
@@ -781,7 +778,7 @@ class DSC_Module:
                         if k in self.rf:
                             # This file is to be saved as output
                             # FIXME: need support for multiple output
-                            self.plugin.add_input(k, '${_output:r}')
+                            self.plugin.add_input(k, '$[_output:r]' if self.plugin.name == 'bash' else '${_output:r}')
                             continue
                         else:
                             # This file is a temp file
@@ -1027,7 +1024,8 @@ class DSC_Pipeline:
             module.depends.sort(key = lambda x: ordering.index(x[0]))
             if len(file_dependencies):
                 file_dependencies.sort()
-                module.plugin.add_input([x[1] for x in file_dependencies], '${_input:r}')
+                module.plugin.add_input([x[1] for x in file_dependencies],
+                                        '$[_input:r]' if self.plugin.name == 'bash' else '${_input:r}')
             pipeline[module.name] = module
         # FIXME: ensure this does not happen
         # Otherwise will have to bring this back

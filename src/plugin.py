@@ -185,8 +185,7 @@ class Shell(BasePlug):
             self.tempfile.append(f'TMP_{self.identifier[4:]}=`mktemp -d`')
             self.tempfile.append(f'{self.get_var(lhs)}="""$TMP_{self.identifier[4:]}/$[_output[0]:bn].{lhs}"""')
         else:
-            temp_var = [f'$[_output[0]:n].{lhs}.{item.strip()}' for item in rhs.split(',')]
-            self.tempfile.append('{}="""{}"""'.format(self.get_var(lhs), ' '.join(temp_var)))
+            self.tempfile.append('{}="""{}"""'.format(self.get_var(lhs), f'$[_output[0]:n].{lhs}.{rhs}'))
 
     def set_container(self, name, value, params):
         value = [v.strip() for v in value.split(',') if v.strip()]
@@ -281,8 +280,7 @@ class RPlug(BasePlug):
             self.tempfile.append(f'TMP_{self.identifier[4:]} <- tempdir()')
             self.tempfile.append(f'{self.get_var(lhs)} <- paste0(TMP_{self.identifier[4:]}, "/", ${{_output[0]:bnr}}, ".{lhs}")')
         else:
-            temp_var = [f'paste0(${{_output[0]:nr}}, ".{lhs}.{item.strip()}")' for item in rhs.split(',')]
-            self.tempfile.append('{} <- c({})'.format(self.get_var(lhs), ', '.join(temp_var)))
+            self.tempfile.append('{} <- {}'.format(self.get_var(lhs),f'paste0(${{_output[0]:nr}}, ".{lhs}.{rhs}")'))
 
     def load_env(self, depends_other, depends_self):
         '''
@@ -339,14 +337,7 @@ class RPlug(BasePlug):
         return res
 
     def get_output(self, params):
-        res = []
-        for k in params:
-            if len(params[k]) > 1:
-                res.append(f'{k} <- rep(NA, {len(params[k])})')
-                for idx, item in enumerate(params[k]):
-                    res.append(f'{k}[{idx + 1}] <- paste0(${{_output:nr}}, ".{item}")')
-            else:
-                res.append(f'{k} <- paste0(${{_output:nr}}, ".{params[k][0]}")')
+        res = [f'{k} <- paste0(${{_output:nr}}, ".{params[k]}")' for k in params]
         return '\n'.join(res)
 
     def get_return(self, output_vars):
@@ -437,8 +428,7 @@ class PyPlug(BasePlug):
             self.tempfile.append(f'TMP_{self.identifier[4:]} = tempfile.gettempdir()')
             self.tempfile.append(f'{self.get_var(lhs)} = os.path.join(TMP_{self.identifier[4:]}, ${{_output[0]:bnr}} + ".{lhs}")')
         else:
-            temp_var = [f'${{_output[0]:nr}} + ".{lhs}.{item.strip()}"' for item in rhs.split(',')]
-            self.tempfile.append('{} = ({})'.format(self.get_var(lhs), ', '.join(temp_var)))
+            self.tempfile.append('{} = {}'.format(self.get_var(lhs), f'${{_output[0]:nr}} + ".{lhs}.{rhs}"'))
 
     def load_env(self, depends_other, depends_self):
         '''
@@ -494,14 +484,7 @@ class PyPlug(BasePlug):
         return res
 
     def get_output(self, params):
-        res = []
-        for k in params:
-            if len(params[k]) > 1:
-                res.append(f'{k} = [None for x in range({len(params[k])})]')
-                for idx, item in enumerate(params[k]):
-                    res.append(f'{k}[{idx}] = ${{_output:nr}} + ".{item}"')
-            else:
-                res.append(f'{k} = ${{_output:nr}} + ".{params[k][0]}"')
+        res = [f'{k} = ${{_output:nr}} + ".{params[k]}"' for k in params]
         return '\n'.join(res)
 
     def get_return(self, output_vars):
