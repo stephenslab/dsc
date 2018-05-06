@@ -1025,7 +1025,7 @@ class DSC_Pipeline:
             if len(file_dependencies):
                 file_dependencies.sort()
                 module.plugin.add_input([x[1] for x in file_dependencies],
-                                        '$[_input:r]' if self.plugin.name == 'bash' else '${_input:r}')
+                                        '$[_input:r]' if module.plugin.name == 'bash' else '${_input:r}')
             pipeline[module.name] = module
         # FIXME: ensure this does not happen
         # Otherwise will have to bring this back
