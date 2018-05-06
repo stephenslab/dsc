@@ -178,7 +178,7 @@ class Shell(BasePlug):
                 elif not rhs.startswith("$"):
                     self.module_input.append('{}={}'.format(self.get_var(x), rhs))
                 else:
-                    self.module_input.append('{}={}'.format(self.get_var(x), rhs.replace(':r', '[{}]:r'.format(idx))))
+                    self.module_input.append('{}={}'.format(self.get_var(x[0]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(idx, x[1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
@@ -273,7 +273,8 @@ class RPlug(BasePlug):
                 elif not rhs.startswith("$"):
                     self.module_input.append('{} <- {}'.format(self.get_var(x), rhs))
                 else:
-                    self.module_input.append('{} <- {}'.format(self.get_var(x), rhs.replace(':r', '[{}]:r'.format(idx))))
+
+                    self.module_input.append('{} <- {}'.format(self.get_var(x[0]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(idx, x[1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
@@ -421,7 +422,7 @@ class PyPlug(BasePlug):
                 elif not rhs.startswith("$"):
                     self.module_input.append('{} = {}'.format(self.get_var(x), rhs))
                 else:
-                    self.module_input.append('{} = {}'.format(self.get_var(x), rhs.replace(':r', '[{}]:r'.format(idx))))
+                    self.module_input.append('{} = {}'.format(self.get_var(x[0]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(idx, x[1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
