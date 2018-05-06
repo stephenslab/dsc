@@ -63,10 +63,9 @@ Occasionally upgrades to the most recent version will lead to changes of file si
 triggers rerun of existing benchmark even if they have not been changed. When this happens we will
 indicate in bold in our release note below that "a file signature clean up is recommended" 
 (see release note 0.2.7.7 for example). That means after such DSC upgrades you should 
-rerun your benchmark from scratch with `-s none` to skip all existing files. This is optional, 
-but recommended, because such upgrades will trigger your existing benchmark to rerun anyways, it may well
-take this opportunity to clean up cached file signature (`-s none` will remove `.sos` folder 
-under current directory, and rebuild file database).
+rerun your benchmark with `--touch` option to update file signatures. If possible, it is recommended 
+that you rerun your benchmark from scratch (if resources can afford) with `-s none` instead of `--touch` 
+to skip all existing files. We apologize for the inconveniences it incurs. 
 
 ## Change Log
 
@@ -81,8 +80,9 @@ Goal for 0.2.8
 
 0.2.7.8
 
-- Implement a prelimilary `%include` feature to facilitate collaboration.
+- Implement a preliminary `%include` feature to provide alternative code organization style.
 - Allow for `!` operator in `List()` and `Dict()`.
+- [minor] Various bug fixes.
 
 0.2.7.7
 

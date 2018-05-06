@@ -148,7 +148,10 @@ def execute(args):
     if args.__construct__ == "none":
         mode = "force"
     if args.__recover__:
-        mode = "build"
+        if not (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')):
+            env.logger.warning(f'Cannot use ``--touch`` option because project meta-data is corrupted.')
+        else:
+            mode = "build"
     content = {'__sig_mode__': mode,
                'script': script_prepare,
                '__bin_dirs__': exec_path,
@@ -270,7 +273,7 @@ def main():
                    path(s) of particular DSC output files that needs to be removed.''')
     ce.add_argument('--truncate', action='store_true',
                    help = '''When applied, DSC will only run one value per parameter.
-                   For example with "--truncate", "n: R(1:50)" will be truncated to "n: 1".
+                   For example with "--truncate", "n: R{1:50}" will be truncated to "n: 1".
                    This is useful in exploratory analysis and diagnostics, particularly when used in combination with "--target".''')
     ce.add_argument('--replicate', metavar = 'N', type = int,
                    help = '''Overrides "DSC::replicate" to set number of replicates. Will be set to 1 when "--truncate" is in action.''')
@@ -284,11 +287,12 @@ def main():
                    "none": executes DSC from scratch.
                    "all": skips all execution yet build DSC database of what the specified benchmark is
                    supposed to look like, thus making it possible to explore partial benchmark results.''')
-    mt.add_argument('--touch', action='store_true', dest='__recover__', help=SUPPRESS)
-                   # help = '''"Touch" output files if exist, to mark them "up-to-date".
-                   # This option is useful when executed benchmark files are transferred from one computer to another
-                   # during which file signatures are lost. It will override "--skip" option.
-                   # Note that time stamp is irrelevant to whether or not a file is up-to-date.''')
+    mt.add_argument('--touch', action='store_true', dest='__recover__',
+                   help = '''"Touch" output files if exist, to mark them "up-to-date".
+                   It will override "--skip" option. Note that time stamp is irrelevant to whether or not a file is up-to-date.
+                   Files will be considered to "exist" as long as module name, module parameters and variables,
+                   module script name and command arguments remain the same. Module script content do not matter.
+                   The output files will be "touched" to match with the current status of module code.''')
     mt.add_argument('--clean', metavar = "option", choices = ["remove", "replace", "purge"],
                    dest = 'to_remove',
                    help = '''Behavior of how DSC removes files.
