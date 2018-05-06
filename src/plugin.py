@@ -161,7 +161,7 @@ class Shell(BasePlug):
         res = dict([('DSC_OUTPUT', dict())])
         res['DSC_OUTPUT'] = dict([(k,  f'$[_output:n].{params[k]}') for k in params])
         return '\n'.join([f'{k}=$[_output:n].{params[k]}' for k in params]) + \
-            f"\ncat >> $[_output] << EOF\n{dict2yaml(res)}\nEOF"
+            f"\ncat >> $[_output:n].yml << EOF\n{dict2yaml(res)}\nEOF"
 
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
@@ -338,7 +338,11 @@ class RPlug(BasePlug):
         return res
 
     def get_output(self, params):
-        res = [f'{k} <- paste0(${{_output:nr}}, ".{params[k]}")' for k in params]
+        res = dict([('DSC_OUTPUT', dict())])
+        res['DSC_OUTPUT'] = dict([(k,  f'${{_output:n}}.{params[k]}') for k in params])
+        return '\n'.join([f'{k} <- paste0(${{_output:nr}}, ".{params[k]}")' for k in params]) + \
+            f"\nwrite({repr(dict2yaml(res))}, paste0(${{_output:nr}}, '.yml'))"
+
         return '\n'.join(res)
 
     def get_return(self, output_vars):
@@ -485,8 +489,10 @@ class PyPlug(BasePlug):
         return res
 
     def get_output(self, params):
-        res = [f'{k} = ${{_output:nr}} + ".{params[k]}"' for k in params]
-        return '\n'.join(res)
+        res = dict([('DSC_OUTPUT', dict())])
+        res['DSC_OUTPUT'] = dict([(k,  f'${{_output:n}}.{params[k]}') for k in params])
+        return '\n'.join([f'{k} = ${{_output:nr}} + ".{params[k]}"' for k in params]) + \
+            f"\nwith open(${{_output:nr}} + '.yml', 'w') as f:\n\tf.write({repr(dict2yaml(res))})"
 
     def get_return(self, output_vars):
         if len(output_vars) == 0:
