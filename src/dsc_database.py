@@ -153,9 +153,9 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                                         for item in data[k]['__input_output___'][0]]
             conf[workflow_id][module]['output'] = [os.path.join(fid, map_data[item]) \
                                          for item in data[k]['__input_output___'][1]]
-            # eg. score_beta:6cf79a4c4bf191ea:simulate:90d846d054f4b5d1:shrink:fde60bc16e1728c7:simulate:90d846d054f4b5d1
-            conf[workflow_id][module]['depends'] = [meta_data[key][x]
-                                                    for x in uniq_list(data[k]['__input_output___'][1][0].split(':')[::2][1:])]
+            # eg. ['normal:a9f57519', 'median:98b37c9a:normal:a9f57519']
+            depends_steps = uniq_list([x.split(':')[0] for x in data[k]['__input_output___'][0]])
+            conf[workflow_id][module]['depends'] = [meta_data[key][x] for x in depends_steps]
     #
     open(conf_db, "wb").write(msgpack.packb(conf))
 
