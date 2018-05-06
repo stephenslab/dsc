@@ -147,15 +147,15 @@ def execute(args):
     mode = "default"
     if args.__construct__ == "none":
         mode = "force"
+    content = {'__sig_mode__': mode,
+               'script': script_prepare,
+               '__bin_dirs__': exec_path,
+               'workflow': "deploy"}
     if args.__recover__:
         if not (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')):
             env.logger.warning(f'Cannot use ``--touch`` option because project meta-data is corrupted.')
         else:
             mode = "build"
-    content = {'__sig_mode__': mode,
-               'script': script_prepare,
-               '__bin_dirs__': exec_path,
-               'workflow': "deploy"}
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         cmd_run(script.get_sos_options(db, content), [])
