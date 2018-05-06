@@ -11,16 +11,18 @@ merge_lists <- function(x, y, ...)
 
 #' @importFrom tools file_ext
 #' @importFrom tools file_path_sans_ext
+#' @importFrom files file.exists
 #' @importFrom yaml yaml.load_file
 #' @export
 read_dsc <- function(infile) {
   inbase = file_path_sans_ext(infile)
   inext = file_ext(infile)
   if (inext == 'pkl') {
-    rt = system(paste('dsc-io', infile, paste0(inbase, '.rds')))
-    if (rt != 0)
-      stop("DSC data conversion failed (returned a non-zero exit status)")
-    return(readRDS(paste0(inbase, '.rds')))
+    outfile = paste0(inbase, '.rds')
+    run_cmd(paste('dsc-io', infile, outfile), verbose = FALSE)
+    if (!file.exists(outfile))
+      stop(paste("DSC data conversion failed for", outfile))
+    return(readRDS(outfile))
   } else if (inext == 'yml') {
     return(yaml.load_file(infile))
   } else {
