@@ -53,7 +53,7 @@ setup(name        = "dsc",
       cmdclass    = cmdclass,
       package_dir = {'dsc': 'src'},
       install_requires = ['numpy', 'pandas>=0.22.0', 'sympy', 'numexpr',
-                          'sos>=0.9.13.4', 'h5py', 'PTable',
+                          'sos>=0.9.13.6', 'h5py', 'PTable',
                           'pyarrow>=0.5.0', 'sqlalchemy',
                           'msgpack-python']
       )
