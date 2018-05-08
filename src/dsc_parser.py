@@ -584,7 +584,7 @@ class DSC_Module:
         elif self.exe['type'] == 'PY':
             self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_PYMODULE)
             if self.pymodule:
-                self.exe['header'] = [f'import {x.split()[0]})' for x in self.pymodule] + self.exe['header']
+                self.exe['header'] = [f'import {x.split()[0]}' for x in self.pymodule] + self.exe['header']
         self.exe['header'] = '\n'.join(uniq_list(self.exe['header']))
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])
