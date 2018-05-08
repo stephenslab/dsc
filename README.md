@@ -82,6 +82,7 @@ Goal for 0.2.8
 
 - Implement a preliminary `%include` feature to provide alternative code organization style.
 - Allow for `!` operator in `List()` and `Dict()`.
+- SoS bumped to version 0.9.13.7 for improved remote job support.
 - [minor] Various bug fixes.
 
 0.2.7.7
