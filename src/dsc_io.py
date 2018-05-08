@@ -159,13 +159,18 @@ def load_dsc(infiles):
     res = dict()
     for infile in infiles:
         if infile.endswith('.pkl'):
-            res.update(pickle.load(open(infile, 'rb')))
+            data = pickle.load(open(infile, 'rb'))
         elif infile.endswith('.rds'):
-            res.update(load_rds(infile))
+            data = load_rds(infile)
         elif infile.endswith('.yml'):
-            res.update(yaml.load(open(infile).read()))
+            data = yaml.load(open(infile).read())
         else:
             raise ValueError(f'``{infile}`` is not supported DSC data format')
+        try:
+            res.update(data)
+        except Exception:
+            # loaded a non-recursive object
+            return data
     return res
 
 def convert_dsc(pkl_files, jobs = 2):
