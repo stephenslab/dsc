@@ -327,7 +327,7 @@ def main():
         try:
             from .dsc_parser import DSC_Script
             script = DSC_Script(sys.argv[1])
-            script.print_help()
+            script.print_help('-v' in sys.argv)
             sys.exit(0)
         except Exception as e:
             if '--debug' in sys.argv:

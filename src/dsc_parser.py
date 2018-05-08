@@ -92,7 +92,7 @@ class DSC_Script:
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
             self.runtime.output = script_name
-        for k in self.runtime.groups:
+        for k in list(self.runtime.groups.keys()) + list(self.runtime.concats.keys()):
             if k in self.content or k in ['default', 'DSC']:
                 raise FormatError(f"Group name ``{k}`` conflicts with existing module name or DSC keywords!")
         for k in self.runtime.sequence_ordering:
@@ -378,7 +378,7 @@ class DSC_Script:
               + f'\n# DSC\n```yaml\n{self.runtime}```'
         return res
 
-    def print_help(self):
+    def print_help(self, print_version):
         res = {'modules': OrderedDict([(' ', []), ('parameters', []),
                                        ('input', []), ('output', []), ('type', [])])}
         modules = list(self.runtime.sequence_ordering.keys())
@@ -407,18 +407,39 @@ class DSC_Script:
                 res['modules']['parameters'].append(', '.join(sorted(params)))
                 res['modules']['type'].append(self.modules[k].exe['type'] if k in self.modules else 'unused')
         from prettytable import PrettyTable
+        from prettytable import MSWORD_FRIENDLY
         t = PrettyTable()
+        t.set_style(MSWORD_FRIENDLY)
+        # the master table
         for key, value in res['modules'].items():
-            t.add_column(key, value)
-        print('')
+            t.add_column(f'- {key} -' if key.strip() else key, value)
         env.logger.info("``MODULES``")
-        print(t)
-        print('')
+        # sub-tables
+        groups = copy.deepcopy(self.runtime.groups)
+        groups.update(self.runtime.concats)
+        reported_rows = []
+        if self.runtime.groups:
+            for group, values in groups.items():
+                rm = [idx for idx, item in enumerate(res['modules'][' ']) if item not in values]
+                if len(values) == len(rm):
+                    continue
+                t_group = copy.deepcopy(t)
+                for i in reversed(rm):
+                    t_group.del_row(i)
+                print(t_group.get_string(title = f"Group [{group}]"))
+                print('')
+                reported_rows.extend([i for i in range(len(res['modules'][' '])) if not i in rm])
+        rm_rows = [i for i in range(len(res['modules'][' '])) if i in reported_rows]
+        if len(rm_rows) < len(res['modules'][' ']):
+            for i in reversed(rm_rows):
+                t.del_row(i)
+            print(t.get_string(title = 'Ungrouped' if len(rm_rows) else 'All modules'))
+            print('')
         env.logger.info("``PIPELINES``")
         print(res['pipelines'] + '\n')
         env.logger.info("``PIPELINES EXPANDED``")
         print('\n'.join([f'{i+1}: ' + ' * '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
-        if len([x for x in self.runtime.rlib if not x.startswith('dscrutils')]):
+        if print_version and len([x for x in self.runtime.rlib if not x.startswith('dscrutils')]):
             from .utils import get_rlib_versions
             env.logger.info("``R LIBRARIES``")
             env.logger.info("Scanning package versions ...")
@@ -428,7 +449,7 @@ class DSC_Script:
             t.add_column('version', versions)
             print(t)
             print('')
-        if len(self.runtime.pymodule):
+        if print_version and len(self.runtime.pymodule):
             from .utils import get_pymodule_versions
             env.logger.info("``PYTHON MODULES``")
             libs, versions = get_pymodule_versions(self.runtime.pymodule)
