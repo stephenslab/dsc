@@ -172,13 +172,13 @@ class Shell(BasePlug):
                                                      else '{}_{}'.format(self.identifier, repr(rhs[1:]))))
         elif isinstance(lhs, (list, tuple)):
             # multiple value input add
-            for idx, x in enumerate(lhs):
+            for x in lhs:
                 if rhs.startswith("$") and not rhs.startswith("$["):
                     self.module_input.append('{}=${}_{}'.format(self.get_var(x), self.identifier, repr(rhs[1:])))
                 elif not rhs.startswith("$"):
                     self.module_input.append('{}={}'.format(self.get_var(x), rhs))
                 else:
-                    self.module_input.append('{}={}'.format(self.get_var(x[0]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(idx, x[1]))))
+                    self.module_input.append('{}={}'.format(self.get_var(x[2]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(x[0], x[1][-1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
@@ -267,14 +267,13 @@ class RPlug(BasePlug):
                                                       else '{}{}'.format(self.identifier, rhs)))
         elif isinstance(lhs, (list, tuple)):
             # multiple value input add
-            for idx, x in enumerate(lhs):
+            for x in lhs:
                 if rhs.startswith("$") and not rhs.startswith("${"):
                     self.module_input.append('{} <- {}{}'.format(self.get_var(x), self.identifier, rhs))
                 elif not rhs.startswith("$"):
                     self.module_input.append('{} <- {}'.format(self.get_var(x), rhs))
                 else:
-
-                    self.module_input.append('{} <- {}'.format(self.get_var(x[0]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(idx, x[1]))))
+                    self.module_input.append('{} <- {}'.format(self.get_var(x[2]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(x[0], x[1][-1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
@@ -303,7 +302,7 @@ class RPlug(BasePlug):
         assign_in = ['\n']
         for i, k in assign_idx:
             for j in depends[k]:
-                if j[1] is not None:
+                if j[1] is not None and j[1].split('.')[-1] in ['rds', 'pkl', 'yml']:
                     assign_in.append(f'{self.identifier}${j[0]} <- {loader}("${{_input[{i}]:n}}.{j[1]}")')
         assign_in = '\n'.join(assign_in)
         load_out = f'\nif (file.exists("${{_output}}")) attach({loader}("${{_output}}"), warn.conflicts = F)'
@@ -420,13 +419,13 @@ class PyPlug(BasePlug):
                                                      else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
         elif isinstance(lhs, (list, tuple)):
             # multiple value input add
-            for idx, x in enumerate(lhs):
+            for x in lhs:
                 if rhs.startswith("$") and not rhs.startswith("${"):
                     self.module_input.append('{} = {}[{}]'.format(self.get_var(x), self.identifier, repr(rhs[1:])))
                 elif not rhs.startswith("$"):
                     self.module_input.append('{} = {}'.format(self.get_var(x), rhs))
                 else:
-                    self.module_input.append('{} = {}'.format(self.get_var(x[0]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(idx, x[1]))))
+                    self.module_input.append('{} = {}'.format(self.get_var(x[2]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(x[0], x[1][-1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
@@ -456,7 +455,7 @@ class PyPlug(BasePlug):
         assign_in = ['\n']
         for i, k in assign_idx:
             for j in depends[k]:
-                if j[1] is not None:
+                if j[1] is not None and j[1].split('.')[-1] in ['rds', 'pkl', 'yml']:
                     assign_in.append(f'{self.identifier}[{repr(j[0])}] = __load_dsc__("${{_input[{i}]:n}}.{j[1]}")')
         assign_in = '\n'.join(assign_in)
         load_out = '\nif os.path.isfile("${_output}"): globals().update(__load_dsc__("${_output}"))'

@@ -1035,7 +1035,7 @@ class DSC_Pipeline:
                                                                module.name)
                             if id_dependent[1] not in module.depends:
                                 module.depends.append(id_dependent[1])
-                            if id_dependent[1][2] is None or id_dependent[1][2].split('.')[-1] in ['rds', 'pkl']:
+                            if id_dependent[1][2] is None or id_dependent[1][2].split('.')[-1] in ['rds', 'pkl', 'yml']:
                                 module.plugin.add_input(k, p1)
                             else:
                                 # FIXME: for multiple output should figure out the index of previous output
@@ -1048,8 +1048,7 @@ class DSC_Pipeline:
                     del module.p[k]
             module.depends.sort(key = lambda x: ordering.index(x[0]))
             if len(file_dependencies):
-                file_dependencies.sort()
-                module.plugin.add_input([(x[2], x[1][x[0]]) for x in file_dependencies],
+                module.plugin.add_input(file_dependencies,
                                         '$[_input:r]' if module.plugin.name == 'bash' else '${_input:r}')
             pipeline[module.name] = module
         # FIXME: ensure this does not happen
