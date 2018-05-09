@@ -318,7 +318,7 @@ class DSC_Translator:
                 self.output_string += "{3} = sos_hash_output(['{0}'{1} {2}])".\
                                       format(' '.join([self.step.name,
                                                        ' '.join([x.replace('{', '{{').replace('}', '}}') for x in self.step.exe['args']]) if self.step.exe['args'] else ''] \
-                                                      + self.step.exe['file'] + [f'{k}:{self.step.rv[k]}' for k in sorted(self.step.rv)] \
+                                                      + self.step.exe['file'] + [f'{k}:{xxh(self.step.rv[k]).hexdigest()}' for k in sorted(self.step.rv)] \
                                                       + [f'{k}:{self.step.rf[k]}' for k in sorted(self.step.rf)] \
                                                       + [f'{x}:{{}}' for x in reversed(self.params)]),
                                              format_string, self.loop_string[0] + self.filter_string, output_lhs)

@@ -78,6 +78,11 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.9
+
+Minor touches on 0.2.7.8 -- just a celebration of the 1,000-th commit to the DSC repo on github,
+after 2 years and 3 months into this project.
+
 0.2.7.8
 
 - Implement a preliminary `%include` feature to provide alternative code organization style.

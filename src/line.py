@@ -55,7 +55,7 @@ class YLine:
         var = str2num(var)
         # null type
         if is_null(var):
-            return None
+            return f'raw({var})'
         if isinstance(var, str):
             # see if str can be converted to a list or tuple
             # and apply the same procedure to their elements
@@ -232,12 +232,12 @@ class CastData(YLine):
             if not is_null(value[0]):
                 return value[0]
             else:
-                return [None]
+                return [f'raw({value[0]})']
         else:
             res = []
             for x in value:
                 if is_null(x):
-                    res.append(None)
+                    res.append(f'raw({x})')
                     continue
                 if isinstance(x, list):
                     # [[],[]] -> [(),()]
@@ -432,7 +432,7 @@ class EntryFormatter:
                 for a in actions:
                     value = a(value)
                 # empty list
-                if is_null(value):
+                if len(value) == 0:
                     del cfg[key]
                 else:
                     cfg[key] = value
