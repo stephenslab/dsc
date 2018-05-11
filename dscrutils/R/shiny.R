@@ -16,7 +16,8 @@ shiny_plot=function(res, s = "scenario", m = "method"){
   scenario_names = as.character(unique(res[[s]]))
   method_names = as.character(unique(res[[m]]))
   numeric_criteria = names(res)[unlist(lapply(res,is.numeric))]
-
+  numeric_criteria = numeric_criteria[numeric_criteria!="DSC"]
+  
   ui=shinyUI(pageWithSidebar(
     headerPanel('DSC Results'),
     sidebarPanel(
