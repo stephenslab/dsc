@@ -78,6 +78,14 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.10
+
+- Stop adding script hash to default seed #136.
+- More stringent check on improper module names.
+- [minor] SoS bumped to version 0.9.13.8 a bug fix release.
+
+**A file signature clean up is recommended after this upgrade.**
+
 0.2.7.9
 
 Minor touches on 0.2.7.8 -- just a celebration of the 1,000-th commit to the DSC repo on github,

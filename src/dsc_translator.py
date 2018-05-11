@@ -373,7 +373,8 @@ class DSC_Translator:
                                                        idx > 0 and len(self.step.rv))
                         script_begin += '\n' + plugin.get_input(self.params,
                                                                 self.step.libpath if self.step.libpath else [])
-                        script_begin += '\n' + plugin.get_output(self.step.rf)
+                        if len(self.step.rf):
+                            script_begin += '\n' + plugin.get_output(self.step.rf)
                         script_begin = '\n'.join([x for x in script_begin.split('\n') if x])
                         script_begin = f"{cmd['header']}\n{script_begin.strip()}\n\n## BEGIN DSC CORE"
                         script_end = plugin.get_return(self.step.rv) if len(self.step.rv) else ''
