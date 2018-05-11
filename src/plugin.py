@@ -150,7 +150,7 @@ class Shell(BasePlug):
             res += '\n{0}=$(expandPath $[repr(_{1}) if isinstance(_{1}, list) else _{1}])'.format(self.get_var(k), k)
         # FIXME: may need a timer
         # seed
-        res += '\nRANDOM=$(($DSC_REPLICATE + $[DSC_STEP_ID_]))'
+        res += '\nRANDOM=$(($DSC_REPLICATE))'
         return res
 
     def get_output(self, params):
@@ -333,7 +333,7 @@ class RPlug(BasePlug):
         # timer
         res += f'\nTIC_{self.identifier[4:]} <- proc.time()'
         # seed
-        res += '\nset.seed(DSC_REPLICATE + ${DSC_STEP_ID_})'
+        res += '\nset.seed(DSC_REPLICATE)'
         return res
 
     def get_output(self, params):
@@ -484,7 +484,7 @@ class PyPlug(BasePlug):
         for k in keys:
             res += '\n%s = ${_%s}' % (self.get_var(k), k)
         res += f'\nTIC_{self.identifier[4:]} = timeit.default_timer()'
-        res += '\nimport random\nrandom.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\nexcept Exception:\n\tpass'
+        res += '\nimport random\nrandom.seed(DSC_REPLICATE)\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE)\nexcept Exception:\n\tpass'
         return res
 
     def get_output(self, params):
