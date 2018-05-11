@@ -78,10 +78,13 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.11
+
+- [minor] More stringent check on improper module names ending with `_{digits}`.
+
 0.2.7.10
 
 - Stop adding script hash to default seed #136.
-- More stringent check on improper module names.
 - [minor] SoS bumped to version 0.9.13.8 a bug fix release.
 
 **A file signature clean up is recommended after this upgrade.**
