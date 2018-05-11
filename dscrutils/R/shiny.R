@@ -3,9 +3,11 @@
 #' @description interactive plot for results of DSC
 #'
 #' @param res
+#' @param facet name of column of res to facet by
+#' @param scales parameter to be passed to ggplot2::facet_wrap affects y axis scaling
 #' @return a shiny plot
 #' @export
-shiny_plot=function(res, s = "scenario", m = "method"){
+shiny_plot=function(res, facet = "scenario", m = "method", scales="free"){
   ## Do not make these packages dependency
   ## install them on need only when this function is called
   list.of.packages <- c("ggplot2", "shiny", "dplyr", "rlang")
@@ -13,7 +15,7 @@ shiny_plot=function(res, s = "scenario", m = "method"){
   if(length(new.packages)) install.packages(new.packages)
   require(shiny)
   require(ggplot2)
-  scenario_names = as.character(unique(res[[s]]))
+  scenario_names = as.character(unique(res[[facet]]))
   method_names = as.character(unique(res[[m]]))
   numeric_criteria = names(res)[unlist(lapply(res,is.numeric))]
   numeric_criteria = numeric_criteria[numeric_criteria!="DSC"]
@@ -40,11 +42,11 @@ shiny_plot=function(res, s = "scenario", m = "method"){
   server = shinyServer(
     function(input, output, session) {
       output$plot1 <- renderPlot({
-        res.filter = dplyr::filter(res,rlang::UQ(as.name(s)) %in% input$scen.subset & rlang::UQ(as.name(m)) %in% input$method.subset)
+        res.filter = dplyr::filter(res,rlang::UQ(as.name(facet)) %in% input$scen.subset & rlang::UQ(as.name(m)) %in% input$method.subset)
         print(input)
         res.filter$value = res.filter[[input$criteria]]
         ggplot(res.filter, aes_string(m, quote(value), color=m)) +
-              geom_boxplot() + facet_grid(as.formula(paste("~",s)))
+              geom_boxplot() + facet_wrap(as.formula(paste("~",facet)),scales = scales)
       })
     }
   )
