@@ -1,13 +1,17 @@
 #' @title plot results for DSC
 #'
-#' @description interactive plot for results of DSC
+#' @description interactive plot for results of DSC. Particularly tailored
+#' for the simple "simulate-analyze-score" framework. It plots boxplots of a score
+#' for each analyze module, facetting by the simulate module.
 #'
-#' @param res
-#' @param facet name of column of res to facet by
+#' @param res a dataframe containing results (eg from )
+#' @param simulate_col The name of the column that distinguishes simulate modules
+#' @param analyze_col The name of the column that distinguishes analyze modules
+#' @param score_col The name of the column that distinguishes score modules
 #' @param scales parameter to be passed to ggplot2::facet_wrap affects y axis scaling
 #' @return a shiny plot
 #' @export
-shiny_plot=function(res, facet = "scenario", m = "method", scales="free"){
+shiny_plot=function(res, simulate_col = "simulate", analyze_col = "analyze", score_col = "score", scales="free"){
   ## Do not make these packages dependency
   ## install them on need only when this function is called
   list.of.packages <- c("ggplot2", "shiny", "dplyr", "rlang")
@@ -15,8 +19,10 @@ shiny_plot=function(res, facet = "scenario", m = "method", scales="free"){
   if(length(new.packages)) install.packages(new.packages)
   require(shiny)
   require(ggplot2)
-  scenario_names = as.character(unique(res[[facet]]))
-  method_names = as.character(unique(res[[m]]))
+  scenario_names = as.character(unique(res[[simulate_col]]))
+  method_names = as.character(unique(res[[analyze_col]]))
+  score_names = as.character(unique(res[[score_col]]))
+  
   numeric_criteria = names(res)[unlist(lapply(res,is.numeric))]
   numeric_criteria = numeric_criteria[numeric_criteria!="DSC"]
   
@@ -29,9 +35,12 @@ shiny_plot=function(res, facet = "scenario", m = "method", scales="free"){
       checkboxGroupInput("method.subset", "Choose Methods",
                             choices  = method_names,
                             selected = method_names),
+      selectInput("score", "Choose Score",
+                         choices  = score_names,
+                         selected = score_names[1]),
       selectInput("criteria", "Choose Criteria",
-                     choices  = numeric_criteria,
-                     selected = numeric_criteria[1])
+                      choices  = numeric_criteria,
+                      selected = numeric_criteria[1])
 
     ),
     mainPanel(
@@ -42,11 +51,13 @@ shiny_plot=function(res, facet = "scenario", m = "method", scales="free"){
   server = shinyServer(
     function(input, output, session) {
       output$plot1 <- renderPlot({
-        res.filter = dplyr::filter(res,rlang::UQ(as.name(facet)) %in% input$scen.subset & rlang::UQ(as.name(m)) %in% input$method.subset)
+        res.filter = 
+          dplyr::filter(res,rlang::UQ(as.name(simulate_col)) %in% input$scen.subset & 
+                      rlang::UQ(as.name(analyze_col)) %in% input$method.subset & rlang::UQ(as.name(score_col)) %in% input$score)
         print(input)
         res.filter$value = res.filter[[input$criteria]]
-        ggplot(res.filter, aes_string(m, quote(value), color=m)) +
-              geom_boxplot() + facet_wrap(as.formula(paste("~",facet)),scales = scales)
+        ggplot(res.filter, aes_string(analyze_col, quote(value), color=analyze_col)) +
+              geom_boxplot() + facet_wrap(as.formula(paste("~",simulate_col)),scales=scales)
       })
     }
   )
