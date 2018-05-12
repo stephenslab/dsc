@@ -268,8 +268,7 @@ class DSC_Translator:
             self.params = list(self.step.p.keys())
             for key in self.params:
                 self.param_string += '{}{} = {}\n'.\
-                                     format('' if self.prepare else "parameter: ", key,
-                                            repr([self.step.p[key]]))
+                                     format('' if self.prepare else "parameter: ", key, repr(self.step.p[key]))
             if self.params:
                 self.loop_string[0] = ' '.join([f'for _{s} in {s}' for s in reversed(self.params)])
             if self.step.ft:
