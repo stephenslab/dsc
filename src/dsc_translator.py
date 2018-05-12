@@ -10,7 +10,7 @@ import os, sys, msgpack, glob, inspect
 from xxhash import xxh32 as xxh
 from collections import OrderedDict
 from sos.targets import path
-from .utils import uniq_list, dict2str, convert_null, n2a, \
+from .utils import uniq_list, dict2str, n2a, \
     install_r_lib, install_py_module
 __all__ = ['DSC_Translator']
 
@@ -268,8 +268,7 @@ class DSC_Translator:
             self.params = list(self.step.p.keys())
             for key in self.params:
                 self.param_string += '{}{} = {}\n'.\
-                                     format('' if self.prepare else "parameter: ", key,
-                                            repr([convert_null(x, self.step.plugin.name) for x in self.step.p[key]]))
+                                     format('' if self.prepare else "parameter: ", key, repr(self.step.p[key]))
             if self.params:
                 self.loop_string[0] = ' '.join([f'for _{s} in {s}' for s in reversed(self.params)])
             if self.step.ft:

@@ -152,7 +152,7 @@ class DSC_Script:
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
         block[name] = block.pop(list(block.keys())[0])
-        if block[name] is None:
+        if block[name] == '':
             block[name] = dict()
         if not isinstance(block[name], Mapping):
             raise FormatError(f"Code block ``{name}`` has format issues! Please make sure variables follow from ``key:(space)item`` format.")
@@ -810,7 +810,7 @@ class DSC_Module:
                             self.plugin.add_tempfile(k, file_ext)
                             continue
                     else:
-                        if not p1.startswith('$'):
+                        if not p1.startswith('$') and not p1 in DSC_LAN_KW[self.plugin.name]:
                             p1 = repr(p1)
                 if isinstance(p1, tuple):
                     # Supports nested tuples in R and Python
@@ -832,13 +832,12 @@ class DSC_Module:
         for k in self.p:
             self.p[k] = [self.p[k][0]]
 
-    @staticmethod
-    def format_tuple(value):
+    def format_tuple(self, value):
         res = []
         # has_raw = False
         for v in value:
             if isinstance(v, tuple):
-                res.append(DSC_Module.format_tuple(v))
+                res.append(self.format_tuple(v))
             elif isinstance(v, str):
                 groups = DSC_ASIS_OP.search(v)
                 if groups:
@@ -846,7 +845,7 @@ class DSC_Module:
                     # has_raw = True
                 else:
                     # FIXME: need a datatype for true string
-                    res.append(path(v))
+                    res.append(path(v) if not v in DSC_LAN_KW[self.plugin.name] else v)
             else:
                 res.append(v)
         return tuple(res)

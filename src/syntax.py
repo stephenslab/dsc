@@ -23,3 +23,7 @@ DSC_GV = LazyRegex(r'\$\((.*?)\)', re.VERBOSE)
 DSC_RLIB = LazyRegex(r'((^|\W|\()library|(^|\W|\()require)\((.*?)\)', re.VERBOSE)
 DSC_PYMODULE = LazyRegex(r'(^from|^import)(.*?)', re.VERBOSE)
 DSC_RESERVED_MODULE = LazyRegex(r'^default$|_\d+$|^pipeline_|_$', re.VERBOSE)
+DSC_LAN_KW = {
+    'R': ['NULL', 'TRUE', 'FALSE'],
+    'python': ['None', 'True', 'False']
+}

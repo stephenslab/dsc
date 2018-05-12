@@ -53,9 +53,6 @@ class YLine:
         '''
         # Try to convert to number
         var = str2num(var)
-        # null type
-        if is_null(var):
-            return f'raw({var})'
         if isinstance(var, str):
             # see if str can be converted to a list or tuple
             # and apply the same procedure to their elements
@@ -229,16 +226,10 @@ class CastData(YLine):
             value[idx] = self.decodeVar(item)
         # Properly convert lists and tuples
         if len(value) == 1 and isinstance(value[0], list):
-            if not is_null(value[0]):
-                return value[0]
-            else:
-                return [f'raw({value[0]})']
+            return value[0]
         else:
             res = []
             for x in value:
-                if is_null(x):
-                    res.append(f'raw({x})')
-                    continue
                 if isinstance(x, list):
                     # [[],[]] -> [(),()]
                     res.append(tuple(x))
