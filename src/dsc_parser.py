@@ -152,7 +152,7 @@ class DSC_Script:
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
         block[name] = block.pop(list(block.keys())[0])
-        if block[name] is None:
+        if block[name] == '':
             block[name] = dict()
         if not isinstance(block[name], Mapping):
             raise FormatError(f"Code block ``{name}`` has format issues! Please make sure variables follow from ``key:(space)item`` format.")
