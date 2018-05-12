@@ -26,8 +26,13 @@ def no_duplicates_constructor(loader, node, deep=False):
 def dict_representer(dumper, data):
     return dumper.represent_dict(data.items())
 
+def plain_add(self, node):
+    return self.construct_scalar(node)
+
 yaml.add_representer(collections.OrderedDict, dict_representer)
 yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
+yaml.add_constructor(u'tag:yaml.org,2002:bool', plain_add)
+yaml.add_constructor(u'tag:yaml.org,2002:null', plain_add)
 yaml.Dumper.ignore_aliases = lambda self, value: True
 
 class Logger:
@@ -155,26 +160,8 @@ def is_null(var):
         return True if len(var) == 0 else False
     return False
 
-def convert_null(var, language):
-    # FIXME: need to consider language context: its downstream language ...
-    if var is None:
-        if language.lower() in ['r', 'bash']:
-            return "NULL"
-        else:
-            return None
-    else:
-        return var
-
 def str2num(var):
     if isinstance(var, str):
-        # try to warn about boolean
-        if var in ['T', 'F'] or var.lower() in ['true', 'false']:
-            bmap = {'t': 1, 'true': 1, 'f': 0, 'false': 0}
-            msg = 'Possible Boolean variable detected: ``{}``. \n\
-            This variable will be treated as string, not Boolean data. \n\
-            It may cause problems to your jobs. \n\
-            Please set this variable to ``{}`` if it is indeed Boolean data.'.format(var, bmap[var.lower()])
-            logger.error('\n\t'.join([x.strip() for x in msg.split('\n')]), False)
         try:
             return int(var)
         except ValueError:
