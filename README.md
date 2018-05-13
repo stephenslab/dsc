@@ -78,6 +78,10 @@ Goal for 0.2.8
 
 ### 0.2.x
 
+0.2.7.12
+
+- Allow R's boolean and NULL to not be treated as strings #138.
+
 0.2.7.11
 
 - [minor] More stringent check on improper module names ending with `_{digits}`.
