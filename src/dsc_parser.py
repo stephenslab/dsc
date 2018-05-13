@@ -21,7 +21,6 @@ from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse
 from .plugin import Plugin
 from .version import __version__
 from .io.parser import parse_string as parse_dsc_string
-from .io.exceptions import PoyoException
 
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
@@ -46,13 +45,6 @@ class DSC_Script:
             if line.lstrip().startswith('#'):
                 continue
             text = parens_aware_split(line, ':', True)
-            # FIXME: maybe this is good enough to identify a line of decorator keys ...
-            if line.lstrip().startswith('@') and len(text) > 1:
-                line = line.replace('@', '^', 1)
-                text[0] = text[0].replace('@', '^', 1)
-            if line.lstrip().startswith('*') and len(text) > 1:
-                line = line.replace('*', '?', 1)
-                text[0] = text[0].replace('*', '?', 1)
             if not DSC_BLOCK_CONTENT.search(line):
                 headline = True
                 if res:
@@ -145,12 +137,15 @@ class DSC_Script:
     def update(self, text, exe):
         try:
             block = parse_dsc_string('\n'.join(text))
-        except PoyoException as e:
-            if type(e).__name__ == 'DuplicateKeyError':
-                raise FormatError("Duplicate keys found in DSC configuration:\n``{}``".format('\n'.join(text)))
+        except Exception as e:
+            if 'Duplicate key is not allowed' in str(e):
+                raise FormatError("{}, in DSC configuration:\n``{}``".format(str(e), '\n'.join(text)))
             else:
-                env.logger.warning(e)
-                raise FormatError(f"DSC configuration has caused ``{type(e).__name__}`` (see above).\nPlease ensure there is no duplicated variable names in modules. If this is related to string with quotes please remove them, or use the 'raw()' syntax.")
+                env.logger.warning('Invalid format (see error message at the end)\n' + '\n'.join(text))
+                raise FormatError(f"Input text has caused DSC parser error ``{e}``")
+        if len(block) > 1:
+            # An error usually caused by ill-formatted config file format
+            raise FormatError(f"Invalid block \"``{list(block.keys())[1]}``\" detected.")
         for idx, k in enumerate([x[0] for x in recursive_items(block)]):
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
@@ -161,7 +156,7 @@ class DSC_Script:
             raise FormatError(f"Code block ``{name}`` has format issues! Please make sure variables follow from ``key:(space)item`` format.")
         if exe:
             exe = parse_exe(exe)
-            block[name]['^EXEC'] = exe[0]
+            block[name]['@EXEC'] = exe[0]
             for k, v in exe[1].items():
                 if k in block[name] and block[name][k] != v:
                     raise FormatError(f"Block ``{name}`` has property conflicts for ``{k}``: ``{block[name][k]}`` or ``{v}``?")
@@ -192,7 +187,7 @@ class DSC_Script:
         val = flatten_list([[vv.strip() for vv in v.split(',') if vv.strip()] for v in val])
         for vv in val:
             if is_parameter == 0 and (not vv.isidentifier() or vv.startswith('_') or vv.endswith('_')):
-                raise FormatError(f'Invalid module name ``{vv.replace("^", "?")}``.\n{identifier} ')
+                raise FormatError(f'Invalid module name ``{vv}``.\n{identifier} ')
             if is_parameter == 0:
                 continue
             if vv.startswith('_') or vv.endswith('_'):
@@ -201,11 +196,11 @@ class DSC_Script:
                 raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL.\n{tip}")
             if '$' in vv[1:] or vv == '$':
                 raise FormatError(f"``$`` is not allowed in module / variable names, in ``{vv}``.")
-            if '^' in vv[1:]:
+            if '@' in vv[1:]:
                 raise FormatError(f'Invalid variable name ``{vv}``')
-            if not (vv == '?' or vv.startswith('^') or vv.startswith('$')):
+            if not (vv == '*' or vv.startswith('@') or vv.startswith('$')):
                 if not vv.isidentifier():
-                    raise FormatError(f'Invalid variable name ``{vv.replace("^", "?")}``.\n{identifier}')
+                    raise FormatError(f'Invalid variable name ``{vv}``.\n{identifier}')
 
     def get_derived_blocks(self):
         '''
@@ -267,32 +262,32 @@ class DSC_Script:
         modules = block.split(',') if derived is None else derived[0].split(',')
         if len([x for n, x in enumerate(modules) if x in modules[:n]]):
             raise FormatError(f"Duplicate module in block ``{','.join(modules)}``.")
-        if derived is not None and '^EXEC' not in self.content[block]:
-            self.content[block]['^EXEC'] = [self.content[derived[1]]['meta']['exec']]
-        if len(modules) != len(self.content[block]['^EXEC']) and len(self.content[block]['^EXEC']) > 1:
-            raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['^EXEC'])}`` executables are provided. Please ensure they match.")
-        if len(modules) > 1 and len(self.content[block]['^EXEC']) == 1:
-            self.content[block]['^EXEC'] = self.content[block]['^EXEC'] * len(modules)
+        if derived is not None and '@EXEC' not in self.content[block]:
+            self.content[block]['@EXEC'] = [self.content[derived[1]]['meta']['exec']]
+        if len(modules) != len(self.content[block]['@EXEC']) and len(self.content[block]['@EXEC']) > 1:
+            raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['@EXEC'])}`` executables are provided. Please ensure they match.")
+        if len(modules) > 1 and len(self.content[block]['@EXEC']) == 1:
+            self.content[block]['@EXEC'] = self.content[block]['@EXEC'] * len(modules)
         # collection module specific parameters
         tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
         for key in self.content[block]:
-            if key.startswith('^') and key not in DSC_MODP:
+            if key.startswith('@') and key not in DSC_MODP:
                 # then possibly it is executables
                 # we'll update executable specific information
                 for m in key[1:].split(','):
                     if m.strip() not in modules:
-                        raise FormatError(f'Undefined decoration ``@{m.strip()}/^{m.strip()}``.')
+                        raise FormatError(f'Undefined decoration ``@{m.strip()}``.')
                     else:
                         for kk, ii in self.content[block][key].items():
                             if isinstance(ii, Mapping):
-                                if not kk.startswith('^'):
+                                if not kk.startswith('@'):
                                     raise FormatError(f'Invalid decoration ``{kk}``. Decorations must start with ``@`` symbol.')
                                 if kk not in DSC_MODP:
-                                    raise FormatError(f'Undefined decoration ``@{kk[1:]}/^{kk[1:]}``.')
+                                    raise FormatError(f'Undefined decoration ``@{kk[1:]}``.')
                                 else:
                                     continue
                         tmp[m.strip()]['local'].update(self.content[block][key])
-            elif key == '^EXEC':
+            elif key == '@EXEC':
                 for idx, module in enumerate(modules):
                     tmp[module]['global'][key] = list(self.content[block][key][idx])
             elif key not in DSC_MODP and isinstance(self.content[block][key], Mapping):
@@ -316,7 +311,7 @@ class DSC_Script:
                 for key in tmp[module][item]:
                     if key.startswith('$'):
                         res[module]['output'][key[1:]] = tmp[module][item][key]
-                    elif key.startswith('^'):
+                    elif key.startswith('@'):
                         res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
                     else:
                         res[module]['input'][key] = tmp[module][item][key]
@@ -647,7 +642,7 @@ class DSC_Module:
         if isinstance(spec_option, Mapping):
             valid = False
             for module in spec_option:
-                if module == self.name or module == '?':
+                if module == self.name or module == '*':
                     spec_option = spec_option[module]
                     valid = True
                     break
@@ -656,7 +651,7 @@ class DSC_Module:
         spec_option = [tuple(x.strip() for x in item.split('=', 1)) for item in spec_option] if spec_option is not None else []
         for x in spec_option:
             if not len(x) == 2:
-                raise FormatError(f'Format error in @CONFIG ``{"=".join(x)}`` of module ``{self.name}``\nTip: should be "option = value" or "option = (value_1, value_2, ...)"\neg, "R_libs = (package_1 (version), package_2)".')
+                raise FormatError(f'Format error in @CONF ``{"=".join(x)}`` of module ``{self.name}``\nTip: should be "option = value" or "option = (value_1, value_2, ...)"\neg, "R_libs = (package_1 (version), package_2)".')
         spec_option = dict([(k, [remove_quotes(x) for x in Str2List()(remove_parens(v))]) for k, v in spec_option])
         # Override global options
         workdir1 = try_get_value(common_option, 'work_dir')
@@ -697,7 +692,7 @@ class DSC_Module:
         if isinstance(alias, Mapping):
             valid = False
             for module in alias:
-                if module == self.name or module == '?':
+                if module == self.name or module == '*':
                     alias = alias[module]
                     valid = True
                     break
@@ -748,7 +743,7 @@ class DSC_Module:
         if isinstance(ft, Mapping):
             valid = False
             for module in ft:
-                if module == self.name or module == '?':
+                if module == self.name or module == '*':
                     ft = ft[module]
                     valid = True
                     break

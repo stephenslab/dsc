@@ -241,6 +241,7 @@ class _Parser(object):
 
 
 def parse_string(string):
-    import re
-    parser = _Parser(re.sub(r'\\\s*\n', '', string))
+    # import re
+    # parser = _Parser(re.sub(r'\\\s*\n', '', string))
+    parser = _Parser(string)
     return parser()

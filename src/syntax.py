@@ -11,7 +11,7 @@ from sos.syntax import LazyRegex, SOS_DIRECTIVES
 
 DSC_KW = ['DSC_OUTPUT', 'DSC_VARS', 'DSC_DEBUG', 'DSC_REPLICATE'] # engineering keywords, reserved
 DSC_KW.extend(SOS_DIRECTIVES)
-DSC_MODP = ['^EXEC', '^FILTER', '^ALIAS', '^CONF'] # module properties
+DSC_MODP = ['@EXEC', '@FILTER', '@ALIAS', '@CONF'] # module properties
 
 DSC_DERIVED_BLOCK = LazyRegex(r'^(.*?)\((.*?)\)$', re.VERBOSE)
 DSC_FILE_OP = LazyRegex(r'^file\((.*?)\)$', re.VERBOSE)
