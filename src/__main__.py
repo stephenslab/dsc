@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, glob, time
+import os, sys, glob, time, yaml
 from .version import __version__
 from sos.utils import env, get_traceback
 
@@ -85,7 +85,7 @@ def remove(workflows, groups, modules, db, debug, replace = False, purge = False
                            format('replace' if replace else 'remove'))
 
 def execute(args):
-    from .utils import workflow2html, dsc2html, transcript2html, yaml
+    from .utils import workflow2html, dsc2html, transcript2html
     if args.to_remove:
         if args.target is None and args.to_remove != 'purge':
             raise ValueError("``--clean`` must be specified with ``--target``.")

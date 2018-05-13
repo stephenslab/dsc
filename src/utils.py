@@ -11,30 +11,6 @@ from difflib import SequenceMatcher
 from xxhash import xxh32 as xxh
 from .constant import HTML_CSS, HTML_JS
 
-def no_duplicates_constructor(loader, node, deep=False):
-    """YAML check for duplicate keys."""
-    mapping = {}
-    for key_node, value_node in node.value:
-        key = loader.construct_object(key_node, deep=deep)
-        value = loader.construct_object(value_node, deep=deep)
-        if key in mapping:
-            raise yaml.constructor.ConstructorError("while constructing a mapping", node.start_mark,
-                                   "found duplicate key (%s)" % key, key_node.start_mark)
-        mapping[key] = value
-    return collections.OrderedDict(loader.construct_pairs(node, deep))
-
-def dict_representer(dumper, data):
-    return dumper.represent_dict(data.items())
-
-def plain_add(self, node):
-    return self.construct_scalar(node)
-
-yaml.add_representer(collections.OrderedDict, dict_representer)
-yaml.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates_constructor)
-yaml.add_constructor(u'tag:yaml.org,2002:bool', plain_add)
-yaml.add_constructor(u'tag:yaml.org,2002:null', plain_add)
-yaml.Dumper.ignore_aliases = lambda self, value: True
-
 class Logger:
     def __init__(self):
         self.__width_cache = 1

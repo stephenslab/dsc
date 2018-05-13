@@ -7,19 +7,22 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-import os, re, itertools, copy, platform, glob
+import os, re, itertools, copy, platform, glob, yaml
 from collections import Mapping, OrderedDict, Counter
 from xxhash import xxh32 as xxh
 from sos.utils import env
 from sos.targets import fileMD5, executable, path
 from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
-     try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, yaml, \
+     try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, \
      parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
 from .plugin import Plugin
 from .version import __version__
+from .io.parser import parse_string as parse_dsc_string
+from .io.exceptions import PoyoException
+
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
 class DSC_Script:
@@ -141,8 +144,8 @@ class DSC_Script:
 
     def update(self, text, exe):
         try:
-            block = yaml.load('\n'.join(text))
-        except Exception as e:
+            block = parse_dsc_string('\n'.join(text))
+        except PoyoException as e:
             if type(e).__name__ == 'DuplicateKeyError':
                 raise FormatError("Duplicate keys found in DSC configuration:\n``{}``".format('\n'.join(text)))
             else:
