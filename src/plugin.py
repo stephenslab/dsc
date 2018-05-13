@@ -9,7 +9,6 @@ Process R and Python plugin codes to DSC
 import yaml, re
 from collections import OrderedDict
 from copy import deepcopy
-from sos.targets import path
 from .syntax import DSC_FILE_OP
 from .utils import flatten_list
 

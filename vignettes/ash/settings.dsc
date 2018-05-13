@@ -2,10 +2,10 @@
 # module alias and executables
 simulate: datamaker.R
     # module input and variables
-    mixcompdist: raw(normalmix)
-    g: (raw(c(2/3,1/3)),raw(c(0,0)),raw(c(1,2))),
-       (raw(rep(1/7,7)),raw(c(-1.5,-1,-0.5,0,0.5,1,1.5)),raw(rep(0.5,7))),
-       (raw(c(1/4,1/4,1/3,1/6)),raw(c(-2,-1,0,1)),raw(c(2,1.5,1,1)))
+    mixcompdist: normalmix
+    g: (c(2/3,1/3),c(0,0),c(1,2)),
+       (rep(1/7,7),c(-1.5,-1,-0.5,0,0.5,1,1.5),rep(0.5,7)),
+       (c(1/4,1/4,1/3,1/6),c(-2,-1,0,1),c(2,1.5,1,1))
     min_pi0: 0
     max_pi0: 1
     nsamp: 1000
@@ -20,7 +20,7 @@ simulate: datamaker.R
 shrink: runash.R
     # module input and variables
     input: $data
-    mixcompdist: normal, halfuniform
+    mixcompdist: "normal", "halfuniform"
     # module output
     $ash_data: ash_data
     $beta_est: ashr::get_pm(ash_data)

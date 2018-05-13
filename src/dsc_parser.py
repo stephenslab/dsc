@@ -11,7 +11,7 @@ import os, re, itertools, copy, platform, glob, yaml
 from collections import Mapping, OrderedDict, Counter
 from xxhash import xxh32 as xxh
 from sos.utils import env
-from sos.targets import fileMD5, executable, path
+from sos.targets import fileMD5, executable
 from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, \
      parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf
