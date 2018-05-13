@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from collections import OrderedDict, Counter
 
 class TreeElement(object):
     """Helper class to identify internal classes."""
@@ -21,7 +22,10 @@ class ContainerMixin(object):
             yield c
 
     def __call__(self):
-        return {c.name: c() for c in self}
+        common = Counter([c.name for c in self]).most_common(1)
+        if len(common) and common[0][1] > 1:
+            raise ValueError('Duplicate key is not allowed: ``{}``'.format(common[0][0]))
+        return OrderedDict([(c.name, c()) for c in self])
 
     def add_child(self, child):
         """If the given object is an instance of Child add it to self and
