@@ -136,7 +136,7 @@ def is_null(var):
         return True if len(var) == 0 else False
     return False
 
-def str2num(var):
+def str2num(var, raw_string = True):
     if isinstance(var, str):
         try:
             return int(var)
@@ -148,7 +148,10 @@ def str2num(var):
                 else:
                     return var
             except ValueError:
-                return remove_quotes(var)
+                if raw_string:
+                    return var
+                else:
+                    return remove_quotes(var)
     else:
         try:
             if var.is_integer():

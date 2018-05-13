@@ -10,7 +10,7 @@ import re, collections
 from io import StringIO
 import tokenize
 from sos.utils import get_output
-from .utils import FormatError, is_null, cartesian_list, pairwise_list, uniq_list, \
+from .utils import FormatError, is_null, str2num, cartesian_list, pairwise_list, uniq_list, \
     get_slice, remove_parens, do_parentheses_match, find_parens, parens_aware_split
 from .syntax import DSC_FILE_OP
 
@@ -33,6 +33,8 @@ class YLine:
         '''
         Try to properly decode str to other data type
         '''
+        # Try to convert to number
+        var = str2num(var)
         if isinstance(var, str):
             # see if str can be converted to a list or tuple
             # and apply the same procedure to their elements
@@ -79,6 +81,24 @@ class ExpandVars(YLine):
         YLine.__init__(self)
         self.global_var = global_var if global_var else dict()
 
+    def encodeVar(self, var, slice_idx):
+        '''
+        Code multi-entry data type to string
+          * For tuple / list will make it into a string like "[item1, item2 ...]"
+        '''
+        var = self.split(var)
+        if slice_idx is not None and not isinstance(var, (list, tuple)):
+            var = [var]
+        if isinstance(var, (list, tuple)):
+            if slice_idx is not None:
+                var = [var[i] for i in get_slice('slice[' + slice_idx + ']')[1]]
+            if len(var) == 1:
+                    return '{}'.format(var[0])
+            else:
+                return '[{}]'.format(','.join(list(map(str, var))))
+        else:
+            return var
+
     def __call__(self, value):
         for idx, item in enumerate(value):
             if isinstance(item, str):
@@ -87,15 +107,13 @@ class ExpandVars(YLine):
                 for m in re.finditer(pattern, item):
                     if m.group(1) not in self.global_var:
                         raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
-                    tmp = [x.strip() if isinstance(x, str) else str(x) for x in self.split(self.global_var[m.group(1)])]
-                    tmp = ','.join([tmp[i] for i in get_slice('slice[' + m.group(2) + ']')[1]])
-                    item = item.replace(m.group(0), '[' + tmp + ']')
+                    item = item.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)], m.group(2)))
                 # then pattern without slicing
                 pattern = re.compile(r'\$\{(.*?)\}')
                 for m in re.finditer(pattern, item):
                     if m.group(1) not in self.global_var:
                         raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
-                    item = item.replace(m.group(0), self.split(self.global_var[m.group(1)]))
+                    item = item.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)], None))
                 if item != value[idx]:
                     value[idx] = item
         return value
