@@ -10,7 +10,7 @@ import re, collections
 from io import StringIO
 import tokenize
 from sos.utils import get_output
-from .utils import FormatError, is_null, str2num, cartesian_list, pairwise_list, uniq_list, \
+from .utils import FormatError, is_null, cartesian_list, pairwise_list, uniq_list, \
     get_slice, remove_parens, do_parentheses_match, find_parens, parens_aware_split
 from .syntax import DSC_FILE_OP
 
@@ -29,30 +29,10 @@ class YLine:
         '''Split value by comma outside (), [] and {}'''
         return parens_aware_split(value, ',')
 
-    def encodeVar(self, var):
-        '''
-        Code multi-entry data type to string
-          * For string var will add quotes to it: str -> "str"
-          * For tuple / list will make it into a string like "[item1, item2 ...]"
-        '''
-        var = self.split(var)
-        if isinstance(var, (list, tuple)):
-            if len(var) == 1:
-                if isinstance(var[0], str):
-                    return '''"{0}"'''.format(var[0])
-                else:
-                    return '{}'.format(var[0])
-            else:
-                return '[{}]'.format(','.join(list(map(str, var))))
-        else:
-            return var
-
     def decodeVar(self, var):
         '''
         Try to properly decode str to other data type
         '''
-        # Try to convert to number
-        var = str2num(var)
         if isinstance(var, str):
             # see if str can be converted to a list or tuple
             # and apply the same procedure to their elements
@@ -115,7 +95,7 @@ class ExpandVars(YLine):
                 for m in re.finditer(pattern, item):
                     if m.group(1) not in self.global_var:
                         raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
-                    item = item.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)]))
+                    item = item.replace(m.group(0), self.split(self.global_var[m.group(1)]))
                 if item != value[idx]:
                     value[idx] = item
         return value

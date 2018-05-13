@@ -807,9 +807,6 @@ class DSC_Module:
                             # This file is a temp file
                             self.plugin.add_tempfile(k, file_ext)
                             continue
-                    else:
-                        if not p1.startswith('$') and not p1 in DSC_LAN_KW[self.plugin.name]:
-                            p1 = repr(p1)
                 if isinstance(p1, tuple):
                     # Supports nested tuples in R and Python
                     # But not in shell
@@ -832,7 +829,6 @@ class DSC_Module:
 
     def format_tuple(self, value):
         res = []
-        # has_raw = False
         for v in value:
             if isinstance(v, tuple):
                 res.append(self.format_tuple(v))
@@ -840,12 +836,10 @@ class DSC_Module:
                 groups = DSC_ASIS_OP.search(v)
                 if groups:
                     res.append(groups.group(1))
-                    # has_raw = True
                 else:
-                    # FIXME: need a datatype for true string
-                    res.append(path(v) if not v in DSC_LAN_KW[self.plugin.name] else v)
+                    res.append(v)
             else:
-                res.append(v)
+                res.append(str(v))
         return tuple(res)
 
     def __str__(self):

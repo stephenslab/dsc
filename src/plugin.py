@@ -120,7 +120,7 @@ class BasePlug:
 
     @staticmethod
     def format_tuple(value):
-        return [str(x) if isinstance(x, path) else x for x in flatten_list(value)]
+        return flatten_list(value)
 
     def dump(self):
         return dict([
@@ -394,7 +394,6 @@ class RPlug(BasePlug):
     @staticmethod
     def format_tuple(value):
         # this is the best I'd like to do for R ...
-        value = [repr(str(v)) if isinstance(v, path) else str(v) for v in value]
         has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
         if has_tuple:
             return 'list({})'.format(','.join([(f'c({",".join([vv for vv in v])})' if len(v) > 1 else v[0]) if isinstance(v, tuple) else v for v in value]))
@@ -541,7 +540,6 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        value = [repr(str(v)) if isinstance(v, path) else str(v) for v in value]
         return '({})'.format(','.join(value))
 
     def __str__(self):
