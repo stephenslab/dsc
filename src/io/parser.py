@@ -16,6 +16,7 @@ from .patterns import (
 
 logger = logging.getLogger(__name__)
 
+WHITE_LIST = ('str', 'null', 'true', 'false')
 
 def log_callback(wrapped_function):
     """Decorator that produces DEBUG level log messages before and after
@@ -172,15 +173,15 @@ class _Parser(object):
 
     @log_callback
     def parse_null(self, match):
-        return None
+        return match.group() if 'null' in WHITE_LIST else None
 
     @log_callback
     def parse_true(self, match):
-        return True
+        return match.group() if 'true' in WHITE_LIST else None
 
     @log_callback
     def parse_false(self, match):
-        return False
+        return match.group() if 'false' in WHITE_LIST else None
 
     @log_callback
     def parse_int(self, match):
@@ -192,8 +193,11 @@ class _Parser(object):
 
     @log_callback
     def parse_str(self, match):
-        quotes = match.group('quotes')
-        return match.group().strip(quotes)
+        if 'str' in WHITE_LIST:
+            return match.group()
+        else:
+            quotes = match.group('quotes')
+            return match.group().strip(quotes)
 
     def find_match(self):
         """Try to find a pattern that matches the source and calll a parser
