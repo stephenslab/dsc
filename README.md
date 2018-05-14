@@ -71,16 +71,22 @@ to skip all existing files. We apologize for the inconveniences it incurs.
 
 ### Upcoming release
 
-Goal for 0.2.8
+Goal for 0.2.9
 
 - Support for multiple output per modules.
 - Improve scripts command options.
 
 ### 0.2.x
 
-0.2.7.12
+0.2.8
 
-- Allow R's boolean and NULL to not be treated as strings #138.
+Input string parameter behavior has changed since this version. Now un-quoted strings will be treated
+input script code; string parameters will have to be quoted. A new DSC configuration parser has been
+implemented to overcome `pyYAML` limitations. Please file a bug report if the new parser misbehaves.
+
+- Rename `raw()` operator to `delayed()`.
+
+**A file signature clean up is recommended after this upgrade.**
 
 0.2.7.11
 

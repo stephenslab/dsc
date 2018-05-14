@@ -20,7 +20,7 @@ from .syntax import *
 from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
 from .plugin import Plugin
 from .version import __version__
-from .io.parser import parse_string as parse_dsc_string
+from .parser import parse_dsc_string
 
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
