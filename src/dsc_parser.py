@@ -135,14 +135,17 @@ class DSC_Script:
         return new_content + [x for x in content if not x.startswith('%') and not x.startswith('#!')]
 
     def update(self, text, exe):
-        try:
-            block = parse_dsc_string('\n'.join(text))
-        except Exception as e:
-            if 'Duplicate key is not allowed' in str(e):
-                raise FormatError("{}, in DSC configuration:\n``{}``".format(str(e), '\n'.join(text)))
-            else:
-                env.logger.warning('Invalid format (see error message at the end)\n' + '\n'.join(text))
-                raise FormatError(f"Input text has caused DSC parser error ``{e}``")
+        if len(text) == 1 and text[0].strip().endswith(':'):
+            block = OrderedDict([(text[0].strip()[:-1], OrderedDict())])
+        else:
+            try:
+                block = parse_dsc_string('\n'.join(text))
+            except Exception as e:
+                if 'Duplicate key is not allowed' in str(e):
+                    raise FormatError("{}, in DSC configuration:\n``{}``".format(str(e), '\n'.join(text)))
+                else:
+                    env.logger.warning('Invalid format (see error message at the end)\n' + '\n'.join(text))
+                    raise FormatError(f"Input text has caused DSC parser error ``{e}``")
         if len(block) > 1:
             # An error usually caused by ill-formatted config file format
             raise FormatError(f"Invalid block \"``{list(block.keys())[1]}``\" detected.")
@@ -150,8 +153,6 @@ class DSC_Script:
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
         block[name] = block.pop(list(block.keys())[0])
-        if block[name] == '':
-            block[name] = dict()
         if not isinstance(block[name], Mapping):
             raise FormatError(f"Code block ``{name}`` has format issues! Please make sure variables follow from ``key:(space)item`` format.")
         if exe:
