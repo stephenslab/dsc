@@ -11,7 +11,7 @@ from io import StringIO
 import tokenize
 from sos.utils import get_output
 from .utils import FormatError, is_null, str2num, cartesian_list, pairwise_list, uniq_list, \
-    get_slice, remove_parens, do_parentheses_match, find_parens, parens_aware_split
+    get_slice, remove_parens, do_parentheses_match, find_parens, parens_aware_split, flatten_list
 from .syntax import DSC_FILE_OP
 
 class YLine:
@@ -209,9 +209,9 @@ class ExpandActions(YLine):
             raise FormatError(f"Evaluation of Python expression ``code`` resulted in unsupported type ``{type(res).__name__}``.")
 
     @staticmethod
-    def __Shell(self, code):
+    def __Shell(code):
         # FIXME: is this behavior any good?
-        return get_output(code).strip()
+        return ','.join(flatten_list([x.split() for x in get_output(code[1:-1]).strip().split("\n")]))
 
 
 class CastData(YLine):

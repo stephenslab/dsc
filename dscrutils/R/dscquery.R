@@ -141,7 +141,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
   outfile <- tempfile(fileext = ".csv")
     
   # Build and run command based on the inputs.
-  cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
+  cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f", "--rds overwrite",
                    "--target",paste(targets,collapse = " "))
   if (length(conditions) > 1)
     conditions <- paste(conditions,collapse = " AND ")
