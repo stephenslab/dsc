@@ -635,7 +635,7 @@ class DSC_Module:
             # For file
             groups = DSC_FILE_OP.search(value)
             if groups:
-                self.rf[key] = '{}.{}'.format(key, groups.group(1).strip('.').strip())
+                self.rf[key] = '{}.{}'.format(key, groups.group(1).strip('.').strip()) if key != groups.group(1).strip('.').strip() else key
             else:
                 self.rv[key] = value
 
