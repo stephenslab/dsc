@@ -82,9 +82,7 @@ Goal for 0.2.9
 
 Input string parameter behavior has changed since this version. Now un-quoted strings will be treated
 input script code; string parameters will have to be quoted. A new DSC configuration parser has been
-implemented to overcome `pyYAML` limitations. Please file a bug report if the new parser misbehaves.
-
-- Rename `raw()` operator to `delayed()`.
+implemented to overcome `pyYAML` restrictions. Please submit a bug report if the new parser misbehaves.
 
 **A file signature clean up is recommended after this upgrade.**
 
