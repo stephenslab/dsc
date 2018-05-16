@@ -329,9 +329,7 @@ class DSC_Translator:
                     self.output_string += "\n{0} = ['{1}:{{}}'.format(item) for item in {0}]".\
                                           format(output_lhs, self.step.name)
             else:
-                # FIXME
-                output_group_by = 1
-                self.output_string += f"output: {self.step.name}_output_files, group_by = {output_group_by}"
+                self.output_string += f"output: {self.step.name}_output_files[_index]"
 
         def get_step_option(self):
             if not self.prepare and self.conf is not None:
