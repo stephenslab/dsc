@@ -352,7 +352,7 @@ class DSC_Translator:
             else:
                 # FIXME: have not considered multi-action module (or compound module) yet
                 # Create fake loop for now with idx going around
-                if self.conf is None:
+                if self.conf is None and self.use_log:
                     self.action += "if _output.with_suffix('.stderr').exists():\n\topen(_output.with_suffix('.stderr'), 'w').close()\n" \
                                    "if _output.with_suffix('.stdout').exists():\n\topen(_output.with_suffix('.stdout'), 'w').close()\n"
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
@@ -386,7 +386,7 @@ class DSC_Translator:
                     else:
                         self.exe_check.append(f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
-                if self.conf is None:
+                if self.conf is None and self.use_log:
                     self.action += "\ntry:\n\tif _output.with_suffix('.stderr').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stderr'))\nexcept Exception:\n\tpass\n" \
                                    "try:\n\tif _output.with_suffix('.stdout').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stdout'))\nexcept Exception:\n\tpass"
 
