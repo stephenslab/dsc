@@ -54,6 +54,6 @@ setup(name        = "dsc",
       package_dir = {'dsc': 'src'},
       install_requires = ['numpy', 'pandas>=0.22.0', 'sympy', 'numexpr',
                           'sos>=0.9.14.0', 'h5py', 'PTable',
-                          'pyarrow>=0.5.0', 'sqlalchemy',
+                          'pyarrow>=0.5.0', 'sqlalchemy', 'billiard',
                           'msgpack-python']
       )
