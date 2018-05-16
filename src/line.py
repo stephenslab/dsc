@@ -100,22 +100,19 @@ class ExpandVars(YLine):
             return var
 
     def __call__(self, value):
-        for idx, item in enumerate(value):
-            if isinstance(item, str):
-                # find pattern with slicing first
-                pattern = re.compile(r'\$\{(.*?)\}\[(.*?)\]')
-                for m in re.finditer(pattern, item):
-                    if m.group(1) not in self.global_var:
-                        raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
-                    item = item.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)], m.group(2)))
-                # then pattern without slicing
-                pattern = re.compile(r'\$\{(.*?)\}')
-                for m in re.finditer(pattern, item):
-                    if m.group(1) not in self.global_var:
-                        raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
-                    item = item.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)], None))
-                if item != value[idx]:
-                    value[idx] = item
+        if isinstance(value, str):
+            # find pattern with slicing first
+            pattern = re.compile(r'\$\{(.*?)\}\[(.*?)\]')
+            for m in re.finditer(pattern, value):
+                if m.group(1) not in self.global_var:
+                    raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
+                value = value.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)], m.group(2)))
+            # then pattern without slicing
+            pattern = re.compile(r'\$\{(.*?)\}')
+            for m in re.finditer(pattern, value):
+                if m.group(1) not in self.global_var:
+                    raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
+                value = value.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)], None))
         return value
 
 
@@ -211,7 +208,8 @@ class ExpandActions(YLine):
     @staticmethod
     def __Shell(code):
         # FIXME: is this behavior any good?
-        return ','.join(flatten_list([x.split() for x in get_output(code[1:-1]).strip().split("\n")]))
+        out = get_output(code[1:-1])
+        return ','.join(flatten_list([x.split() for x in out.strip().split("\n")]))
 
 
 class CastData(YLine):
@@ -401,9 +399,9 @@ class EntryFormatter:
         pass
 
     def __call__(self, data, variables):
-        actions = [ExpandActions(),
+        actions = [ExpandVars(variables),
+                   ExpandActions(),
                    Str2List(),
-                   ExpandVars(variables),
                    CastData(),
                    CheckFile()]
         return self.__Transform(data, actions)
