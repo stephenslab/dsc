@@ -78,6 +78,11 @@ Goal for 0.2.9
 
 ### 0.2.x
 
+0.2.8.1
+
+- Minor file check performance optimization.
+- Force overwrite converted `pkl` to `rds` in `dscutils::dscquery`, as a save default.
+
 0.2.8
 
 Input string parameter behavior has changed since this version. Now un-quoted strings will be treated
