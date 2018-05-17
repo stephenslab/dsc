@@ -26,13 +26,14 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
             to_remove.append(x)
             del map_data[k]
     # Remove files that are not in the name database
-    for x in glob.glob('{}/*'.format(output)):
+    for x in glob.glob('{}/**/*.*'.format(output), recursive = True):
         if x.endswith(".zapped"):
             x = x[:-7]
             x_ext = '.zapped'
         else:
             x_ext = ''
-        if os.path.basename(x) not in map_data.values() and \
+        x_name =  os.path.join(os.path.basename(os.path.split(x)[0]), os.path.basename(x))
+        if x_name not in map_data.values() and \
            x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['conf', 'map']] and \
            x != '{}/{}.db'.format(output, os.path.basename(output)):
             to_remove.append(x + x_ext)

@@ -315,7 +315,7 @@ def main():
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
     ro.add_argument('-p', dest = '__print__', action='store_true',
-                    help='''Print stdout and stderr to screen. Notice that running DSC with and without "-p" will trigger rerun
+                    help='''Print stdout and stderr to screen. Caution that running DSC with and without "-p" will trigger rerun
                     unless "--touch" option is also used.''')
     rt = p.add_argument_group('Remote execution')
     rt.add_argument('--host', metavar='file', help = '''Configuration file for remote computer.''')
