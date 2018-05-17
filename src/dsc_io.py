@@ -222,7 +222,7 @@ def main():
             pickle.dump(load_rds(infile), open(outfile_md5, 'wb'))
         else:
             sys.exit(1)
-    symlink_force(outfile_md5, outfile)
+    symlink_force(os.path.abspath(os.path.expanduser(outfile_md5)), outfile)
 
 if __name__ == '__main__':
     import warnings
