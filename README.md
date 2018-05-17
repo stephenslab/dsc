@@ -78,6 +78,13 @@ Goal for 0.2.9
 
 ### 0.2.x
 
+0.2.8.2
+
+- Add `-p` option to print stdout and stderr to screen.
+- SoS bumped to version 0.9.14.1 for 
+  - Improved parallel slot management.
+  - Improved messaging on executed steps (use `-v 3` to display in DSC).
+
 0.2.8.1
 
 - Minor file check performance optimization.

@@ -122,7 +122,7 @@ def execute(args):
     # FIXME: make sure try_catch works, or justify that it is not necessary to have.
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
                               args.__max_jobs__, args.try_catch, conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'},
-                              args.verbosity)
+                              not args.__print__)
     # Apply clean-up
     if args.to_remove:
         remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
@@ -314,6 +314,9 @@ def main():
     ro.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
+    ro.add_argument('-p', dest = '__print__', action='store_true',
+                    help='''Print stdout and stderr to screen. Notice that running DSC with and without "-p" will trigger rerun
+                    unless "--touch" option is also used.''')
     rt = p.add_argument_group('Remote execution')
     rt.add_argument('--host', metavar='file', help = '''Configuration file for remote computer.''')
     rt.add_argument('--to-host', metavar='dir', dest = 'to_host', nargs = '+', default = [],

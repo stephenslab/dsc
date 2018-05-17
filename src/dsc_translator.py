@@ -20,7 +20,8 @@ class DSC_Translator:
       * Each DSC module's name translates to SoS step name
       * Pipelines are executed via nested SoS workflows
     '''
-    def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False, host_conf = None, verbosity = 1):
+    def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False,
+                 host_conf = None, use_logfile = True):
         # FIXME: to be replaced by the R utils package
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
@@ -62,7 +63,7 @@ class DSC_Translator:
                     if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
                         job_translator = self.Step_Translator(step, self.db, None,
                                                               try_catch, host_conf,
-                                                              verbosity <= 2)
+                                                              use_logfile)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
                         exe_signatures[step.name] = job_translator.exe_signature
