@@ -6,7 +6,8 @@ __license__ = "MIT"
 import os, msgpack, glob, pickle
 import pandas as pd
 from collections import OrderedDict
-from .utils import uniq_list, chunks, remove_multiple_strings, extend_dict, remove_quotes, DBError
+from .utils import uniq_list, flatten_list, chunks, remove_multiple_strings, extend_dict, \
+    remove_quotes, DBError
 from .addict import Dict as dotdict
 
 def remove_obsolete_output(output, additional_files = None, rerun = False):
@@ -51,6 +52,44 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
                             "__confirm__": True, "signature": False,
                             "verbosity": 0, "zap": False,
                             "size": None, "age": None, "dryrun": False}), [])
+
+def zap_unwanted_output(workflows, groups, modules, db):
+    from sos.__main__ import cmd_remove
+    filename = '{}/{}.db'.format(db, os.path.basename(db))
+    to_remove = [x for x in modules if os.path.isfile(x)]
+    modules = [x for x in modules if x not in to_remove]
+    modules = uniq_list(flatten_list([x if x not in groups else groups[x] for x in modules]))
+    if not os.path.isfile(filename):
+        raise ValueError('Cannot remove ``{}``, due to missing output database ``{}``.'.\
+                           format(repr(modules), filename))
+    else:
+        remove_modules = []
+        for module in modules:
+            removed = False
+            for workflow in workflows:
+                if module in workflow:
+                    remove_modules.append(module)
+                    removed = True
+                    break
+            if removed:
+                remove_modules.append(module)
+            else:
+                print(f"Target \"{module}\" ignored because it is not module in current DSC.")
+        #
+        data = pickle.load(open(filename, 'rb'))
+        to_remove.extend(flatten_list([[glob.glob(os.path.join(db, '{}.*'.format(x)))
+                                        for x in data[item]['__output__']]
+                                       for item in remove_modules if item in data]))
+    if len(to_remove) and not \
+       (all([True if x.endswith('.zapped') and not x.endswith('.zapped.zapped') else False
+                         for x in to_remove])):
+        cmd_remove(dotdict({"tracked": False, "untracked": False,
+                            "targets": uniq_list(to_remove), "external": True,
+                            "__confirm__": True, "signature": False,
+                            "verbosity": 0, "zap": True,
+                            "size": None, "age": None, "dryrun": False}), [])
+    else:
+        print("Nothing found to zap!")
 
 def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     '''
