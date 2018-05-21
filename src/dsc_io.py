@@ -223,6 +223,7 @@ def main():
         else:
             sys.exit(1)
     symlink_force(os.path.abspath(os.path.expanduser(outfile_md5)), outfile)
+    return 0
 
 if __name__ == '__main__':
     import warnings
