@@ -18,8 +18,7 @@
 #' @param conditions The default \code{NULL} means "no conditions", in
 #' which case the results for all DSC pipelines are returned.
 #'
-#' @param groups Definition of module groups. This feature is not yet
-#' implemented.
+#' @param groups Definition of module groups.
 #' 
 #' @param add.path If TRUE, the returned data frame will contain full
 #' pathnames, not just the base filenames.
@@ -97,7 +96,7 @@
 #' 
 #' @export
 #' 
-dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
+dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
                       add.path = FALSE, exec = "dsc-query",
                       max.extract.vector = 10, verbose = TRUE) {
 
@@ -116,9 +115,6 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
     if (!(is.character(conditions) & length(conditions) == 1))
       stop("Argument \"conditions\" should be NULL or a character vector")
     
-  # Check input argument "groups".
-  if (!missing(groups))
-    stop("Argument \"groups\" is not yet implemented")
 
   # Check input argument "add.path".
   if (!(is.logical(add.path) & length(add.path) == 1))
@@ -147,6 +143,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups,
     conditions <- paste(conditions,collapse = " AND ")
   if (!is.null(conditions))
       cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
+  if (length(groups) > 1)
+      cmd.str <- paste(cmd.str, "-g", paste(groups, collapse = " "))
   run_cmd(cmd.str, verbose)
   # LOAD DSC QUERY
   # --------------
