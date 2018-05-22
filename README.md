@@ -78,6 +78,10 @@ Goal for 0.2.9
 
 ### 0.2.x
 
+0.2.8.3
+
+- `dsc-io` can now convert CSV to HTML with pop-up figures.
+
 0.2.8.2
 
 - Add `-p` option to print stdout and stderr to screen.

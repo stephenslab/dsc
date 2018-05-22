@@ -206,6 +206,31 @@ def symlink_force(target, link_name):
         else:
             raise e
 
+def csv_to_html(infile, outfile):
+    import os
+    import pandas as pd
+    pd.set_option('display.max_colwidth', -1)
+    from dsc.constant import TABLE_HEADER
+
+    def pop_html_img(x):
+        if not isinstance(x, str):
+            return x
+        if not (x.endswith('.png') or x.endswith('.jpg')):
+            return x
+        base, name = os.path.split(x)
+        if os.path.isfile(name):
+            full_path = False
+        elif os.path.isfile(x):
+            full_path = True
+        else:
+            return x
+        content = f'''<a href="{x if full_path else name}" onmouseover="showPopup(this, '{x if full_path else name}')" onmouseout="hidePopup()">{name}</a> <div id="popup"> </div></td>'''
+        return content
+
+    data = pd.read_csv(infile).applymap(pop_html_img)
+    with open(outfile, 'w') as f:
+        f.write(TABLE_HEADER + data.to_html(justify='center', escape = False))
+
 def main():
     import os, sys, pickle
     if len(sys.argv) < 3:
@@ -218,11 +243,14 @@ def main():
     if not os.path.isfile(outfile_md5):
         if infile.endswith('.pkl') and outfile.endswith('.rds'):
             save_rds(pickle.load(open(infile, 'rb')), outfile_md5)
+            symlink_force(os.path.abspath(os.path.expanduser(outfile_md5)), outfile)
         elif infile.endswith('.rds') and outfile.endswith('.pkl'):
             pickle.dump(load_rds(infile), open(outfile_md5, 'wb'))
+            symlink_force(os.path.abspath(os.path.expanduser(outfile_md5)), outfile)
+        elif infile.endswith('.csv') and outfile.endswith('.html'):
+            csv_to_html(infile, outfile)
         else:
             sys.exit(1)
-    symlink_force(os.path.abspath(os.path.expanduser(outfile_md5)), outfile)
     return 0
 
 if __name__ == '__main__':
