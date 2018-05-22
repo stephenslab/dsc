@@ -4,11 +4,25 @@
 \alias{shiny_plot}
 \title{plot results for DSC}
 \usage{
-shiny_plot(res, s = "scenario", m = "method")
+shiny_plot(res, simulate_col = "simulate", analyze_col = "analyze",
+  score_col = "score", scales = "free")
+}
+\arguments{
+\item{res}{a dataframe containing results (eg from )}
+
+\item{simulate_col}{The name of the column that distinguishes simulate modules}
+
+\item{analyze_col}{The name of the column that distinguishes analyze modules}
+
+\item{score_col}{The name of the column that distinguishes score modules}
+
+\item{scales}{parameter to be passed to ggplot2::facet_wrap affects y axis scaling}
 }
 \value{
 a shiny plot
 }
 \description{
-interactive plot for results of DSC
+interactive plot for results of DSC. Particularly tailored
+for the simple "simulate-analyze-score" framework. It plots boxplots of a score
+for each analyze module, facetting by the simulate module.
 }

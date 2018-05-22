@@ -4,8 +4,9 @@
 \alias{dscquery}
 \title{SQL-like interface for querying DSC output.}
 \usage{
-dscquery(dsc.outdir, targets, conditions = NULL, groups, add.path = FALSE,
-  exec = "dsc-query", max.extract.vector = 10, verbose = TRUE)
+dscquery(dsc.outdir, targets, conditions = NULL, groups = NULL,
+  add.path = FALSE, exec = "dsc-query", load.pkl = FALSE,
+  max.extract.vector = 10, verbose = TRUE)
 }
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
@@ -21,13 +22,15 @@ These will be the names of the columns in the returned data frame.}
 \item{conditions}{The default \code{NULL} means "no conditions", in
 which case the results for all DSC pipelines are returned.}
 
-\item{groups}{Definition of module groups. This feature is not yet
-implemented.}
+\item{groups}{Definition of module groups.}
 
 \item{add.path}{If TRUE, the returned data frame will contain full
 pathnames, not just the base filenames.}
 
 \item{exec}{The command or pathname of the dsc-query executable.}
+
+\item{load.pkl}{If \code{load_pkl = TRUE}, DSC files with `pkl` extension
+will be converted to RDS and loaded.}
 
 \item{max.extract.vector}{Vector-valued DSC outputs not exceeding
 this length are automatically extracted to the data frame.}

@@ -27,6 +27,9 @@
 #'
 #' @param max.extract.vector Vector-valued DSC outputs not exceeding
 #' this length are automatically extracted to the data frame.
+#'
+#' @param load.pkl If \code{load_pkl = TRUE}, DSC files with `pkl` extension
+#' will be converted to RDS and loaded.
 #' 
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
@@ -97,7 +100,7 @@
 #' @export
 #' 
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
-                      add.path = FALSE, exec = "dsc-query",
+                      add.path = FALSE, exec = "dsc-query", load.pkl = FALSE,
                       max.extract.vector = 10, verbose = TRUE) {
 
   # CHECK INPUTS
@@ -137,14 +140,19 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
   outfile <- tempfile(fileext = ".csv")
     
   # Build and run command based on the inputs.
-  cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f", "--rds overwrite",
+  cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
                    "--target",paste(targets,collapse = " "))
   if (length(conditions) > 1)
     conditions <- paste(conditions,collapse = " AND ")
   if (!is.null(conditions))
       cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
   if (length(groups) > 1)
-      cmd.str <- paste(cmd.str, "-g", paste(groups, collapse = " "))
+    cmd.str <- paste(cmd.str, "-g", paste(groups, collapse = " "))
+  if (load.pkl) {
+    cmd.str <- paste0(cmd.str, " --rds overwrite")
+  } else {
+    cmd.str <- paste0(cmd.str, " --rds omit")
+  }
   run_cmd(cmd.str, verbose)
   # LOAD DSC QUERY
   # --------------

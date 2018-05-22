@@ -10,7 +10,6 @@ merge_lists <- function(x, y, ...)
 }
 
 #' @importFrom tools file_ext
-#' @importFrom files file.exists
 #' @importFrom yaml yaml.load_file
 #' @export
 read_dsc <- function(infile) {
