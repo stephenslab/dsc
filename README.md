@@ -81,6 +81,7 @@ Goal for 0.2.9
 0.2.8.3
 
 - `dsc-io` can now convert CSV to HTML with pop-up figures.
+- Add `groups` and `load.pkl` options to `dscrutils::dscquery`.
 
 0.2.8.2
 

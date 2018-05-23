@@ -349,9 +349,6 @@ class DSC_Script:
         return out
 
     def init_dsc(self, args, env):
-        if args.__construct__ == 'none':
-            import shutil
-            shutil.rmtree('.sos')
         os.makedirs('.sos/.dsc', exist_ok = True)
         if os.path.dirname(self.runtime.output):
             os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)

@@ -224,7 +224,7 @@ def csv_to_html(infile, outfile):
             full_path = True
         else:
             return x
-        content = f'''<a href="{x if full_path else name}" onmouseover="showPopup(this, '{x if full_path else name}')" onmouseout="hidePopup()">{name}</a> <div id="popup"> </div></td>'''
+        content = f'''<a href="{x if full_path else name}" onmouseover="showPopup(this, '{x if full_path else name}')" onmouseout="hidePopup()">{name if len(name) < 15 else "Image"}</a> <div id="popup"> </div></td>'''
         return content
 
     data = pd.read_csv(infile).applymap(pop_html_img)
