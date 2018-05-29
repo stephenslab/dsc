@@ -359,7 +359,7 @@ class ResultDB:
             if self.ordering:
                 ordering = list(self.ordering)
                 tmp.sort(key = lambda x: ordering.index(x[0]))
-            pipelines.append(tmp)
+            pipelines.append(tuple(tmp))
         data = OrderedDict()
         for pipeline in pipelines:
             key = tuple(x[0] for x in pipeline)
