@@ -167,7 +167,7 @@ def execute(args):
             env.logger.warning('Cannot build DSC database because meta-data for this project is corrupted.')
         else:
             env.logger.info("Building DSC database ...")
-            ResultDB(f'{script.runtime.output}/{db}', master_tables).\
+            ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
                 Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
         if args.__construct__ == "all":
             return
@@ -210,7 +210,7 @@ def execute(args):
     # Build database
     if args.host is None:
         env.logger.info("Building DSC database ...")
-        ResultDB(f'{script.runtime.output}/{db}', master_tables).\
+        ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
             Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
         env.logger.info("DSC complete!")
 

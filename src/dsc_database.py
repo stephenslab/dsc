@@ -200,11 +200,12 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     open(conf_db, "wb").write(msgpack.packb(conf))
 
 class ResultDB:
-    def __init__(self, prefix, targets):
+    def __init__(self, prefix, targets, ordering):
         self.prefix = prefix
         # when set to None uses the last modules of pipelines
         # as master tables
         self.targets = targets
+        self.ordering = ordering
         # master tables
         self.master = OrderedDict()
         # data: every module is a table
@@ -221,17 +222,20 @@ class ResultDB:
     def load_parameters(self):
         #
         def search_dependent_index(x):
-            res = None
-            for vv in self.data.values():
-                try:
-                    # FIXME: maybe slow here
-                    res = vv['__id__'][vv['__module_id__'].index(x)]
-                    break
-                except ValueError:
-                    continue
-            if res is None:
-                raise DBError(f'Cannot find the queried dependency module instance ``{x}``!')
-            return res
+            res = []
+            for xx in x:
+                out = None
+                for vv in self.data.values():
+                    try:
+                        # FIXME: maybe slow here
+                        out = vv['__id__'][vv['__module_id__'].index(xx)]
+                        break
+                    except ValueError:
+                        continue
+                if out is None:
+                    raise DBError(f'Cannot find the queried dependency module instance ``{xx}``!')
+                res.append(out)
+            return tuple(res) if len(res) > 1 else res[0]
         #
         def find_namemap(x):
             if x in self.maps:
@@ -302,9 +306,8 @@ class ResultDB:
                     self.data[module]['__output__'].append(find_namemap(k[0]))
                     if len(k) > 1:
                         # Have to fine its ID ...
-                        # If I trust the order of io.meta.mpk then I just search which
-                        # module has __module_id__ == k[-1] and return its ID
-                        self.data[module]['__parent__'].append(search_dependent_index(k[-1]))
+                        # see which module has __module_id__ == k[i] and return its ID
+                        self.data[module]['__parent__'].append(search_dependent_index(k[1:]))
                     else:
                         self.data[module]['__parent__'].append(-9)
                     # Assign other parameters
@@ -316,24 +319,30 @@ class ResultDB:
 
     def __get_pipeline(self, module, module_id, module_idx, iteres):
         '''Input are last module name, ID, and its index (in its data frame)'''
+        if (module, module_id) in iteres:
+            return
         iteres.append((module, module_id))
         depend_id = self.data[module]['__parent__'][module_idx]
         if depend_id == -9:
             return
         else:
-            idx = None
-            module = None
+            idx = []
+            module = []
             for k in self.data:
                 # try get some idx
-                try:
-                    idx = self.data[k]['__id__'].index(depend_id)
-                    module = k
-                    break
-                except ValueError:
-                    continue
-            if idx is None or module is None:
+                if not isinstance(depend_id, tuple):
+                    depend_id = (depend_id,)
+                for item in depend_id:
+                    try:
+                        idx.append(self.data[k]['__id__'].index(item))
+                        module.append(k)
+                        break
+                    except ValueError:
+                        continue
+            if len(idx) == 0 or len(module) == 0:
                 raise DBError('Cannot find module instance ID ``{}`` in any tables!'.format(depend_id))
-            self.__get_pipeline(module, depend_id, idx, iteres)
+            for m, i, d in zip(module, idx, depend_id):
+                self.__get_pipeline(m, d, i, iteres)
 
     def write_master_table(self, module):
         '''
@@ -347,7 +356,10 @@ class ResultDB:
         for module_idx, module_id in enumerate(self.data[module]['__id__']):
             tmp = []
             self.__get_pipeline(module, module_id, module_idx, tmp)
-            pipelines.append(tuple(reversed(tmp)))
+            if self.ordering:
+                ordering = list(self.ordering)
+                tmp.sort(key = lambda x: ordering.index(x[0]))
+            pipelines.append(tmp)
         data = OrderedDict()
         for pipeline in pipelines:
             key = tuple(x[0] for x in pipeline)
@@ -379,4 +391,4 @@ class ResultDB:
 
 if __name__ == '__main__':
     import sys
-    ResultDB(sys.argv[1], sys.argv[2]).Build('NULL')
+    ResultDB(sys.argv[1], sys.argv[2], None).Build('NULL')
