@@ -7,7 +7,7 @@ import os, msgpack, glob, pickle
 import pandas as pd
 from collections import OrderedDict
 from .utils import uniq_list, flatten_list, chunks, remove_multiple_strings, extend_dict, \
-    remove_quotes, DBError
+    remove_quotes, DBError, filter_sublist
 from .addict import Dict as dotdict
 
 def remove_obsolete_output(output, additional_files = None, rerun = False):
@@ -316,33 +316,43 @@ class ResultDB:
                             if kk not in self.data[module]:
                                 self.data[module][kk] = []
                             self.data[module][kk].append(remove_quotes(vv))
+                # Expand `__parent__` tuple
+                self.data[module] = self.__expand_parents(self.data[module], KWS)
+
+    @staticmethod
+    def __expand_parents(table, KWS):
+        # for lines with __parent__ being a tuple, make it 2 lines
+        lengths = [len(item) if isinstance(item, tuple) else 1 for item in table['__parent__']]
+        for k in table:
+            if k in KWS:
+                continue
+            if k == '__parent__':
+                table[k] = flatten_list(table[k])
+            else:
+                table[k] = flatten_list([[item]*length for item, length in zip(table[k], lengths)])
+        return table
 
     def __get_pipeline(self, module, module_id, module_idx, iteres):
         '''Input are last module name, ID, and its index (in its data frame)'''
-        if (module, module_id) in iteres:
-            return
         iteres.append((module, module_id))
         depend_id = self.data[module]['__parent__'][module_idx]
         if depend_id == -9:
             return
         else:
-            idx = []
-            module = []
+            idx = None
+            module = None
             for k in self.data:
                 # try get some idx
-                if not isinstance(depend_id, tuple):
-                    depend_id = (depend_id,)
-                for item in depend_id:
-                    try:
-                        idx.append(self.data[k]['__id__'].index(item))
-                        module.append(k)
-                        break
-                    except ValueError:
-                        continue
-            if len(idx) == 0 or len(module) == 0:
+                idx = [i for i, value in enumerate(self.data[k]['__id__']) if value == depend_id]
+                if len(idx) == 0:
+                    idx = None
+                else:
+                    module = k
+                    break
+            if idx is None or module is None:
                 raise DBError('Cannot find module instance ID ``{}`` in any tables!'.format(depend_id))
-            for m, i, d in zip(module, idx, depend_id):
-                self.__get_pipeline(m, d, i, iteres)
+            for i in idx:
+                self.__get_pipeline(module, depend_id, i, iteres)
 
     def write_master_table(self, module):
         '''
@@ -356,6 +366,7 @@ class ResultDB:
         for module_idx, module_id in enumerate(self.data[module]['__id__']):
             tmp = []
             self.__get_pipeline(module, module_id, module_idx, tmp)
+            tmp = uniq_list(tmp)
             if self.ordering:
                 ordering = list(self.ordering)
                 tmp.sort(key = lambda x: ordering.index(x[0]))
@@ -369,7 +380,12 @@ class ResultDB:
         for key in list(data.keys()):
             header = data[key].pop(0)
             data[key] = pd.DataFrame(data[key], columns = header)
-            data['+'.join(key)] = data.pop(key)
+        keys = filter_sublist(list(data.keys()), ordered = False)
+        for key in list(data.keys()):
+            if key not in keys:
+                del data[key]
+            else:
+                data['+'.join(key)] = data.pop(key)
         return data
 
     def Build(self, script = None, groups = None):
