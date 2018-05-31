@@ -66,6 +66,7 @@ def query(args):
             else:
                 fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl')]
             if len(fns):
+                fns = uniq_list(fns)
                 try:
                     import warnings, psutil
                     from rpy2.rinterface import RRuntimeWarning
