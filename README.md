@@ -78,6 +78,10 @@ Goal for 0.2.9
 
 ### 0.2.x
 
+0.2.8.4
+
+- Fix running Python 3 based modules on Mac computer with `homebrew` installed Python #140.
+
 0.2.8.3
 
 - `dsc-io` can now convert CSV to HTML with pop-up figures.
