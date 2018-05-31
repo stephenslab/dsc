@@ -158,7 +158,7 @@ class DSC_Translator:
             res = '\n'.join([f'[1]\ndepends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
                              f'output: ".sos/{self.db}.remote_lib-info"',
                              f'task: to_host = {repr(arg)}' if len(arg) else '',
-                             f'python:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
+                             f'python3:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
             for item in self.lib_depends:
                 res += "\n %s" % item
             res += '\n print({}, file=open(".sos/{}.remote_lib-info", "w"))'.format(repr(arg), self.db)
@@ -359,11 +359,11 @@ class DSC_Translator:
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     sigil = '$[ ]' if plugin.name == 'bash' else '${ }'
                     if self.conf is None:
-                        self.action += f'{plugin.name}: expand = "{sigil}", workdir = {repr(self.step.workdir)}'
+                        self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}", workdir = {repr(self.step.workdir)}'
                         if self.use_log:
                             self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
-                        self.action += f'{plugin.name}: expand = "{sigil}"'
+                        self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
                     self.action += plugin.get_cmd_args(cmd['args'], self.params)
                     # Add action
                     if len(cmd['path']) == 0:
