@@ -115,7 +115,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
 
   # Check input argument "conditions".
   if (!is.null(conditions))
-    if (!(is.character(conditions) & length(conditions) == 1))
+    if (!(is.character(conditions) & is.vector(conditions)))
       stop("Argument \"conditions\" should be NULL or a character vector")
     
 
