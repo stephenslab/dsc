@@ -3,7 +3,7 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-import os, msgpack, glob, pickle
+import os, msgpack, glob, pickle, copy
 import pandas as pd
 from collections import OrderedDict
 from .utils import uniq_list, flatten_list, chunks, remove_multiple_strings, extend_dict, \
@@ -105,7 +105,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
         # return is a list of original name and new name mapping
         names = OrderedDict()
         lookup = dict()
-        base_ids = dict()
+        base_ids = map_data['__base_ids__'] if '__base_ids__' in map_data else dict()
         # 1. collect sequence names and hash
         for k in list(data.keys()):
             for kk in data[k]:
@@ -120,10 +120,11 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                 # ('mean', 'dfb0dd672bf5d91dd580ac057daa97b9'),
                 # ('MSE', '0657f03051e0103670c6299f9608e939')]
                 k_core = tuple([x[0] for x in content])
-                if not k_core in base_ids:
-                    base_ids[k_core] = dict([(x, 0) for x in k_core])
-                if not k_core in lookup:
-                    lookup[k_core] = dict()
+                key = ':'.join(k_core)
+                if not key in base_ids:
+                    base_ids[key] = dict([(x, 0) for x in k_core])
+                if not key in lookup:
+                    lookup[key] = dict()
                 if kk in map_data:
                     # same module signature already exist
                     # will not work on the name map of these
@@ -133,26 +134,30 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                     # in this particular sequence
                     ids = os.path.splitext(remove_multiple_strings(map_data[kk], kk.split(':')[::2]))[0]
                     ids = [int(s) for s in ids.split('_') if s.isdigit()]
-                    for i, x in enumerate(base_ids[k_core].keys()):
-                        base_ids[k_core][x] = max(base_ids[k_core][x], ids[i])
+                    for i, x in enumerate(base_ids[key].keys()):
+                        base_ids[key][x] = max(base_ids[key][x], ids[i])
                     names[kk] = map_data[kk]
                 else:
-                    lookup[k_core] = extend_dict(lookup[k_core], dict(content), unique = True)
+                    lookup[key] = extend_dict(lookup[key], dict(content), unique = True)
                     names[kk] = content
                     names[kk].append(data[k]["__ext__"])
+        new_base_ids = copy.deepcopy(base_ids)
         for k in names:
             # existing items in map_data, skip them
             if isinstance(names[k], str):
                 continue
             # new items to be processed
             k_core = dict(names[k][:-1])
-            key = tuple(k_core.keys())
+            key = ':'.join(tuple(k_core.keys()))
             # 2. replace the hash with an ID
             new_name = []
             for kk in k_core:
-                new_name.append(f'{kk}_{base_ids[key][kk] + lookup[key][kk].index(k_core[kk]) + 1}')
+                new_id = base_ids[key][kk] + lookup[key][kk].index(k_core[kk]) + 1
+                new_name.append(f'{kk}_{new_id}')
+                new_base_ids[key][kk] = max(new_base_ids[key][kk], new_id)
             # 3. construct name map
             names[k] = f'{k.split(":", 1)[0]}/' + '_'.join(new_name) + f'.{names[k][-1]}'
+        names['__base_ids__'] = new_base_ids
         return names
 
     def update_map(names):
