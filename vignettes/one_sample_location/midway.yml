@@ -49,3 +49,7 @@ default:
 
 simulate:
   instances_per_job: 20
+
+score:
+  queue: None
+
