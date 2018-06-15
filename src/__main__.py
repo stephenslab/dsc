@@ -218,7 +218,7 @@ def execute(args):
     if args.__dag__:
         from sos.utils import dot_to_gif
         try:
-            env.logger.info("Generating GIF animation of benchmark execution (may take a while) ...")
+            env.logger.info("Generating animation of benchmark execution (may take a while; can be disrupted if no longer wanted) ...")
             dag = dot_to_gif(script_run[:-3] + ".dot")
             with open(f'{db}.DAG.html', 'w') as f:
                 f.write(f'<img class="dag-image" src="data:image/png;base64,{dag}">')
