@@ -177,6 +177,7 @@ def execute(args):
         content = {'__sig_mode__': mode,
                    '__queue__': f'{args.host}-process',
                    '__config__': script_run[:-3] + 'localhost.yml',
+                   '__dag__': (script_run[:-3] + ".dot") if args.__dag__ else '',
                    'script': pipeline.write_pipeline(args.to_host)}
         try:
             with Silencer(args.verbosity):
@@ -194,6 +195,7 @@ def execute(args):
                '__bin_dirs__': exec_path,
                '__remote__': args.host if len(args.to_host) else None,
                '__config__': cfg_file,
+               '__dag__': (script_run[:-3] + ".dot") if args.__dag__ else '',
                'script': script_run,
                'workflow': "DSC"}
     try:
@@ -212,6 +214,17 @@ def execute(args):
         ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
             Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
         env.logger.info("DSC complete!")
+    # Plot DAG
+    if args.__dag__:
+        from sos.utils import dot_to_gif
+        try:
+            env.logger.info("Generating GIF animation of benchmark execution (may take a while) ...")
+            dag = dot_to_gif(script_run[:-3] + ".dot")
+            with open(f'{db}.DAG.html', 'w') as f:
+                f.write(f'<img class="dag-image" src="data:image/png;base64,{dag}">')
+            env.logger.info(f"Execution graph saved to ``{db}.DAG.html``")
+        except Exception as e:
+            env.logger.warning(f'Failed to execution graph ``{db}.DAG.html``: {e}')
 
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
@@ -273,9 +286,8 @@ def main():
     ro.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
-    ro.add_argument('-p', dest = '__print__', action='store_true',
-                    help='''Print stdout and stderr to screen. Caution that running DSC with and without "-p" will trigger rerun
-                    unless "--touch" option is also used.''')
+    ro.add_argument('-d', dest = '__dag__', action='store_true',
+                    help='''Output benchmark execution graph animation in HTML format.''')
     rt = p.add_argument_group('Remote execution')
     rt.add_argument('--host', metavar='file', help = '''Configuration file for remote computer.''')
     rt.add_argument('--to-host', metavar='dir', dest = 'to_host', nargs = '+', default = [],

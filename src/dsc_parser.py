@@ -333,7 +333,6 @@ class DSC_Script:
         out.__queue__ = None
         out.__remote__ = None
         out.dryrun = False
-        out.__dag__ = ''
         # In DSC we will not support `resume` just to keep it simple
         out.__resume__ = False
         out.__config__ = f'.sos/.dsc/{name}.conf.yml'
