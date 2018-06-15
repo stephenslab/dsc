@@ -331,7 +331,11 @@ class DSC_Translator:
                 self.output_string += f"output: {self.step.name}_output_files[_index]"
 
         def get_step_option(self):
-            if not self.prepare and self.conf is not None:
+            if not self.prepare:
+                self.step_option += "empty_log(_output)\n"
+                if self.conf is None or (self.step.name in self.conf and self.conf[self.step.name]['queue'] is None) \
+                   or (self.step.name not in self.conf and self.conf['default']['queue'] is None):
+                    return
                 self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{self.step.name}_{{_output:bn}}', workdir = {repr(self.step.workdir)}, concurrent = True\n"
 
         def get_action(self):
@@ -351,7 +355,6 @@ class DSC_Translator:
             else:
                 # FIXME: have not considered multi-action module (or compound module) yet
                 # Create fake loop for now with idx going around
-                self.action += "empty_log(_output)\n"
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     sigil = '$[ ]' if plugin.name == 'bash' else '${ }'
                     if self.conf is None:
@@ -382,7 +385,7 @@ class DSC_Translator:
                     else:
                         self.exe_check.append(f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
-                self.action += "remove_log(_output)"
+                self.action += "\nremove_log(_output)"
 
         def dump(self):
             return '\n'.join([x for x in
