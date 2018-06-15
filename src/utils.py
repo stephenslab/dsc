@@ -696,27 +696,33 @@ def locate_file(file_name, file_path):
             res = os.path.join(item, file_name)
     return res
 
+def empty_log(fn):
+    if fn.with_suffix('.stderr').exists():
+        open(fn.with_suffix('.stderr'), 'w').close()
+    if fn.with_suffix('.stdout').exists():
+        open(fn.with_suffix('.stdout'), 'w').close()
+
+def remove_log(fn):
+    try:
+        if fn.with_suffix('.stderr').stat().st_size == 0:
+            os.remove(fn.with_suffix('.stderr'))
+    except Exception:
+        pass
+    try:
+        if fn.with_suffix('.stdout').stat().st_size == 0:
+            os.remove(fn.with_suffix('.stdout'))
+    except Exception:
+        pass
+
 def n2a(col_num, col_abs=False):
-    """
-    Convert a one indexed column cell reference to a string.
-    Args:
-       col:     The cell column. Int.
-       col_abs: Optional flag to make the column absolute. Bool.
-    Returns:
-        Column style string.
-    """
     col_str = ''
     col_abs = '$' if col_abs else ''
     while col_num:
-        # Set remainder from 1 .. 26
         remainder = col_num % 26
         if remainder == 0:
             remainder = 26
-        # Convert the remainder to a character.
         col_letter = chr(ord('A') + remainder - 1)
-        # Accumulate the column letters, right to left.
         col_str = col_letter + col_str
-        # Get the next order of magnitude.
         col_num = int((col_num - 1) / 26)
     return col_abs + col_str
 

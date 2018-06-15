@@ -10,7 +10,7 @@ import os, sys, msgpack, glob, inspect
 from xxhash import xxh32 as xxh
 from collections import OrderedDict
 from sos.targets import path
-from .utils import uniq_list, dict2str, n2a, \
+from .utils import uniq_list, dict2str, n2a, empty_log, remove_log, \
     install_r_lib, install_py_module
 __all__ = ['DSC_Translator']
 
@@ -21,7 +21,7 @@ class DSC_Translator:
       * Pipelines are executed via nested SoS workflows
     '''
     def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False,
-                 host_conf = None, use_logfile = True):
+                 host_conf = None):
         # FIXME: to be replaced by the R utils package
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
@@ -35,7 +35,7 @@ class DSC_Translator:
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      f"IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"\
-                     f"{inspect.getsource(n2a)}\n"
+                     f"{inspect.getsource(n2a)}\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
         conf_dict = dict()
         conf_str = []
@@ -62,8 +62,7 @@ class DSC_Translator:
                     # Has the core been processed?
                     if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
                         job_translator = self.Step_Translator(step, self.db, None,
-                                                              try_catch, host_conf,
-                                                              use_logfile)
+                                                              try_catch, host_conf)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
                         exe_signatures[step.name] = job_translator.exe_signature
@@ -210,7 +209,7 @@ class DSC_Translator:
             f.write('\n'.join(installed_libs + new_libs))
 
     class Step_Translator:
-        def __init__(self, step, db, step_map, try_catch, host_conf = None, use_logfile = True):
+        def __init__(self, step, db, step_map, try_catch, host_conf = None):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -234,7 +233,6 @@ class DSC_Translator:
             self.db = db
             self.conf = host_conf
             self.input_vars = None
-            self.use_log = use_logfile
             self.header = ''
             self.loop_string = ['', '']
             self.filter_string = ''
@@ -353,15 +351,12 @@ class DSC_Translator:
             else:
                 # FIXME: have not considered multi-action module (or compound module) yet
                 # Create fake loop for now with idx going around
-                if self.conf is None and self.use_log:
-                    self.action += "if _output.with_suffix('.stderr').exists():\n\topen(_output.with_suffix('.stderr'), 'w').close()\n" \
-                                   "if _output.with_suffix('.stdout').exists():\n\topen(_output.with_suffix('.stdout'), 'w').close()\n"
+                self.action += "empty_log(_output)\n"
                 for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
                     sigil = '$[ ]' if plugin.name == 'bash' else '${ }'
                     if self.conf is None:
                         self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}", workdir = {repr(self.step.workdir)}'
-                        if self.use_log:
-                            self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
+                        self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
                         self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
                     self.action += plugin.get_cmd_args(cmd['args'], self.params)
@@ -387,9 +382,7 @@ class DSC_Translator:
                     else:
                         self.exe_check.append(f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
-                if self.conf is None and self.use_log:
-                    self.action += "\ntry:\n\tif _output.with_suffix('.stderr').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stderr'))\nexcept Exception:\n\tpass\n" \
-                                   "try:\n\tif _output.with_suffix('.stdout').stat().st_size == 0:\n\t\tos.remove(_output.with_suffix('.stdout'))\nexcept Exception:\n\tpass"
+                self.action += "remove_log(_output)"
 
         def dump(self):
             return '\n'.join([x for x in
