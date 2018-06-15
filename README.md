@@ -78,6 +78,15 @@ Goal for 0.2.9
 
 ### 0.2.x
 
+0.2.8.5
+
+- Bug fixes for cluster execution #142, #143, #144.
+- Add `-d` option to output DAG #141.
+- Removed `-p` option because it triggers rerun and cannot be easily implemented otherwise.
+- SoS bumped to version 0.9.14.10 for many of the fixes above.
+
+**A file signature clean up is recommended after this upgrade.**
+
 0.2.8.4
 
 - Fix running Python 3 based modules on Mac computer with `homebrew` installed Python #140.
