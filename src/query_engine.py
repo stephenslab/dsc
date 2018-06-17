@@ -440,9 +440,12 @@ class Query_Processor:
         # or groups completely non-overlapping, that might result in
         # creating blocks of missing structure.
         # We should consolidate them
-        self.output_table.replace('NA', np.nan, inplace = True)
-        self.output_table = self.output_table.groupby(self.output_table.columns[self.output_table.notnull().all()].tolist(),
-                                  as_index=False).first().fillna('NA')[self.output_table.columns]
+        ## FIXME: disable this feature because it is not clear whether or not this is good idea
+        ## without trying to guess the context (by parameter and value)
+        ## see https://github.com/stephenslab/dsc/issues/145
+        # self.output_table.replace('NA', np.nan, inplace = True)
+        # self.output_table = self.output_table.groupby(self.output_table.columns[self.output_table.notnull().all()].tolist(),
+        #                           as_index=False).first().fillna('NA')[self.output_table.columns]
 
     def get_queries(self):
         return self.queries
