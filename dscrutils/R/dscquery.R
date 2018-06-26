@@ -201,17 +201,21 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       # files. Repeat for each row of the query table.
       dsc.module.files <- dat[[j]][[1]]
       for (i in 1:n) {
-        dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
-        if (!file.exists(dscfile))
-          stop(paste("Unable to read",dscfile,"because it does not exist"))
-        out <- readRDS(dscfile)
+        if (dsc.module.files[i] == 'NA') {
+          values[[i]] <- NA
+        } else {
+          dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
+          if (!file.exists(dscfile))
+            stop(paste("Unable to read",dscfile,"because it does not exist"))
+          out <- readRDS(dscfile)
 
-        # Check that the variable is one of the outputs in the file.
-        if (!is.element(var,names(out)))
-          stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
+          # Check that the variable is one of the outputs in the file.
+          if (!is.element(var,names(out)))
+            stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
 
-        # Extract the value of the variable.
-        values[[i]] <- out[[var]]
+          # Extract the value of the variable.
+          values[[i]] <- out[[var]]
+        }
       }
 
       # If all the values are atomic, not NULL, and scalar (i.e.,
