@@ -22,7 +22,10 @@ These will be the names of the columns in the returned data frame.}
 \item{conditions}{The default \code{NULL} means "no conditions", in
 which case the results for all DSC pipelines are returned.}
 
-\item{groups}{Definition of module groups.}
+\item{groups}{Definition of module groups. For example, 
+\code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
+will dynamically create module groups \code{method} and \code{score}
+even if they have not previously been defined when running DSC.}
 
 \item{add.path}{If TRUE, the returned data frame will contain full
 pathnames, not just the base filenames.}

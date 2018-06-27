@@ -18,7 +18,10 @@
 #' @param conditions The default \code{NULL} means "no conditions", in
 #' which case the results for all DSC pipelines are returned.
 #'
-#' @param groups Definition of module groups.
+#' @param groups Definition of module groups. For example, 
+#' \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
+#' will dynamically create module groups \code{method} and \code{score}
+#' even if they have not previously been defined when running DSC.
 #' 
 #' @param add.path If TRUE, the returned data frame will contain full
 #' pathnames, not just the base filenames.
@@ -146,8 +149,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
     conditions <- paste(conditions,collapse = " AND ")
   if (!is.null(conditions))
       cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
-  if (length(groups) > 1)
-    cmd.str <- paste(cmd.str, "-g", paste(groups, collapse = " "))
+  if (length(groups) >= 1)
+    cmd.str <- paste0(cmd.str, " -g \"", paste(gsub(" ", "", groups), collapse = " "), "\"")
   if (load.pkl) {
     cmd.str <- paste0(cmd.str, " --rds overwrite")
   } else {
