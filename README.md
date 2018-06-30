@@ -78,6 +78,10 @@ Goal for 0.2.9
 
 ### 0.2.x
 
+0.2.8.6
+
+- Change in query behavior #145
+
 0.2.8.5
 
 - Bug fixes for cluster execution #142, #143, #144.

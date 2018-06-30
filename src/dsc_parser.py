@@ -935,6 +935,8 @@ class DSC_Section:
         if 'define' not in self.content:
             return
         replace_list = []
+        if not isinstance(self.content['define'], Mapping):
+            raise FormatError("Invalid format for ``DSC::define``!")
         for lhs, rhs in self.content['define'].items():
             rhs = f"({', '.join(rhs)})"
             for item in reversed(replace_list):
@@ -959,6 +961,8 @@ class DSC_Section:
         '''
         if 'define' not in self.content:
             return value
+        if not isinstance(self.content['define'], Mapping):
+            raise FormatError("Invalid format for ``DSC::define``!")
         for lhs, rhs in self.content["define"].items():
             if not '*' in rhs:
                 # is a valid group
