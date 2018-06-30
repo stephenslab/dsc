@@ -403,7 +403,7 @@ class Query_Processor:
                     break
             self.groups[g] = ordered_group
             for k in to_merge:
-                if len(to_merge[k]) > 1:
+                if len(ordered_group) > 1:
                     table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(tuple, 1)
                     non_na_idx = table[f'{g}{k}'].apply(lambda x: tuple([idx for idx, y in enumerate(x) if y == y]))
                     if not all([len(x) <= 1 for x in non_na_idx]):
@@ -412,6 +412,7 @@ class Query_Processor:
                     if not g in table:
                         table[g] = [self.groups[g][kk[0]] if len(kk) else "NA" for kk in non_na_idx]
                 else:
+                    # it is a trivial group
                     # simply rename it
                     table[f'{g}{k}'] = table[to_merge[k][0]]
                     table[g] = [kk for kk in self.groups[g] if to_merge[k][0].startswith(kk + '.')][0]
