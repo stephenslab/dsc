@@ -202,6 +202,8 @@ class DSC_Script:
             if not (vv == '*' or vv.startswith('@') or vv.startswith('$')):
                 if not vv.isidentifier():
                     raise FormatError(f'Invalid variable name ``{vv}``.\n{identifier}')
+            if vv in SOS_KW:
+                raise FormatError(f'Variable name ``{vv}`` conflicts with DSC reserved keywords.')
 
     def get_derived_blocks(self):
         '''
