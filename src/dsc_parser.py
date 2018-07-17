@@ -55,13 +55,13 @@ class DSC_Script:
                     raise FormatError(f'Invalid syntax ``{line}``. '\
                                       'Should be in the format of ``module names: module executables``')
                 res.append(f'{text[0]}:')
-                exe += text[1].strip('\\')
+                exe += re.sub('\\\\$', '\n', text[1])
                 parens_counter.update(Counter(text[1]))
             else:
                 if (headline and parens_counter['('] != parens_counter[')']) \
                    or (headline and len(text) == 1):
                     # still contents for exe
-                    exe += line.strip('\\')
+                    exe += re.sub('\\\\$', '\n', line)
                 else:
                     headline = False
                     if len(text) == 1:
