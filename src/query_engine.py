@@ -177,8 +177,12 @@ class Query_Processor:
     def add_na_group_parameters(self):
         if len(self.groups) == 0:
             return
-        for group in self.groups:
-            params = uniq_list(flatten_list([self.data[item].columns.tolist() for item in self.groups[group]]))
+        for group in list(self.groups.keys()):
+            params = uniq_list(flatten_list([self.data[item].columns.tolist() for item in self.groups[group] if item in self.data]))
+            if len(params) == 0:
+                # group is not used
+                del self.groups[group]
+                continue
             params = [x for x in params if not x in ['__id__', '__parent__', '__output__', 'DSC_REPLICATE']]
             for param in params:
                 for module in self.groups[group]:
