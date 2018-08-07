@@ -113,12 +113,13 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
     stop("Argument \"dsc.outdir\" should be a character string")
     
   # Check input argument "targets".
-  if (!(is.character(targets) & is.vector(targets)))
+  if (!(is.character(targets) & is.vector(targets) & !is.list(targets)))
     stop("Argument \"targets\" should be a character vector")
 
   # Check input argument "conditions".
   if (!is.null(conditions))
-    if (!(is.character(conditions) & is.vector(conditions)))
+      if (!(is.character(conditions) & is.vector(conditions) &
+            !is.list(conditions)))
       stop("Argument \"conditions\" should be NULL or a character vector")
     
 
@@ -240,7 +241,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
         # vector values into the data frame.
         extract.values   <- FALSE
         all.lengths.same <- FALSE
-        if (all(sapply(values,is.vector)))
+        if (all(sapply(values,function (x) is.vector(x) & !is.list(x))))
           if (length(unique(sapply(values,length))) == 1) {
             all.lengths.same <- TRUE
             if (max(sapply(values,length)) <= max.extract.vector)
