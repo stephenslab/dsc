@@ -496,6 +496,9 @@ class DSC_Module:
 
     @staticmethod
     def pop_lib(vec, lib):
+        '''
+        Move library load or import to a separate list variable
+        '''
         res = []
         for item in vec:
             if lib.search(item) and ';' not in item:
@@ -575,13 +578,11 @@ class DSC_Module:
             if self.exe['interpreter'] is None and not executable('Rscript').target_exists():
                 raise ValueError(f'Executable ``Rscript`` is required to run module ``"{self.name}"`` yet is not available from command-line console.')
             # bump libraries import to front of script
-            self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_RLIB)
             if self.rlib:
-                self.exe['header'] = [f'library({x.split()[0].split("@")[0]})' for x in self.rlib] + self.exe['header']
+                self.exe['header'] = [f'library({x.split()[0].split("@")[0]})' for x in self.rlib]
         elif self.exe['type'] == 'PY':
-            self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_PYMODULE)
             if self.pymodule:
-                self.exe['header'] = [f'import {x.split()[0]}' for x in self.pymodule] + self.exe['header']
+                self.exe['header'] = [f'import {x.split()[0]}' for x in self.pymodule]
         self.exe['header'] = '\n'.join(uniq_list(self.exe['header']))
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])

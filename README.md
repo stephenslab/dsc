@@ -78,6 +78,10 @@ Goal for 0.2.10
 
 ### 0.2.x
 
+0.2.9.1
+
+- Stop moving library imports to the front of scripts, due to various side effect.
+
 0.2.9.0
 
 - SoS bumped to version 0.9.16.0 for optimized remote task file management.
