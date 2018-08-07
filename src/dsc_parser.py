@@ -513,7 +513,7 @@ class DSC_Module:
         - ('unknown', ['datamaker.py', 'split'])
         '''
         self.exe = {'path': [], 'content': [], 'args': None, 'signature': None,
-                    'file': [], 'type': 'unknown', 'header': '', 'interpreter': None}
+                    'file': [], 'type': 'unknown', 'header': [], 'interpreter': None}
         for etype, item in zip(exe[0], exe[1:]):
             if len(item) > 1:
                 if self.exe['args'] is not None:
@@ -577,12 +577,9 @@ class DSC_Module:
             # check if Rscript command exists
             if self.exe['interpreter'] is None and not executable('Rscript').target_exists():
                 raise ValueError(f'Executable ``Rscript`` is required to run module ``"{self.name}"`` yet is not available from command-line console.')
-            # bump libraries import to front of script
+            # auto-import R libraries (but not Python!)
             if self.rlib:
                 self.exe['header'] = [f'library({x.split()[0].split("@")[0]})' for x in self.rlib]
-        elif self.exe['type'] == 'PY':
-            if self.pymodule:
-                self.exe['header'] = [f'import {x.split()[0]}' for x in self.pymodule]
         self.exe['header'] = '\n'.join(uniq_list(self.exe['header']))
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])
