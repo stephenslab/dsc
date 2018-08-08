@@ -19,10 +19,9 @@ DSC:
       #SBATCH --ntasks-per-node={cores}
       #SBATCH --mem-per-cpu={mem//10**9}G
       #SBATCH --job-name={job_name}
-      #SBATCH --output={cur_dir}/stdout/{job_name}.out
-      #SBATCH --error={cur_dir}/stdout/{job_name}.err
+      #SBATCH --output={cur_dir}/.sos/{job_name}.out
+      #SBATCH --error={cur_dir}/.sos/{job_name}.err
       cd {cur_dir}
-      mkdir -p stdout
       module load R
     partition: "SBATCH --partition=broadwl"
     account: ""
