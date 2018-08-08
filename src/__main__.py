@@ -163,7 +163,7 @@ def execute(args):
     # Recover DSC database alone from meta-file
     if args.host or args.__construct__ == "all":
         if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
-                 and os.path.isfile(f'.sos/.dsc/{db}.io.mpk'))):
+                 and os.path.isfile(f'{DSC_CACHE}/{db}.io.mpk'))):
             env.logger.warning('Cannot build DSC database because meta-data for this project is corrupted.')
         else:
             env.logger.info("Building DSC database ...")
