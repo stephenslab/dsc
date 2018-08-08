@@ -6,7 +6,7 @@ DSC:
       home: /home/gaow
     queue_type: pbs
     status_check_interval: 60
-    max_running_jobs: 30
+    max_running_jobs: 60
     max_cores: 40
     max_walltime: "36:00:00"
     max_mem: 64G
@@ -19,10 +19,11 @@ DSC:
       #SBATCH --ntasks-per-node={cores}
       #SBATCH --mem-per-cpu={mem//10**9}G
       #SBATCH --job-name={job_name}
-      #SBATCH --output={cur_dir}/.sos/{job_name}.out
-      #SBATCH --error={cur_dir}/.sos/{job_name}.err
+      #SBATCH --output={cur_dir}/stdout/{job_name}.out
+      #SBATCH --error={cur_dir}/stdout/{job_name}.err
       cd {cur_dir}
-      module load R/3.4.3
+      mkdir -p stdout
+      module load R
     partition: "SBATCH --partition=broadwl"
     account: ""
     submit_cmd: sbatch {job_file}
