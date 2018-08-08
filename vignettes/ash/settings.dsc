@@ -19,7 +19,7 @@ simulate: datamaker.R
 
 shrink: runash.R
     # module input and variables
-    input: $data
+    data: $data
     mixcompdist: "normal", "halfuniform"
     # module output
     $ash_data: ash_data

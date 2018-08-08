@@ -6,4 +6,4 @@ ash.wrapper=function(input,args=NULL){
   res = do.call(ash, args=c(list(betahat=input$betahat,sebetahat=input$sebetahat),args))
   return(res)
 }
-ash_data = ash.wrapper(input$input, list(mixcompdist = mixcompdist, optmethod = "mixEM"))
+ash_data = ash.wrapper(data$input, list(mixcompdist = mixcompdist, optmethod = "mixEM"))

@@ -5,8 +5,9 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
 import os, sys, glob, time, yaml
-from .version import __version__
 from sos.utils import env, get_traceback
+from .version import __version__
+from .syntax import DSC_CACHE
 
 class Silencer:
     def __init__(self, verbosity):
@@ -79,7 +80,7 @@ def execute(args):
             raise ValueError('Cannot set option ``--to-host`` without specifying ``--host``!')
     #
     if args.debug:
-        workflow2html(f'.sos/.dsc/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
+        workflow2html(f'{DSC_CACHE}/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
     # FIXME: make sure try_catch works, or justify that it is not necessary to have.
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
                               args.__max_jobs__, args.try_catch, conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'})
@@ -103,7 +104,7 @@ def execute(args):
     from sos.converter import script_to_html
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
-        script_to_html(os.path.abspath(script_prepare), f'.sos/.dsc/{db}.prepare.html')
+        script_to_html(os.path.abspath(script_prepare), f'{DSC_CACHE}/{db}.prepare.html')
     mode = "default"
     if args.__construct__ == "none":
         mode = "force"
@@ -157,7 +158,7 @@ def execute(args):
                                  f'{script.runtime.output}/{db}.db',
                                  f'{script.runtime.output}/{db}.conf.mpk'])
     if args.debug:
-        script_to_html(os.path.abspath(script_run), f'.sos/.dsc/{db}.run.html')
+        script_to_html(os.path.abspath(script_run), f'{DSC_CACHE}/{db}.run.html')
         return
     # Recover DSC database alone from meta-file
     if args.host or args.__construct__ == "all":
@@ -188,7 +189,7 @@ def execute(args):
             raise RuntimeError(e)
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
-    cfg_file = (script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml')) if args.host else f'.sos/.dsc/{db}.conf.yml'
+    cfg_file = (script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml')) if args.host else f'{DSC_CACHE}/{db}.conf.yml'
     content = {'__max_running_jobs__': args.__max_jobs__,
                '__max_procs__': args.__max_jobs__,
                '__sig_mode__': mode,

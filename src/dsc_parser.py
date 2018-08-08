@@ -337,7 +337,7 @@ class DSC_Script:
         out.dryrun = False
         # In DSC we will not support `resume` just to keep it simple
         out.__resume__ = False
-        out.__config__ = f'.sos/.dsc/{name}.conf.yml'
+        out.__config__ = f'{DSC_CACHE}/{name}.conf.yml'
         out.update(content)
         if '__max_running_jobs__' not in content:
             out.__max_running_jobs__ = 1
@@ -350,10 +350,10 @@ class DSC_Script:
         return out
 
     def init_dsc(self, args, env):
-        os.makedirs('.sos/.dsc', exist_ok = True)
+        os.makedirs(DSC_CACHE, exist_ok = True)
         if os.path.dirname(self.runtime.output):
             os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)
-        conf = '.sos/.dsc/{}.conf.yml'.format(os.path.basename(self.runtime.output))
+        conf = f'{DSC_CACHE}/{os.path.basename(self.runtime.output)}.conf.yml'
         with open(conf, 'w') as f:
             f.write('localhost: localhost\nhosts:\n  localhost:\n    address: localhost')
         if env.verbosity > 2:
@@ -501,8 +501,8 @@ class DSC_Module:
         '''
         res = []
         for item in vec:
-            if lib.search(item) and ';' not in item:
-                res.append(vec.pop(vec.index(item)).strip())
+            if lib.search(item):
+                res.append(item.split(';')[0].strip())
         return res, vec
 
     def set_exec(self, exe):
@@ -578,8 +578,9 @@ class DSC_Module:
             if self.exe['interpreter'] is None and not executable('Rscript').target_exists():
                 raise ValueError(f'Executable ``Rscript`` is required to run module ``"{self.name}"`` yet is not available from command-line console.')
             # auto-import R libraries (but not Python!)
+            self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_RLIB)
             if self.rlib:
-                self.exe['header'] = [f'library({x.split()[0].split("@")[0]})' for x in self.rlib]
+                self.exe['header'] = [f'library({x.split()[0].split("@")[0]})' for x in self.rlib] + self.exe['header']
         self.exe['header'] = '\n'.join(uniq_list(self.exe['header']))
         self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
                                          if x.strip() and not x.strip().startswith('#')])

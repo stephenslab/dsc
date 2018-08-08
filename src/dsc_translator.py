@@ -12,6 +12,7 @@ from collections import OrderedDict
 from sos.targets import path
 from .utils import uniq_list, dict2str, n2a, empty_log, remove_log, \
     install_r_lib, install_py_module
+from .syntax import DSC_CACHE
 __all__ = ['DSC_Translator']
 
 class DSC_Translator:
@@ -91,9 +92,9 @@ class DSC_Translator:
                 conf_str.append(f"###\n# [{n2a(workflow_id + 1)}]\n###\n" \
                                 f"__pipeline_id__ = '{workflow_id + 1}'\n"\
                                 f'''__pipeline_name__ = '{"+".join([n2a(x[1]).lower()+"_"+x[0] for x in sqn])}'\n''' \
-                                f"# output: '.sos/.dsc/{self.db}_{workflow_id + 1}.mpk'\n")
+                                f"# output: '{DSC_CACHE}/{self.db}_{workflow_id + 1}.mpk'\n")
                 conf_str.extend(new_steps)
-                io_info_files.append(f'.sos/.dsc/{self.db}_{workflow_id + 1}.mpk')
+                io_info_files.append(f'{DSC_CACHE}/{self.db}_{workflow_id + 1}.mpk')
             # Execution pool
             ii = 1
             for y in sequence:
@@ -114,20 +115,20 @@ class DSC_Translator:
                       '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
                       f'\n\t__io_db__ = OrderedDict()\n\t' + \
                       '\n\t'.join('\n'.join(conf_str).split('\n')) + \
-                      f"\n\topen('.sos/.dsc/{self.db}.io.mpk', 'wb').write(msgpack.packb(__io_db__))\n\n" + \
+                      f"\n\topen('{DSC_CACHE}/{self.db}.io.mpk', 'wb').write(msgpack.packb(__io_db__))\n\n" + \
                       "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
         # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
                             (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \
-                            f"\noutput: '.sos/.dsc/{self.db}.io.mpk'" + \
+                            f"\noutput: '{DSC_CACHE}/{self.db}.io.mpk'" + \
                             "\nscript: interpreter={}, suffix='.py'\n{}\n".\
                             format(f'{path(sys.executable):er}',
                                    '\n'.join(['\t' + x for x in conf_str_py.split('\n')])) + \
                             "\n[deploy_2 (Configuring output filenames)]\n" \
                             f"parameter: vanilla = {rerun}\n"\
-                            f"input: '.sos/.dsc/{self.db}.io.mpk'\n"\
+                            f"input: '{DSC_CACHE}/{self.db}.io.mpk'\n"\
                             f"output: '{self.output}/{self.db}.map.mpk', "\
                             f"'{self.output}/{self.db}.conf.mpk'"\
                             "\nbuild_config_db(str(_input[0]), str(_output[0]), "\
@@ -148,20 +149,20 @@ class DSC_Translator:
     def write_pipeline(self, arg):
         if arg == 1:
             res = self.conf_str_sos
-            open(f'.sos/.dsc/{self.db}.io.meta.mpk', 'wb').write(msgpack.packb(self.step_map))
+            open(f'{DSC_CACHE}/{self.db}.io.meta.mpk', 'wb').write(msgpack.packb(self.step_map))
         elif arg == 2:
             res = self.job_str
         else:
             # args is a list of files to send to host
             chk = (', ' + ', '.join(uniq_list(self.exe_check))) if len(self.exe_check) else ''
             res = '\n'.join([f'[1]\ndepends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
-                             f'output: ".sos/{self.db}.remote_lib-info"',
+                             f'output: "{DSC_CACHE}/{self.db}.remote_lib-info"',
                              f'task: to_host = {repr(arg)}' if len(arg) else '',
                              f'python3:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
             for item in self.lib_depends:
                 res += "\n %s" % item
-            res += '\n print({}, file=open(".sos/{}.remote_lib-info", "w"))'.format(repr(arg), self.db)
-        output = os.path.join('.sos', f'{xxh(res).hexdigest()}.sos')
+            res += '\n print({}, file=open("{}/{}.remote_lib-info", "w"))'.format(repr(arg), DSC_CACHE, self.db)
+        output = os.path.join(DSC_CACHE, f'{xxh(res).hexdigest()}.sos')
         with open(output, 'w') as f:
             f.write(res)
         return output
@@ -186,8 +187,8 @@ class DSC_Translator:
             return
         libs = uniq_list(libs)
         installed_libs = []
-        fn = f'.sos/.dsc/{self.db}.{xxh("".join(libs)).hexdigest()}.{lib_type.lower()}-info'
-        for item in glob.glob(f'.sos/.dsc/{self.db}.*.{lib_type.lower()}-info'):
+        fn = f'{DSC_CACHE}/{self.db}.{xxh("".join(libs)).hexdigest()}.{lib_type.lower()}-info'
+        for item in glob.glob(f'{DSC_CACHE}/{self.db}.*.{lib_type.lower()}-info'):
             if item == fn:
                 installed_libs = [x.strip() for x in open(fn).readlines() if x.strip().split(' ', 1)[1] in libs]
             else:

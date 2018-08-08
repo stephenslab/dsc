@@ -9,6 +9,7 @@ from collections import OrderedDict
 from .utils import uniq_list, flatten_list, chunks, remove_multiple_strings, extend_dict, \
     remove_quotes, DBError, filter_sublist
 from .addict import Dict as dotdict
+from .syntax import DSC_CACHE
 
 def remove_obsolete_output(output, additional_files = None, rerun = False):
     from sos.__main__ import cmd_remove
@@ -43,7 +44,7 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
         if not os.path.isfile(x):
             to_remove.append(x)
     if rerun:
-        to_remove = list(glob.glob('.sos/.dsc/{}_*.mpk'.format(os.path.basename(output)))) + to_remove
+        to_remove = list(glob.glob(f'{DSC_CACHE}/{os.path.basename(output)}_*.mpk')) + to_remove
     if len(to_remove):
         open(map_db, "wb").write(msgpack.packb(map_data))
         # Do not limit to tracked or untracked, and do not just remove signature
@@ -248,9 +249,9 @@ class ResultDB:
             raise DBError('Cannot find name map for ``{}``'.format(x))
         #
         try:
-            self.rawdata = msgpack.unpackb(open(f'.sos/.dsc/{os.path.basename(self.prefix)}.io.mpk', 'rb').read(),
+            self.rawdata = msgpack.unpackb(open(f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.mpk', 'rb').read(),
                                                 encoding = 'utf-8', object_pairs_hook = OrderedDict)
-            self.metadata = msgpack.unpackb(open(f'.sos/.dsc/{os.path.basename(self.prefix)}.io.meta.mpk', 'rb').read(),
+            self.metadata = msgpack.unpackb(open(f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.meta.mpk', 'rb').read(),
                                                 encoding = 'utf-8', object_pairs_hook = OrderedDict)
         except:
             raise DBError('Cannot load source data to build database!')
