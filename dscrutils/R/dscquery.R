@@ -158,6 +158,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
     cmd.str <- paste0(cmd.str, " --rds omit")
   }
   run_cmd(cmd.str, verbose)
+  
   # LOAD DSC QUERY
   # --------------
   if (verbose)
@@ -168,11 +169,11 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
   n   <- nrow(dat)
   dat <- as.list(dat)
   for (i in 1:length(dat)) {
-    dat[[i]]        <- data.frame(dat[[i]])
+    dat[[i]]        <- data.frame(dat[[i]],stringsAsFactors = FALSE)
     names(dat[[i]]) <- names(dat)[i]
   }
       
-  # PROCESS THE DSC QUERY RESULT
+  # PROCESS THE DSC QUERY RESULT<
   # ----------------------------
   # Get all the columns of the form "module.variable:output".
   cols <- which(sapply(as.list(names(dat)),function (x) {
@@ -201,13 +202,15 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       # This list will contain the value of the variable for each table row.
       values <- vector("list",n)
 
-      # Extract the value of the selected output from each of the RDS
-      # files. Repeat for each row of the query table.
+      # If all of the serialized data files exist, extract the value
+      # of the selected output from each of the RDS files. Repeat for
+      # each row of the query table.
       dsc.module.files <- dat[[j]][[1]]
-      for (i in 1:n) {
-        if (dsc.module.files[i] == 'NA') {
-          values[[i]] <- NA
-        } else {
+      if (any(dsc.module.files == "NA")) {
+        dat[[j]][[1]][dsc.module.files == "NA"] <- "UNASSIGNED_TARGET"
+        cat("not extracted (filenames provided when available)\n")
+      } else {
+        for (i in 1:n) { 
           dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
           if (!file.exists(dscfile))
             stop(paste("Unable to read",dscfile,"because it does not exist"))
@@ -220,48 +223,48 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
           # Extract the value of the variable.
           values[[i]] <- out[[var]]
         }
-      }
 
-      # If all the values are atomic, not NULL, and scalar (i.e.,
-      # length of 1), then the values can fit into the column of a data
-      # frame. If not, then there is nothing to be done.
-      if (all(sapply(values,function (x) !is.null(x) &
-                                         is.atomic(x) &
-                                         length(x) == 1))) {
-        if (verbose)
-          cat("extracted atomic values\n")
-        dat[[j]]        <- data.frame(unlist(values))
-        names(dat[[j]]) <- col.new
-        names(dat)[j]   <- col.new
-      } else {
-
-        # If (1) all the values are vectors, (2) the vectors are of
-        # the same length, and (3) the vector lengths to not exceed
-        # the maximum allowed vector length, then incorporate the
-        # vector values into the data frame.
-        extract.values   <- FALSE
-        all.lengths.same <- FALSE
-        if (all(sapply(values,function (x) is.vector(x) & !is.list(x))))
-          if (length(unique(sapply(values,length))) == 1) {
-            all.lengths.same <- TRUE
-            if (max(sapply(values,length)) <= max.extract.vector)
-              extract.values <- TRUE
-          }
-        if (extract.values) {
+        # If all the values are atomic, not NULL, and scalar (i.e.,
+        # length of 1), then the values can fit into the column of a data
+        # frame. If not, then there is nothing to be done.
+        if (all(sapply(values,function (x) !is.null(x) &
+                                           is.atomic(x) &
+                                           length(x) == 1))) {
           if (verbose)
-            cat("extracted vector values\n")
-          dat[[j]] <- data.frame(do.call(rbind,values),
-                                 check.names = FALSE,
-                                 stringsAsFactors = FALSE)
-          names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
-        } else {
+            cat("extracted atomic values\n")
+          dat[[j]] <- data.frame(unlist(values),stringsAsFactors = FALSE)
           names(dat[[j]]) <- col.new
-          if (verbose)
-            if (all.lengths.same)
-              cat("vectors not extracted (set max.extract.vector =",
-                  max(sapply(values,length)),"to extract)\n")
-            else
-              cat("not extracted (filenames provided)\n")
+          names(dat)[j]   <- col.new
+        } else {
+
+          # If (1) all the values are vectors, (2) the vectors are of
+          # the same length, and (3) the vector lengths to not exceed
+          # the maximum allowed vector length, then incorporate the
+          # vector values into the data frame.
+          extract.values   <- FALSE
+          all.lengths.same <- FALSE
+          if (all(sapply(values,function (x) is.vector(x) & !is.list(x))))
+            if (length(unique(sapply(values,length))) == 1) {
+              all.lengths.same <- TRUE
+              if (max(sapply(values,length)) <= max.extract.vector)
+                extract.values <- TRUE
+            }
+          if (extract.values) {
+            if (verbose)
+              cat("extracted vector values\n")
+            dat[[j]] <- data.frame(do.call(rbind,values),
+                                   check.names = FALSE,
+                                   stringsAsFactors = FALSE)
+            names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
+          } else {
+            names(dat[[j]]) <- col.new
+            if (verbose)
+              if (all.lengths.same)
+                cat("vectors not extracted (set max.extract.vector =",
+                    max(sapply(values,length)),"to extract)\n")
+              else
+                cat("not extracted (filenames provided)\n")
+          }
         }
       }
     }
