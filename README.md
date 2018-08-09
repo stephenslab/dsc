@@ -71,12 +71,17 @@ to skip all existing files. We apologize for the inconveniences it incurs.
 
 ### Upcoming release
 
-Goal for 0.2.10
+Goal for 0.2.11
 
 - Support for multiple output per modules.
 - Improve scripts command options.
 
 ### 0.2.x
+
+0.2.10.0
+
+- SoS bumped to version 0.9.16.4 to support a new implementation of file signatures.
+- [minor] Bug fix #147.
 
 0.2.9.1
 
