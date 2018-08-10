@@ -32,8 +32,8 @@ pathnames, not just the base filenames.}
 
 \item{exec}{The command or pathname of the dsc-query executable.}
 
-\item{load.pkl}{If \code{load_pkl = TRUE}, DSC files with `pkl` extension
-will be converted to RDS and loaded.}
+\item{load.pkl}{If \code{load_pkl = TRUE}, DSC files with `pkl`
+extension will be converted to RDS and loaded.}
 
 \item{max.extract.vector}{Vector-valued DSC outputs not exceeding
 this length are automatically extracted to the data frame.}
@@ -51,6 +51,9 @@ the outputs are provided instead.
 Note that data frames cannot contain NULL values, and therefore
 NULL-valued DSC outputs cannot be extracted into the data frame,
 and must be loaded from the RDS files.
+
+When targets are unassigned, these are stored as missing values
+(\code{NA}) in the appropriate columns.
 }
 \description{
 This is an R interface to \code{dsc-query} for

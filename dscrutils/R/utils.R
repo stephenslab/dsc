@@ -11,7 +11,9 @@ merge_lists <- function(x, y, ...)
 
 #' @importFrom tools file_ext
 #' @importFrom yaml yaml.load_file
+#' 
 #' @export
+#' 
 read_dsc <- function(infile) {
   inext = file_ext(infile)
   if (inext == 'pkl') {
@@ -61,6 +63,8 @@ load_script <- function() {
   return(ifelse(!is.null(fileName), readChar(fileName, file.info(fileName)$size), ""))
 }
 
+#' @importFrom utils capture.output
+#' @importFrom utils sessionInfo
 #' @export
 save_session <- function(start_time, id) {
 

@@ -16,10 +16,15 @@ Imports:
     utils,
     tools,
     yaml
-Suggests: testthat
+Suggests:
+    ggplot2,
+    dplyr,
+    rlang,
+    shiny,
+    testthat
 License: MIT + file LICENSE
 NeedsCompilation: no
 LazyData: true
 URL: https://github.com/stephenslab/dsc
 BugReports: https://github.com/stephenslab/dsc/issues
-RoxygenNote: 6.0.1
+RoxygenNote: 6.0.1.9000

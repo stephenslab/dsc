@@ -10,19 +10,24 @@ shiny_plot(res, simulate_col = "simulate", analyze_col = "analyze",
 \arguments{
 \item{res}{a dataframe containing results (eg from )}
 
-\item{simulate_col}{The name of the column that distinguishes simulate modules}
+\item{simulate_col}{The name of the column that distinguishes
+simulate modules.}
 
-\item{analyze_col}{The name of the column that distinguishes analyze modules}
+\item{analyze_col}{The name of the column that distinguishes
+analyze modules.}
 
-\item{score_col}{The name of the column that distinguishes score modules}
+\item{score_col}{The name of the column that distinguishes score
+modules.}
 
-\item{scales}{parameter to be passed to ggplot2::facet_wrap affects y axis scaling}
+\item{scales}{parameter to be passed to ggplot2::facet_wrap affects
+y axis scaling.}
 }
 \value{
-a shiny plot
+A shiny plot.
 }
 \description{
-interactive plot for results of DSC. Particularly tailored
-for the simple "simulate-analyze-score" framework. It plots boxplots of a score
-for each analyze module, facetting by the simulate module.
+interactive plot for results of DSC. Particularly
+tailored for the simple "simulate-analyze-score" framework. It
+plots boxplots of a score for each analyze module, facetting by the
+simulate module.
 }
