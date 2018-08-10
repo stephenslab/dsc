@@ -215,6 +215,20 @@ def execute(args):
         ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
             Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
         env.logger.info("DSC complete!")
+    # Clean up task signatures
+    else:
+        env.logger.info("Cleaning up completed task signatures ...")
+        from sos.__main__ import cmd_purge
+        from .addict import Dict as dotdict
+        content = {'tasks': None,
+                   'all': False,
+                   'age': None,
+                   'status': ['completed'],
+                   'tags': None,
+                   'queue': None,
+                   'config': None,
+                   'verbosity': 0}
+        cmd_purge(dotdict(content), [])
     # Plot DAG
     if args.__dag__:
         from sos.utils import dot_to_gif
