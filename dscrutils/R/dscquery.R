@@ -31,8 +31,8 @@
 #' @param max.extract.vector Vector-valued DSC outputs not exceeding
 #' this length are automatically extracted to the data frame.
 #'
-#' @param load.pkl If \code{load_pkl = TRUE}, DSC files with `pkl` extension
-#' will be converted to RDS and loaded.
+#' @param load.pkl If \code{load_pkl = TRUE}, DSC files with `pkl`
+#' extension will be converted to RDS and loaded.
 #' 
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
@@ -165,17 +165,18 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
     cat("Loading dsc-query output from CSV file.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
                   check.names = FALSE,comment.char = "",
-                  na.strings = "")
+                  na.strings = "NA")
   n   <- nrow(dat)
   dat <- as.list(dat)
   for (i in 1:length(dat)) {
     dat[[i]]        <- data.frame(dat[[i]],stringsAsFactors = FALSE)
     names(dat[[i]]) <- names(dat)[i]
   }
-      
-  # PROCESS THE DSC QUERY RESULT<
+
+  # PROCESS THE DSC QUERY RESULT
   # ----------------------------
-  # Get all the columns of the form "module.variable:output".
+  # Get the indices of all the columns of the form
+  # "module.variable:output".
   cols <- which(sapply(as.list(names(dat)),function (x) {
     n <- nchar(x)
     if (n < 7 | length(unlist(strsplit(x,"[:]"))) != 2)
@@ -184,7 +185,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       return(substr(x,n-6,n) == ":output")
   }))
   
-  # Repeat for each column of the form "module.variable.output".
+  # Repeat for each column of the form "module.variable:output".
   if (length(cols) > 0) {
     cat("Reading DSC outputs:\n")
     for (j in cols) {
@@ -200,17 +201,19 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
         cat(" - ",col.new,": ",sep = "")
 
       # This list will contain the value of the variable for each table row.
-      values <- vector("list",n)
+      values <- as.list(rep(NA,n))
 
-      # If all of the serialized data files exist, extract the value
-      # of the selected output from each of the RDS files. Repeat for
-      # each row of the query table.
+      # If any of the serialized data files exist, try to extract the
+      # value of the selected output from each of the RDS files.
+      # Repeat for each row of the query table.
       dsc.module.files <- dat[[j]][[1]]
-      if (any(dsc.module.files == "NA")) {
-        dat[[j]][[1]][dsc.module.files == "NA"] <- "UNASSIGNED_TARGET"
-        cat("not extracted (filenames provided when available)\n")
-      } else {
-        for (i in 1:n) { 
+      if (any(!is.na(dsc.module.files))) {
+
+        # Get the available targets.
+        available.targets <- which(!is.na(dsc.module.files))
+
+        # Repeat for each available target.
+        for (i in available.targets) { 
           dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
           if (!file.exists(dscfile))
             stop(paste("Unable to read",dscfile,"because it does not exist"))
@@ -224,12 +227,13 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
           values[[i]] <- out[[var]]
         }
 
-        # If all the values are atomic, not NULL, and scalar (i.e.,
-        # length of 1), then the values can fit into the column of a data
-        # frame. If not, then there is nothing to be done.
-        if (all(sapply(values,function (x) !is.null(x) &
-                                           is.atomic(x) &
-                                           length(x) == 1))) {
+        # If all the available values are atomic, not NULL, and scalar
+        # (i.e., length of 1), then the values can fit into the column
+        # of a data frame. If not, then there is nothing to be done.
+        if (all(sapply(values[available.targets],
+                       function (x) !is.null(x) &
+                                    is.atomic(x) &
+                                    length(x) == 1))) {
           if (verbose)
             cat("extracted atomic values\n")
           dat[[j]] <- data.frame(unlist(values),stringsAsFactors = FALSE)
@@ -237,16 +241,18 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
           names(dat)[j]   <- col.new
         } else {
 
-          # If (1) all the values are vectors, (2) the vectors are of
-          # the same length, and (3) the vector lengths to not exceed
-          # the maximum allowed vector length, then incorporate the
-          # vector values into the data frame.
+          # If (1) all the available values are vectors, (2) the
+          # vectors are of the same length, and (3) the vector lengths
+          # to not exceed the maximum allowed vector length, then
+          # incorporate the vector values into the data frame.
           extract.values   <- FALSE
           all.lengths.same <- FALSE
-          if (all(sapply(values,function (x) is.vector(x) & !is.list(x))))
-            if (length(unique(sapply(values,length))) == 1) {
+          if (all(sapply(values[available.targets],
+                         function (x) is.vector(x) & !is.list(x))))
+            if (length(unique(sapply(values[available.targets],length)))==1) {
               all.lengths.same <- TRUE
-              if (max(sapply(values,length)) <= max.extract.vector)
+              if (max(sapply(values[available.targets],length)) <=
+                    max.extract.vector)
                 extract.values <- TRUE
             }
           if (extract.values) {
@@ -261,7 +267,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
             if (verbose)
               if (all.lengths.same)
                 cat("vectors not extracted (set max.extract.vector =",
-                    max(sapply(values,length)),"to extract)\n")
+                    max(sapply(values[available.targets],length)),
+                    "to extract)\n")
               else
                 cat("not extracted (filenames provided)\n")
           }
@@ -269,7 +276,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       }
     }
   }
-
+  
   # Output the query result as a data frame.
   dat.names  <- unlist(lapply(dat,names))
   dat        <- do.call(cbind,dat)
