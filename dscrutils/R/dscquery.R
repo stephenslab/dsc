@@ -47,6 +47,9 @@
 #' NULL-valued DSC outputs cannot be extracted into the data frame,
 #' and must be loaded from the RDS files.
 #'
+#' When targets are unassigned, these are stored as missing values
+#' (\code{NA}) in the appropriate columns.
+#'
 #' @note We have made considerable effort to prevent column names from
 #' being duplicated. However, we have not tested this extensively for
 #' possible column name conflicts.
