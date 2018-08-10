@@ -220,6 +220,7 @@ def execute(args):
         env.logger.info("Cleaning up completed task signatures ...")
         from sos.__main__ import cmd_purge
         from .addict import Dict as dotdict
+        # purge current completed tasks
         content = {'tasks': None,
                    'all': False,
                    'age': None,
@@ -228,6 +229,11 @@ def execute(args):
                    'queue': None,
                    'config': None,
                    'verbosity': 0}
+        cmd_purge(dotdict(content), [])
+        # purge all tasks of more than 3 days old
+        content['all'] = True
+        content['age'] = '3d'
+        content['status'] = None
         cmd_purge(dotdict(content), [])
     # Plot DAG
     if args.__dag__:
