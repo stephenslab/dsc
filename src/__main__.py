@@ -60,7 +60,7 @@ def execute(args):
     from .dsc_translator import DSC_Translator
     from .dsc_database import ResultDB
     script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, truncate = args.truncate, replicate = 1 if args.truncate else args.replicate)
-    script.init_dsc(args, env)
+    script.init_dsc(env)
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines
     master_tables = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
