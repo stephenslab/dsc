@@ -349,7 +349,7 @@ class DSC_Script:
             out.workflow = 'default'
         return out
 
-    def init_dsc(self, args, env):
+    def init_dsc(self, env):
         os.makedirs(DSC_CACHE, exist_ok = True)
         if os.path.dirname(self.runtime.output):
             os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)

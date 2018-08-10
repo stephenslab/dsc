@@ -60,7 +60,7 @@ def execute(args):
     from .dsc_translator import DSC_Translator
     from .dsc_database import ResultDB
     script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, truncate = args.truncate, replicate = 1 if args.truncate else args.replicate)
-    script.init_dsc(args, env)
+    script.init_dsc(env)
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines
     master_tables = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
@@ -132,10 +132,10 @@ def execute(args):
                   default_flow_style=False)
         if  conf['DSC'][args.host]['address'] == 'localhost':
             # the only version of config file to use
-            # make a copy of it to current workdir, for maintenance purpose
+            # make a copy of it to output directory for maintenance purpose
             yaml.dump({'localhost':'localhost',
                        'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}},
-                      open(script.runtime.output + '.queue.yml', 'w'),
+                      open(f'{script.runtime.output}/{db}.queue', 'w'),
                       default_flow_style=False)
             # set to_host to empty because there is no need for it
             args.to_host = []
