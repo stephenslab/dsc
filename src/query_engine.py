@@ -383,7 +383,7 @@ class Query_Processor:
     def merge_tables(self):
         common_keys = [t.columns for t in self.output_tables.values()]
         common_keys = list(set(common_keys[0]).intersection(*common_keys))
-        table = pd.concat(self.output_tables.values(), join = 'outer', ignore_index = True)
+        table = pd.concat(self.output_tables.values(), join = 'outer', ignore_index = True, sort = False)
         to_drop = []
         targets = uniq_list([x.split('.', 1)[0] for x in self.targets])
         for g in self.groups:
