@@ -26,8 +26,8 @@
 #' @export
 #'
 shiny_plot = function(res, simulate_col = "simulate",
-    analyze_col = "analyze", score_col = "score", scales="free") {
-
+                      analyze_col = "analyze", score_col = "score", scales="free") {
+  
   # Check that the additional suggested packages are available. If
   # not, throw an error.
   error.msg <- paste("shiny_plot requires the following packages:",
@@ -40,14 +40,15 @@ shiny_plot = function(res, simulate_col = "simulate",
     stop(error.msg)
   if (!requireNamespace("rlang",quietly = TRUE))
     stop(error.msg)
-
-  scenario_names <- as.character(unique(res[[simulate_col]]))
-  method_names   <- as.character(unique(res[[analyze_col]]))
-  score_names    <- as.character(unique(res[[score_col]]))
+  
+  scenario_names <- as.character(na.omit(unique(res[[simulate_col]]))) ###add na.omit
+  method_names   <- as.character(na.omit(unique(res[[analyze_col]])))
+  score_names    <- as.character(na.omit(unique(res[[score_col]])))
   
   numeric_criteria <- names(res)[unlist(lapply(res,is.numeric))]
-  numeric_criteria <- numeric_criteria[numeric_criteria != "DSC"]
-  
+  numeric_criteria <- numeric_criteria[numeric_criteria != "DSC" & numeric_criteria != simulate_col & numeric_criteria != analyze_col]
+  #make sure that numeric criteria not include simulate_col and analyze_col if they are numeric
+  print(method_names) 
   ui <- shiny::shinyUI(shiny::pageWithSidebar(
     shiny::headerPanel('DSC Results'),
     shiny::sidebarPanel(
@@ -63,32 +64,37 @@ shiny_plot = function(res, simulate_col = "simulate",
       shiny::selectInput("criteria", "Choose Criteria",
                          choices  = numeric_criteria,
                          selected = numeric_criteria[1])
-
+      
     ),
     shiny::mainPanel(
       shiny::plotOutput('plot1')
     )
   ))
-
+  
   server = shiny::shinyServer(
     function(input, output, session) {
       output$plot1 <- shiny::renderPlot({
         res.filter = 
           dplyr::filter(res,rlang::UQ(as.name(simulate_col)) %in%
-                        input$scen.subset & 
-                        rlang::UQ(as.name(analyze_col)) %in%
-                        input$method.subset &
-                        rlang::UQ(as.name(score_col)) %in% input$score)
-        print(input)
+                          input$scen.subset & 
+                          rlang::UQ(as.name(analyze_col)) %in%
+                          input$method.subset &
+                          rlang::UQ(as.name(score_col)) %in% input$score)
+        #print(input)
         res.filter$value = res.filter[[input$criteria]]
+        ###make sure that analyze_col is factor  
+        analyze_col_idx = match(c(as.name(analyze_col)), names(res.filter))
+        res.filter[, analyze_col_idx] = as.factor(res.filter[, analyze_col_idx])
+        
         ggplot2::ggplot(res.filter,
                         ggplot2::aes_string(analyze_col, quote(value),
                                             color = analyze_col)) +
           ggplot2::geom_boxplot() +
-            ggplot2::facet_wrap(as.formula(paste("~",simulate_col)),
-                                scales = scales)
+          ggplot2::facet_wrap(as.formula(paste("~",simulate_col)),
+                              scales = scales)
       })
     }
   )
   shiny::shinyApp(ui = ui,server = server)
 }
+
