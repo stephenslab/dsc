@@ -80,7 +80,7 @@ Goal for 0.2.11
 
 0.2.10.0
 
-- SoS bumped to version 0.9.16.5 to support a new implementation of file signatures.
+- SoS bumped to version 0.9.16.8 to support a new implementation of signatures.
 - [minor] Bug fix #147.
 
 0.2.9.1
