@@ -110,7 +110,7 @@ class DSC_Translator:
                 self.job_pool[(y, workflow_id + 1)] = '\n'.join(tmp_str)
                 ii += 1
         conf_str_py = 'import msgpack\nfrom collections import OrderedDict\n' + \
-                      'from dsc.utils import sos_hash_output, sos_group_input, chunks\n' + \
+                      'from dsc.utils import sos_hash_output, sos_group_input, chunks as sos_chunks\n' + \
                       '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
                       '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
                       f'\n\t__io_db__ = OrderedDict()\n\t' + \
@@ -289,7 +289,7 @@ class DSC_Translator:
                     pass
                 if len(self.current_depends):
                     if len(self.current_depends) > 1:
-                        self.loop_string[1] = f'for __i__ in chunks({self.input_vars}, {len(self.current_depends)})'
+                        self.loop_string[1] = f'for __i__ in sos_chunks({self.input_vars}, {len(self.current_depends)})'
                     else:
                         self.loop_string[1] = f'for __i__ in {self.input_vars}'
             else:
