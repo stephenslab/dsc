@@ -9,6 +9,8 @@ Test rpy2 installation:
 python -m 'rpy2.tests'
 '''
 
+from dsc.utils import flatten_list
+
 def load_mpk(mpk_files, jobs = 2):
     import msgpack, collections
     from multiprocessing import Process, Manager
@@ -111,18 +113,20 @@ def save_rds(data, filename):
     # Supported data types:
     # int, float, str, tuple, list, numpy array
     # numpy matrix and pandas dataframe
+    int_type = (int, np.int8, np.int16, np.int32, np.int64)
+    float_type = (float, np.float)
     def assign(name, value):
         name = re.sub(r'[^\w' + '_.' + ']', '_', name)
         if isinstance(value, (tuple, list)):
-             if all(isinstance(item, int) for item in value):
+             if all(isinstance(item, int_type) for item in value):
                   value = np.asarray(value, dtype = int)
-             elif all(isinstance(item, float) for item in value):
+             elif all(isinstance(item, float_type) for item in value):
                   value = np.asarray(value, dtype = float)
              else:
                   value = np.asarray(value)
         if isinstance(value, np.matrix):
             value = np.asarray(value)
-        if isinstance(value, (str, float, int, np.ndarray)):
+        if isinstance(value, tuple(flatten_list((str, float_type, int_type, np.ndarray)))):
             if isinstance(value, np.ndarray) and value.dtype.kind == "u":
                 value = value.astype(int)
             RO.r.assign(name, value)
