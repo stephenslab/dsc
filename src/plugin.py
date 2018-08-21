@@ -393,11 +393,11 @@ class RPlug(BasePlug):
     @staticmethod
     def format_tuple(value):
         # this is the best I'd like to do for R ...
-        has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', v) for v in value])
+        has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', str(v)) for v in value])
         if has_tuple:
-            return 'list({})'.format(','.join([(f'c({",".join([vv for vv in v])})' if len(v) > 1 else v[0]) if isinstance(v, tuple) else v for v in value]))
+            return 'list({})'.format(','.join([(f'c({",".join([str(vv) for vv in v])})' if len(v) > 1 else v[0]) if isinstance(v, tuple) else v for v in value]))
         else:
-            return 'c({})'.format(','.join(value))
+            return f'c({str(value)})'
 
     def __str__(self):
         return 'r'
