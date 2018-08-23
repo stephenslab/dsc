@@ -192,6 +192,7 @@ class ExpandActions(YLine):
 
     @staticmethod
     def __Python(code):
+        code = code[1:-1]
         if not isinstance(code, str):
             return str(code)
         try:
