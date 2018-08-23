@@ -201,8 +201,10 @@ class ExpandActions(YLine):
             raise FormatError(f"Evaluation of the following Python expression failed:\n``{code}``.\nError message: ``{e}``")
         if isinstance(res, (bool, int, float, str)):
             return str(res)
-        elif isinstance(res, (list, tuple)):
+        elif isinstance(res, list):
             return ','.join(map(str, res))
+        elif isinstance(res, tuple):
+            return f"({','.join(map(str, res))})"
         else:
             raise FormatError(f"Evaluation of Python expression ``code`` resulted in unsupported type ``{type(res).__name__}``.")
 

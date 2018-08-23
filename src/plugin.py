@@ -539,7 +539,11 @@ class PyPlug(BasePlug):
 
     @staticmethod
     def format_tuple(value):
-        return '({})'.format(','.join(value))
+        has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', str(v)) for v in value])
+        if has_tuple:
+            return '({})'.format(','.join([f"({','.join(v)})" for v in value]))
+        else:
+            return '({})'.format(','.join(value))
 
     def __str__(self):
         return 'python'
