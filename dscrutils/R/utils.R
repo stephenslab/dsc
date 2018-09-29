@@ -11,17 +11,17 @@ merge_lists <- function(x, y, ...)
 
 #' @importFrom tools file_ext
 #' @importFrom yaml yaml.load_file
-#' 
+#'
 #' @export
-#' 
+#'
 read_dsc <- function(infile) {
   inext = file_ext(infile)
   if (inext == 'pkl') {
     ## FIXME: not an efficient method
     outfile = tempfile(fileext = '.rds')
-    run_cmd(paste('dsc-io', infile, outfile), verbose=FALSE)
+    run_cmd(paste('dsc-io', infile, outfile, '-f'), verbose=FALSE)
     if (!file.exists(outfile))
-      stop(paste("DSC data conversion failed for", outfile))
+      stop(paste("DSC data conversion failed for", infile))
     return(readRDS(outfile))
   } else if (inext == 'yml') {
     return(yaml.load_file(infile))

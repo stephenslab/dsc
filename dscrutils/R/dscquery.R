@@ -31,7 +31,7 @@
 #' @param max.extract.vector Vector-valued DSC outputs not exceeding
 #' this length are automatically extracted to the data frame.
 #'
-#' @param load.pkl If \code{load_pkl = TRUE}, DSC files with `pkl`
+#' @param load.pkl If \code{load.pkl = TRUE}, DSC files with `pkl`
 #' extension will be converted to RDS and loaded.
 #' 
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
@@ -279,7 +279,6 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       }
     }
   }
-  
   # Output the query result as a data frame.
   dat.names  <- unlist(lapply(dat,names))
   dat        <- do.call(cbind,dat)

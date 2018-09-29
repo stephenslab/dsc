@@ -239,20 +239,19 @@ def main():
     import os, sys, pickle
     if len(sys.argv) < 3:
         sys.exit(0)
-    from sos.targets import fileMD5
     # Input is pkl, output is rds
     infile = sys.argv[1]
     outfile = sys.argv[2]
-    outfile_md5 = outfile + '-' + fileMD5(infile)
-    if not os.path.isfile(outfile_md5):
+    if '-f' in sys.argv:
+        try:
+            os.remove(outfile)
+        except:
+            pass
+    if not os.path.isfile(outfile):
         if infile.endswith('.pkl') and outfile.endswith('.rds'):
             save_rds(pickle.load(open(infile, 'rb')), outfile)
-            #save_rds(pickle.load(open(infile, 'rb')), outfile_md5)
-            #symlink_force(os.path.abspath(os.path.expanduser(outfile_md5)), outfile)
         elif infile.endswith('.rds') and outfile.endswith('.pkl'):
             pickle.dump(load_rds(infile), open(outfile, 'wb'))
-            #pickle.dump(load_rds(infile), open(outfile_md5, 'wb'))
-            #symlink_force(os.path.abspath(os.path.expanduser(outfile_md5)), outfile)
         elif infile.endswith('.csv') and outfile.endswith('.html'):
             csv_to_html(infile, outfile)
         else:
