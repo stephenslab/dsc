@@ -21,6 +21,7 @@ Suggests:
     dplyr,
     rlang,
     shiny,
+    reticulate,
     testthat
 License: MIT + file LICENSE
 NeedsCompilation: no

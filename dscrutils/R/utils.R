@@ -11,18 +11,16 @@ merge_lists <- function(x, y, ...)
 
 #' @importFrom tools file_ext
 #' @importFrom yaml yaml.load_file
-#'
 #' @export
 #'
 read_dsc <- function(infile) {
   inext = file_ext(infile)
   if (inext == 'pkl') {
-    ## FIXME: not an efficient method
-    outfile = tempfile(fileext = '.rds')
-    run_cmd(paste('dsc-io', infile, outfile, '-f'), verbose=FALSE)
-    if (!file.exists(outfile))
-      stop(paste("DSC data conversion failed for", infile))
-    return(readRDS(outfile))
+    ## Do not use `importFrom` for reticulate because
+    ## this is not always required
+    ## and when it is required the DSC parser code
+    ## will check and install the package.
+    return(reticulate::py_load_object(infile))
   } else if (inext == 'yml') {
     return(yaml.load_file(infile))
   } else {
