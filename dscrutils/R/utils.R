@@ -20,7 +20,8 @@ read_dsc <- function(infile) {
     ## this is not always required
     ## and when it is required the DSC parser code
     ## will check and install the package.
-    return(reticulate::py_load_object(infile))
+    result = reticulate::py_load_object(infile)
+    return(rapply(result, reticulate::py_to_r, classes = "ANY", how = "replace"))
   } else if (inext == 'yml') {
     return(yaml.load_file(infile))
   } else {
