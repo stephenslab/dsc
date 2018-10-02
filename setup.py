@@ -25,9 +25,9 @@ class bdist_egg_disabled(bdist_egg):
     which it should never ever do.
     """
     def run(self):
-        sys.exit("ERROR: aborting implicit building of eggs. Use \"pip install -U --upgrade-strategy only-if-needed .\" to install from source.")
+        sys.exit("ERROR: aborting implicit building of eggs. Use \"pip install .\" to install from source.")
 
-cmdclass = {'bdist_egg':  bdist_egg if 'bdist_egg' in sys.argv else bdist_egg_disabled }
+cmdclass = {'bdist_egg': bdist_egg if 'bdist_egg' in sys.argv else bdist_egg_disabled}
 
 setup(name        = "dsc",
       description = "Implementation of Dynamic Statistical Comparisons",

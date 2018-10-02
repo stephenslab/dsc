@@ -26,7 +26,7 @@ repository) typically requires the development version of SoS.
 ```
 git clone https://github.com/vatlab/SoS.git
 cd SoS
-pip install -U --upgrade-strategy only-if-needed . 
+pip install . 
 ```
 
 #### Install DSC from source
@@ -34,15 +34,15 @@ pip install -U --upgrade-strategy only-if-needed .
 ```
 git clone https://github.com/stephenslab/dsc.git
 cd dsc
-./setup.sos
+pip install .
 ```
 
-Or, if you have downloaded it before,
+Or, if you have cloned the repository before,
 
 ```
 cd dsc
 git pull
-./setup.sos
+pip install .
 ```
 
 #### Install dscrutils from source
