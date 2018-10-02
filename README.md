@@ -78,6 +78,13 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.1
+
+- Improved database I/O performance to cope with file system latency.
+- Improved Python to R data flow.
+- Paralleled data extraction in `dscquery`.
+- SoS bumped to version 0.17.0 to support a new implementation of job queues.
+
 0.3.0
 
 - SoS bumped to version 0.16.9 to support a new implementation of signatures.
