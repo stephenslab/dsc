@@ -15,6 +15,15 @@ merge_lists <- function(x, y, ...)
 #'
 read_dsc <- function(infile) {
   inext = file_ext(infile)
+  if (inext == "") {
+    for (item in c("rds", "pkl", "yml")) {
+      if (file.exists(paste0(infile, ".", item))) {
+        inext = item
+        infile = paste0(infile, ".", item)
+        break
+      }
+  }
+  if (inext == "") stop(paste("Cannot determine extension for input file", infile))
   if (inext == 'pkl') {
     ## Do not use `importFrom` for reticulate because
     ## this is not always required
@@ -40,7 +49,6 @@ load_inputs <- function(files, loader) {
   }
   return(out)
 }
-
 
 thisFile <- function() {
   cmdArgs <- commandArgs(trailingOnly = FALSE)
