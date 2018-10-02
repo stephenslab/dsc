@@ -22,6 +22,7 @@ read_dsc <- function(infile) {
         infile = paste0(infile, ".", item)
         break
       }
+    }
   }
   if (inext == "") stop(paste("Cannot determine extension for input file", infile))
   if (inext == 'pkl') {
