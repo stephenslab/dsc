@@ -4,9 +4,9 @@
 #' conveniently extracting and exploring DSC results within the R
 #' environment. For details, see the documentation for the
 #' \code{dsc-query} command.
-#' 
+#'
 #' @param dsc.outdir Directory where DSC output is stored.
-#' 
+#'
 #' @param targets Query targets specified as a character vector, or,
 #' character string separated by space, e.g.,
 #' \code{targets = "simulate.n analyze score.error"} and
@@ -18,22 +18,19 @@
 #' @param conditions The default \code{NULL} means "no conditions", in
 #' which case the results for all DSC pipelines are returned.
 #'
-#' @param groups Definition of module groups. For example, 
+#' @param groups Definition of module groups. For example,
 #' \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
 #' will dynamically create module groups \code{method} and \code{score}
 #' even if they have not previously been defined when running DSC.
-#' 
+#'
 #' @param add.path If TRUE, the returned data frame will contain full
 #' pathnames, not just the base filenames.
-#' 
+#'
 #' @param exec The command or pathname of the dsc-query executable.
 #'
 #' @param max.extract.vector Vector-valued DSC outputs not exceeding
 #' this length are automatically extracted to the data frame.
 #'
-#' @param load.pkl If \code{load.pkl = TRUE}, DSC files with `pkl`
-#' extension will be converted to RDS and loaded.
-#' 
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
@@ -91,20 +88,21 @@
 #'            conditions = paste("simulate.g =",
 #'                               "'list(c(2/3,1/3),c(0,0),c(1,2))'"),
 #'            max.extract.vector = 1000)
-#' 
+#'
 #' \dontrun{
 #'
 #' # This query should generate an error because there is no output
 #' # called "mse" in the "score" module.
 #' dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
 #'                  conditions = "simulate.n > 10")
-#' 
+#'
 #' }
-#' 
+#'
 #' @importFrom utils read.csv
-#' 
+#' @importFrom parallel mclapply detectCores
+#'
 #' @export
-#' 
+#'
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
                       add.path = FALSE, exec = "dsc-query", load.pkl = FALSE,
                       max.extract.vector = 10, verbose = TRUE) {
@@ -114,7 +112,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
   # Check input argument "dsc.outdir".
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
     stop("Argument \"dsc.outdir\" should be a character string")
-    
+
   # Check input argument "targets".
   if (!(is.character(targets) & is.vector(targets) & !is.list(targets)))
     stop("Argument \"targets\" should be a character vector")
@@ -124,14 +122,14 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       if (!(is.character(conditions) & is.vector(conditions) &
             !is.list(conditions)))
       stop("Argument \"conditions\" should be NULL or a character vector")
-    
+
 
   # Check input argument "add.path".
   if (!(is.logical(add.path) & length(add.path) == 1))
     stop("Argument \"add.path\" should be TRUE or FALSE")
   if (add.path)
     stop("\"add.path = TRUE\" not currently implemented")
-    
+
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
     stop("Argument \"exec\" should be a character string")
@@ -145,7 +143,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
   # Generate a temporary directory where the query output will be
   # stored.
   outfile <- tempfile(fileext = ".csv")
-    
+
   # Build and run command based on the inputs.
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
                    "--target",paste(targets,collapse = " "))
@@ -155,13 +153,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
   if (length(groups) >= 1)
     cmd.str <- paste0(cmd.str, " -g \"", paste(gsub(" ", "", groups), collapse = " "), "\"")
-  if (load.pkl) {
-    cmd.str <- paste0(cmd.str, " --rds overwrite")
-  } else {
-    cmd.str <- paste0(cmd.str, " --rds omit")
-  }
   run_cmd(cmd.str, verbose)
-  
+
   # LOAD DSC QUERY
   # --------------
   if (verbose)
@@ -187,7 +180,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
     else
       return(substr(x,n-6,n) == ":output")
   }))
-  
+
   # Repeat for each column of the form "module.variable:output".
   if (length(cols) > 0) {
     cat("Reading DSC outputs:\n")
@@ -216,19 +209,23 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
         available.targets <- which(!is.na(dsc.module.files))
 
         # Repeat for each available target.
-        for (i in available.targets) { 
+        values <- mclapply(available.targets, function(i) {
           dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
           if (!file.exists(dscfile))
+            dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".pkl"))
+          if (!file.exists(dscfile)) {
+            dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".*"))
             stop(paste("Unable to read",dscfile,"because it does not exist"))
-          out <- readRDS(dscfile)
+          }
+          out <- read_dsc(dscfile)
 
           # Check that the variable is one of the outputs in the file.
           if (!is.element(var,names(out)))
             stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
 
           # Extract the value of the variable.
-          values[[i]] <- out[[var]]
-        }
+          out[[var]]
+        }, mc.cores = detectCores())
 
         # If all the available values are atomic, not NULL, and scalar
         # (i.e., length of 1), then the values can fit into the column

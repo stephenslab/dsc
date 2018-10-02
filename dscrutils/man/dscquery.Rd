@@ -32,9 +32,6 @@ pathnames, not just the base filenames.}
 
 \item{exec}{The command or pathname of the dsc-query executable.}
 
-\item{load.pkl}{If \code{load_pkl = TRUE}, DSC files with `pkl`
-extension will be converted to RDS and loaded.}
-
 \item{max.extract.vector}{Vector-valued DSC outputs not exceeding
 this length are automatically extracted to the data frame.}
 
