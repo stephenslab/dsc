@@ -58,10 +58,10 @@ def query(args):
         for query in qp.get_queries():
             logger.debug(query)
         # convert output database
-        if args.rds != "omit":
+        if args.rds is not None:
             fns = sum([list(qp.output_table[x]) for x in qp.output_table.columns if x.endswith(':output') or x.endswith('.output.file')], [])
             fns = [os.path.join(os.path.dirname(db), x) for x in fns]
-            if args.rds is None:
+            if args.rds == 'omit':
                 fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl') and not os.path.isfile(x + '.rds')]
             else:
                 fns = [x + '.pkl' for x in fns if x == x and os.path.isfile(x + '.pkl')]
@@ -158,7 +158,7 @@ def main():
     p.add_argument('--addon', metavar = 'str', nargs = '+',
                    help='''Scripts to load to the notebooks for follow up analysis.
                    Only usable in conjunction with "--language".''')
-    p.add_argument('--rds', dest = 'rds', choices = ['omit', 'overwrite'], default = "omit",
+    p.add_argument('--rds', dest = 'rds', choices = ['omit', 'overwrite'],
                    help='''Convert Python serialized files to R serialized files''')
     p.add_argument('-f', '--force', action = 'store_true', dest = 'force',
                     help=SUPPRESS)
