@@ -158,7 +158,7 @@ def main():
     p.add_argument('--addon', metavar = 'str', nargs = '+',
                    help='''Scripts to load to the notebooks for follow up analysis.
                    Only usable in conjunction with "--language".''')
-    p.add_argument('--rds', dest = 'rds', choices = ['omit', 'overwrite'],
+    p.add_argument('--rds', dest = 'rds', choices = ['omit', 'overwrite'], default = "omit",
                    help='''Convert Python serialized files to R serialized files''')
     p.add_argument('-f', '--force', action = 'store_true', dest = 'force',
                     help=SUPPRESS)
