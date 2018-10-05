@@ -143,7 +143,7 @@ def save_rds(data, filename):
         for k, v in value.items():
             k = re.sub(r'[^\w' + '_.' + ']', '_', str(k))
             if k.isdigit():
-                k = 'V' + k
+                k = str(k)
             if isinstance(v, collections.Mapping):
                 assign_dict('%s$%s' %(name, k), v)
             else:
