@@ -485,14 +485,14 @@ def install_r_lib(lib, dryrun = False):
         versions = None
     if not dryrun:
         logger.info("Checking R library {} ...".format(lib))
-        return R_library(lib, versions).target_exists()
+        return R_library(lib, version=versions, autoinstall=True).target_exists()
     else:
         return(lib, versions)
 
 def install_py_module(lib):
     from sos.targets_python import Py_Module
     logger.info("Checking Python module {} ...".format(lib))
-    return Py_Module(lib).target_exists()
+    return Py_Module(lib, autoinstall=True).target_exists()
 
 def make_html_name(value):
     return "".join(x for x in value.replace(' ', '-') if x.isalnum() or x in ['-', '_']).lower()
