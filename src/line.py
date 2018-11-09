@@ -186,7 +186,7 @@ class ExpandActions(YLine):
         except Exception:
             from .utils import install_r_lib
             from .version import __version__
-            install_r_lib(f'dscrutils@stephenslab/dsc/dscrutils ({__version__}+)')
+            install_r_lib(f'dscrutils@stephenslab/dsc/dscrutils (>={__version__})')
             output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
         return output
 
