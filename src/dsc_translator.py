@@ -134,17 +134,8 @@ class DSC_Translator:
                             "\nbuild_config_db(str(_input[0]), str(_output[0]), "\
                             f"str(_output[1]), vanilla = vanilla, jobs = {n_cpu})"
         #
-        self.lib_depends = []
-        if host_conf is None:
-            # run on local computer
-            # have to check and ensure local library work
-            self.install_libs(runtime.rlib, "R_library")
-            self.install_libs([x for x in runtime.pymodule if x != 'dsc'], "Python_Module")
-        else:
-            self.lib_depends.extend([f'if not R_library({repr(l[0])}, version={repr(l[1]) if l[1] is not None else "None"}, autoinstall=True).target_exists():\n   raise RuntimeError("Automatic installation failed. Please login and manually install {repr(l[0])}.")'
-                                     for l in [install_r_lib(x, dryrun = True) for x in runtime.rlib]])
-            self.lib_depends.extend([f'if not Py_Module("{l}", autoinstall=True).target_exists():\n   raise RuntimeError("Automatic installation failed. Please login and manually install {repr(l)}.")'
-                                     for l in (runtime.pymodule + ['msgpack'])])
+        self.install_libs(runtime.rlib, "R_library")
+        self.install_libs([x for x in runtime.pymodule if x != 'dsc'], "Python_Module")
 
     def write_pipeline(self, arg):
         if arg == 1:
@@ -156,12 +147,8 @@ class DSC_Translator:
             # args is a list of files to send to host
             chk = (', ' + ', '.join(uniq_list(self.exe_check))) if len(self.exe_check) else ''
             res = '\n'.join([f'[1]\ndepends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
-                             f'output: "{DSC_CACHE}/{self.db}.remote_lib-info"',
                              f'task: to_host = {repr(arg)}' if len(arg) else '',
-                             f'python3:\n from sos.targets_r import R_library\n from sos.targets_python import Py_Module\n from sos_pbs.tasks import *'])
-            for item in self.lib_depends:
-                res += "\n %s" % item
-            res += '\n print({}, file=open("{}/{}.remote_lib-info", "w"))'.format(repr(arg), DSC_CACHE, self.db)
+                             f'run:\n echo "checking required shell utilities ..."')
         output = os.path.join(DSC_CACHE, f'{xxh(res).hexdigest()}.sos')
         with open(output, 'w') as f:
             f.write(res)
