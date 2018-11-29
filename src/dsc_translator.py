@@ -141,9 +141,9 @@ class DSC_Translator:
             self.install_libs(runtime.rlib, "R_library")
             self.install_libs([x for x in runtime.pymodule if x != 'dsc'], "Python_Module")
         else:
-            self.lib_depends.extend([f'if not R_library({repr(l[0])}, {repr(l[1]) if l[1] is not None else "None"}).target_exists():\n   raise RuntimeError("Automatic installation failed. Please login and manually install {repr(l[0])}.")'
+            self.lib_depends.extend([f'if not R_library({repr(l[0])}, version={repr(l[1]) if l[1] is not None else "None"}, autoinstall=True).target_exists():\n   raise RuntimeError("Automatic installation failed. Please login and manually install {repr(l[0])}.")'
                                      for l in [install_r_lib(x, dryrun = True) for x in runtime.rlib]])
-            self.lib_depends.extend([f'if not Py_Module("{l}").target_exists():\n   raise RuntimeError("Automatic installation failed. Please login and manually install {repr(l)}.")'
+            self.lib_depends.extend([f'if not Py_Module("{l}", autoinstall=True).target_exists():\n   raise RuntimeError("Automatic installation failed. Please login and manually install {repr(l)}.")'
                                      for l in (runtime.pymodule + ['msgpack'])])
 
     def write_pipeline(self, arg):
