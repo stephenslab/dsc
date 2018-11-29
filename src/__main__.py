@@ -181,7 +181,7 @@ def execute(args):
                    '__dag__': (script_run[:-3] + ".dot") if args.__dag__ else '',
                    'script': pipeline.write_pipeline(args.to_host)}
         try:
-            with Silencer(max(0, args.verbosity - 1)):
+            with Silencer(max(0, args.verbosity - 2)):
                 cmd_run(script.get_sos_options(db, content), [])
         except Exception as e:
             env.logger.error(f"Failed to communicate with ``{args.host}``")
