@@ -34,7 +34,7 @@ class DSC_Translator:
                     del host_conf[k]
         conf_header = 'from dsc.dsc_database import build_config_db\n'
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
-                     f"IO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
+                     f"[global]\nIO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"\
                      f"{inspect.getsource(n2a)}\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
