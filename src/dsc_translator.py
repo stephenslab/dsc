@@ -148,7 +148,7 @@ class DSC_Translator:
             chk = (', ' + ', '.join(uniq_list(self.exe_check))) if len(self.exe_check) else ''
             res = '\n'.join([f'[1]\ndepends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
                              f'task: to_host = {repr(arg)}' if len(arg) else '',
-                             f'run:\n echo "checking required shell utilities ..."')
+                             f'run:\n echo "checking required shell utilities ..."'])
         output = os.path.join(DSC_CACHE, f'{xxh(res).hexdigest()}.sos')
         with open(output, 'w') as f:
             f.write(res)
