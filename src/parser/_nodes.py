@@ -47,7 +47,7 @@ class ChildMixin(object):
 
         if not isinstance(parent, ContainerMixin):
             raise ValueError(
-                'Parent of ChildMixin instance needs to be a Container.'
+                'Possible indentation error: parent of ChildMixin instance needs to be a Container.'
             )
         parent.add_child(self)
         super(ChildMixin, self).__init__(**kwargs)
