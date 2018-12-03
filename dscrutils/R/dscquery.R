@@ -218,13 +218,16 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
             stop(paste("Unable to read",dscfile,"because it does not exist"))
           }
           out <- read_dsc(dscfile)
+          if (var != 'DSC_TIME') {
+            # Check that the variable is one of the outputs in the file.
+            if (!is.element(var,names(out)))
+              stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
 
-          # Check that the variable is one of the outputs in the file.
-          if (!is.element(var,names(out)))
-            stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
-
-          # Extract the value of the variable.
-          out[[var]]
+            # Extract the value of the variable.
+            out[[var]]
+          } else {
+            out$DSC_DEBUG$time$elapsed
+          }
         }, mc.cores = detectCores())
 
         # If all the available values are atomic, not NULL, and scalar

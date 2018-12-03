@@ -130,6 +130,8 @@ class Query_Processor:
         keys_lower = [k.lower() for k in self.data.keys()]
         if not x.lower() in keys_lower:
             raise DBError(f"Cannot find module ``{x}`` in DSC results ``{self.db}``.")
+        if y == 'DSC_TIME':
+            return
         k = list(self.data.keys())[keys_lower.index(x.lower())]
         y_low = y.lower()
         if y_low == 'dsc_replicate':
