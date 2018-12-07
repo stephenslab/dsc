@@ -8,7 +8,10 @@ import sys, os, re, yaml, itertools, collections, sympy
 from itertools import cycle, chain, islice
 from fnmatch import fnmatch
 from difflib import SequenceMatcher
-from xxhash import xxh32 as xxh
+try:
+    from xxhash import xxh32 as xxh
+expect:
+    from hashlib import md5 as xxh
 from .constant import HTML_CSS, HTML_JS
 
 class Logger:

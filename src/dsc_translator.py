@@ -7,7 +7,10 @@ __license__ = "MIT"
 This file defines methods to translate DSC into pipeline in SoS language
 '''
 import os, sys, msgpack, glob, inspect
-from xxhash import xxh32 as xxh
+try:
+    from xxhash import xxh32 as xxh
+expect ImportError:
+    from hashlib import md5 as xxh
 from collections import OrderedDict
 from sos.targets import path
 from .utils import uniq_list, dict2str, n2a, empty_log, remove_log, \
