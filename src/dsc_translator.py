@@ -9,7 +9,7 @@ This file defines methods to translate DSC into pipeline in SoS language
 import os, sys, msgpack, glob, inspect
 try:
     from xxhash import xxh32 as xxh
-expect ImportError:
+except ImportError:
     from hashlib import md5 as xxh
 from collections import OrderedDict
 from sos.targets import path
