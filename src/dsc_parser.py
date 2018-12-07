@@ -9,7 +9,10 @@ This file defines methods to load and preprocess DSC scripts
 
 import os, re, itertools, copy, platform, glob, yaml
 from collections import Mapping, OrderedDict, Counter
-from xxhash import xxh32 as xxh
+try:
+    from xxhash import xxh32 as xxh
+expect:
+    from hashlib import md5 as xxh
 from sos.utils import env
 from sos.targets import fileMD5, executable
 from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
