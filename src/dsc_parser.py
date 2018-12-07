@@ -11,7 +11,7 @@ import os, re, itertools, copy, platform, glob, yaml
 from collections import Mapping, OrderedDict, Counter
 try:
     from xxhash import xxh32 as xxh
-expect:
+except ImportError:
     from hashlib import md5 as xxh
 from sos.utils import env
 from sos.targets import fileMD5, executable

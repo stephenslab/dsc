@@ -10,7 +10,7 @@ from fnmatch import fnmatch
 from difflib import SequenceMatcher
 try:
     from xxhash import xxh32 as xxh
-expect:
+except ImportError:
     from hashlib import md5 as xxh
 from .constant import HTML_CSS, HTML_JS
 
