@@ -5,6 +5,9 @@ __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 import os, re, pickle
 import pandas as pd, numpy as np
+import warnings
+warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+warnings.filterwarnings("ignore", message="numpy.ndarray size changed")
 from .utils import uniq_list, case_insensitive_uniq_list, flatten_list, filter_sublist, FormatError, DBError, logger
 from .yhat_sqldf import sqldf
 from .line import parse_filter
