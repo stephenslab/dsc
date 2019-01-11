@@ -40,9 +40,3 @@ sh: expand = True
 
 [release]
 sos_run('readme+patch+pip')
-
-[default]
-sh: expand = True
-  touch README.rst
-	pip{py} install -U --upgrade-strategy only-if-needed . && \
-	rm -rf *.egg-info build dist
