@@ -178,8 +178,8 @@ class TestParser(unittest.TestCase):
     def testBasicSyntaxFail(self):
         '''basic syntax parser fail'''
         # multiple exec output
-        # FIXME: test below should fail
-        # self.assertRaises(FormatError, DSC_Script, text1)
+        # FIXME: test below needs fix
+        self.assertRaises(FormatError, DSC_Script, text1)
         # grouped parameters is not allowed
         self.assertRaises(FormatError, DSC_Script, text2)
         # grouped parameters is not allowed in exec decoration
@@ -350,7 +350,7 @@ simulate: R()
         res = DSC_Script(text)
         self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('n', [1, 5]), ('p', [2, 6]), ('a', [3]), ('b', [4]), ('t', [5])]) 
 
-    def testOperatorPass(self):
+    def testParenthesisOperatorPass(self):
         # () operator
         # FIXME: likely wrong here?
         text = text0 + '''
@@ -369,7 +369,217 @@ simulate: R()
         res = DSC_Script(text)
         self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('n', [1, 5]), ('p', [2, 6])])
 
-        
+    def testConfOperatorPass(self):
+        text = text0 + '''
+simulate: R()
+    $x: x
+    @CONF: work_dir = /tmp, exec_path = /tmp
+'''
+        res = DSC_Script(text)
+        self.assertEqual(res.modules['simulate'].path, ['/tmp'])
+        text = text0 + '''
+simulate: R()
+    $x: x
+    @CONF: work_dir = /tmp, exec_path = (/tmp, ~/tmp), lib_path = ./, R_libs = (ashr@stephenslab/ashr (>=2.2.7), psych)
+'''
+        res = DSC_Script(text)
+        self.assertEqual(res.modules['simulate'].path, ['/tmp', '~/tmp'])
+        self.assertEqual(res.modules['simulate'].exe['header'], 'library(ashr)\nlibrary(psych)')
+
+    def testModuleVariablesFail(self):
+        # multiple input / output
+        text = text0 + '''
+simulate: R()
+    $x: x, 7
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        text = text0 + '''
+simulate: R()
+    x: $x, y
+    $x: x
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+
+    def testDuplicatesFail(self):
+        # various duplicates
+        text = text0 + '''
+simulate: R()
+    $x: x
+
+simulate, simulate: R()
+    $x: 7
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        text = text0 + '''
+simulate: R()
+    $x: x
+
+simulate: R()
+    $x: 7
+''' 
+        # FIXME: this test fails
+        #self.assertRaises(FormatError, DSC_Script, text)
+        text = text0 + '''
+simulate: R()
+    $x: x
+
+t,t: R()
+    $x: 7
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        text = text0 + '''
+simulate: R()
+    $x: x
+
+t,simulate: R()
+    $x: 7
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        text = text0 + '''
+simulate: R()
+    $x: x
+    $x: y
+
+t: R()
+    $x: 7
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+
+    def testFilterFail(self):
+        # bad condition
+        text = text0 + '''
+simulate: R()
+    n: $y
+    $x: x
+    @FILTER: n < 3
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        text = text0 + '''
+simulate: R()
+    n: 2
+    p: 5
+    $x: x
+    @FILTER: n < 3
+    @ALIAS: m = n
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+
+    def testFilterPass(self):
+        text = text0 + '''
+simulate, t: R(), R()
+    n: 100, 200, 300, 400, 500
+    k: 0, 1
+    @FILTER:
+        simulate: (n <= 300 and k = 0) or (n > 300 and k = 1)
+        t: n = 500
+    $x: x
+'''
+        res = DSC_Script(text)
+        self.assertEqual(res.modules['simulate'].dump()['input_filter'], '(_n <= 300 and _k == 0) or (_n > 300 and _k == 1)')
+        text = text0 + '''
+simulate, t: R(), R()
+    n: 100, 200, 300, 400, 500
+    k: 0, 1
+    @FILTER: (n in [100,200,300] and k = 0)
+    $x: x
+'''
+        res = DSC_Script(text)
+        self.assertEqual(res.modules['simulate'].dump()['input_filter'], '(_n in (100,200,300) and _k == 0)')
+        text = text0 + '''
+simulate, t: R(), R()
+    n: 100, 200, 300, 400, 500
+    k: 0, 1
+    @FILTER: 
+        *: n in [100,200,300]
+        t: n = 300
+    $x: x
+'''
+        res = DSC_Script(text)
+        self.assertEqual(res.modules['simulate'].dump()['input_filter'], '(_n in (100,200,300))')
+
+    def testParameterModuleConflict(self):
+        # parameter name conflict with output
+        text = text0 + '''
+simulate: R()
+    n: 100
+    $n: n
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        # parameter name conflict with output
+        text = text0 + '''
+simulate: R()
+    n: $n
+    $n: n
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        # parameter name conflict with output
+        text = text0 + '''
+simulate: R()
+    n: 100
+    a: 5
+    @ALIAS: m = n, m = a
+    $out: n
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+
+    def testFileOperatorPass(self):
+        # file() operator
+        text = text0 + '''
+simulate: R()
+    data: file(.txt)
+    $out: n
+'''
+        res = DSC_Script(text)
+        self.assertEqual(res.modules['simulate'].dump()['plugin_status']['temp_file'], ['data <- paste0(${_output[0]:nr}, ".data.txt")'])
+
+
+    def testFileOperatorFail(self):
+        # file() operator misuage
+        text = text0 + '''
+simulate: R()
+    data: file(.txt), 1
+    $out: n
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        # file() operator misuage
+        text = text0 + '''
+simulate: R()
+    data: (file(.txt), 1)
+    $out: n
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        # bad output
+        text = text0 + '''
+simulate: R()
+    data: file(.txt)
+    $out: data, 1
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+        # bad output
+        text = text0 + '''
+simulate: R()
+    data: file(.txt)
+    $out: (data, 1)
+'''
+        self.assertRaises(FormatError, DSC_Script, text)
+
+    def testQuotedKeywords(self):
+        text = text0 + '''
+simulate: R()
+    K: TRUE, FALSE, NULL
+    $out: K
+'''
+        res = DSC_Script(text)
+        self.assertEqual(res.modules['simulate'].dump()['input']['K'], ['TRUE', 'FALSE', 'NULL'])
+        text = text0 + '''
+simulate: Python()
+    K: 'TRUE', 'FALSE', 'NULL'
+    $out: K
+'''
+        res = DSC_Script(text)
+        self.assertEqual(res.modules['simulate'].dump()['input']['K'], ["'TRUE'", "'FALSE'", "'NULL'"])
+
+
 if __name__ == '__main__':
     #suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestParser)
     # unittest.TextTestRunner(, suite).run()
