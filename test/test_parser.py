@@ -130,23 +130,6 @@ simulate: R()
 class TestParser(unittest.TestCase):
     def setUp(self):
         subprocess.call('sos remove -s -v0', shell=True)
-        self.temp_files = []
-
-    def tearDown(self):
-        for f in self.temp_files:
-            if file_target(f).exists():
-                file_target(f).unlink()
-
-    def touch(self, files):
-        '''create temporary files'''
-        if isinstance(files, str):
-            files = [files]
-        #
-        for f in files:
-            with open(f, 'w') as tmp:
-                tmp.write('test')
-        #
-        self.temp_files.extend(files)
 
     def testBasicSyntaxPass(self):
         '''basic syntax parser success'''

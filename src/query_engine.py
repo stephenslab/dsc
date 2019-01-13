@@ -70,7 +70,8 @@ class Query_Processor:
         self.db = db
         self.targets = uniq_list(' '.join(targets).split())
         self.raw_condition = condition
-        self.data = pickle.load(open(os.path.expanduser(db), 'rb'))
+        with open(os.path.expanduser(db), 'rb') as f:
+            self.data = pickle.load(f)
         # table: msg map
         self.field_warnings = {}
         if '.groups' in self.data:
