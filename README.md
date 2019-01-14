@@ -78,6 +78,11 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.2
+
+- Various improvements for remote job submission and execution (mostly on SoS).
+- SoS bumped to version 0.18.1 to support these changes.
+
 0.3.1
 
 - Improved database I/O performance to cope with file system latency.
