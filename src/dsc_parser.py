@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-import os, re, itertools, copy, platform, glob, yaml
+import os, re, itertools, copy, platform, glob, yaml, warnings
 from collections import Mapping, OrderedDict, Counter
 try:
     from xxhash import xxh32 as xxh
@@ -168,7 +168,7 @@ class DSC_Script:
                 block[name][k] = v
         if name in self.content:
             if name != 'DSC':
-                env.logger.warning(f'Overwriting existing module definition ``{name}``...')
+                warnings.warn(f'Overwriting existing module definition ``{name}``...')
         self.content.update(block)
 
     def set_global_vars(self, gvars):
@@ -272,7 +272,7 @@ class DSC_Script:
         if derived is not None and '@EXEC' not in self.content[block]:
             self.content[block]['@EXEC'] = [self.content[derived[1]]['meta']['exec']]
         if len(modules) != len(self.content[block]['@EXEC']) and len(self.content[block]['@EXEC']) > 1:
-            raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['@EXEC'])}`` executables are provided. Please ensure they match.")
+            raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['@EXEC'])}`` executables are provided.")
         if len(modules) > 1 and len(self.content[block]['@EXEC']) == 1:
             self.content[block]['@EXEC'] = self.content[block]['@EXEC'] * len(modules)
         # collection module specific parameters

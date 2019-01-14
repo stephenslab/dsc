@@ -15,7 +15,7 @@ DSC:
     run: simulate
 '''
 text1 = text0 + '''
-simulate: R(), R()
+simulate: R(x=x), R(x=y)
     x: 1
     y: 2
     $out: x
@@ -383,6 +383,17 @@ simulate: R()
 '''
         self.assertRaises(FormatError, DSC_Script, text)
 
+    def testModuleVariablesPass(self):
+        # module input and output can have same name
+        text = text0 + '''
+simulate: R()
+    n: $n
+    $n: n
+'''
+        res = DSC_Script(text)
+        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('n', ['$n'])])
+        self.assertEqual(res.modules['simulate'].dump()['output_variables'], {'n':'n'})
+
     def testDuplicatesFail(self):
         # various duplicates
         text = text0 + '''
@@ -400,8 +411,7 @@ simulate: R()
 simulate: R()
     $x: 7
 ''' 
-        # FIXME: this test fails
-        #self.assertRaises(FormatError, DSC_Script, text)
+        self.assertWarns(UserWarning, DSC_Script, text)
         text = text0 + '''
 simulate: R()
     $x: x
@@ -435,15 +445,6 @@ simulate: R()
     n: $y
     $x: x
     @FILTER: n < 3
-'''
-        self.assertRaises(FormatError, DSC_Script, text)
-        text = text0 + '''
-simulate: R()
-    n: 2
-    p: 5
-    $x: x
-    @FILTER: n < 3
-    @ALIAS: m = n
 '''
         self.assertRaises(FormatError, DSC_Script, text)
 
@@ -485,13 +486,6 @@ simulate, t: R(), R()
         text = text0 + '''
 simulate: R()
     n: 100
-    $n: n
-'''
-        self.assertRaises(FormatError, DSC_Script, text)
-        # parameter name conflict with output
-        text = text0 + '''
-simulate: R()
-    n: $n
     $n: n
 '''
         self.assertRaises(FormatError, DSC_Script, text)
