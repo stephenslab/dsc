@@ -6,3 +6,6 @@ install:
 script:
   - python -m pip install . --no-deps -vv
   - dsc --help
+  - python test/test_parser.py
+  - python test/test_query.py
+
