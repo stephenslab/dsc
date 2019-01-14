@@ -14,5 +14,6 @@ install:
 script:
   - python -m pip install . --no-deps -vv
   - dsc --help
+  - dsc-query --version
   - sudo R --slave -e 'install.packages("dscrutils", repos=NULL, type="source")'
   - cd test && python test_parser.py && python test_query.py
