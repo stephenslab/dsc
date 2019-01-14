@@ -297,8 +297,6 @@ class DSC_Translator:
                                                         self.filter_string))
                     else:
                         self.input_option.append(f'for_each = {repr(self.params)}')
-                if self.conf is None:
-                    self.input_option.append('concurrent = True')
 
         def get_output(self):
             if self.prepare:
@@ -327,7 +325,7 @@ class DSC_Translator:
                 if self.conf is None or (self.step.name in self.conf and self.conf[self.step.name]['queue'] is None) \
                    or (self.step.name not in self.conf and self.conf['default']['queue'] is None):
                     return
-                self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{self.step.name}_{{_output:bn}}', workdir = {repr(self.step.workdir)}, concurrent = True\n"
+                self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{self.step.name}_{{_output:bn}}', workdir = {repr(self.step.workdir)}\n"
 
         def get_action(self):
             if self.prepare:
