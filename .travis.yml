@@ -15,4 +15,4 @@ script:
   - python -m pip install . --no-deps -vv
   - dsc --help
   - sudo R --slave -e 'install.packages("dscrutils", repos=NULL, type="source")'
-  - cd test && python test_parser.py && python test/test_query.py
+  - cd test && python test_parser.py && python test_query.py
