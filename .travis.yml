@@ -1,11 +1,19 @@
 language: python
 python:
   - "3.6"
+dist: bionic
+addons:
+  apt:
+    update: true
+    packages:
+      - r-base
+      - r-base-dev
+      - r-cran-yaml
+      - r-cran-devtools
 install:
   - pip install --ignore-installed -r requirements.txt
 script:
   - python -m pip install . --no-deps -vv
   - dsc --help
-  - python test/test_parser.py
-  - python test/test_query.py
-
+  - cd dscrutils && R --slave -e "devtools::install()"
+  - cd test && python test_parser.py && python test/test_query.py
