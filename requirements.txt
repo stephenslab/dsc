@@ -5,7 +5,7 @@ numpy
 pandas>=0.23.4
 PTable
 pyarrow>=0.5.0
-sos>=0.17.4
+sos>=0.18.1
 sos-pbs>=0.9.17.0
 sqlalchemy
 sympy
