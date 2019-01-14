@@ -1,19 +1,17 @@
 language: python
 python:
   - "3.6"
-dist: bionic
+dist: xenial
 addons:
   apt:
     update: true
     packages:
       - r-base
       - r-base-dev
-      - r-cran-yaml
-      - r-cran-devtools
 install:
   - pip install --ignore-installed -r requirements.txt
 script:
   - python -m pip install . --no-deps -vv
   - dsc --help
-  - cd dscrutils && R --slave -e "devtools::install()"
+  - R --slave -e 'install.packages("dscrutils", repos=NULL, type="source")'
   - cd test && python test_parser.py && python test/test_query.py
