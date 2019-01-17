@@ -229,17 +229,17 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
             out$DSC_DEBUG$time$elapsed
           }
         }, mc.cores = detectCores())
-
         # If all the available values are atomic, not NULL, and scalar
         # (i.e., length of 1), then the values can fit into the column
         # of a data frame. If not, then there is nothing to be done.
-        if (all(sapply(values[available.targets],
+        if (all(sapply(values,
                        function (x) !is.null(x) &
                                     is.atomic(x) &
                                     length(x) == 1))) {
           if (verbose)
             cat("extracted atomic values\n")
-          dat[[j]] <- data.frame(unlist(values),stringsAsFactors = FALSE)
+          dsc.module.files[available.targets] <- unlist(values)
+          dat[[j]] <- data.frame(dsc.module.files,stringsAsFactors = FALSE)
           names(dat[[j]]) <- col.new
           names(dat)[j]   <- col.new
         } else {
@@ -250,17 +250,29 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
           # incorporate the vector values into the data frame.
           extract.values   <- FALSE
           all.lengths.same <- FALSE
-          if (all(sapply(values[available.targets],
+          if (all(sapply(values,
                          function (x) is.vector(x) & !is.list(x))))
-            if (length(unique(sapply(values[available.targets],length)))==1) {
+            if (length(unique(sapply(values,length)))==1) {
               all.lengths.same <- TRUE
-              if (max(sapply(values[available.targets],length)) <=
+              if (max(sapply(values,length)) <=
                     max.extract.vector)
                 extract.values <- TRUE
             }
           if (extract.values) {
             if (verbose)
               cat("extracted vector values\n")
+            if (length(available.targets) < length(dsc.module.files)) {
+              vector_length = length(values[[1]])
+              tmp = values
+              values = list()
+              ii = 1
+              for (jj in 1:length(dsc.module.files)) {
+                if (jj %in% available.targets) values[[jj]] = tmp[[ii]]
+                else values[[jj]] = rep(NA, vector_length)
+                ii = ii + 1
+              }
+            }
+
             dat[[j]] <- data.frame(do.call(rbind,values),
                                    check.names = FALSE,
                                    stringsAsFactors = FALSE)
@@ -270,7 +282,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
             if (verbose)
               if (all.lengths.same)
                 cat("vectors not extracted (set max.extract.vector =",
-                    max(sapply(values[available.targets],length)),
+                    max(sapply(values,length)),
                     "to extract)\n")
               else
                 cat("not extracted (filenames provided)\n")
