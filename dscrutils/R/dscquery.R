@@ -34,6 +34,8 @@
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
+#' @param cores number of cores to use for multicore extraction of data.
+#'
 #' @return A data frame containing the result of the DSC query, with
 #' columns corresponding to the query target. When reasonable to do
 #' so, the DSC outputs are extracted into the columns of the data
@@ -105,7 +107,7 @@
 #'
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
                       add.path = FALSE, exec = "dsc-query", load.pkl = FALSE,
-                      max.extract.vector = 10, verbose = TRUE) {
+                      max.extract.vector = 10, verbose = TRUE, cores = NULL) {
 
   # CHECK INPUTS
   # ------------
@@ -181,6 +183,8 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       return(substr(x,n-6,n) == ":output")
   }))
 
+  if (missing(cores)) cores = detectCores()
+
   # Repeat for each column of the form "module.variable:output".
   if (length(cols) > 0) {
     cat("Reading DSC outputs:\n")
@@ -228,7 +232,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
           } else {
             out$DSC_DEBUG$time$elapsed
           }
-        }, mc.cores = detectCores())
+        }, mc.cores = cores)
         # If all the available values are atomic, not NULL, and scalar
         # (i.e., length of 1), then the values can fit into the column
         # of a data frame. If not, then there is nothing to be done.

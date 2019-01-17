@@ -6,7 +6,7 @@
 \usage{
 dscquery(dsc.outdir, targets, conditions = NULL, groups = NULL,
   add.path = FALSE, exec = "dsc-query", load.pkl = FALSE,
-  max.extract.vector = 10, verbose = TRUE)
+  max.extract.vector = 10, verbose = TRUE, cores = NULL)
 }
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
@@ -22,7 +22,7 @@ These will be the names of the columns in the returned data frame.}
 \item{conditions}{The default \code{NULL} means "no conditions", in
 which case the results for all DSC pipelines are returned.}
 
-\item{groups}{Definition of module groups. For example, 
+\item{groups}{Definition of module groups. For example,
 \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
 will dynamically create module groups \code{method} and \code{score}
 even if they have not previously been defined when running DSC.}
@@ -37,6 +37,8 @@ this length are automatically extracted to the data frame.}
 
 \item{verbose}{If \code{verbose = TRUE}, print progress of DSC
 query command to the console.}
+
+\item{cores}{number of cores to use for multicore extraction of data.}
 }
 \value{
 A data frame containing the result of the DSC query, with
