@@ -1,7 +1,7 @@
 h5py
 msgpack-python
 numexpr
-numpy
+numpy==1.15.4
 pandas>=0.23.4
 PTable
 pyarrow>=0.5.0

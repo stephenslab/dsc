@@ -1,7 +1,8 @@
 # Dynamic Statistical Comparisons (DSC)
 
-[![PyPI version](https://badge.fury.io/py/dsc.svg)](https://badge.fury.io/py/dsc)
+[![PyPI Version](https://badge.fury.io/py/dsc.svg)](https://badge.fury.io/py/dsc)
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/46bb573ea0414f6095f1b7fd4bedbfd3)](https://www.codacy.com/app/gaow/dsc?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stephenslab/dsc&amp;utm_campaign=Badge_Grade)
+[![Travis Status](https://travis-ci.org/stephenslab/dsc.svg?branch=master)](https://travis-ci.org/stephenslab/dsc)
 
 The [project wiki](https://stephenslab.github.io/dsc-wiki) is the main source of documentation for both developers and users of the DSC project. If you are new to the concept of DSC, it may worth reading this [blog post](http://stephens999.github.io/blog/2014/10/Data-Driven-Discovery.html) to understand the motivation behind this project.
 

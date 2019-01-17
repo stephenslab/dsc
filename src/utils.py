@@ -8,6 +8,7 @@ import sys, os, re, yaml, itertools, collections, sympy
 from itertools import cycle, chain, islice
 from fnmatch import fnmatch
 from difflib import SequenceMatcher
+from collections.abc import MutableMapping
 try:
     from xxhash import xxh32 as xxh
 except ImportError:
@@ -304,7 +305,7 @@ def set_nested_value(d, keys, value, default_factory = dict):
         except KeyError:
             val = d[key] = default_factory()
         else:
-            if not isinstance(val, collections.MutableMapping):
+            if not isinstance(val, MutableMapping):
                 val = d[key] = default_factory()
         d = val
     d[keys[-1]] = value
