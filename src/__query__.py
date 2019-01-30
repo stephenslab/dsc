@@ -161,7 +161,7 @@ def main():
     p.add_argument('--rds', dest = 'rds', choices = ['omit', 'overwrite'],
                    help='''Convert Python serialized files to R serialized files''')
     p.add_argument('-f', '--force', action = 'store_true', dest = 'force',
-                    help=SUPPRESS)
+                    help='Force overwrite existing query result files')
     p.add_argument('-v', '--verbosity', type = int, choices = list(range(4)), default = 2,
                    help='''Output error (0), warning (1), info (2) and debug (3)
                    information.''')
