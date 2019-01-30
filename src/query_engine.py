@@ -54,6 +54,8 @@ SQL_KEYWORDS = set([
     'LOG', 'POW', 'SIN', 'SLEEP', 'SORT', 'STD', 'VALUES', 'SUM'
 ])
 
+NA = None
+
 def find_partial_index(xx, ordering):
     for ii, i in enumerate(ordering):
         if xx.startswith(i):
@@ -415,9 +417,9 @@ class Query_Processor:
                     non_na_idx = table[f'{g}{k}'].apply(lambda x: tuple([idx for idx, y in enumerate(x) if y == y]))
                     if not all([len(x) <= 1 for x in non_na_idx]):
                         raise DBError(f'Modules ``{to_merge[k]}`` cannot be grouped into ``{g}{k}`` due to collating entries.')
-                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0] if len([y for y in x if y == y]) else "NA")
+                    table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0] if len([y for y in x if y == y]) else NA)
                     if not g in table:
-                        table[g] = [self.groups[g][kk[0]] if len(kk) else "NA" for kk in non_na_idx]
+                        table[g] = [self.groups[g][kk[0]] if len(kk) else NA for kk in non_na_idx]
                 else:
                     # it is a trivial group
                     # simply rename it
