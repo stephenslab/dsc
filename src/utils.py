@@ -14,6 +14,7 @@ try:
 except ImportError:
     from hashlib import md5 as xxh
 from .constant import HTML_CSS, HTML_JS
+from sos.__main__ import AnswerMachine
 
 class Logger:
     def __init__(self):
@@ -489,10 +490,10 @@ def install_package(lib, libtype, dryrun=False, autoinstall=False):
         version = versions[0]
     else:
         version = ""
-    if version and not (version.startswith('=') or version.startswith(">") or version.startswith("<")):
+    if version and not (version.startswith('=') or version.startswith(">") or version.startswith("<") or version.startswith("!=")):
         version = f"=={version}"
     if not dryrun:
-            logger.info(f"Checking {libtype.replace('_', ' ')} {lib} ...")
+            logger.info(f"{'Checking / installing' if autoinstall else 'Checking'} {libtype.replace('_', ' ')} {lib}{(' version' + version) if version else ''} ...")
             if libtype == 'R_library':
                 from sos.targets_r import R_library
                 return R_library(f"{lib}{version}", autoinstall=autoinstall).target_exists()
@@ -501,6 +502,19 @@ def install_package(lib, libtype, dryrun=False, autoinstall=False):
                 return Py_Module(f"{lib}{version}", autoinstall=autoinstall).target_exists()
     else:
         return(lib, version)
+
+def install_package_interactive(lib, libtype, required=True):
+    am = AnswerMachine()
+    if libtype == 'R_library':
+        from sos.targets_r import R_library as target_check
+    else:
+        from sos.targets_python import Py_Module as target_check
+    ret = target_check(lib).target_exists()
+    if not ret:
+        if am.get(f"{libtype.replace('_', ' ')} {lib.split('@')[0]} needs to be installed or updated. Would you like to proceed?"):
+            ret = target_check(lib, autoinstall=True).target_exists()
+    if not ret and required:
+        raise ModuleNotFoundError(f"Required {libtype.replace('_', ' ')} ``{lib.split('@')[0]}`` is not available or obsolete. Please install it and try again.")
 
 def make_html_name(value):
     return "".join(x for x in value.replace(' ', '-') if x.isalnum() or x in ['-', '_']).lower()

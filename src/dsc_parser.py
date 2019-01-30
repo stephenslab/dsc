@@ -17,7 +17,7 @@ from sos.utils import env
 from sos.targets import fileMD5, executable
 from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, \
-     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf
+     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf, install_package_interactive
 from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
@@ -103,10 +103,10 @@ class DSC_Script:
                              for x in self.runtime.sequence_ordering.keys()])
         script_types =  [m.exe['type'] for m in self.modules.values()]
         if 'R' in script_types:
-            self.runtime.rlib.append(f'dscrutils@stephenslab/dsc/dscrutils (>={__version__})')
+            install_package_interactive(f'dscrutils@stephenslab/dsc/dscrutils>={__version__}', 'R_library')
         if 'R' in script_types and 'PY' in script_types:
-            self.runtime.pymodule.extend(['rpy2', 'dsc'])
-            self.runtime.rlib.extend(['reticulate (>=1.10.0)'])
+            install_package_interactive('reticulate', 'R_library')
+            install_package_interactive('rpy2', 'Python_Module')
         self.runtime.rlib.extend(flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
         self.runtime.pymodule.extend(flatten_list([x.pymodule for x in self.modules.values() if x.rlib]))
         # FIXME: maybe this should be allowed in the future
