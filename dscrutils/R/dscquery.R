@@ -155,7 +155,7 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
       cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
   if (length(groups) >= 1)
     cmd.str <- paste0(cmd.str, " -g \"", paste(gsub(" ", "", groups), collapse = " "), "\"")
-  run_cmd(cmd.str, fout=verbose)
+  ret = run_cmd(cmd.str, ferr=ifelse(verbose, "", FALSE))
 
   # LOAD DSC QUERY
   # --------------

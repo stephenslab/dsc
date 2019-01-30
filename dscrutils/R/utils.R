@@ -88,7 +88,7 @@ run_cmd <- function(cmd_str, shell_exec="/bin/bash", fout='',ferr='') {
     write("Running shell command:", stderr())
     write(cmd_str, stderr())
   }
-  out <- system2(shell_exec, args = c("-c", shQuote(cmd_str)),stdout = fout,stderr=ferr)
+  out <- system2(shell_exec, args = c("-c", shQuote(cmd_str)), stdout = fout, stderr=ferr)
   if (out != 0 && fout != TRUE && ferr != TRUE)
     stop(paste(strsplit(cmd_str, " +")[[1]][1], "command failed (returned a non-zero exit status)"))
   return(out)
