@@ -13,7 +13,7 @@ from .syntax import DSC_CACHE
 
 def remove_obsolete_output(output, additional_files = None, rerun = False):
     from sos.__main__ import cmd_remove
-    map_db = '{}/{}.map.mpk'.format(output, os.path.basename(output))
+    map_db = f'{output}/{os.path.basename(output)}.map.mpk'
     # Load existing file names
     if os.path.isfile(map_db) and not rerun:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(), encoding = 'utf-8',
@@ -23,12 +23,14 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
     # Remove file signature when files are deleted
     to_remove = []
     for k, x in list(map_data.items()):
+        if k == '__base_ids__':
+            continue
         x = os.path.join(output, x)
         if not (os.path.isfile(x) or os.path.isfile(x + '.zapped')):
             to_remove.append(x)
             del map_data[k]
     # Remove files that are not in the name database
-    for x in glob.glob('{}/**/*.*'.format(output), recursive = True):
+    for x in glob.glob(f'{output}/**/*.*', recursive = True):
         if x.endswith(".zapped"):
             x = x[:-7]
             x_ext = '.zapped'
@@ -36,8 +38,8 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
             x_ext = ''
         x_name =  os.path.join(os.path.basename(os.path.split(x)[0]), os.path.basename(x))
         if x_name not in map_data.values() and \
-           x not in ['{}/{}.{}.mpk'.format(output, os.path.basename(output), i) for i in ['conf', 'map']] and \
-           x != '{}/{}.db'.format(output, os.path.basename(output)):
+           x not in [f'{output}/{os.path.basename(output)}.{i}.mpk' for i in ['conf', 'map']] and \
+               x != f'{output}/{os.path.basename(output)}.db':
             to_remove.append(x + x_ext)
     # Additional files to remove
     for x in additional_files or []:
@@ -53,16 +55,17 @@ def remove_obsolete_output(output, additional_files = None, rerun = False):
                             "__confirm__": True, "signature": False,
                             "verbosity": 0, "zap": False,
                             "size": None, "age": None, "dryrun": False}), [])
+    else:
+        print("Nothing found to remove!")
 
 def zap_unwanted_output(workflows, groups, modules, db):
     from sos.__main__ import cmd_remove
-    filename = '{}/{}.db'.format(db, os.path.basename(db))
+    filename = f'{db}/{os.path.basename(db)}.db'
     to_remove = [x for x in modules if os.path.isfile(x)]
     modules = [x for x in modules if x not in to_remove]
     modules = uniq_list(flatten_list([x if x not in groups else groups[x] for x in modules]))
     if not os.path.isfile(filename):
-        raise ValueError('Cannot remove ``{}``, due to missing output database ``{}``.'.\
-                           format(repr(modules), filename))
+        raise ValueError(f'Cannot remove ``{repr(modules)}``, due to missing output database ``{filename}``.')
     else:
         remove_modules = []
         for module in modules:
@@ -78,7 +81,7 @@ def zap_unwanted_output(workflows, groups, modules, db):
                 print(f"Target \"{module}\" ignored because it is not module in current DSC.")
         #
         data = pickle.load(open(filename, 'rb'))
-        to_remove.extend(flatten_list([[glob.glob(os.path.join(db, '{}.*'.format(x)))
+        to_remove.extend(flatten_list([[glob.glob(os.path.join(db, f'{x}.*'))
                                         for x in data[item]['__output__']]
                                        for item in remove_modules if item in data]))
     if len(to_remove) and not \
