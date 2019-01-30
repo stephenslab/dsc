@@ -479,24 +479,28 @@ def round_print(text, sep, pc = None):
         print(sep.join([('{0:.'+ str(pc) + 'E}').format(x) if isinstance(x, float) else str(x)
                         for x in line]).strip())
 
-def install_r_lib(lib, dryrun = False):
-    from sos.targets_r import R_library
+def install_package(lib, libtype, dryrun=False, autoinstall=False):
     groups = re.search('(.*?)\((.*?)\)', lib)
     if groups is not None:
         lib = groups.group(1).strip()
         versions = [x.strip() for x in groups.group(2).split(',')]
+        # only allow for one version specification: in previous versions of DSC we support multiple versions
+        # but now restricting it to just one version because I think it is more confusing than helpful otherwise
+        version = versions[0]
     else:
-        versions = None
+        version = ""
+    if version and not (version.startswith('=') or version.startswith(">") or version.startswith("<")):
+        version = f"=={version}"
     if not dryrun:
-        logger.info("Checking R library {} ...".format(lib))
-        return R_library(lib, version=versions, autoinstall=True).target_exists()
+            logger.info(f"Checking {libtype.replace('_', ' ')} {lib} ...")
+            if libtype == 'R_library':
+                from sos.targets_r import R_library
+                return R_library(f"{lib}{version}", autoinstall=autoinstall).target_exists()
+            else:
+                from sos.targets_python import Py_Module
+                return Py_Module(f"{lib}{version}", autoinstall=autoinstall).target_exists()
     else:
-        return(lib, versions)
-
-def install_py_module(lib):
-    from sos.targets_python import Py_Module
-    logger.info("Checking Python module {} ...".format(lib))
-    return Py_Module(lib, autoinstall=True).target_exists()
+        return(lib, version)
 
 def make_html_name(value):
     return "".join(x for x in value.replace(' ', '-') if x.isalnum() or x in ['-', '_']).lower()

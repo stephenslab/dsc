@@ -106,7 +106,7 @@ class DSC_Script:
             self.runtime.rlib.append(f'dscrutils@stephenslab/dsc/dscrutils (>={__version__})')
         if 'R' in script_types and 'PY' in script_types:
             self.runtime.pymodule.extend(['rpy2', 'dsc'])
-            self.runtime.rlib.extend(['reticulate@rstudio/reticulate (>=1.10.0)'])
+            self.runtime.rlib.extend(['reticulate (>=1.10.0)'])
         self.runtime.rlib.extend(flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
         self.runtime.pymodule.extend(flatten_list([x.pymodule for x in self.modules.values() if x.rlib]))
         # FIXME: maybe this should be allowed in the future

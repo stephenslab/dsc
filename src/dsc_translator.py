@@ -13,8 +13,7 @@ except ImportError:
     from hashlib import md5 as xxh
 from collections import OrderedDict
 from sos.targets import path
-from .utils import uniq_list, dict2str, n2a, empty_log, remove_log, \
-    install_r_lib, install_py_module
+from .utils import uniq_list, dict2str, n2a, empty_log, remove_log, install_package
 from .syntax import DSC_CACHE
 __all__ = ['DSC_Translator']
 
@@ -188,10 +187,7 @@ class DSC_Translator:
             if f'{lib_type} {lib}' in installed_libs:
                 continue
             else:
-                if lib_type == 'R_library':
-                    ret = install_r_lib(lib)
-                if lib_type == 'Python_Module':
-                    ret = install_py_module(lib)
+                ret = install_package(lib, lib_type)
                 if ret:
                     new_libs.append(f'{lib_type} {lib}')
                 else:
