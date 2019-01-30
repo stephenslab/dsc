@@ -79,6 +79,11 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.3
+
+- [minor] #160
+- SoS bumped to version 0.18.4 for performance optimizations
+
 0.3.2
 
 - Various improvements for remote job submission and execution (mostly on SoS).

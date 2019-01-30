@@ -38,5 +38,5 @@ sh:	workdir = '.', expand = True
 sh: expand = True
 	pip{py} install -U --upgrade-strategy only-if-needed dsc
 
-[release]
+[default]
 sos_run('readme+patch+pip')
