@@ -39,12 +39,13 @@ class Timer(object):
         self.verbose = False
 
 def remove(workflows, groups, modules, db, purge = False):
-    if purge:
-        from .dsc_database import remove_obsolete_output
+    from .dsc_database import remove_unwanted_output, remove_obsolete_output
+    if purge and modules:
+        remove_unwanted_output(workflows, groups, modules, db, zap = False)
+    elif purge:
         remove_obsolete_output(db)
     else:
-        from .dsc_database import zap_unwanted_output
-        zap_unwanted_output(workflows, groups, modules, db)
+        remove_unwanted_output(workflows, groups, modules, db, zap = true)
 
 def execute(args):
     from .utils import workflow2html, dsc2html, transcript2html
@@ -261,8 +262,8 @@ def main():
                    1) When used without "--clean" it overrides "DSC::run" in DSC file.
                    Input should be quoted string(s) defining one or multiple valid DSC pipelines
                    (multiple pipelines should be separated by space).
-                   2) When used along with "--clean replace" it specifies one or more computational modules,
-                   separated by space, whose output are to be replaced by a (smaller) placeholder file.''')
+                   2) When used along with "--clean" it specifies one or more computational modules,
+                   separated by space, whose output are to be removed or replaced by a (smaller) placeholder file.''')
     ce.add_argument('--truncate', action='store_true',
                    help = '''When applied, DSC will only run one value per parameter.
                    For example with "--truncate", "n: R{1:50}" will be truncated to "n: 1".
@@ -288,9 +289,10 @@ def main():
     mt.add_argument('--clean', metavar = "option", choices = ["purge", "replace"],
                    dest = 'to_remove',
                    help = '''Behavior of how DSC cleans up output folder to save disk space.
-                   "purge" cleans up everything in folder "DSC::output" irrelevant to the most recent successful execution of the benchmark.
-                   "replace", when used with "--target", deletes specified files, or files from specified modules,
-                   and put in placeholder files with "*.zapped" extension. When re-running pipelines these "zapped" files will not trigger
+                   "purge", when used without "--target", cleans up everything in folder "DSC::output" irrelevant to the most recent successful execution of the benchmark.
+                   When used with "--target" it deletes specified files, or files from specified modules or module groups.
+                   "replace", when used with "--target", deletes files as "purge" does, but additionally puts in placeholder files 
+                   with "*.zapped" extension. When re-running pipelines these "zapped" files will not trigger
                    rerun of their module unless they are directly required by a downstream module that needs re-execution.
                    In other words this is useful to remove large yet unused intermediate module output.''')
     ro = p.add_argument_group('Runtime behavior')
