@@ -261,9 +261,8 @@ def main():
                    1) When used without "--clean" it overrides "DSC::run" in DSC file.
                    Input should be quoted string(s) defining one or multiple valid DSC pipelines
                    (multiple pipelines should be separated by space).
-                   2) When used along with "--clean" it specifies one or more computational modules,
-                   separated by space, whose output are to be removed. Alternatively one can specify
-                   path(s) of particular DSC output files that needs to be removed.''')
+                   2) When used along with "--clean replace" it specifies one or more computational modules,
+                   separated by space, whose output are to be replaced by a (smaller) placeholder file.''')
     ce.add_argument('--truncate', action='store_true',
                    help = '''When applied, DSC will only run one value per parameter.
                    For example with "--truncate", "n: R{1:50}" will be truncated to "n: 1".
@@ -290,7 +289,7 @@ def main():
                    dest = 'to_remove',
                    help = '''Behavior of how DSC cleans up output folder to save disk space.
                    "purge" cleans up everything in folder "DSC::output" irrelevant to the most recent successful execution of the benchmark.
-                   "replace" deletes specified files, or files from specified (via "--target") modules,
+                   "replace", when used with "--target", deletes specified files, or files from specified modules,
                    and put in placeholder files with "*.zapped" extension. When re-running pipelines these "zapped" files will not trigger
                    rerun of their module unless they are directly required by a downstream module that needs re-execution.
                    In other words this is useful to remove large yet unused intermediate module output.''')
