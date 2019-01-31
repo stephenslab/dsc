@@ -45,7 +45,7 @@ def remove(workflows, groups, modules, db, purge = False):
     elif purge:
         remove_obsolete_output(db)
     else:
-        remove_unwanted_output(workflows, groups, modules, db, zap = true)
+        remove_unwanted_output(workflows, groups, modules, db, zap = True)
 
 def execute(args):
     from .utils import workflow2html, dsc2html, transcript2html
