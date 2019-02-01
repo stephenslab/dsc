@@ -79,6 +79,11 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.4
+
+- [minor] #161
+- SoS bumped to version 0.18.5 for improved R library auto-installation
+
 0.3.3
 
 - [minor] #160
