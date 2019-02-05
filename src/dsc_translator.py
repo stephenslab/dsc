@@ -102,7 +102,7 @@ class DSC_Translator:
             # Execution pool
             ii = 1
             for y in sequence:
-                tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y} in pipeline {workflow_id + 1})]"]
+                tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y} in pipeline #{workflow_id + 1})]"]
                 if ii > 1:
                     tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
