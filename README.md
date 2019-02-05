@@ -79,6 +79,10 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.5
+
+- Introduce `DSC::run::default`, for the behavior of running the script without targets. 
+
 0.3.4
 
 - [minor] #161

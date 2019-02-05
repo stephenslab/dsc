@@ -102,7 +102,7 @@ class DSC_Translator:
             # Execution pool
             ii = 1
             for y in sequence:
-                tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y})]"]
+                tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y} in pipeline {workflow_id + 1})]"]
                 if ii > 1:
                     tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
@@ -249,7 +249,7 @@ class DSC_Translator:
                 self.header = f"## Codes for {self.step.name}\n"
                 self.header += f"__out_vars__ = {repr([x for x in list(self.step.rv.keys()) + list(self.step.rf.keys())])}"
             else:
-                self.header = f"\n[{self.step.name}]\n"
+                self.header = f"\n[{self.step.name} (module {self.step.name})]\n"
                 self.header += f"parameter: DSC_STEP_ID_ = None\nparameter: {self.step.name}_output_files = list"
 
         def get_parameters(self):
