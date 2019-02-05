@@ -897,7 +897,10 @@ class DSC_Section:
                     self.sequence.append(item)
         else:
             if isinstance(self.content['run'], Mapping):
-                self.sequence = flatten_list(self.content['run'].values())
+                if 'default' in self.content['run']:
+                    self.sequence = self.content['run']['default']
+                else:
+                    self.sequence = flatten_list(self.content['run'].values())
             else:
                 self.sequence = self.content['run']
         self.sequence = [(x,) if isinstance(x, str) else x
