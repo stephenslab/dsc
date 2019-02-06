@@ -1130,7 +1130,7 @@ def remote_config_parser(host, paths):
     conf = None
     for h in [host, f'{host}.yml', f'{host}.yaml']:
         if os.path.isfile(h):
-            conf = yaml.load(open(h).read())
+            conf = yaml.safe_load(open(h).read())
     if conf is None:
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:

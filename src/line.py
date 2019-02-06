@@ -543,11 +543,8 @@ def expand_logic(string):
     res = []
     op = LogicParser()
     for x in op(string):
-        if isinstance(x, str):
-            x = [x]
-        else:
-            x = list(x)
-        for idx in range(len(x)):
+        x = [x] if isinstance(x, str) else list(x)
+        for idx, item in enumerate(x):
             x[idx] = x[idx].replace('__DSC_BAR__', '|')
             x[idx] = x[idx].replace('__DSC_TA__', '~')
             x[idx] = x[idx].replace('__DSC_N__', '&')

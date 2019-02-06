@@ -193,7 +193,7 @@ class DSC_Translator:
                 if ret:
                     new_libs.append(f'{lib_type} {lib}')
                 else:
-                    raise ModuleNotFoundError(f"Required {libtype.replace('_', ' ')} ``{lib.split('@')[0]}`` is not available or obsolete. Please install it and try again.")
+                    raise ModuleNotFoundError(f"Required {lib_type.replace('_', ' ')} ``{lib.split('@')[0]}`` is not available or obsolete. Please install it and try again.")
 
         with open(fn, 'w') as f:
             f.write('\n'.join(installed_libs + new_libs))
