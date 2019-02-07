@@ -40,7 +40,7 @@ class DSC_Translator:
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"\
                      f"{inspect.getsource(n2a)}\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
-        dependency_tracker = dict()
+        self.depends = dict()
         conf_dict = dict()
         conf_str = []
         job_str = []
@@ -72,7 +72,7 @@ class DSC_Translator:
                         exe_signatures[step.name] = job_translator.exe_signature
                         self.exe_check.extend(job_translator.exe_check)
                     processed_steps[(step.name, flow, depend)] = name
-                    dependency_tracker[step.name] = step.depends
+                    self.depends[step.name] = step.depends
                     conf_translator = self.Step_Translator(step, self.db,
                                                            self.step_map[workflow_id + 1],
                                                            try_catch,
@@ -107,7 +107,7 @@ class DSC_Translator:
                     tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output'], " + \
-                               (f"{y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], " if dependency_tracker[y] else "") + \
+                               (f"{y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], " if self.depends[y] else "") + \
                                f"DSC_STEP_ID_ = {abs(int(xxh(repr(exe_signatures[y])).hexdigest(), 16)) % (10**8)})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))
@@ -197,6 +197,12 @@ class DSC_Translator:
 
         with open(fn, 'w') as f:
             f.write('\n'.join(installed_libs + new_libs))
+
+    def get_dependency(self):
+        res = dict()
+        for k, v in self.depends.items():
+            res[k] = [vv[0] for vv in v]
+        return res
 
     class Step_Translator:
         def __init__(self, step, db, step_map, try_catch, host_conf = None):

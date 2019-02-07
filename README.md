@@ -78,19 +78,17 @@ Goal for 0.4.0
 
 ### 0.3.x
 
-0.3.5
-
-- Introduce `DSC::run::default`, for the behavior of running the script without targets. 
-
 0.3.4
 
+- Reimplement `dsc-query` and `dscrquery` for improved handling of missing value #145 and more native R query conditions.
+- [minor] Introduce `DSC::run::default`, for the behavior of running the script without targets.
 - [minor] #161
-- SoS bumped to version 0.18.5 for improved R library auto-installation
+- SoS bumped to version 0.18.7 for improved sockets management and improved R library auto-installation.
 
 0.3.3
 
 - [minor] #160
-- SoS bumped to version 0.18.4 for performance optimizations
+- SoS bumped to version 0.18.4 for performance optimizations.
 
 0.3.2
 
