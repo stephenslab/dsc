@@ -72,7 +72,10 @@ class DSC_Translator:
                         exe_signatures[step.name] = job_translator.exe_signature
                         self.exe_check.extend(job_translator.exe_check)
                     processed_steps[(step.name, flow, depend)] = name
-                    self.depends[step.name] = step.depends
+                    if not step.name in self.depends:
+                        self.depends[step.name] = []
+                    if step.depends not in self.depends[step.name]:
+                        self.depends[step.name].append(step.depends)
                     conf_translator = self.Step_Translator(step, self.db,
                                                            self.step_map[workflow_id + 1],
                                                            try_catch,
@@ -201,7 +204,7 @@ class DSC_Translator:
     def get_dependency(self):
         res = dict()
         for k, v in self.depends.items():
-            res[k] = [vv[0] for vv in v]
+            res[k] = [[vvv[0] for vvv in vv] for vv in v]
         return res
 
     class Step_Translator:
@@ -336,7 +339,7 @@ class DSC_Translator:
             if self.prepare:
                 combined_params = '[([{0}], {1}) {2}]'.\
                                   format(', '.join([f"('{x}', _{x})" for x in reversed(self.params)]),
-                                         None if self.loop_string[1] is '' else ("f\"{' '.join(__i__)}\"" if len(self.current_depends) > 1 else "f'{__i__}'"),
+                                         None if self.loop_string[1] == '' else ("f\"{' '.join(__i__)}\"" if len(self.current_depends) > 1 else "f'{__i__}'"),
                                          ' '.join(self.loop_string) + self.filter_string)
                 input_str = '[]' if self.input_vars is None else '{0} if {0} is not None else []'.format(self.input_vars)
                 output_str = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
