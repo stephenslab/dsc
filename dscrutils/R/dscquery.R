@@ -191,8 +191,8 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   # -----------------
   target_cols <- which(gsub(":.*|\\.output\\.file", "", names(dat)) %in% targets)
   # columns indexed by `target_cols` should have at least one non-missing value
-  target_rows <- which(apply(dat[, target_cols],1, function(r) !all(r %in% NA)))
-  dat <- dat[target_rows,]
+  target_rows <- which(apply(dat[, target_cols, drop=FALSE],1, function(r) !all(r %in% NA)))
+  dat <- dat[target_rows, , drop=FALSE]
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
   # Get the indices of all the columns of the form
