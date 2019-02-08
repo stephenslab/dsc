@@ -4,9 +4,10 @@
 \alias{dscquery}
 \title{SQL-like interface for querying DSC output.}
 \usage{
-dscquery(dsc.outdir, targets, conditions = NULL, groups = NULL,
-  add.path = FALSE, omit.file.columns = FALSE, exec = "dsc-query",
-  max.extract.vector = 10, verbose = TRUE, cores = NULL)
+dscquery(dsc.outdir, targets, others = NULL, conditions = NULL,
+  groups = NULL, add.path = FALSE, omit.file.columns = FALSE,
+  exec = "dsc-query", max.extract.vector = 10, verbose = TRUE,
+  cores = NULL)
 }
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
@@ -18,6 +19,11 @@ character string separated by space, or a character vector, e.g.,
 Using \code{paste}, eg \code{paste("simulate",c("n","p","df"),sep=".")}
 one can specify multiple properties from the same module.
 These will be the names of the columns in the returned data frame.}
+
+\item{others}{Additional query items similarly specified as \code{targets}.
+Difference between \code{targets} and `\code{others}` is that the rows 
+whose \code{targets} columns containing all missing values will be removed, while
+\code{others} columns will not have this impact.}
 
 \item{conditions}{The default \code{NULL} means "no conditions", in
 which case the results for all DSC pipelines are returned. 
