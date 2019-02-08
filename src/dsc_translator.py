@@ -74,7 +74,7 @@ class DSC_Translator:
                     processed_steps[(step.name, flow, depend)] = name
                     if not step.name in self.depends:
                         self.depends[step.name] = []
-                    if step.depends not in self.depends[step.name]:
+                    if len(step.depends) and step.depends not in self.depends[step.name]:
                         self.depends[step.name].append(step.depends)
                     conf_translator = self.Step_Translator(step, self.db,
                                                            self.step_map[workflow_id + 1],
@@ -110,7 +110,7 @@ class DSC_Translator:
                     tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output'], " + \
-                               (f"{y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], " if self.depends[y] else "") + \
+                               (f"{y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], " if len(self.depends[y]) else "") + \
                                f"DSC_STEP_ID_ = {abs(int(xxh(repr(exe_signatures[y])).hexdigest(), 16)) % (10**8)})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))

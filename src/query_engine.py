@@ -267,22 +267,13 @@ class Query_Processor:
                     raise ValueError(f'Requested module ``{primary[idx+1]}`` is an orphan branch. Please consider using separate queries for information from this module.')
             return primary
         #
-        pipelines = []
-        tables = case_insensitive_uniq_list([x[0] for x in self.target_tables] + [x[0] for x in self.condition_tables])
-        for pipeline in self.pipelines:
-            pidx = [l[0] for l in enumerate(pipeline) if l[1] in tables]
-            if len(pidx) == 0:
-                continue
-            pidx = [0] + pidx
-            if not pipeline[pidx[0]:pidx[-1]+1] in pipelines:
-                pipelines.append(pipeline[pidx[0]:pidx[-1]+1])
-        pipelines = filter_sublist(pipelines)
-        # remove tables in targets not exist in pipelines
+        valid_tables = [[item[0] for item in self.target_tables + self.condition_tables if item[0] in pipeline] for pipeline in self.pipelines]
+        # 1. Further filter pipelines to minimally match target table dependencies
+        # 2. For pipelines containing each other we only keep the longest pipelines
+        pipelines = filter_sublist([get_sequence(tables, pipeline) for tables, pipeline in zip(valid_tables, self.pipelines)])
         target_tables = [[item for item in self.target_tables if item[0] in pipeline] for pipeline in pipelines]
-        non_empty_targets = [idx for idx, item in enumerate(target_tables) if len(item)>0]
-        # now the pipelines needs be further filtered to match target table dependencies
-        pipelines = [get_sequence([x[0] for x in tables], pipeline) for tables, pipeline in zip(target_tables, pipelines)]
         condition_tables = [[item for item in self.condition_tables if item[0] in pipeline] for pipeline in pipelines]
+        non_empty_targets = [idx for idx, item in enumerate(target_tables) if len(item) > 0]
         return [pipelines[i] for i in non_empty_targets], [target_tables[i] for i in non_empty_targets], [condition_tables[i] for i in non_empty_targets]
 
     def get_from_clause(self):
