@@ -1,7 +1,6 @@
 # Dynamic Statistical Comparisons (DSC)
 
 [![PyPI Version](https://badge.fury.io/py/dsc.svg)](https://badge.fury.io/py/dsc)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/46bb573ea0414f6095f1b7fd4bedbfd3)](https://www.codacy.com/app/gaow/dsc?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=stephenslab/dsc&amp;utm_campaign=Badge_Grade)
 [![Travis Status](https://travis-ci.org/stephenslab/dsc.svg?branch=master)](https://travis-ci.org/stephenslab/dsc)
 
 The [project wiki](https://stephenslab.github.io/dsc-wiki) is the main source of documentation for both developers and users of the DSC project. If you are new to the concept of DSC, it may worth reading this [blog post](http://stephens999.github.io/blog/2014/10/Data-Driven-Discovery.html) to understand the motivation behind this project.
@@ -79,19 +78,18 @@ Goal for 0.4.0
 
 ### 0.3.x
 
-0.3.5
-
-- Introduce `DSC::run::default`, for the behavior of running the script without targets. 
-
 0.3.4
 
+- Reimplement `dsc-query` and `dscrquery` for improved handling of missing value #145.
+- Reimplmement `dscrquery`'s `condition` statement to make it more R-user friendly.
+- [minor] Introduce `DSC::run::default`, for the behavior of running the script without targets.
 - [minor] #161
-- SoS bumped to version 0.18.5 for improved R library auto-installation
+- SoS bumped to version 0.18.7 for improved sockets management and improved R library auto-installation.
 
 0.3.3
 
 - [minor] #160
-- SoS bumped to version 0.18.4 for performance optimizations
+- SoS bumped to version 0.18.4 for performance optimizations.
 
 0.3.2
 

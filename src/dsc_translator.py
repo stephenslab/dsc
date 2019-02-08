@@ -40,7 +40,7 @@ class DSC_Translator:
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"\
                      f"{inspect.getsource(n2a)}\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
-        dependency_tracker = dict()
+        self.depends = dict()
         conf_dict = dict()
         conf_str = []
         job_str = []
@@ -72,7 +72,10 @@ class DSC_Translator:
                         exe_signatures[step.name] = job_translator.exe_signature
                         self.exe_check.extend(job_translator.exe_check)
                     processed_steps[(step.name, flow, depend)] = name
-                    dependency_tracker[step.name] = step.depends
+                    if not step.name in self.depends:
+                        self.depends[step.name] = []
+                    if len(step.depends) and step.depends not in self.depends[step.name]:
+                        self.depends[step.name].append(step.depends)
                     conf_translator = self.Step_Translator(step, self.db,
                                                            self.step_map[workflow_id + 1],
                                                            try_catch,
@@ -107,7 +110,7 @@ class DSC_Translator:
                     tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
                 tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output'], " + \
-                               (f"{y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], " if dependency_tracker[y] else "") + \
+                               (f"{y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], " if len(self.depends[y]) else "") + \
                                f"DSC_STEP_ID_ = {abs(int(xxh(repr(exe_signatures[y])).hexdigest(), 16)) % (10**8)})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))
@@ -193,10 +196,16 @@ class DSC_Translator:
                 if ret:
                     new_libs.append(f'{lib_type} {lib}')
                 else:
-                    raise ModuleNotFoundError(f"Required {libtype.replace('_', ' ')} ``{lib.split('@')[0]}`` is not available or obsolete. Please install it and try again.")
+                    raise ModuleNotFoundError(f"Required {lib_type.replace('_', ' ')} ``{lib.split('@')[0]}`` is not available or obsolete. Please install it and try again.")
 
         with open(fn, 'w') as f:
             f.write('\n'.join(installed_libs + new_libs))
+
+    def get_dependency(self):
+        res = dict()
+        for k, v in self.depends.items():
+            res[k] = [[vvv[0] for vvv in vv] for vv in v]
+        return res
 
     class Step_Translator:
         def __init__(self, step, db, step_map, try_catch, host_conf = None):
@@ -330,7 +339,7 @@ class DSC_Translator:
             if self.prepare:
                 combined_params = '[([{0}], {1}) {2}]'.\
                                   format(', '.join([f"('{x}', _{x})" for x in reversed(self.params)]),
-                                         None if self.loop_string[1] is '' else ("f\"{' '.join(__i__)}\"" if len(self.current_depends) > 1 else "f'{__i__}'"),
+                                         None if self.loop_string[1] == '' else ("f\"{' '.join(__i__)}\"" if len(self.current_depends) > 1 else "f'{__i__}'"),
                                          ' '.join(self.loop_string) + self.filter_string)
                 input_str = '[]' if self.input_vars is None else '{0} if {0} is not None else []'.format(self.input_vars)
                 output_str = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"

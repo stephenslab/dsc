@@ -129,12 +129,12 @@ def execute(args):
     # Configure job templates
     if args.host:
         # write default config
-        yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(script_run[:-3] + 'localhost.yml', 'w'),
+        yaml.safe_dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(script_run[:-3] + 'localhost.yml', 'w'),
                   default_flow_style=False)
         if  conf['DSC'][args.host]['address'] == 'localhost':
             # the only version of config file to use
             # make a copy of it to output directory for maintenance purpose
-            yaml.dump({'localhost':'localhost',
+            yaml.safe_dump({'localhost':'localhost',
                        'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}},
                       open(f'{script.runtime.output}/{db}.queue', 'w'),
                       default_flow_style=False)
@@ -144,13 +144,13 @@ def execute(args):
             # need 2 versions, local and remote
             # write local config
             conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -J %s -v %s\'"' % (script_run, script_run[:-3] + 'remote.yml', args.__max_jobs__, args.verbosity)
-            yaml.dump({'localhost':'localhost', 'hosts': conf['DSC']},
+            yaml.safe_dump({'localhost':'localhost', 'hosts': conf['DSC']},
                       open(script_run[:-3] + 'local.yml', 'w'),
                       default_flow_style=False)
             # write remote config
             del conf['DSC'][args.host]['execute_cmd']
             conf['DSC'][args.host]['address'] = 'localhost'
-            yaml.dump({'localhost':'localhost',
+            yaml.safe_dump({'localhost':'localhost',
                        'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}},
                       open(script_run[:-3] + 'remote.yml', 'w'),
                       default_flow_style=False)
@@ -169,7 +169,7 @@ def execute(args):
         else:
             env.logger.info("Building DSC database ...")
             ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
-                Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
+                Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups, depends = pipeline.get_dependency())
         if args.__construct__ == "all":
             return
     # Run
@@ -233,7 +233,7 @@ def execute(args):
     if args.host is None:
         env.logger.info("Building DSC database ...")
         ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
-            Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
+            Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups, depends = pipeline.get_dependency())
         env.logger.info("DSC complete!")
     # Plot DAG
     if args.__dag__:

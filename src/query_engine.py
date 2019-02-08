@@ -77,33 +77,38 @@ class Query_Processor:
             self.groups = self.data['.groups']
         else:
             self.groups = dict()
+        if '.depends' in self.data:
+            self.depends = dict([(k, uniq_list(flatten_list(self.data['.depends'][k]))) for k in self.data['.depends']])
+        else:
+            self.depends = None
+        # 1. Check overlapping groups and fix the case when some module in the group has some parameter but others do not
+        # changes will be applied to self.data
         self.groups.update(self.get_grouped_tables(groups))
         self.check_overlapping_groups()
-        # 0. Fix the case when some module in the group has some parameter but others do not
-        # changes will be applied to self.data
         self.add_na_group_parameters()
+        # 2. Get query targets and conditions
         self.target_tables = self.get_table_fields(self.targets)
         self.condition, self.condition_tables = parse_filter(condition, groups = self.groups)
-        # 1. only keep tables that do exist in database
+        # 3. only keep tables that do exist in database
         self.target_tables = self.filter_tables(self.target_tables)
         self.condition_tables = self.filter_tables(self.condition_tables)
-        # 2. identify all pipelines in database
+        # 4. identify all pipelines in database
         self.pipelines = self.get_pipelines()
-        # 3. identify and extract which part of each pipeline are involved
+        # 5. identify and extract which part of each pipeline are involved
         # based on tables in target / condition
-        self.pipelines, self.first_modules = self.filter_pipelines()
-        # 4. make select / from / where clause
-        select_clauses, select_fields = self.get_select_clause()
+        self.pipelines, self.target_tables, self.condition_tables = self.filter_pipelines()
+        # 6. make select / from / where clause
+        select_clauses = self.get_select_clause()
         from_clauses = self.get_from_clause()
-        where_clauses = self.get_where_clause(select_fields)
-        self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
-        # 5. run queries
+        where_clauses = self.get_where_clause()
+        self.queries = uniq_list([' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))])
+        # 7. run queries
         self.output_tables = self.run_queries()
-        # 6. merge table
+        # 8. merge table
         self.output_table = self.merge_tables()
-        # 7. fillna
+        # 9. fillna
         self.fillna()
-        # finally show warnings
+        # 10. finally show warnings
         self.warn()
 
     @staticmethod
@@ -235,37 +240,57 @@ class Query_Processor:
         '''
         for each pipeline extract the sub pipeline that the query involves
         '''
-        res = []
-        heads = []
-        tables = case_insensitive_uniq_list([x[0] for x in self.target_tables] + [x[0] for x in self.condition_tables])
-        for pipeline in self.pipelines:
-            pidx = [l[0] for l in enumerate(pipeline) if l[1] in tables]
-            if len(pidx) == 0:
-                continue
-            # The first module contains replicate info and have to show up
-            if pidx[0] != 0:
-                pidx = [0] + pidx
-            if not pipeline[pidx[0]:pidx[-1]+1] in res:
-                res.append(pipeline[pidx[0]:pidx[-1]+1])
-                heads.append(pipeline[0])
-        res_filtered = filter_sublist(res)
-        heads = [heads[i] for i in range(len(heads)) if res[i] in res_filtered]
-        return res_filtered, heads
+        def get_sequence(primary, reference):
+            '''
+            tracing back dependencies
+            eg, input is primary = ['mnm_identity'], reference = ['oracle_generator', 'small_data', 'identity', 'mnm_identity']
+            output is ['mnm_identity', 'identity', 'small_data'] because small_data provides DSC_REPLICATE and oracle_generator is no longer needed.
+            '''
+            reference = list(reversed(reference))
+            primary = sorted(case_insensitive_uniq_list(primary), key = lambda x: reference.index(x))
+            while True:
+                previous_primary = primary
+                for item in primary:
+                    if self.depends is not None:
+                        depends = [d for d in self.depends[item] if d in reference]
+                    else:
+                        depends = [reference[reference.index(item) + 1]] if (reference.index(item) < len(reference) - 1) else []
+                    if len(depends) > 0:
+                        # there is a dependency, let's see if it is already asked for
+                        existing_dependents = [x for x in depends if x in primary]
+                        depend_step = reference[min([reference.index(dd) for dd in (existing_dependents if len(existing_dependents) > 0 else depends)])]
+                        if depend_step not in primary:
+                            primary.append(depend_step)
+                primary = sorted(case_insensitive_uniq_list(primary), key = lambda x: reference.index(x))
+                if primary == previous_primary:
+                    break 
+            # a sequence can lose dependency half-way
+            # in which case an error message will be given
+            for idx, item in enumerate(primary):
+                if idx == len(primary) - 1:
+                    break
+                if self.depends is not None and primary[idx+1] not in self.depends[item]:
+                    raise ValueError(f'Requested module ``{primary[idx+1]}`` is an orphan branch. Please consider using separate queries for information from this module.')
+            return primary
+        #
+        valid_tables = [[item[0] for item in self.target_tables + self.condition_tables if item[0] in pipeline] for pipeline in self.pipelines]
+        # 1. Further filter pipelines to minimally match target table dependencies
+        # 2. For pipelines containing each other we only keep the longest pipelines
+        pipelines = filter_sublist([get_sequence(tables, pipeline) for tables, pipeline in zip(valid_tables, self.pipelines)])
+        target_tables = [[item for item in self.target_tables if item[0] in pipeline] for pipeline in pipelines]
+        condition_tables = [[item for item in self.condition_tables if item[0] in pipeline] for pipeline in pipelines]
+        non_empty_targets = [idx for idx, item in enumerate(target_tables) if len(item) > 0]
+        return [pipelines[i] for i in non_empty_targets], [target_tables[i] for i in non_empty_targets], [condition_tables[i] for i in non_empty_targets]
 
     def get_from_clause(self):
-        res = []
-        for pipeline in self.pipelines:
-            pipeline = list(reversed(pipeline))
-            res.append(('FROM {0} '.format(pipeline[0]) + ' '.join(["INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(pipeline[i], pipeline[i+1]) for i in range(len(pipeline) - 1)])).strip())
+        res = [f'FROM {sequence[0]} ' + ' '.join(["INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(sequence[i], sequence[i+1]) for i in range(len(sequence) - 1)]).strip() \
+             for sequence in self.pipelines]
         return res
 
-    def get_one_select_clause(self, pipeline, first_module):
+    def get_one_select_clause(self, pipeline, tables):
         clause = []
         fields = []
-        # remove table in targets not exist in this pipeline
-        tables = [item for item in self.target_tables if item[0] in pipeline]
-        if len(tables):
-            tables = [(first_module, 'DSC_REPLICATE')] + tables
+        tables = [(pipeline[-1], 'DSC_REPLICATE')] + tables
         for item in tables:
             fields.append('.'.join(item) if item[1] else item[0])
             if item[1] is None:
@@ -295,13 +320,15 @@ class Query_Processor:
             fl = set()
             for item in items:
                 item = item.split('.')
+                # if item[1] == 'DSC_REPLICATE'
+                #    continue
                 tb.add(item[0])
                 if len(item) > 1:
                     fl.add(item[1])
             return tb, fl
         #
-        targets = [f'{x[0]}.{x[1]}' for x in tables if x[1] != 'DSC_REPLICATE']
-        fields = split(fields[1:])
+        targets = [f'{x[0]}.{x[1]}' for x in tables]
+        fields = split(fields)
         targets = split(targets)
         if fields[0].issubset(targets[0]) and fields[1] == targets[1]:
             return True
@@ -310,30 +337,24 @@ class Query_Processor:
 
     def get_select_clause(self):
         select = []
-        select_fields = []
-        new_pipelines = []
-        for pipeline, first_module in zip(self.pipelines, self.first_modules):
-            clause, tables, fields = self.get_one_select_clause(pipeline, first_module)
+        for pipeline, tables in zip(self.pipelines, self.target_tables):
+            clause, tables, fields = self.get_one_select_clause(pipeline, tables)
             if not self.match_targets(tables, fields):
                 continue
-            new_pipelines.append(pipeline)
             select.append(clause)
-            select_fields.append(fields)
-        # not all pipelines are useful
-        self.pipelines = new_pipelines
-        return select, select_fields
+        return select
 
-    def get_where_clause(self, select_fields):
-        return [self.get_one_where_clause(s, list(p)) for s, p in zip(select_fields, self.pipelines)]
+    def get_where_clause(self):
+        return [self.get_one_where_clause(t, c, p) for t, c, p in zip(self.target_tables, self.condition_tables, self.pipelines)]
 
-    def get_one_where_clause(self, one_select_fields, pipeline_tables):
+    def get_one_where_clause(self, target_tables, condition_tables, pipeline):
         '''
         After expanding, condition is a list of list
         the outer lists are connected by OR
         the inner lists are connected by AND
         '''
-        select_tables = uniq_list([x.split('.')[0] for x in one_select_fields])
-        valid_tables = [x[0] for x in self.condition_tables if x[0] in select_tables + pipeline_tables]
+        select_tables = case_insensitive_uniq_list([x[0] for x in target_tables])
+        valid_tables = [x[0] for x in condition_tables if x[0] in select_tables + pipeline]
         # to decide which part of the conditions is relevant to which pipeline we have to
         # dissect it to reveal table/field names
         condition = []
@@ -468,7 +489,7 @@ class Query_Processor:
             raise DBError("Incompatible targets ``{}``{}".\
                           format(', '.join(self.targets),
                                  f' under condition ``{" AND ".join(["(%s)" % x for x in self.raw_condition])}``' if self.raw_condition is not None else ''))
-        res = [('+'.join(pipeline), self.adjust_table(sqldf(query, self.data), pipeline)) \
+        res = [('+'.join(reversed(pipeline)), self.adjust_table(sqldf(query, self.data), pipeline)) \
                      for pipeline, query in zip(self.pipelines, self.queries)]
         res = [x for x in res if x[1] is not None]
         if len(res) == 0:
