@@ -169,7 +169,7 @@ def execute(args):
         else:
             env.logger.info("Building DSC database ...")
             ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
-                Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
+                Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups, depends = pipeline.get_dependency())
         if args.__construct__ == "all":
             return
     # Run
@@ -233,7 +233,7 @@ def execute(args):
     if args.host is None:
         env.logger.info("Building DSC database ...")
         ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
-            Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups)
+            Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups, depends = pipeline.get_dependency())
         env.logger.info("DSC complete!")
     # Plot DAG
     if args.__dag__:

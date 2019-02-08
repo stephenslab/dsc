@@ -150,7 +150,7 @@ def main():
     p.add_argument('-t', '--target', metavar = "WHAT", nargs = '+',
                    help = '''Query targets.''')
     p.add_argument('-c', '--condition', metavar = "WHERE", nargs = '+',
-                   help = '''Query conditions.''')
+                   help = SUPPRESS)
     p.add_argument('-g', '--groups', metavar = "G:A,B", nargs = '+',
                    help = '''Definition of module groups.''')
     p.add_argument('--language', metavar = 'str', choices = ['R', 'Python3'],
