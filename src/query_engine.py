@@ -77,7 +77,10 @@ class Query_Processor:
             self.groups = self.data['.groups']
         else:
             self.groups = dict()
-        self.depends = dict([(k, uniq_list(flatten_list(self.data['.depends'][k]))) for k in self.data['.depends']])
+        if '.depends' in self.data:
+            self.depends = dict([(k, uniq_list(flatten_list(self.data['.depends'][k]))) for k in self.data['.depends']])
+        else:
+            self.depends = None
         # 1. Check overlapping groups and fix the case when some module in the group has some parameter but others do not
         # changes will be applied to self.data
         self.groups.update(self.get_grouped_tables(groups))
@@ -248,7 +251,10 @@ class Query_Processor:
             while True:
                 previous_primary = primary
                 for item in primary:
-                    depends = [d for d in self.depends[item] if d in reference]
+                    if self.depends is not None:
+                        depends = [d for d in self.depends[item] if d in reference]
+                    else:
+                        depends = [reference[reference.index(item) + 1]] if (reference.index(item) < len(reference) - 1) else []
                     if len(depends) > 0:
                         # there is a dependency, let's see if it is already asked for
                         existing_dependents = [x for x in depends if x in primary]
@@ -263,7 +269,7 @@ class Query_Processor:
             for idx, item in enumerate(primary):
                 if idx == len(primary) - 1:
                     break
-                if primary[idx+1] not in self.depends[item]:
+                if self.depends is not None and primary[idx+1] not in self.depends[item]:
                     raise ValueError(f'Requested module ``{primary[idx+1]}`` is an orphan branch. Please consider using separate queries for information from this module.')
             return primary
         #
