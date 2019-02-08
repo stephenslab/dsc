@@ -4,31 +4,41 @@
 \alias{dscquery}
 \title{SQL-like interface for querying DSC output.}
 \usage{
-dscquery(dsc.outdir, targets, conditions = NULL, groups = NULL,
-  add.path = FALSE, exec = "dsc-query", load.pkl = FALSE,
-  max.extract.vector = 10, verbose = TRUE, cores = NULL)
+dscquery(dsc.outdir, targets, others = NULL, conditions = NULL,
+  groups = NULL, add.path = FALSE, omit.file.columns = FALSE,
+  exec = "dsc-query", max.extract.vector = 10, verbose = TRUE,
+  cores = NULL)
 }
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
 
-\item{targets}{Query targets specified as a character vector, or,
-character string separated by space, e.g.,
+\item{targets}{Query targets specified as
+character string separated by space, or a character vector, e.g.,
 \code{targets = "simulate.n analyze score.error"} and
 \code{targets = c("simulate.n","analyze","score.error")} are equivalent.
 Using \code{paste}, eg \code{paste("simulate",c("n","p","df"),sep=".")}
 one can specify multiple properties from the same module.
 These will be the names of the columns in the returned data frame.}
 
+\item{others}{Additional query items similarly specified as \code{targets}.
+Difference between \code{targets} and `\code{others}` is that the rows 
+whose \code{targets} columns containing all missing values will be removed, while
+\code{others} columns will not have this impact.}
+
 \item{conditions}{The default \code{NULL} means "no conditions", in
-which case the results for all DSC pipelines are returned.}
+which case the results for all DSC pipelines are returned. 
+Query conditions are specified as R expression ... !FIXME!}
 
 \item{groups}{Definition of module groups. For example,
 \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
 will dynamically create module groups \code{method} and \code{score}
 even if they have not previously been defined when running DSC.}
 
-\item{add.path}{If TRUE, the returned data frame will contain full
-pathnames, not just the base filenames.}
+\item{add.path}{If TRUE, the returned file column in data frame 
+will contain full pathnames, not just the base filenames.}
+
+\item{omit.file.columns}{If TRUE will remove columns of filenames.
+That is, columns ending with "output.file" colnames.}
 
 \item{exec}{The command or pathname of the dsc-query executable.}
 

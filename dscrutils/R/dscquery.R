@@ -7,24 +7,33 @@
 #'
 #' @param dsc.outdir Directory where DSC output is stored.
 #'
-#' @param targets Query targets specified as a character vector, or,
-#' character string separated by space, e.g.,
+#' @param targets Query targets specified as
+#' character string separated by space, or a character vector, e.g.,
 #' \code{targets = "simulate.n analyze score.error"} and
 #' \code{targets = c("simulate.n","analyze","score.error")} are equivalent.
 #' Using \code{paste}, eg \code{paste("simulate",c("n","p","df"),sep=".")}
 #' one can specify multiple properties from the same module.
 #' These will be the names of the columns in the returned data frame.
 #'
+#' @param others Additional query items similarly specified as \code{targets}.
+#' Difference between \code{targets} and `\code{others}` is that the rows 
+#' whose \code{targets} columns containing all missing values will be removed, while
+#' \code{others} columns will not have this impact. 
+#'
 #' @param conditions The default \code{NULL} means "no conditions", in
-#' which case the results for all DSC pipelines are returned.
+#' which case the results for all DSC pipelines are returned. 
+#' Query conditions are specified as R expression ... !FIXME!
 #'
 #' @param groups Definition of module groups. For example,
 #' \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
 #' will dynamically create module groups \code{method} and \code{score}
 #' even if they have not previously been defined when running DSC.
 #'
-#' @param add.path If TRUE, the returned data frame will contain full
-#' pathnames, not just the base filenames.
+#' @param omit.file.columns If TRUE will remove columns of filenames.
+#' That is, columns ending with "output.file" colnames. 
+#'
+#' @param add.path If TRUE, the returned file column in data frame 
+#' will contain full pathnames, not just the base filenames.
 #'
 #' @param exec The command or pathname of the dsc-query executable.
 #'
@@ -105,8 +114,9 @@
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
-                      add.path = FALSE, exec = "dsc-query", load.pkl = FALSE,
+dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL, 
+                      groups = NULL, add.path = FALSE, 
+                      omit.file.columns = FALSE, exec = "dsc-query",
                       max.extract.vector = 10, verbose = TRUE, cores = NULL) {
 
   # CHECK INPUTS
@@ -117,7 +127,12 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
 
   # Check input argument "targets".
   if (!(is.character(targets) & is.vector(targets) & !is.list(targets)))
-    stop("Argument \"targets\" should be a character vector")
+    stop("Argument \"targets\" should be a character string or vector")
+
+  # Check input argument "others".
+  if (!is.null(others))
+    if (!(is.character(others) & is.vector(others) & !is.list(others)))
+      stop("Argument \"others\" should be a character string or vector")
 
   # Check input argument "conditions".
   if (!is.null(conditions))
@@ -140,6 +155,10 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
   if (!(is.logical(verbose) & length(verbose) == 1))
     stop("Argument \"verbose\" should be TRUE or FALSE")
 
+  # To split up `targets` if it is a string
+  # This is in preparation for filtering NA values down the road
+  if (is.character(targets)) targets = strsplit(targets, ' +')[[1]]
+
   # RUN DSC QUERY COMMAND
   # ---------------------
   # Generate a temporary directory where the query output will be
@@ -147,8 +166,10 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
   outfile <- tempfile(fileext = ".csv")
 
   # Build and run command based on the inputs.
+  if (is.null(others)) query_target = paste(targets, collapse = " ")
+  else query_target = paste(paste(targets, collapse = " "), paste(others, collapse = " "))
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
-                   "--target",paste(targets,collapse = " "))
+                   "--target", query_target)
   if (length(conditions) > 1)
     conditions <- paste(conditions,collapse = " AND ")
   if (!is.null(conditions))
@@ -165,16 +186,22 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
                   check.names = FALSE,comment.char = "",
                   na.strings = "NA")
   n   <- nrow(dat)
+
+  # FILTER BY TARGETS
+  # -----------------
+  target_cols <- which(gsub(":.*|\\.output\\.file", "", names(dat)) %in% targets)
+  # columns indexed by `target_cols` should have at least one non-missing value
+  target_rows <- which(apply(dat[, target_cols, drop=FALSE],1, function(r) !all(r %in% NA)))
+  dat <- dat[target_rows, , drop=FALSE]
+  # PROCESS THE DSC QUERY RESULT
+  # ----------------------------
+  # Get the indices of all the columns of the form
+  # "module.variable:output".
   dat <- as.list(dat)
   for (i in 1:length(dat)) {
     dat[[i]]        <- data.frame(dat[[i]],stringsAsFactors = FALSE)
     names(dat[[i]]) <- names(dat)[i]
   }
-
-  # PROCESS THE DSC QUERY RESULT
-  # ----------------------------
-  # Get the indices of all the columns of the form
-  # "module.variable:output".
   cols <- which(sapply(as.list(names(dat)),function (x) {
     n <- nchar(x)
     if (n < 7 | length(unlist(strsplit(x,"[:]"))) != 2)
@@ -299,5 +326,6 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
   dat.names  <- unlist(lapply(dat,names))
   dat        <- do.call(cbind,dat)
   names(dat) <- dat.names
+  if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names)]
   return(dat)
 }
