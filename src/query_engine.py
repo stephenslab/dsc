@@ -98,7 +98,7 @@ class Query_Processor:
         select_clauses = self.get_select_clause()
         from_clauses = self.get_from_clause()
         where_clauses = self.get_where_clause()
-        self.queries = [' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))]
+        self.queries = uniq_list([' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))])
         # 7. run queries
         self.output_tables = self.run_queries()
         # 8. merge table
@@ -279,9 +279,6 @@ class Query_Processor:
         pipelines = filter_sublist(pipelines)
         # remove tables in targets not exist in pipelines
         target_tables = [[item for item in self.target_tables if item[0] in pipeline] for pipeline in pipelines]
-        print(self.target_tables)
-        print(target_tables)
-        raise
         non_empty_targets = [idx for idx, item in enumerate(target_tables) if len(item)>0]
         # now the pipelines needs be further filtered to match target table dependencies
         pipelines = [get_sequence([x[0] for x in tables], pipeline) for tables, pipeline in zip(target_tables, pipelines)]
