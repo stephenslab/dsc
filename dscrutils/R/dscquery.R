@@ -155,6 +155,10 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   if (!(is.logical(verbose) & length(verbose) == 1))
     stop("Argument \"verbose\" should be TRUE or FALSE")
 
+  # To split up `targets` if it is a string
+  # This is in preparation for filtering NA values down the road
+  if (is.character(targets)) targets = strsplit(targets, ' +')[[1]]
+
   # RUN DSC QUERY COMMAND
   # ---------------------
   # Generate a temporary directory where the query output will be
@@ -162,8 +166,10 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   outfile <- tempfile(fileext = ".csv")
 
   # Build and run command based on the inputs.
+  if (is.null(others)) query_target = paste(targets, collapse = " ")
+  else query_target = paste(paste(targets, collapse = " "), paste(others, collapse = " "))
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
-                   "--target",paste(targets,collapse = " "))
+                   "--target", query_target)
   if (length(conditions) > 1)
     conditions <- paste(conditions,collapse = " AND ")
   if (!is.null(conditions))
@@ -180,16 +186,22 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
                   check.names = FALSE,comment.char = "",
                   na.strings = "NA")
   n   <- nrow(dat)
+
+  # FILTER BY TARGETS
+  # -----------------
+  target_cols <- which(gsub(":.*|\\.output\\.file", "", names(dat)) %in% targets)
+  # columns indexed by `target_cols` should have at least one non-missing value
+  target_rows <- which(apply(dat[, target_cols],1, function(r) !all(r %in% NA)))
+  dat <- dat[target_rows,]
+  # PROCESS THE DSC QUERY RESULT
+  # ----------------------------
+  # Get the indices of all the columns of the form
+  # "module.variable:output".
   dat <- as.list(dat)
   for (i in 1:length(dat)) {
     dat[[i]]        <- data.frame(dat[[i]],stringsAsFactors = FALSE)
     names(dat[[i]]) <- names(dat)[i]
   }
-
-  # PROCESS THE DSC QUERY RESULT
-  # ----------------------------
-  # Get the indices of all the columns of the form
-  # "module.variable:output".
   cols <- which(sapply(as.list(names(dat)),function (x) {
     n <- nchar(x)
     if (n < 7 | length(unlist(strsplit(x,"[:]"))) != 2)
