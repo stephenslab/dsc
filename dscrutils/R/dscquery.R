@@ -7,8 +7,8 @@
 #'
 #' @param dsc.outdir Directory where DSC output is stored.
 #'
-#' @param targets Query targets specified as a character vector, or,
-#' character string separated by space, e.g.,
+#' @param targets Query targets specified as
+#' character string separated by space, or a character vector, e.g.,
 #' \code{targets = "simulate.n analyze score.error"} and
 #' \code{targets = c("simulate.n","analyze","score.error")} are equivalent.
 #' Using \code{paste}, eg \code{paste("simulate",c("n","p","df"),sep=".")}
@@ -16,15 +16,19 @@
 #' These will be the names of the columns in the returned data frame.
 #'
 #' @param conditions The default \code{NULL} means "no conditions", in
-#' which case the results for all DSC pipelines are returned.
+#' which case the results for all DSC pipelines are returned. 
+#' Query conditions are specified as R expression ... !FIXME!
 #'
 #' @param groups Definition of module groups. For example,
 #' \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
 #' will dynamically create module groups \code{method} and \code{score}
 #' even if they have not previously been defined when running DSC.
 #'
-#' @param add.path If TRUE, the returned data frame will contain full
-#' pathnames, not just the base filenames.
+#' @param omit.file.columns If TRUE will remove columns of filenames.
+#' That is, columns ending with "output.file" colnames. 
+#'
+#' @param add.path If TRUE, the returned file column in data frame 
+#' will contain full pathnames, not just the base filenames.
 #'
 #' @param exec The command or pathname of the dsc-query executable.
 #'
@@ -106,7 +110,7 @@
 #' @export
 #'
 dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
-                      add.path = FALSE, exec = "dsc-query", load.pkl = FALSE,
+                      add.path = FALSE, omit.file.columns = FALSE, exec = "dsc-query",
                       max.extract.vector = 10, verbose = TRUE, cores = NULL) {
 
   # CHECK INPUTS
@@ -299,5 +303,6 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
   dat.names  <- unlist(lapply(dat,names))
   dat        <- do.call(cbind,dat)
   names(dat) <- dat.names
+  if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names)]
   return(dat)
 }
