@@ -338,7 +338,7 @@ def recursive_items(dictionary):
             yield (key, value)
 
 def dict2str(value):
-    res = yaml.dump(strip_dict(value, into_list = True))
+    res = yaml.safe_dump(strip_dict(value, into_list = True))
     # pattern = re.compile(r'!!python/(.*?)\s')
     # for m in re.finditer(pattern, res):
     #     res = res.replace(m.group(1), '', 1)
