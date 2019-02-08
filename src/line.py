@@ -525,8 +525,7 @@ def expand_logic(string):
     string = string.replace(' not ', '~')
     string = string.replace(' NOT ', '~')
     quote_dict = dict()
-    idx = 1
-    for m in re.findall(r"\"[^\"]+\"|'[^']+'", string):
+    for idx, m in enumerate(re.findall(r"\"[^\"]+\"|'[^']+'", string)):
      # - Match either of the following options
      #     - `"[^"]+"`
      #         - `"` Match this literally
@@ -536,10 +535,9 @@ def expand_logic(string):
      #         - `'` Match this literally
      #         - `[^']+` Match any character except `'` one or more times
      #         - `'` Match this literally
-        key = f'__DSC_QT_{idx}__'
+        key = f'__DSC_QT_{idx+1}__'
         quote_dict[key] = m
         string = string.replace(m, key, 1)
-        idx += 1
     res = []
     op = LogicParser()
     for x in op(string):
