@@ -15,6 +15,11 @@
 #' one can specify multiple properties from the same module.
 #' These will be the names of the columns in the returned data frame.
 #'
+#' @param others Additional query items similarly specified as \code{targets}.
+#' Difference between \code{targets} and `\code{others}` is that the rows 
+#' whose \code{targets} columns containing all missing values will be removed, while
+#' \code{others} columns will not have this impact. 
+#'
 #' @param conditions The default \code{NULL} means "no conditions", in
 #' which case the results for all DSC pipelines are returned. 
 #' Query conditions are specified as R expression ... !FIXME!
@@ -109,8 +114,9 @@
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
-                      add.path = FALSE, omit.file.columns = FALSE, exec = "dsc-query",
+dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL, 
+                      groups = NULL, add.path = FALSE, 
+                      omit.file.columns = FALSE, exec = "dsc-query",
                       max.extract.vector = 10, verbose = TRUE, cores = NULL) {
 
   # CHECK INPUTS
@@ -121,7 +127,12 @@ dscquery <- function (dsc.outdir, targets, conditions = NULL, groups = NULL,
 
   # Check input argument "targets".
   if (!(is.character(targets) & is.vector(targets) & !is.list(targets)))
-    stop("Argument \"targets\" should be a character vector")
+    stop("Argument \"targets\" should be a character string or vector")
+
+  # Check input argument "others".
+  if (!is.null(others))
+    if (!(is.character(others) & is.vector(others) & !is.list(others)))
+      stop("Argument \"others\" should be a character string or vector")
 
   # Check input argument "conditions".
   if (!is.null(conditions))
