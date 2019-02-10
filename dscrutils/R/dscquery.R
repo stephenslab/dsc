@@ -134,13 +134,6 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
     if (!(is.character(others) & is.vector(others) & !is.list(others)))
       stop("Argument \"others\" should be a character string or vector")
 
-  # Check input argument "conditions".
-  if (!is.null(conditions))
-      if (!(is.character(conditions) & is.vector(conditions) &
-            !is.list(conditions)))
-      stop("Argument \"conditions\" should be NULL or a character vector")
-
-
   # Check input argument "add.path".
   if (!(is.logical(add.path) & length(add.path) == 1))
     stop("Argument \"add.path\" should be TRUE or FALSE")
@@ -158,6 +151,16 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   # To split up `targets` if it is a string
   # This is in preparation for filtering NA values down the road
   if (is.character(targets)) targets = strsplit(targets, ' +')[[1]]
+
+  # To check conditions variable against targets
+  if (!is.null(conditions)) {
+      if (!is.vector(conditions))
+        stop("Argument \"conditions\" should be NULL or a character vector")
+      condition_targets = vector()
+      for (i in 1:length(conditions)) {
+        conditions[i] = gsub('\\$\\((.*)\\)', '\\1', conditions[i])
+      }
+  }
 
   # RUN DSC QUERY COMMAND
   # ---------------------
