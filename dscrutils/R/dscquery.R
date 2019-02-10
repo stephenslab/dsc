@@ -1,4 +1,4 @@
-#' @title SQL-like interface for querying DSC output.
+#' @title R interface for querying DSC output.
 #'
 #' @description This is an R interface to \code{dsc-query} for
 #' conveniently extracting and exploring DSC results within the R
@@ -16,13 +16,14 @@
 #' These will be the names of the columns in the returned data frame.
 #'
 #' @param others Additional query items similarly specified as \code{targets}.
-#' Difference between \code{targets} and `\code{others}` is that the rows 
+#' Difference between \code{targets} and \code{others} is that the rows 
 #' whose \code{targets} columns containing all missing values will be removed, while
 #' \code{others} columns will not have this impact. 
 #'
 #' @param conditions The default \code{NULL} means "no conditions", in
 #' which case the results for all DSC pipelines are returned. 
-#' Query conditions are specified as R expression ... !FIXME!
+#' Query conditions are specified as R expressions with target names in the 
+#' format \code{$(...)}. 
 #'
 #' @param groups Definition of module groups. For example,
 #' \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
@@ -72,7 +73,7 @@
 #' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
 #' dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-#'                 conditions = "simulate.n > 10")
+#'                 conditions = c("$(simulate.n > 10)", "$(score.error) < 0.05"))
 #' print(dat)
 #'
 #' # Retrieve some results from the "ash" DSC experiment. In this
@@ -85,8 +86,7 @@
 #'            targets = c(paste("simulate",c("nsamp","g"),sep="."),
 #'                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),
 #'                              sep=".")),
-#'            conditions = paste("simulate.g =",
-#'                               "'list(c(2/3,1/3),c(0,0),c(1,2))'"))
+#'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'")
 #'
 #' # This is the same as the previous example, but extracts the
 #' # vector-valued beta estimates into the outputted data frame. As a
@@ -96,8 +96,7 @@
 #'   dscquery(dsc.dir2,
 #'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
 #'                        "shrink.beta_est","shrink.pi0_est"),
-#'            conditions = paste("simulate.g =",
-#'                               "'list(c(2/3,1/3),c(0,0),c(1,2))'"),
+#'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'"),
 #'            max.extract.vector = 1000)
 #'
 #' \dontrun{
@@ -105,7 +104,7 @@
 #' # This query should generate an error because there is no output
 #' # called "mse" in the "score" module.
 #' dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
-#'                  conditions = "simulate.n > 10")
+#'                  conditions = "$(simulate.n) > 10")
 #'
 #' }
 #'
@@ -148,35 +147,47 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   if (!(is.logical(verbose) & length(verbose) == 1))
     stop("Argument \"verbose\" should be TRUE or FALSE")
 
-  # To split up `targets` if it is a string
-  # This is in preparation for filtering NA values down the road
-  if (is.character(targets)) targets = strsplit(targets, ' +')[[1]]
+  split_string = function(value) {
+    if (is.character(value) && !is.vector(value)) return(strsplit(value, ' +')[[1]])
+    else return(value)
+  }
 
-  # To check conditions variable against targets
+  targets = split_string(targets)
+  others = split_string(others)
+  conditions = split_string(conditions)
+
+  # This list keeps track of condition variables
+  # It matches `conditions`
+  condition_targets = list()
+  # This vector keeps track of additional columns involved in `condition` but 
+  # not in `targets` or `others` and will be removed after use
+  additional_columns = vector()
   if (!is.null(conditions)) {
       if (!is.vector(conditions))
         stop("Argument \"conditions\" should be NULL or a character vector")
-      condition_targets = vector()
+      pattern = '(?<=\\$\\().*?(?=\\))'
       for (i in 1:length(conditions)) {
-        conditions[i] = gsub('\\$\\((.*)\\)', '\\1', conditions[i])
+        condition_targets[[i]] = regmatches(conditions[i], gregexpr(pattern, conditions[i], perl=T))[[1]]
+        if (length(condition_targets[[i]]) == 0) 
+          stop(paste("Cannot find valid target in the format of $(...) in condition statement:", conditions[i]))
+        for (item in condition_targets[[i]])
+          conditions[i] = sub(paste0('\\$\\(', item, '\\)'), item, conditions[i])
+        additional_columns = append(additional_columns, setdiff(condition_targets[i], c(targets, others)))
       }
   }
+  if (length(additional_columns))
+      others = append(others, additional_columns)
 
   # RUN DSC QUERY COMMAND
   # ---------------------
   # Generate a temporary directory where the query output will be
   # stored.
   outfile <- tempfile(fileext = ".csv")
-
   # Build and run command based on the inputs.
   if (is.null(others)) query_target = paste(targets, collapse = " ")
   else query_target = paste(paste(targets, collapse = " "), paste(others, collapse = " "))
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
                    "--target", query_target)
-  if (length(conditions) > 1)
-    conditions <- paste(conditions,collapse = " AND ")
-  if (!is.null(conditions))
-      cmd.str <- paste0(cmd.str," --condition \"",conditions,"\"")
   if (length(groups) >= 1)
     cmd.str <- paste0(cmd.str, " -g \"", paste(gsub(" ", "", groups), collapse = " "), "\"")
   ret = run_cmd(cmd.str, ferr=ifelse(verbose, "", FALSE))
@@ -196,22 +207,40 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   # columns indexed by `target_cols` should have at least one non-missing value
   target_rows <- which(apply(dat[, target_cols, drop=FALSE], 1, function(r) !all(r %in% NA)))
   dat <- dat[target_rows, , drop=FALSE]
+
+  # PRE-FILTER BY CONDITIONS 
+  # ------------------------
+  col_names = names(dat)
+  query_expr = vector()
+  if (length(condition_targets)) {
+    for (i in 1:length(condition_targets)) {
+      if (sum(condition_targets[[i]] %in% col_names) == length(condition_targets[[i]]))
+        query_expr = append(query_expr, conditions[i])
+    } 
+  }
+  if (length(query_expr)) {
+    query_expr = paste(query_expr, sep = '&')
+    dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
+  }
+
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
   # Get the indices of all the columns of the form
   # "module.variable:output".
-  dat <- as.list(dat)
-  for (i in 1:length(dat)) {
-    dat[[i]]        <- data.frame(dat[[i]],stringsAsFactors = FALSE)
-    names(dat[[i]]) <- names(dat)[i]
-  }
-  cols <- which(sapply(as.list(names(dat)),function (x) {
+
+  cols <- which(sapply(as.list(col_names), function (x) {
     n <- nchar(x)
     if (n < 7 | length(unlist(strsplit(x,"[:]"))) != 2)
       return(FALSE)
     else
       return(substr(x,n-6,n) == ":output")
   }))
+
+  dat <- as.list(dat)
+  for (i in 1:length(dat)) {
+    dat[[i]]        <- data.frame(dat[[i]],stringsAsFactors = FALSE)
+    names(dat[[i]]) <- names(dat)[i]
+  }
 
   if (missing(cores)) cores = detectCores()
 
@@ -229,7 +258,6 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
       col.new <- paste(module,var,sep = ".")
       if (verbose)
         cat(" - ",col.new,": ",sep = "")
-
       # This list will contain the value of the variable for each table row.
       values <- as.list(rep(NA,n))
 
@@ -329,6 +357,29 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   dat.names  <- unlist(lapply(dat,names))
   dat        <- do.call(cbind,dat)
   names(dat) <- dat.names
+
+  # POST-FILTER BY CONDITIONS 
+  # -------------------------
+  # Remaining columns to filter
+  col_names = setdiff(names(dat), col_names)
+  query_expr = vector()
+  if (length(condition_targets)) {
+    for (i in 1:length(condition_targets)) {
+      if (sum(condition_targets[[i]] %in% col_names))
+        query_expr = append(query_expr, conditions[i])
+    }
+  } 
+  if (length(query_expr)) {
+    query_expr = paste(query_expr, sep = '&')
+    dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
+  }
+
+  # REMOVE UNASKED COLUMNS 
+  # ----------------------
+  if (length(additional_columns)) {
+    col_names = setdiff(names(dat), additional_columns)
+    dat = dat[, col_names, drop=FALSE]
+  }
   if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
   return(dat)
 }
