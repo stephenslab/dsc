@@ -2,7 +2,7 @@
 % Please edit documentation in R/dscquery.R
 \name{dscquery}
 \alias{dscquery}
-\title{SQL-like interface for querying DSC output.}
+\title{R interface for querying DSC output.}
 \usage{
 dscquery(dsc.outdir, targets, others = NULL, conditions = NULL,
   groups = NULL, add.path = FALSE, omit.file.columns = FALSE,
@@ -21,13 +21,14 @@ one can specify multiple properties from the same module.
 These will be the names of the columns in the returned data frame.}
 
 \item{others}{Additional query items similarly specified as \code{targets}.
-Difference between \code{targets} and `\code{others}` is that the rows 
+Difference between \code{targets} and \code{others} is that the rows 
 whose \code{targets} columns containing all missing values will be removed, while
 \code{others} columns will not have this impact.}
 
 \item{conditions}{The default \code{NULL} means "no conditions", in
 which case the results for all DSC pipelines are returned. 
-Query conditions are specified as R expression ... !FIXME!}
+Query conditions are specified as R expressions with target names in the 
+format \code{$(...)}.}
 
 \item{groups}{Definition of module groups. For example,
 \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
@@ -85,7 +86,7 @@ This function may not work in Windows.
 dsc.dir <- system.file("datafiles","one_sample_location",
                        "dsc_result",package = "dscrutils")
 dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-                conditions = "simulate.n > 10")
+                conditions = c("$(simulate.n > 10)", "$(score.error) < 0.05"))
 print(dat)
 
 # Retrieve some results from the "ash" DSC experiment. In this
@@ -98,8 +99,7 @@ dat2 <-
            targets = c(paste("simulate",c("nsamp","g"),sep="."),
                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),
                              sep=".")),
-           conditions = paste("simulate.g =",
-                              "'list(c(2/3,1/3),c(0,0),c(1,2))'"))
+           conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'"))
 
 # This is the same as the previous example, but extracts the
 # vector-valued beta estimates into the outputted data frame. As a
@@ -109,8 +109,7 @@ dat3 <-
   dscquery(dsc.dir2,
            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
                        "shrink.beta_est","shrink.pi0_est"),
-           conditions = paste("simulate.g =",
-                              "'list(c(2/3,1/3),c(0,0),c(1,2))'"),
+           conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'"),
            max.extract.vector = 1000)
 
 \dontrun{
@@ -118,7 +117,7 @@ dat3 <-
 # This query should generate an error because there is no output
 # called "mse" in the "score" module.
 dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
-                 conditions = "simulate.n > 10")
+                 conditions = "$(simulate.n) > 10")
 
 }
 
