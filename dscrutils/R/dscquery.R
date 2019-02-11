@@ -254,6 +254,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
       col.new <- paste(module,var,sep = ".")
       if (verbose)
         cat(" - ",col.new,": ",sep = "")
+      
       # This list will contain the value of the variable for each table row.
       values <- as.list(rep(NA,n))
 
@@ -298,6 +299,10 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
                                     length(x) == 1))) {
           if (verbose)
             cat("extracted atomic values\n")
+          
+          dsc.module.files <- vector(class(unlist(values)),
+                                     length(dsc.module.files))
+          dsc.module.files[] <- NA
           dsc.module.files[available.targets] <- unlist(values)
           dat[[j]] <- data.frame(dsc.module.files,stringsAsFactors = FALSE)
           names(dat[[j]]) <- col.new
@@ -310,12 +315,10 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
           # incorporate the vector values into the data frame.
           extract.values   <- FALSE
           all.lengths.same <- FALSE
-          if (all(sapply(values,
-                         function (x) is.vector(x) & !is.list(x))))
+          if (all(sapply(values,function (x) is.vector(x) & !is.list(x))))
             if (length(unique(sapply(values,length)))==1) {
               all.lengths.same <- TRUE
-              if (max(sapply(values,length)) <=
-                    max.extract.vector)
+              if (max(sapply(values,length)) <= max.extract.vector)
                 extract.values <- TRUE
             }
           if (extract.values) {
@@ -350,7 +353,8 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
         }
       }
     }
-  }
+}
+  
   # Output the query result as a data frame.
   dat.names  <- unlist(lapply(dat,names))
   dat        <- do.call(cbind,dat)
