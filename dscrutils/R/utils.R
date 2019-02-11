@@ -30,6 +30,8 @@ read_dsc <- function(infile) {
     ## this is not always required
     ## and when it is required the DSC parser code
     ## will check and install the package.
+    if (!requireNamespace("reticulate",quietly = TRUE))
+      stop("Cannot read Python's `pkl` files due to missing `reticulate` package.")
     result = reticulate::py_load_object(infile)
     return(rapply(result, reticulate::py_to_r, classes = "python.builtin.object", how = "replace"))
   } else if (inext == 'yml') {

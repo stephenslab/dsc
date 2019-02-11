@@ -71,7 +71,7 @@
 #' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
 #' dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-#'                 conditions = c("$(simulate.n > 10)",
+#'                 conditions = c("$(simulate.n) > 10",
 #'                                "$(score.error) < 0.05"))
 #' print(dat)
 #'
