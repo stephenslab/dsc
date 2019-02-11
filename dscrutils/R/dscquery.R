@@ -16,14 +16,14 @@
 #' These will be the names of the columns in the returned data frame.
 #'
 #' @param others Additional query items similarly specified as \code{targets}.
-#' Difference between \code{targets} and \code{others} is that the rows 
+#' Difference between \code{targets} and \code{others} is that the rows
 #' whose \code{targets} columns containing all missing values will be removed, while
-#' \code{others} columns will not have this impact. 
+#' \code{others} columns will not have this impact.
 #'
 #' @param conditions The default \code{NULL} means "no conditions", in
-#' which case the results for all DSC pipelines are returned. 
-#' Query conditions are specified as R expressions with target names in the 
-#' format \code{$(...)}. 
+#' which case the results for all DSC pipelines are returned.
+#' Query conditions are specified as R expressions with target names in the
+#' format \code{$(...)}.
 #'
 #' @param groups Definition of module groups. For example,
 #' \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
@@ -31,9 +31,9 @@
 #' even if they have not previously been defined when running DSC.
 #'
 #' @param omit.file.columns If TRUE will remove columns of filenames.
-#' That is, columns ending with "output.file" colnames. 
+#' That is, columns ending with "output.file" colnames.
 #'
-#' @param add.path If TRUE, the returned file column in data frame 
+#' @param add.path If TRUE, the returned file column in data frame
 #' will contain full pathnames, not just the base filenames.
 #'
 #' @param exec The command or pathname of the dsc-query executable.
@@ -111,8 +111,8 @@
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL, 
-                      groups = NULL, add.path = FALSE, 
+dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
+                      groups = NULL, add.path = FALSE,
                       omit.file.columns = FALSE, exec = "dsc-query",
                       max.extract.vector = 10, verbose = TRUE) {
 
@@ -157,7 +157,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   # This list keeps track of condition variables
   # It matches `conditions`
   condition_targets = list()
-  # This vector keeps track of additional columns involved in `condition` but 
+  # This vector keeps track of additional columns involved in `condition` but
   # not in `targets` or `others` and will be removed after use
   additional_columns = vector()
   if (!is.null(conditions)) {
@@ -166,7 +166,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
       pattern = '(?<=\\$\\().*?(?=\\))'
       for (i in 1:length(conditions)) {
         condition_targets[[i]] = regmatches(conditions[i], gregexpr(pattern, conditions[i], perl=T))[[1]]
-        if (length(condition_targets[[i]]) == 0) 
+        if (length(condition_targets[[i]]) == 0)
           stop(paste("Cannot find valid target in the format of $(...) in condition statement:", conditions[i]))
         for (item in condition_targets[[i]])
           conditions[i] = sub(paste0('\\$\\(', item, '\\)'), item, conditions[i])
@@ -206,7 +206,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   target_rows <- which(apply(dat[, target_cols, drop=FALSE], 1, function(r) !all(r %in% NA)))
   dat <- dat[target_rows, , drop=FALSE]
 
-  # PRE-FILTER BY CONDITIONS 
+  # PRE-FILTER BY CONDITIONS
   # ------------------------
   col_names = names(dat)
   query_expr = vector()
@@ -214,7 +214,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
     for (i in 1:length(condition_targets)) {
       if (sum(condition_targets[[i]] %in% col_names) == length(condition_targets[[i]]))
         query_expr = append(query_expr, conditions[i])
-    } 
+    }
   }
   if (length(query_expr)) {
     query_expr = paste(query_expr, sep = '&')
@@ -254,7 +254,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
       col.new <- paste(module,var,sep = ".")
       if (verbose)
         cat(" - ",col.new,": ",sep = "")
-      
+
       # This list will contain the value of the variable for each table row.
       values <- as.list(rep(NA,n))
 
@@ -278,7 +278,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
           }
           out <- read_dsc(dscfile)
           if (var != 'DSC_TIME') {
-              
+
             # Check that the variable is one of the outputs in the file.
             if (!is.element(var,names(out)))
               stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
@@ -289,7 +289,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
             return(out$DSC_DEBUG$time$elapsed)
           }
         })
-        
+
         # If all the available values are atomic, not NULL, and scalar
         # (i.e., length of 1), then the values can fit into the column
         # of a data frame. If not, then there is nothing to be done.
@@ -299,7 +299,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
                                     length(x) == 1))) {
           if (verbose)
             cat("extracted atomic values\n")
-          
+
           dsc.module.files <- vector(class(unlist(values)),
                                      length(dsc.module.files))
           dsc.module.files[] <- NA
@@ -330,9 +330,12 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
               values = list()
               ii = 1
               for (jj in 1:length(dsc.module.files)) {
-                if (jj %in% available.targets) values[[jj]] = tmp[[ii]]
-                else values[[jj]] = rep(NA, vector_length)
-                ii = ii + 1
+                if (jj %in% available.targets) {
+                  values[[jj]] = tmp[[ii]]
+                  ii = ii + 1
+                } else {
+                  values[[jj]] = rep(NA, vector_length)
+                }
               }
             }
 

@@ -29,7 +29,7 @@ test_that("ash DSC query example returns a 10 x 6 data frame",{
 
 test_that(paste("Second ash DSC example with max.extract.vector = 1000",
                 "returns a n x m data frame"),{
-                    
+
   # This is the same as the previous example, but extracts the
   # vector-valued beta estimates into the outputted data frame. As a
   # result, the data frame of query results is much larger (it has over

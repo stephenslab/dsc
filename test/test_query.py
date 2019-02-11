@@ -68,7 +68,7 @@ class TestQuery(unittest.TestCase):
         self.assertRaises(DBError, Query_Processor, ash_db, \
             'simulate.nsamp shrink.mixcompdist score.mse'.split(), ['simulate.nsamp < 20', 'shrink.mixcompdist = "normal"'], \
             ["score: score_beta, score_pi0"])
-        
+
     def testSyntaxPass(self):
         self.touch(['1.csv'])
         # use built-in group names
@@ -80,7 +80,7 @@ class TestQuery(unittest.TestCase):
         #  Handle empty field input: return the file path
         res = Query_Processor(ash_db, 'simulate shrink score'.split(), ['simulate.nsamp > 20', 'shrink.mixcompdist = "normal"'], [])
         q1 = test_outcome(res, '1.csv')
-        q2 = ['SELECT simulate.DSC_REPLICATE AS simulate_DSC_FIELD_DSC_REPLICATE, simulate.__output__ AS simulate_DSC_OUTPUT_, shrink.__output__ AS shrink_DSC_OUTPUT_, score_beta.__output__ AS score_beta_DSC_OUTPUT_ FROM score_beta INNER JOIN shrink ON score_beta.__parent__ = shrink.__id__ INNER JOIN simulate ON shrink.__parent__ = simulate.__id__ WHERE ((simulate.nsamp > 20) AND (shrink.mixcompdist == "normal"))', 
+        q2 = ['SELECT simulate.DSC_REPLICATE AS simulate_DSC_FIELD_DSC_REPLICATE, simulate.__output__ AS simulate_DSC_OUTPUT_, shrink.__output__ AS shrink_DSC_OUTPUT_, score_beta.__output__ AS score_beta_DSC_OUTPUT_ FROM score_beta INNER JOIN shrink ON score_beta.__parent__ = shrink.__id__ INNER JOIN simulate ON shrink.__parent__ = simulate.__id__ WHERE ((simulate.nsamp > 20) AND (shrink.mixcompdist == "normal"))',
               'SELECT simulate.DSC_REPLICATE AS simulate_DSC_FIELD_DSC_REPLICATE, simulate.__output__ AS simulate_DSC_OUTPUT_, shrink.__output__ AS shrink_DSC_OUTPUT_, score_pi0.__output__ AS score_pi0_DSC_OUTPUT_ FROM score_pi0 INNER JOIN shrink ON score_pi0.__parent__ = shrink.__id__ INNER JOIN simulate ON shrink.__parent__ = simulate.__id__ WHERE ((simulate.nsamp > 20) AND (shrink.mixcompdist == "normal"))']
         self.assertEqual(q1, q2)
         #  handle group merger
