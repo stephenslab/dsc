@@ -44,8 +44,6 @@
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
-#' @param cores number of cores to use for multicore extraction of data.
-#'
 #' @return A data frame containing the result of the DSC query, with
 #' columns corresponding to the query target. When reasonable to do
 #' so, the DSC outputs are extracted into the columns of the data
@@ -73,7 +71,8 @@
 #' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
 #' dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-#'                 conditions = c("$(simulate.n > 10)", "$(score.error) < 0.05"))
+#'                 conditions = c("$(simulate.n > 10)",
+#'                                "$(score.error) < 0.05"))
 #' print(dat)
 #'
 #' # Retrieve some results from the "ash" DSC experiment. In this
@@ -96,7 +95,7 @@
 #'   dscquery(dsc.dir2,
 #'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
 #'                        "shrink.beta_est","shrink.pi0_est"),
-#'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'"),
+#'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
 #'            max.extract.vector = 1000)
 #'
 #' \dontrun{
@@ -109,14 +108,13 @@
 #' }
 #'
 #' @importFrom utils read.csv
-#' @importFrom parallel mclapply detectCores
 #'
 #' @export
 #'
 dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL, 
                       groups = NULL, add.path = FALSE, 
                       omit.file.columns = FALSE, exec = "dsc-query",
-                      max.extract.vector = 10, verbose = TRUE, cores = NULL) {
+                      max.extract.vector = 10, verbose = TRUE) {
 
   # CHECK INPUTS
   # ------------
@@ -242,8 +240,6 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
     names(dat[[i]]) <- names(dat)[i]
   }
 
-  if (missing(cores)) cores = detectCores()
-
   # Repeat for each column of the form "module.variable:output".
   if (length(cols) > 0) {
     cat("Reading DSC outputs:\n")
@@ -271,7 +267,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
         available.targets <- which(!is.na(dsc.module.files))
 
         # Repeat for each available target.
-        values <- mclapply(available.targets, function(i) {
+        values <- lapply(available.targets, function(i) {
           dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
           if (!file.exists(dscfile))
             dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".pkl"))
@@ -281,16 +277,18 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
           }
           out <- read_dsc(dscfile)
           if (var != 'DSC_TIME') {
+              
             # Check that the variable is one of the outputs in the file.
             if (!is.element(var,names(out)))
               stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
 
             # Extract the value of the variable.
-            out[[var]]
+            return(out[[var]])
           } else {
-            out$DSC_DEBUG$time$elapsed
+            return(out$DSC_DEBUG$time$elapsed)
           }
-        }, mc.cores = cores)
+        })
+        
         # If all the available values are atomic, not NULL, and scalar
         # (i.e., length of 1), then the values can fit into the column
         # of a data frame. If not, then there is nothing to be done.

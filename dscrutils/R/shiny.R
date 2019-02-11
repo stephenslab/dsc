@@ -22,6 +22,7 @@
 #' @return A shiny plot.
 #'
 #' @importFrom stats as.formula
+#' @importFrom stats na.omit
 #' 
 #' @export
 #'

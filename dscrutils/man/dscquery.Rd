@@ -6,8 +6,7 @@
 \usage{
 dscquery(dsc.outdir, targets, others = NULL, conditions = NULL,
   groups = NULL, add.path = FALSE, omit.file.columns = FALSE,
-  exec = "dsc-query", max.extract.vector = 10, verbose = TRUE,
-  cores = NULL)
+  exec = "dsc-query", max.extract.vector = 10, verbose = TRUE)
 }
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
@@ -48,8 +47,6 @@ this length are automatically extracted to the data frame.}
 
 \item{verbose}{If \code{verbose = TRUE}, print progress of DSC
 query command to the console.}
-
-\item{cores}{number of cores to use for multicore extraction of data.}
 }
 \value{
 A data frame containing the result of the DSC query, with
@@ -86,7 +83,8 @@ This function may not work in Windows.
 dsc.dir <- system.file("datafiles","one_sample_location",
                        "dsc_result",package = "dscrutils")
 dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-                conditions = c("$(simulate.n > 10)", "$(score.error) < 0.05"))
+                conditions = c("$(simulate.n > 10)",
+                               "$(score.error) < 0.05"))
 print(dat)
 
 # Retrieve some results from the "ash" DSC experiment. In this
@@ -99,7 +97,7 @@ dat2 <-
            targets = c(paste("simulate",c("nsamp","g"),sep="."),
                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),
                              sep=".")),
-           conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'"))
+           conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'")
 
 # This is the same as the previous example, but extracts the
 # vector-valued beta estimates into the outputted data frame. As a
@@ -109,7 +107,7 @@ dat3 <-
   dscquery(dsc.dir2,
            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
                        "shrink.beta_est","shrink.pi0_est"),
-           conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'"),
+           conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
            max.extract.vector = 1000)
 
 \dontrun{
