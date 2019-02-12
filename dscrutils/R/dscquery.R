@@ -32,6 +32,9 @@
 #'
 #' @param omit.file.columns If TRUE will remove columns of filenames.
 #' That is, columns ending with "output.file" colnames.
+#' 
+#' @param ignore.missing.file If TRUE will return NA for missing file
+#' when extracting values from files.
 #'
 #' @param add.path If TRUE, the returned file column in data frame
 #' will contain full pathnames, not just the base filenames.
@@ -112,7 +115,7 @@
 #' @export
 #'
 dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
-                      groups = NULL, add.path = FALSE,
+                      groups = NULL, add.path = FALSE, ignore.missing.file = FALSE,
                       omit.file.columns = FALSE, exec = "dsc-query",
                       max.extract.vector = 10, verbose = TRUE) {
 
@@ -146,13 +149,12 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
     stop("Argument \"verbose\" should be TRUE or FALSE")
 
   split_string = function(value) {
-    if (is.character(value) && !is.vector(value)) return(strsplit(value, ' +')[[1]])
+    if (is.character(value) && is.vector(value)) return(strsplit(paste(value, collapse = " "), ' +')[[1]])
     else return(value)
   }
 
   targets = split_string(targets)
   others = split_string(others)
-  conditions = split_string(conditions)
 
   # This list keeps track of condition variables
   # It matches `conditions`
@@ -161,8 +163,6 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   # not in `targets` or `others` and will be removed after use
   additional_columns = vector()
   if (!is.null(conditions)) {
-      if (!is.vector(conditions))
-        stop("Argument \"conditions\" should be NULL or a character vector")
       pattern = '(?<=\\$\\().*?(?=\\))'
       for (i in 1:length(conditions)) {
         condition_targets[[i]] = regmatches(conditions[i], gregexpr(pattern, conditions[i], perl=T))[[1]]
@@ -274,7 +274,8 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
             dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".pkl"))
           if (!file.exists(dscfile)) {
             dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".*"))
-            stop(paste("Unable to read",dscfile,"because it does not exist"))
+            if (ignore.missing.file) return(NA)
+            else stop(paste("Unable to read",dscfile,"because it does not exist"))
           }
           out <- read_dsc(dscfile)
           if (var != 'DSC_TIME') {

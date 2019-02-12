@@ -5,8 +5,9 @@
 \title{R interface for querying DSC output.}
 \usage{
 dscquery(dsc.outdir, targets, others = NULL, conditions = NULL,
-  groups = NULL, add.path = FALSE, omit.file.columns = FALSE,
-  exec = "dsc-query", max.extract.vector = 10, verbose = TRUE)
+  groups = NULL, add.path = FALSE, ignore.missing.file = FALSE,
+  omit.file.columns = FALSE, exec = "dsc-query",
+  max.extract.vector = 10, verbose = TRUE)
 }
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
@@ -20,13 +21,13 @@ one can specify multiple properties from the same module.
 These will be the names of the columns in the returned data frame.}
 
 \item{others}{Additional query items similarly specified as \code{targets}.
-Difference between \code{targets} and \code{others} is that the rows 
+Difference between \code{targets} and \code{others} is that the rows
 whose \code{targets} columns containing all missing values will be removed, while
 \code{others} columns will not have this impact.}
 
 \item{conditions}{The default \code{NULL} means "no conditions", in
-which case the results for all DSC pipelines are returned. 
-Query conditions are specified as R expressions with target names in the 
+which case the results for all DSC pipelines are returned.
+Query conditions are specified as R expressions with target names in the
 format \code{$(...)}.}
 
 \item{groups}{Definition of module groups. For example,
@@ -34,8 +35,11 @@ format \code{$(...)}.}
 will dynamically create module groups \code{method} and \code{score}
 even if they have not previously been defined when running DSC.}
 
-\item{add.path}{If TRUE, the returned file column in data frame 
+\item{add.path}{If TRUE, the returned file column in data frame
 will contain full pathnames, not just the base filenames.}
+
+\item{ignore.missing.file}{If TRUE will return NA for missing file
+when extracting values from files.}
 
 \item{omit.file.columns}{If TRUE will remove columns of filenames.
 That is, columns ending with "output.file" colnames.}
@@ -83,7 +87,7 @@ This function may not work in Windows.
 dsc.dir <- system.file("datafiles","one_sample_location",
                        "dsc_result",package = "dscrutils")
 dat <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-                conditions = c("$(simulate.n > 10)",
+                conditions = c("$(simulate.n) > 10",
                                "$(score.error) < 0.05"))
 print(dat)
 
