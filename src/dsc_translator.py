@@ -219,9 +219,9 @@ class DSC_Translator:
              - will construct the actual script to run
             '''
             # FIXME
-            if step_map is not None and len(step.rf.values()) > 1:
-                sys.stderr.write(f'INTERNAL WARNING: "{step.name}" has multiple output files, but only meta-file signature is tracked. '\
-                                 'Rigorous support of multiple output files is not yet implemented in current version of DSC.\n')
+            #if step_map is not None and len(step.rf.values()) > 1:
+            #    sys.stderr.write(f'INTERNAL WARNING: "{step.name}" has multiple output files, but only meta-file signature is tracked. '\
+            #                     'Rigorous support of multiple output files is not yet implemented in current version of DSC.\n')
             self.step_map = step_map
             self.try_catch = try_catch
             self.exe_signature = []

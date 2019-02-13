@@ -183,11 +183,14 @@ class ExpandActions(YLine):
     def __R(code):
         try:
             output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
-        except Exception:
-            from .utils import install_r_lib
+        except Exception as e:
+            from .utils import install_package_interactive
             from .version import __version__
-            install_r_lib(f'dscrutils@stephenslab/dsc/dscrutils (>={__version__})')
-            output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
+            install_package_interactive(f'dscrutils@stephenslab/dsc/dscrutils>={__version__}', 'R_library')
+            try:
+                output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
+            except Exception as e:
+                raise ValueError(f"Failed to evaluate R expression ``{code[1:-1]}``")
         return output
 
     @staticmethod
