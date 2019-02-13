@@ -31,7 +31,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, truncate = False, replicate = None):
+    def __init__(self, content, output = None, sequence = None, global_params = None, truncate = False, replicate = None):
         self.content = dict()
         if os.path.isfile(content):
             script_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -79,6 +79,7 @@ class DSC_Script:
                 raise FormatError('Cannot find section ``DSC`` or command input ``--target`` that defines benchmarks to execute!')
             else:
                 self.content['DSC'] = dict()
+        self.get_global_params(global_params)
         global_vars = try_get_value(self.content, ('DSC', 'global'))
         self.set_global_vars(global_vars)
         self.content = EntryFormatter()(self.content, global_vars)
@@ -170,6 +171,27 @@ class DSC_Script:
             if name != 'DSC':
                 warnings.warn(f'Overwriting existing module definition ``{name}``...')
         self.content.update(block)
+
+    def get_global_params(self, gparams):
+        '''
+        input looks like: ['--data_file', '1.txt', '2.txt', ...]
+        '''
+        if gparams is None or not 'global' in self.content['DSC']:
+            return
+        global_vars = OrderedDict()
+        curr_key = None
+        for v in gparams:
+            if v.startswith('--'):
+                curr_key = v[2:]
+            if curr_key and not curr_key in global_vars:
+                global_vars[curr_key] = []
+            elif curr_key in global_vars:
+                global_vars[curr_key].append(v)
+        for k in global_vars:
+            if k in self.content['DSC']['global']:
+                self.content['DSC']['global'][k] = ', '.join(global_vars[k])
+            else:
+                env.logger.warning(f'Parameter ``--{k}`` is ignored because it is not found in ``DSC::global`` section.')
 
     def set_global_vars(self, gvars):
         if gvars is None:

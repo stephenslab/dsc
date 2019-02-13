@@ -82,6 +82,7 @@ Goal for 0.4.0
 
 - Reimplement `dsc-query` and `dscrquery` for improved handling of missing value #145.
 - Reimplmement `dscrquery`'s `condition` statement to make it more R-user friendly.
+- Add unknown command argument #162.
 - [minor] Introduce `DSC::run::default`, for the behavior of running the script without targets.
 - [minor] #161
 - SoS bumped to version 0.18.7 for improved sockets management and improved R library auto-installation.

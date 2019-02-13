@@ -47,7 +47,7 @@ def remove(workflows, groups, modules, db, purge = False):
     else:
         remove_unwanted_output(workflows, groups, modules, db, zap = True)
 
-def execute(args):
+def execute(args, unknown_args):
     from .utils import workflow2html, dsc2html, transcript2html
     if args.to_remove:
         if args.target is None and args.to_remove != 'purge':
@@ -60,7 +60,7 @@ def execute(args):
     from .dsc_parser import DSC_Script, DSC_Pipeline
     from .dsc_translator import DSC_Translator
     from .dsc_database import ResultDB
-    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, truncate = args.truncate, replicate = 1 if args.truncate else args.replicate)
+    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, global_params = unknown_args, truncate = args.truncate, replicate = 1 if args.truncate else args.replicate)
     script.init_dsc(env)
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines
@@ -331,7 +331,7 @@ def main():
                 env.logger.error(f'No help information is available for script {sys.argv[1]}: ``{e}``')
                 sys.exit(1)
     try:
-        args = p.parse_args()
+        args, unknown_args = p.parse_known_args()
     except Exception as e:
         env.logger.error(e)
         env.logger.info("Please type ``{} -h`` to view available options".\
@@ -341,7 +341,7 @@ def main():
     env.verbosity = args.verbosity
     with Timer(verbose = True if (env.verbosity > 0) else False) as t:
         try:
-            args.func(args)
+            args.func(args, unknown_args)
         except KeyboardInterrupt:
             t.disable()
             sys.exit('KeyboardInterrupt')
