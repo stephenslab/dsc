@@ -196,6 +196,8 @@ class Query_Processor:
             params = [x for x in params if not x in ['__id__', '__parent__', '__output__', 'DSC_REPLICATE']]
             for param in params:
                 for module in self.groups[group]:
+                    if module not in self.data:
+                        continue
                     if param not in self.data[module].columns:
                         self.data[module][param] = np.nan
 
