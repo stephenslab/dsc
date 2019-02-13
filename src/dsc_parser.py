@@ -794,6 +794,8 @@ class DSC_Module:
                 if isinstance(p1, str):
                     if p1.startswith('$') and len(p) > 1:
                         raise FormatError(f'Module input ``{k}`` cannot contain multiple elements ``{p}``')
+                    if p1.startswith('$') and DSC_GV.search(p1):
+                        raise FormatError(f'Invalid syntax for input module: has to be ``${DSC_GV.search(p1).group(1)}``, not ``{p1}``')
                     if DSC_ASIS_OP.search(p1):
                         raw_keys.append(k)
                         p1 = DSC_ASIS_OP.search(p1).group(1)

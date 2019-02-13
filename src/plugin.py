@@ -144,7 +144,7 @@ class Shell(BasePlug):
         if len(lib):
             res += '\n'.join([f'for i in `ls {item}/*.sh`; do source $i; done' for item in lib])
         # load parameters
-        for k in sorted(params):
+        for k in params:
             # FIXME: better idea?
             res += '\n{0}=$(expandPath $[repr(_{1}) if isinstance(_{1}, list) else _{1}])'.format(self.get_var(k), k)
         # FIXME: may need a timer
@@ -191,9 +191,9 @@ class Shell(BasePlug):
         excluded = [v[1:] for v in value if v.startswith('!')]
         if len(value) == len(excluded):
             # empty or all ! input
-            keys = sorted([x for x in params.keys() if x not in excluded])
+            keys = [x for x in params.keys() if x not in excluded]
         else:
-            keys = sorted([x for x in value if x not in excluded])
+            keys = [x for x in value if x not in excluded]
         if len(keys) == 0:
             return
         res = OrderedDict([(name, OrderedDict())])
@@ -325,7 +325,7 @@ class RPlug(BasePlug):
     def get_input(self, params, lib):
         res = ('DSC_LIBPATH <- c({})\n'.format(','.join([repr(x) for x in lib])) + R_SOURCE) if len(lib) else ''
         # load parameters
-        keys = sorted([x for x in params if not x in self.container_vars])
+        keys = [x for x in params if not x in self.container_vars]
         res += '\n' + '\n'.join(self.container)
         for k in keys:
             res += '\n%s <- ${_%s}' % (self.get_var(k), k)
@@ -356,9 +356,9 @@ class RPlug(BasePlug):
         excluded = [v[1:] for v in value if v.startswith('!')]
         if len(value) == len(excluded):
             # empty or all ! input
-            keys = sorted([x for x in params.keys() if x not in excluded])
+            keys = [x for x in params.keys() if x not in excluded]
         else:
-            keys = sorted([x for x in value if x not in excluded])
+            keys = [x for x in value if x not in excluded]
         if len(keys) == 0:
             return
         res = ['{} <- list()'.format(name)]
@@ -477,7 +477,7 @@ class PyPlug(BasePlug):
     def get_input(self, params, lib):
         res = '\n'.join([f'sys.path.append(os.path.expanduser("{item}"))' for item in lib])
         # load parameters
-        keys = sorted([x for x in params if not x in self.container_vars])
+        keys = [x for x in params if not x in self.container_vars]
         res += '\n' + '\n'.join(self.container)
         for k in keys:
             res += '\n%s = ${_%s}' % (self.get_var(k), k)
@@ -506,9 +506,9 @@ class PyPlug(BasePlug):
         excluded = [v[1:] for v in value if v.startswith('!')]
         if len(value) == len(excluded):
             # empty or all ! input
-            keys = sorted([x for x in params.keys() if x not in excluded])
+            keys = [x for x in params.keys() if x not in excluded]
         else:
-            keys = sorted([x for x in value if x not in excluded])
+            keys = [x for x in value if x not in excluded]
         if len(keys) == 0:
             return
         res = [f'{name} = dict()']
