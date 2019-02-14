@@ -26,7 +26,7 @@
 #' format \code{$(...)}.
 #'
 #' @param groups Definition of module groups. For example,
-#' \code{groups = c("method: mean, median", "score: abs_err, sqrt_err")}
+#' \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 #' will dynamically create module groups \code{method} and \code{score}
 #' even if they have not previously been defined when running DSC.
 #'
@@ -187,7 +187,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
                    "--target", query_target)
   if (length(groups) >= 1)
-    cmd.str <- paste0(cmd.str, " -g \"", paste(gsub(" ", "", groups), collapse = " "), "\"")
+    cmd.str <- paste(cmd.str, "-g", paste(paste0('"', groups, '"'), collapse = " "))
   ret = run_cmd(cmd.str, ferr=ifelse(verbose, "", FALSE))
 
   # LOAD DSC QUERY

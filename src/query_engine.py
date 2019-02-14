@@ -167,7 +167,7 @@ class Query_Processor:
             if len(g.split(':')) != 2:
                 raise FormatError(f"Illegal module group option ``{g}``. Please use format ``group: module1, module2``")
             g = tuple(x.strip() for x in g.split(':'))
-            v = uniq_list([x.strip() for x in g[1].split(',') if x.strip()])
+            v = uniq_list([x.strip() for x in re.split(r',\s+|\s+|,', g[1]) if x.strip()])
             if g[0] in v:
                 raise FormatError(f"Invalid group option: module group name ``{g[0]}``conflicts with module name ``{g[0]}``.")
             res[g[0]] = v
