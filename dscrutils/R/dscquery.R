@@ -124,7 +124,7 @@
 #'
 #' # This query should generate an error because there is no output
 #' # called "mse" in the "score" module.
-#' dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
+#' dat7 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
 #'                  conditions = "$(simulate.n) > 10")
 #'
 #' }
