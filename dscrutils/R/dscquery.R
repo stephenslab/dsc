@@ -92,7 +92,8 @@
 #'
 #' # Retrieve the DSC results only for simulations in which the "mean"
 #' # module was run, and which which the error summary is greater than
-#' # 0.25.
+#' # 0.25. The conditions in this case are applied before and after
+#' # loading results into R.
 #' dat4 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
 #'                  conditions = c("$(score.error) > 0.25",
 #'                                "$(analyze) == 'median'"))
@@ -261,7 +262,8 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
 
   # Repeat for each column of the form "module.variable:output".
   if (length(cols) > 0) {
-    cat("Reading DSC outputs:\n")
+    if (verbose)
+      cat("Reading DSC outputs:\n")
     for (j in cols) {
 
       # Get the column name (col), module name (module), variable name

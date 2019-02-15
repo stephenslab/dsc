@@ -105,7 +105,8 @@ dat3 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
 
 # Retrieve the DSC results only for simulations in which the "mean"
 # module was run, and which which the error summary is greater than
-# 0.25.
+# 0.25. The conditions in this case are applied before and after
+# loading results into R.
 dat4 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
                  conditions = c("$(score.error) > 0.25",
                                "$(analyze) == 'median'"))
@@ -137,7 +138,7 @@ dat6 <-
 
 # This query should generate an error because there is no output
 # called "mse" in the "score" module.
-dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
+dat7 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
                  conditions = "$(simulate.n) > 10")
 
 }
