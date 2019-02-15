@@ -201,7 +201,6 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   # Generate a temporary directory where the query output will be
   # stored.
   outfile <- tempfile(fileext = ".csv")
-  # Build and run command based on the inputs.
   if (is.null(others)) query_target = paste(targets, collapse = " ")
   else query_target = paste(paste(targets, collapse = " "), paste(others, collapse = " "))
   cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
@@ -282,22 +281,24 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
       # If any of the serialized data files exist, try to extract the
       # value of the selected output from each of the RDS files.
       # Repeat for each row of the query table.
-      dsc.module.files <- dat[[j]][[1]]
-      if (any(!is.na(dsc.module.files))) {
+      dsc.module.files  <- factor(dat[[j]][[1]])
+      available.targets <- which(!is.na(dsc.module.files))
+      if (length(available.targets) > 0) {
 
-        # Get the available targets.
-        available.targets <- which(!is.na(dsc.module.files))
-
-        # Repeat for each available target.
-        values <- lapply(available.targets, function(i) {
-          dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".rds"))
+        # Repeat for each target.
+        values <- vector("list",length(dsc.module.files))
+        for (k in levels(dsc.module.files)) {
+          dscfile <- file.path(dsc.outdir,paste0(k,".rds"))
           if (!file.exists(dscfile))
-            dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".pkl"))
+            dscfile <- file.path(dsc.outdir,paste0(k,".pkl"))
           if (!file.exists(dscfile)) {
-            dscfile <- file.path(dsc.outdir,paste0(dsc.module.files[i],".*"))
+            dscfile <- file.path(dsc.outdir,paste0(k,".*"))
             if (ignore.missing.file) return(NA)
-            else stop(paste("Unable to read",dscfile,"because it does not exist"))
+            else stop(paste("Unable to read",dscfile,
+                            "because it does not exist"))
           }
+          if (verbose)
+            cat(sprintf(" - Reading from %s.\n",dscfile))
           out <- read_dsc(dscfile)
           if (var != 'DSC_TIME') {
 
@@ -306,12 +307,14 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
               stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
 
             # Extract the value of the variable.
-            return(out[[var]])
-          } else {
-            return(out$DSC_DEBUG$time$elapsed)
-          }
-        })
-
+            out <- out[[var]]
+          } else
+            out <- out$DSC_DEBUG$time$elapsed
+          entries <- which(dsc.module.files == k)
+          values[entries] <- rep(list(out),length(entries))
+        }
+        values <- values[available.targets]
+        
         # If all the available values are atomic, not NULL, and scalar
         # (i.e., length of 1), then the values can fit into the column
         # of a data frame. If not, then there is nothing to be done.
@@ -378,7 +381,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
         }
       }
     }
-}
+  }
   
   # Output the query result as a data frame.
   dat.names  <- unlist(lapply(dat,names))
