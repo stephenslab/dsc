@@ -297,8 +297,6 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
             else stop(paste("Unable to read",dscfile,
                             "because it does not exist"))
           }
-          if (verbose)
-            cat(sprintf(" - Reading from %s.\n",dscfile))
           out <- read_dsc(dscfile)
           if (var != 'DSC_TIME') {
 
