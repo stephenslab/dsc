@@ -143,7 +143,7 @@ def execute(args, unknown_args):
         else:
             # need 2 versions, local and remote
             # write local config
-            conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -J %s -v %s\'"' % (script_run, script_run[:-3] + 'remote.yml', args.__max_jobs__, args.verbosity)
+            conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -j %s -v %s\'"' % (script_run, script_run[:-3] + 'remote.yml', args.__max_jobs__, args.verbosity)
             yaml.safe_dump({'localhost':'localhost', 'hosts': conf['DSC']},
                       open(script_run[:-3] + 'local.yml', 'w'),
                       default_flow_style=False)
@@ -210,8 +210,8 @@ def execute(args, unknown_args):
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
     cfg_file = (script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml')) if args.host else f'{DSC_CACHE}/{db}.conf.yml'
-    content = {'__max_running_jobs__': args.__max_jobs__,
-               '__max_procs__': args.__max_jobs__,
+    content = {'__max_running_jobs__': args.__max_jobs__ if not args.host else None,
+               '__max_procs__': args.__max_jobs__ if not args.host else None,
                '__sig_mode__': mode,
                '__bin_dirs__': exec_path,
                '__remote__': args.host if len(args.to_host) else None,
@@ -298,7 +298,7 @@ def main():
     ro = p.add_argument_group('Runtime behavior')
     ro.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
                    dest='__max_jobs__',
-                   help = '''Number of maximum cpu threads for local runs, or concurrent jobs for remote execution.''')
+                   help = '''Maximum number of CPU threads for local runs, or job managing sockets for remote execution.''')
     ro.add_argument('--ignore-errors', action='store_true', dest='try_catch',
                    help = '''Bypass all errors from computational programs.
                    This will keep the benchmark running but
