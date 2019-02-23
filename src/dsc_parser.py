@@ -970,7 +970,7 @@ class DSC_Section:
         if not isinstance(self.content['define'], Mapping):
             raise FormatError("Invalid format for ``DSC::define``!")
         for lhs, rhs in self.content['define'].items():
-            rhs = f"({', '.join(rhs)})"
+            rhs = f"({', '.join(flatten_list(rhs))})"
             for item in reversed(replace_list):
                 rhs =  re.sub(r"\b%s\b" % item[0], item[1], rhs)
             self.content['define'][lhs] = rhs
