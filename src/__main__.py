@@ -44,6 +44,25 @@ def remove(workflows, groups, modules, db, purge = False):
         remove_unwanted_output(workflows, groups, modules, db, zap = False)
     elif purge:
         remove_obsolete_output(db)
+        # Clean up task signatures
+        env.logger.info("Cleaning up obsolete job cache ...")
+        from sos.__main__ import cmd_purge
+        from .addict import Dict as dotdict
+        # purge current completed tasks
+        content = {'tasks': None,
+                   'all': False,
+                   'age': None,
+                   'status': ['completed'],
+                   'tags': None,
+                   'queue': None,
+                   'config': None,
+                   'verbosity': 0}
+        cmd_purge(dotdict(content), [])
+        # purge all tasks of more than 3 days old
+        content['all'] = True
+        content['age'] = '3d'
+        content['status'] = None
+        cmd_purge(dotdict(content), [])
     else:
         remove_unwanted_output(workflows, groups, modules, db, zap = True)
 
@@ -188,25 +207,7 @@ def execute(args, unknown_args):
             env.logger.error(f"Failed to communicate with ``{args.host}``")
             env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"dsc\" on ``{args.host}``.")
             raise RuntimeError(e)
-        # Clean up task signatures
-        env.logger.info("Cleaning up obsolete job cache ...")
-        from sos.__main__ import cmd_purge
-        from .addict import Dict as dotdict
-        # purge current completed tasks
-        content = {'tasks': None,
-                   'all': False,
-                   'age': None,
-                   'status': ['completed'],
-                   'tags': None,
-                   'queue': None,
-                   'config': None,
-                   'verbosity': 0}
-        cmd_purge(dotdict(content), [])
-        # purge all tasks of more than 3 days old
-        content['all'] = True
-        content['age'] = '3d'
-        content['status'] = None
-        cmd_purge(dotdict(content), [])
+
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
     cfg_file = (script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml')) if args.host else f'{DSC_CACHE}/{db}.conf.yml'
