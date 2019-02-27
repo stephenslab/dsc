@@ -292,12 +292,12 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
           if (!file.exists(dscfile))
             dscfile <- file.path(dsc.outdir,paste0(k,".pkl"))
           if (!file.exists(dscfile)) {
-            dscfile <- file.path(dsc.outdir,paste0(k,".*"))
-            if (ignore.missing.file) return(NA)
-            else stop(paste("Unable to read",dscfile,
+            dscfile <- NA
+            if (!ignore.missing.file) stop(paste("Unable to read", file.path(dsc.outdir,paste0(k,".{rds,pkl}")),
                             "because it does not exist. You can set `ignore.missing.file=TRUE` if you want to skip it."))
           }
-          out <- read_dsc(dscfile)
+          if (is.na(dscfile)) out <- list()
+          else out <- read_dsc(dscfile)
           if (var != 'DSC_TIME') {
 
             # Check that the variable is one of the outputs in the file.
@@ -308,6 +308,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
             out <- out[[var]]
           } else
             out <- out$DSC_DEBUG$time$elapsed
+          if (is.null(out)) out <- NA
           entries <- which(dsc.module.files == k)
           values[entries] <- rep(list(out),length(entries))
         }
