@@ -469,6 +469,9 @@ class Query_Processor:
         self.output_table.fillna('NA', inplace = True)
         for k in self.output_tables:
             self.output_tables[k].fillna('NA', inplace = True)
+
+    def consolidate_subrows(self):
+        # situations 1:
         # now in some situations, eg methods fail systematically,
         # or groups completely non-overlapping, that might result in
         # creating blocks of missing structure.
@@ -479,6 +482,10 @@ class Query_Processor:
         # self.output_table.replace('NA', np.nan, inplace = True)
         # self.output_table = self.output_table.groupby(self.output_table.columns[self.output_table.notnull().all()].tolist(),
         #                           as_index=False).first().fillna('NA')[self.output_table.columns]
+        # situation 2: some rows with NA are exactly subset of some other rows
+        # in this case just drop those lines
+        pass
+
 
     def get_queries(self):
         return self.queries

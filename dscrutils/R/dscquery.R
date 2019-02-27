@@ -295,7 +295,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
             dscfile <- file.path(dsc.outdir,paste0(k,".*"))
             if (ignore.missing.file) return(NA)
             else stop(paste("Unable to read",dscfile,
-                            "because it does not exist"))
+                            "because it does not exist. You can set `ignore.missing.file=TRUE` if you want to skip it."))
           }
           out <- read_dsc(dscfile)
           if (var != 'DSC_TIME') {
