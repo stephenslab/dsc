@@ -85,7 +85,7 @@ Goal for 0.4.0
 - Add unknown command argument #162.
 - [minor] Introduce `DSC::run::default`, for the behavior of running the script without targets.
 - [minor] #161
-- SoS bumped to version 0.19.0 for improved sockets management and improved R library auto-installation.
+- SoS bumped to version 0.19.1 for improved sockets management and improved R library auto-installation.
 
 0.3.3
 
