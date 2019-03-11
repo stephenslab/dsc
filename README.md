@@ -70,14 +70,17 @@ install.packages("dscrutils",repos = NULL,type = "source")
 
 #### Project maintenance
 
-Although relatively stable and usable in practice, DSC is still actively being developed.
-Occasionally upgrades to the most recent version will lead to changes of file signatures that 
-triggers rerun of existing benchmark even if they have not been changed. When this happens we will
-indicate in bold in our release note below that "a file signature clean up is recommended" 
-(see release note 0.2.7.7 for example). That means after such DSC upgrades you should 
-rerun your benchmark with `--touch` option to update file signatures. If possible, it is recommended 
-that you rerun your benchmark from scratch (if resources can afford) with `-s none` instead of `--touch` 
-to skip all existing files. We apologize for the inconveniences it incurs. 
+Although relatively stable and usable in practice, DSC is still
+actively being developed.  Occasionally upgrades to the most recent
+version will lead to changes of file signatures that triggers rerun of
+existing benchmark even if they have not been changed. When this
+happens we will indicate in bold in our release note below that "a
+file signature clean up is recommended" (see release note 0.2.7.7 for
+example). That means after such DSC upgrades you should rerun your
+benchmark with `--touch` option to update file signatures. If
+possible, it is recommended that you rerun your benchmark from scratch
+(if resources can afford) with `-s none` instead of `--touch` to skip
+all existing files. We apologize for the inconveniences it incurs.
 
 ## Change Log
 
