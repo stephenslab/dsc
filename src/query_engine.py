@@ -137,7 +137,7 @@ class Query_Processor:
             raise DBError(f"Invalid module specification ``{x}``")
         keys_lower = [k.lower() for k in self.data.keys()]
         if not x.lower() in keys_lower:
-            raise DBError(f"Cannot find module ``{x}`` in DSC results ``{self.db}``.")
+            raise DBError(f"``{x}`` does not define a module or a group of modules in current DSC benchmark.")
         if y == 'DSC_TIME':
             return
         k = list(self.data.keys())[keys_lower.index(x.lower())]
@@ -258,9 +258,14 @@ class Query_Processor:
                     else:
                         depends = [reference[reference.index(item) + 1]] if (reference.index(item) < len(reference) - 1) else []
                     if len(depends) > 0:
-                        # there is a dependency, let's see if it is already asked for
+                        # there is a dependency, let's see if it is already asked for in query targets
                         existing_dependents = [x for x in depends if x in primary]
-                        depend_step = reference[min([reference.index(dd) for dd in (existing_dependents if len(existing_dependents) > 0 else depends)])]
+                        if len(existing_dependents) == len(depends):
+                            continue
+                        # there are additional dependencies not yet in query targets
+                        # we need to get them, by grabing the most downstream one.
+                        # I think it should be enough?
+                        depend_step = reference[min([reference.index(dd) for dd in depends if dd not in existing_dependents])]
                         if depend_step not in primary:
                             primary.append(depend_step)
                 primary = sorted(case_insensitive_uniq_list(primary), key = lambda x: reference.index(x))
