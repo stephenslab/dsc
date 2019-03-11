@@ -182,7 +182,7 @@ class Query_Processor:
                 if i > j:
                     overlap = set(self.groups[k1]).intersection(set(self.groups[k2]))
                     if len(overlap):
-                        raise DBError(f"Overlapping groups ``{k1} = {self.groups[k1]}`` and ``{k2} = {self.groups[k2]}`` not allowed! You should drop the one that causes the conflict, or use, eg, -g \"{k1}:\" to erase the other one if it is build-in.")
+                        raise DBError(f"Overlapping groups ``{k1}: {', '.join(self.groups[k1])}`` and ``{k2}: {', '.join(self.groups[k2])}`` is not allowed! You should drop the one that causes the conflict, or use, eg, -g \"{k1}:\" to erase the other one if it is build-in.")
 
     def add_na_group_parameters(self):
         if len(self.groups) == 0:

@@ -935,6 +935,7 @@ class DSC_Section:
         self.sequence = filter_sublist(self.sequence)
         # FIXME: check if modules involved in sequence are indeed defined.
         self.sequence_ordering = self.__merge_sequences(self.sequence)
+        self.check_overlaping_groups()
         self.options = dict()
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
         self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
@@ -1015,6 +1016,14 @@ class DSC_Section:
             if len(set(seq)) != len(seq):
                 raise ValueError(f'Duplicated module found in DSC sequence ``{seq}``. '\
                                  'Iteratively executing modules is not yet supported.')
+
+    def check_overlaping_groups(self):
+     for i, k1 in enumerate(self.groups.keys()):
+            for j, k2 in enumerate(self.groups.keys()):
+                if i > j:
+                    overlap = set(self.groups[k1]).intersection(set(self.groups[k2]))
+                    if len(overlap):
+                        raise FormatError(f"Overlapping groups ``{k1}: {', '.join(self.groups[k1])}`` and ``{k2}: {', '.join(self.groups[k2])}`` is not allowed!")
 
     def __str__(self):
         return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence),
