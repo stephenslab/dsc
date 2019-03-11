@@ -17,3 +17,8 @@ script:
   - dsc-query --version
   - sudo R --slave -e 'install.packages("dscrutils", repos=NULL, type="source")'
   - cd test && python test_parser.py && python test_query.py
+
+branches:
+  only:
+    - master
+  
