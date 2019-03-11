@@ -181,16 +181,15 @@ def execute(args, unknown_args):
         script_to_html(os.path.abspath(script_run), f'{DSC_CACHE}/{db}.run.html')
         return
     # Recover DSC database alone from meta-file
-    if args.host or args.__construct__ == "all":
-        if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
-                 and os.path.isfile(f'{DSC_CACHE}/{db}.io.mpk'))):
-            env.logger.warning('Cannot build DSC database because meta-data for this project is corrupted.')
-        else:
-            env.logger.info("Building DSC database ...")
-            ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
-                Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups, depends = pipeline.get_dependency())
-        if args.__construct__ == "all":
-            return
+    if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
+             and os.path.isfile(f'{DSC_CACHE}/{db}.io.mpk'))):
+        env.logger.warning('Cannot build DSC database because meta-data for this project is corrupted.')
+    else:
+        env.logger.info("Building DSC database ...")
+        ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
+            Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups, depends = pipeline.get_dependency())
+    if args.__construct__ == "all":
+        return
     # Run
     if args.host:
         # send files to remote
@@ -230,12 +229,6 @@ def execute(args, unknown_args):
                                "error info to help debug.\nScripts upstream of the error can be found in " \
                                f"``{db}.scripts.html``.")
         sys.exit(1)
-    # Build database
-    if args.host is None:
-        env.logger.info("Building DSC database ...")
-        ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
-            Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups, depends = pipeline.get_dependency())
-        env.logger.info("DSC complete!")
     # Plot DAG
     if args.__dag__:
         from sos.utils import dot_to_gif
@@ -247,6 +240,7 @@ def execute(args, unknown_args):
             env.logger.info(f"Execution graph saved to ``{db}.DAG.html``")
         except Exception as e:
             env.logger.warning(f'Failed to execution graph ``{db}.DAG.html``: {e}')
+    env.logger.info("DSC complete!")
 
 def main():
     from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter, SUPPRESS
