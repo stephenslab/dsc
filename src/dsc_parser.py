@@ -91,6 +91,7 @@ class DSC_Script:
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
             self.runtime.output = script_name
+        self.runtime.output = remove_quotes(self.runtime.output) 
         msg_avail_module = f"Available modules are ``{', '.join([x for x in self.content.keys() if x != 'DSC'])}``" + \
                                 (f"\nAvailable groups are ``{', '.join(try_get_value(self.content, ('DSC', 'define')).keys())}``"
                                 if try_get_value(self.content, ('DSC', 'define')) else '')
