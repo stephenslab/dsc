@@ -426,7 +426,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
     }
     if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
   } else {
-    if (length(col_names) > 0)
+    if (length(col_names) > 0 && any(unlist(condition_targets) %in% col_names))
       cat(paste("Filtering on columns", paste(col_names, collapse = ', '), "are disabled when atomic_only = FALSE is set.\n"))
     cat("A nested list is returned due to option atomic_only = FALSE. To use the result ... (FIXME)\n")
   }
