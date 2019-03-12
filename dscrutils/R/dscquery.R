@@ -45,6 +45,11 @@
 #' @param max.extract.vector Vector-valued DSC outputs not exceeding
 #' this length are automatically extracted to the data frame.
 #'
+#' @param atomic_only Whether or not to only extract atomic values (simple
+#' R data types) or extract all objects. When set to TRUE the return will be
+#' an R data.frame. Otherwise a nested list will be returned which can be converted
+#' to `tibble` and queried like a data.frame (https://tibble.tidyverse.org/).
+#'
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
@@ -137,7 +142,8 @@
 dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
                       groups = NULL, add.path = FALSE, ignore.missing.file = FALSE,
                       omit.file.columns = FALSE, exec = "dsc-query",
-                      max.extract.vector = 10, verbose = TRUE) {
+                      max.extract.vector = 10, atomic_only = TRUE,
+                      verbose = TRUE) {
 
   # CHECK INPUTS
   # ------------
@@ -337,19 +343,21 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
           # vectors are of the same length, and (3) the vector lengths
           # to not exceed the maximum allowed vector length, then
           # incorporate the vector values into the data frame.
-          extract.values   <- FALSE
+          extract.vectors   <- FALSE
           all.lengths.same <- FALSE
           if (all(sapply(values,function (x) is.vector(x) & !is.list(x))))
             if (length(unique(sapply(values,length)))==1) {
               all.lengths.same <- TRUE
               if (max(sapply(values,length)) <= max.extract.vector)
-                extract.values <- TRUE
+                extract.vectors <- TRUE
             }
-          if (extract.values) {
+          if (extract.vectors || !atomic_only) {
             if (verbose)
-              cat("extracted vector values\n")
+              if (extract.vectors)
+                cat("extracted vector values\n")
+              else
+                cat("extracted complex objects\n")
             if (length(available.targets) < length(dsc.module.files)) {
-              vector_length = length(values[[1]])
               tmp = values
               values = list()
               ii = 1
@@ -358,15 +366,22 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
                   values[[jj]] = tmp[[ii]]
                   ii = ii + 1
                 } else {
-                  values[[jj]] = rep(NA, vector_length)
+                  if (extract.vectors)
+                    values[[jj]] = rep(NA, length(tmp[[1]]))
+                  else
+                    values[[jj]] = NA
                 }
               }
             }
-
-            dat[[j]] <- data.frame(do.call(rbind,values),
+            if (extract.vectors) {
+              dat[[j]] <- data.frame(do.call(rbind,values),
                                    check.names = FALSE,
                                    stringsAsFactors = FALSE)
-            names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
+              names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
+            } else {
+              dat[[j]] = values
+              names(dat)[j] = col.new
+            }
           } else {
             names(dat[[j]]) <- col.new
             if (verbose)
@@ -381,34 +396,39 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
       }
     }
   }
-  
-  # Output the query result as a data frame.
-  dat.names  <- unlist(lapply(dat,names))
-  dat        <- do.call(cbind,dat)
-  names(dat) <- dat.names
 
-  # POST-FILTER BY CONDITIONS 
-  # -------------------------
-  # Remaining columns to filter
-  col_names = setdiff(names(dat), col_names)
-  query_expr = vector()
-  if (length(condition_targets)) {
-    for (i in 1:length(condition_targets)) {
-      if (sum(condition_targets[[i]] %in% col_names))
-        query_expr = append(query_expr, conditions[i])
+  dat.names  <- unlist(lapply(dat,names))
+  col_names = setdiff(dat.names, col_names)
+  if (atomic_only) { 
+    # POST-FILTER BY CONDITIONS 
+    # -------------------------
+    # Remaining columns to filter
+    # Output the query result as a data frame.
+    dat        <- do.call(cbind,dat)
+    names(dat) <- dat.names
+    query_expr = vector()
+    if (length(condition_targets)) {
+      for (i in 1:length(condition_targets)) {
+        if (sum(condition_targets[[i]] %in% col_names))
+          query_expr = append(query_expr, conditions[i])
+      }
+    } 
+    if (length(query_expr)) {
+      query_expr = paste(query_expr, sep = '&')
+      dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
     }
-  } 
-  if (length(query_expr)) {
-    query_expr = paste(query_expr, sep = '&')
-    dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
-  }
   
-  # REMOVE UNASKED COLUMNS 
-  # ----------------------
-  if (length(additional_columns)) {
-    col_names = setdiff(names(dat), additional_columns)
-    dat = dat[, col_names, drop=FALSE]
+    # REMOVE UNASKED COLUMNS 
+    # ----------------------
+    if (length(additional_columns)) {
+      col_names = setdiff(names(dat), additional_columns)
+      dat = dat[, col_names, drop=FALSE]
+    }
+    if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
+  } else {
+    if (length(col_names) > 0)
+      cat(paste("Filtering on columns", paste(col_names, collapse = ', '), "are disabled when atomic_only = FALSE is set.\n"))
+    cat("A nested list is returned due to option atomic_only = FALSE. To use the result ... (FIXME)\n")
   }
-  if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
   return(dat)
 }
