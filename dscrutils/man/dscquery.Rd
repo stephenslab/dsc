@@ -12,28 +12,30 @@ dscquery(dsc.outdir, targets, targets.notreq = NULL, conditions = NULL,
 \arguments{
 \item{dsc.outdir}{Directory where the DSC output is stored.}
 
-\item{targets}{\emph{TO DO: Revise this description after deciding
-what this input argument is for.} Query targets specified as a
-character string separated by spaces, or a character vector, e.g.,
+\item{targets}{Query targets specified as a character string
+separated by spaces, or by a character vector; for example,
 \code{targets = "simulate.n analyze score.error"} and \code{targets
 = c("simulate.n","analyze","score.error")} are equivalent. DSC
 pipelines (i.e., rows of the returned data frame) in which any of
 the targets are unassigned or missing (\code{NA}) will be
 automatically removed from the data frame; to allow for unassigned
 or missing values in the output columns (or list elements), use
-argument \code{targets.notreq} instead. This input argument
-specifies the \code{--target} flag in the \code{dsc-query}
-call. Note that, to easily specify multiple targets from the same
-module, we recommend using \code{\link{paste}}; e.g.,
-\code{paste("simulate", c("n","p","df"),sep = ".")}. These targets
-will be the names of the columns in the data frame if a data frame
-is returned, or the names of the list elements if a list is
-returned.}
+argument \code{targets.notreq} instead. This input argument,
+together with \code{targets.notreq}, specifies the \code{--target}
+flag in the \code{dsc-query} call. At least one of \code{targets}
+and \code{targets.notreq} must not be \code{NULL} or empty. Note
+that, to easily specify multiple targets from the same module, we
+recommend using \code{\link{paste}}; e.g., \code{paste("simulate",
+c("n","p","df"),sep = ".")}. These targets will be the names of the
+columns in the data frame if a data frame is returned, or the names
+of the list elements if a list is returned.}
 
-\item{targets.notreq}{\emph{TO DO: Revise this description after
-deciding what this input argument is for.} Non-required query
-targets; this is the same as \code{targets}, except that unassigned
-or missing values are allowed.}
+\item{targets.notreq}{Non-required query targets; this is the same
+as \code{targets}, except that unassigned or missing values are not
+removed from the return value. This input argument, together with
+\code{targets}, specifies the \code{--target} flag in the
+\code{dsc-query} call. At least one of \code{targets} and
+\code{targets.notreq} must not be \code{NULL} or empty.}
 
 \item{conditions}{Conditions used to filter DSC pipeline
 results. When \code{conditions = NULL}, no additional filtering of
