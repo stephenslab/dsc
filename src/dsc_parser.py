@@ -91,15 +91,19 @@ class DSC_Script:
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
             self.runtime.output = script_name
-        for k in list(self.runtime.groups.keys()) + list(self.runtime.concats.keys()):
+        self.runtime.output = remove_quotes(self.runtime.output) 
+        msg_avail_module = f"Available modules are ``{', '.join([x for x in self.content.keys() if x != 'DSC'])}``" + \
+                                (f"\nAvailable groups are ``{', '.join(try_get_value(self.content, ('DSC', 'define')).keys())}``"
+                                if try_get_value(self.content, ('DSC', 'define')) else '')
+        for k,v in list(self.runtime.groups.items()) + list(self.runtime.concats.items()):
             if k in self.content or k in ['default', 'DSC']:
                 raise FormatError(f"Group name ``{k}`` conflicts with existing module name or DSC keywords!")
+            for vv in v:
+                if vv not in self.content:
+                    raise FormatError(f"Module or group name ``{vv}`` is not defined!\n" + msg_avail_module)
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
-                raise FormatError(f"Module or group name ``{k}`` is not defined!\n" \
-                                  f"Available modules are ``{', '.join([x for x in self.content.keys() if x != 'DSC'])}``" + \
-                                  (f"\nAvailable groups are ``{', '.join(try_get_value(self.content, ('DSC', 'define')).keys())}``"
-                                   if try_get_value(self.content, ('DSC', 'define')) else ''))
+                raise FormatError(f"Module or group name ``{k}`` is not defined!\n" + msg_avail_module)
         self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path, truncate))
                              for x in self.runtime.sequence_ordering.keys()])
         script_types =  [m.exe['type'] for m in self.modules.values()]
@@ -932,6 +936,7 @@ class DSC_Section:
         self.sequence = filter_sublist(self.sequence)
         # FIXME: check if modules involved in sequence are indeed defined.
         self.sequence_ordering = self.__merge_sequences(self.sequence)
+        self.check_overlaping_groups()
         self.options = dict()
         self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
         self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
@@ -1012,6 +1017,14 @@ class DSC_Section:
             if len(set(seq)) != len(seq):
                 raise ValueError(f'Duplicated module found in DSC sequence ``{seq}``. '\
                                  'Iteratively executing modules is not yet supported.')
+
+    def check_overlaping_groups(self):
+     for i, k1 in enumerate(self.groups.keys()):
+            for j, k2 in enumerate(self.groups.keys()):
+                if i > j:
+                    overlap = set(self.groups[k1]).intersection(set(self.groups[k2]))
+                    if len(overlap):
+                        raise FormatError(f"Overlapping groups ``{k1}: {', '.join(self.groups[k1])}`` and ``{k2}: {', '.join(self.groups[k2])}`` is not allowed!")
 
     def __str__(self):
         return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence),

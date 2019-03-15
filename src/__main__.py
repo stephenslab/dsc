@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, glob, time, yaml
+import os, sys, glob, time, yaml, shutil
 from sos.utils import env, get_traceback
 from .version import __version__
 from .syntax import DSC_CACHE
@@ -66,10 +66,18 @@ def remove(workflows, groups, modules, db, purge = False):
     else:
         remove_unwanted_output(workflows, groups, modules, db, zap = True)
 
+def plain_remove(outdir):
+    shutil.rmtree(outdir, ignore_errors=True)
+    shutil.rmtree(".sos", ignore_errors=True)
+    to_remove = [outdir + '.html', outdir + '.scripts.html']
+    for item in to_remove:
+        if os.path.isfile(item):
+            os.remove(item)
+
 def execute(args, unknown_args):
     from .utils import workflow2html, dsc2html, transcript2html
     if args.to_remove:
-        if args.target is None and args.to_remove != 'purge':
+        if args.target is None and args.to_remove not in ('purge', 'all'):
             raise ValueError("``--clean`` must be specified with ``--target``.")
         rm_objects = args.target
         args.target = None
@@ -106,7 +114,10 @@ def execute(args, unknown_args):
                               args.__max_jobs__, args.try_catch, conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'})
     # Apply clean-up
     if args.to_remove:
-        remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
+        if args.to_remove == 'all':
+            plain_remove(script.runtime.output)
+        else:
+            remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
                rm_objects, script.runtime.output,
                args.to_remove == 'purge')
         return
@@ -281,9 +292,10 @@ def main():
                    Files will be considered to "exist" as long as module name, module parameters and variables,
                    module script name and command arguments remain the same. Module script content do not matter.
                    The output files will be "touched" to match with the current status of module code.''')
-    mt.add_argument('--clean', metavar = "option", choices = ["purge", "replace"],
+    mt.add_argument('--clean', metavar = "option", choices = ["purge", "replace", "all"],
                    dest = 'to_remove',
                    help = '''Behavior of how DSC cleans up output folder to save disk space.
+                   Use option "all" to remove all output from the current benchmark. 
                    "purge", when used without "--target", cleans up everything in folder "DSC::output" irrelevant to the most recent successful execution of the benchmark.
                    When used with "--target" it deletes specified files, or files from specified modules or module groups.
                    "replace", when used with "--target", deletes files as "purge" does, but additionally puts in placeholder files 
