@@ -1,16 +1,17 @@
 #' @title R interface for querying DSC output.
 #'
-#' @description This is an R interface to \code{dsc-query} for
-#' conveniently extracting and exploring DSC results within the R
-#' environment. For further details, see the documentation for the
-#' \code{dsc-query} command.
+#' @description This is an R interface to the \code{dsc-query} program
+#' for conveniently extracting and exploring DSC results within the R
+#' environment. For additional documentation, run
+#' \code{system("dsc-query --help")}.
 #'
 #' @param dsc.outdir Directory where the DSC output is stored.
 #'
-#' @param targets Query targets specified as a character string
-#' separated by spaces, or a character vector, e.g., \code{targets =
-#' "simulate.n analyze score.error"} and \code{targets =
-#' c("simulate.n","analyze","score.error")} are equivalent. DSC
+#' @param targets \emph{TO DO: Revise this description after deciding
+#' what this input argument is for.} Query targets specified as a
+#' character string separated by spaces, or a character vector, e.g.,
+#' \code{targets = "simulate.n analyze score.error"} and \code{targets
+#' = c("simulate.n","analyze","score.error")} are equivalent. DSC
 #' pipelines (i.e., rows of the returned data frame) in which any of
 #' the targets are missing (\code{NA}) will be automatically removed
 #' from the data frame; to allow for missing values in the output
@@ -23,15 +24,23 @@
 #' columns in the data frame if a data frame is returned, or the names
 #' of the list elements if a list is returned.
 #'
-#' @param targets.notreq Non-required query targets; this is the same
-#' as \code{targets}, except that missing values are allowed.
+#' @param targets.notreq \emph{TO DO: Revise this description after
+#' deciding what this input argument is for.} Non-required query
+#' targets; this is the same as \code{targets}, except that missing
+#' values are allowed.
 #'
 #' @param conditions Conditions used to filter DSC pipeline
-#' results. The default, \code{conditions = NULL}, means that no
-#' conditions are specified, in which case results for all DSC
-#' pipelines are returned. Query conditions are specified as R
-#' expressions with target names in the format \code{$(...)} (see
-#' below for examples). This input argument specifies the
+#' results. When \code{conditions = NULL}, no additional filtering of
+#' DSC pipelines is performed. Although results can always be filtered
+#' \emph{post hoc}, using \code{conditions} to filter can
+#' significantly speed up queries when the DSC outputs are very large,
+#' as this will filter results, whenever possible, \emph{before} they
+#' are loaded into R. Query conditions are specified as R expressions,
+#' in which target names are written as \code{$(...)}; for example, to
+#' request only results in which the value of parameter \code{sigma}
+#' in module \code{simulate} is greater than or equal to \code{0.1},
+#' set \code{conditions = "$(simulate.sigma) >= 0.1"} (see below for
+#' additional examples). This input argument specifies the
 #' \code{--condition} flag in the call to \code{dsc-query}.
 #'
 #' @param groups Define module groups. This argument specifies the
