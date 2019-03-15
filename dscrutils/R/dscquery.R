@@ -13,21 +13,22 @@
 #' \code{targets = "simulate.n analyze score.error"} and \code{targets
 #' = c("simulate.n","analyze","score.error")} are equivalent. DSC
 #' pipelines (i.e., rows of the returned data frame) in which any of
-#' the targets are missing (\code{NA}) will be automatically removed
-#' from the data frame; to allow for missing values in the output
-#' columns (or list elements), use argument \code{targets.notreq}
-#' instead. This input argument specifies the \code{--target} flag in
-#' the \code{dsc-query} call. Note that, to easily specify multiple
-#' targets from the same module, we recommend using
-#' \code{\link{paste}}; e.g., \code{paste("simulate",
-#' c("n","p","df"),sep = ".")}. These targets will be the names of the
-#' columns in the data frame if a data frame is returned, or the names
-#' of the list elements if a list is returned.
+#' the targets are unassigned or missing (\code{NA}) will be
+#' automatically removed from the data frame; to allow for unassigned
+#' or missing values in the output columns (or list elements), use
+#' argument \code{targets.notreq} instead. This input argument
+#' specifies the \code{--target} flag in the \code{dsc-query}
+#' call. Note that, to easily specify multiple targets from the same
+#' module, we recommend using \code{\link{paste}}; e.g.,
+#' \code{paste("simulate", c("n","p","df"),sep = ".")}. These targets
+#' will be the names of the columns in the data frame if a data frame
+#' is returned, or the names of the list elements if a list is
+#' returned.
 #'
 #' @param targets.notreq \emph{TO DO: Revise this description after
 #' deciding what this input argument is for.} Non-required query
-#' targets; this is the same as \code{targets}, except that missing
-#' values are allowed.
+#' targets; this is the same as \code{targets}, except that unassigned
+#' or missing values are allowed.
 #'
 #' @param conditions Conditions used to filter DSC pipeline
 #' results. When \code{conditions = NULL}, no additional filtering of
@@ -43,41 +44,30 @@
 #' additional examples). This input argument specifies the
 #' \code{--condition} flag in the call to \code{dsc-query}.
 #'
-#' @param groups Define module groups. This argument specifies the
+#' @param groups Defines module groups. This argument specifies the
 #' \code{--groups} flag in the call to \code{dsc-query}. For example,
 #' \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 #' will define two module groups, \code{method} and \code{score}.
 #'
 #' @param omit.file.columns If \code{omit.file.columns = TRUE}, all
-#' columns or list elements specifying DSC output files (list elements
-#' or column names ending in "output.file") will not be included in
-#' the return value.
+#' columns or list elements specifying DSC output files will not be
+#' included in the return value (these are list elements or column
+#' names ending in "output.file").
 #' 
 #' @param ignore.missing.file If \code{ignore.missing.file = TRUE},
 #' all DSC output files that are missing will have \code{NA} for the
-#' file name, when extracting target outputs from files, any outputs
+#' file name; when extracting target outputs from files, any outputs
 #' with missing files will have their value set to \code{NA}. If
 #' \code{ignore.missing.file = FALSE}, \code{dscquery} will throw an
 #' error whenever a missing file is encountered.
 #'
-#' @param add.path If \code{add.path = TRUE}, all file names are given
-#' as full pathnames; if \code{add.path = FALSE}, all file names are
-#' given as relative paths.
+#' @param exec The command or pathname of the \code{dsc-query}
+#' executable.
 #'
-#' @param exec The command or pathname of the dsc-query executable.
-#'
-#' @param return.type If \code{return.type = "list"}, the DSC outputs
-#' are returned in a data frame. For columns containing more complex
-#' outputs that cannot be stored in individual entries of a data frame
-#' (e.g., matrices, \code{NULL}), the names of the files containing
-#' the DSC outputs will be returned instead; individual outputs can
-#' then be retrieved later using \code{\link{read_dsc}}.
-#'
-#' Whether or not to only extract atomic values
-#' (simple R data types) or extract all objects. When set to TRUE the
-#' return will be an R data.frame. Otherwise a nested list will be
-#' returned which can be converted to `tibble` and queried like a
-#' data.frame (https://tibble.tidyverse.org).
+#' @param return.type If \code{return.type = "data.frame"}, the DSC
+#' outputs are returned in a data frame; if \code{return.type =
+#' "list", the DSC outputs in a list. See "Value" for more information
+#' about the different return types, and the benefits of each.
 #'
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
@@ -94,6 +84,19 @@
 #'
 #' When targets are unassigned, these are stored as missing values
 #' (\code{NA}) in the appropriate columns.
+#'
+#' For columns containing more complex outputs that cannot be stored
+#' in individual entries of a data frame (e.g., matrices,
+#' \code{NULL}), the names of the files containing the DSC outputs
+#' will be returned instead; individual outputs can then be retrieved
+#' later using \code{\link{read_dsc}}.
+#'
+#' Whether or not to only extract atomic values
+#' (simple R data types) or extract all objects. When set to TRUE the
+#' return will be an R data.frame. Otherwise a nested list will be
+#' returned which can be converted to `tibble` and queried like a
+#' data.frame (https://tibble.tidyverse.org).
+
 #'
 #' @note We have made considerable effort to prevent column names from
 #' being duplicated. However, we have not tested this extensively for
@@ -169,7 +172,7 @@
 #' @export
 #'
 dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
-                      conditions = NULL, groups = NULL, add.path = FALSE,
+                      conditions = NULL, groups = NULL, 
                       ignore.missing.file = FALSE,
                       omit.file.columns = FALSE, exec = "dsc-query",
                       return.type = c("data.frame", "list"),
@@ -181,25 +184,19 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
     stop("Argument \"dsc.outdir\" should be a character vector of length 1")
 
-  # Check input argument "targets".
-  if (!(is.character(targets) & is.vector(targets)) & length(targets) > 0)
-      stop(paste("Argument \"targets\" should be a character vector with",
-                 "at least one element"))
+  # Check input arguments "targets" and "targets.notreq".
+  if (!(is.character(targets) & is.vector(targets)))
+    stop(paste("Argument \"targets\" should be a character vector with",
+               "at least one element"))
 
   # Check input argument "others".
   if (!is.null(others))
     if (!(is.character(others) & is.vector(others)))
       stop("Argument \"others\" should \"NULL\", or a character vector")
 
-  # Check input argument "add.path".
-  if (!(is.logical(add.path) & length(add.path) == 1))
-    stop("Argument \"add.path\" should be TRUE or FALSE")
-  if (add.path)
-    stop("\"add.path = TRUE\" not currently implemented")
-
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
-    stop("Argument \"exec\" should be a character string")
+    stop("Argument \"exec\" should be a character vector of length 1")
 
   # Check input argument "verbose".
   if (!(is.logical(verbose) & length(verbose) == 1))

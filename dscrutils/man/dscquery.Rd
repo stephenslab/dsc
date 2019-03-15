@@ -5,7 +5,7 @@
 \title{R interface for querying DSC output.}
 \usage{
 dscquery(dsc.outdir, targets, targets.notreq = NULL, conditions = NULL,
-  groups = NULL, add.path = FALSE, ignore.missing.file = FALSE,
+  groups = NULL, ignore.missing.file = FALSE,
   omit.file.columns = FALSE, exec = "dsc-query",
   return.type = c("data.frame", "list"), verbose = TRUE)
 }
@@ -18,21 +18,22 @@ character string separated by spaces, or a character vector, e.g.,
 \code{targets = "simulate.n analyze score.error"} and \code{targets
 = c("simulate.n","analyze","score.error")} are equivalent. DSC
 pipelines (i.e., rows of the returned data frame) in which any of
-the targets are missing (\code{NA}) will be automatically removed
-from the data frame; to allow for missing values in the output
-columns (or list elements), use argument \code{targets.notreq}
-instead. This input argument specifies the \code{--target} flag in
-the \code{dsc-query} call. Note that, to easily specify multiple
-targets from the same module, we recommend using
-\code{\link{paste}}; e.g., \code{paste("simulate",
-c("n","p","df"),sep = ".")}. These targets will be the names of the
-columns in the data frame if a data frame is returned, or the names
-of the list elements if a list is returned.}
+the targets are unassigned or missing (\code{NA}) will be
+automatically removed from the data frame; to allow for unassigned
+or missing values in the output columns (or list elements), use
+argument \code{targets.notreq} instead. This input argument
+specifies the \code{--target} flag in the \code{dsc-query}
+call. Note that, to easily specify multiple targets from the same
+module, we recommend using \code{\link{paste}}; e.g.,
+\code{paste("simulate", c("n","p","df"),sep = ".")}. These targets
+will be the names of the columns in the data frame if a data frame
+is returned, or the names of the list elements if a list is
+returned.}
 
 \item{targets.notreq}{\emph{TO DO: Revise this description after
 deciding what this input argument is for.} Non-required query
-targets; this is the same as \code{targets}, except that missing
-values are allowed.}
+targets; this is the same as \code{targets}, except that unassigned
+or missing values are allowed.}
 
 \item{conditions}{Conditions used to filter DSC pipeline
 results. When \code{conditions = NULL}, no additional filtering of
@@ -44,45 +45,29 @@ are loaded into R. Query conditions are specified as R expressions,
 in which target names are written as \code{$(...)}; for example, to
 request only results in which the value of parameter \code{sigma}
 in module \code{simulate} is greater than or equal to \code{0.1},
-set \code{conditions = "$(simulate.sigma) >= 0.1)"} (see below for
+set \code{conditions = "$(simulate.sigma) >= 0.1"} (see below for
 additional examples). This input argument specifies the
 \code{--condition} flag in the call to \code{dsc-query}.}
 
-\item{groups}{Define module groups. This argument specifies the
+\item{groups}{Defines module groups. This argument specifies the
 \code{--groups} flag in the call to \code{dsc-query}. For example,
 \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 will define two module groups, \code{method} and \code{score}.}
 
-\item{add.path}{If \code{add.path = TRUE}, all file names are given
-as full pathnames; if \code{add.path = FALSE}, all file names are
-given as relative paths.}
-
 \item{ignore.missing.file}{If \code{ignore.missing.file = TRUE},
 all DSC output files that are missing will have \code{NA} for the
-file name, when extracting target outputs from files, any outputs
+file name; when extracting target outputs from files, any outputs
 with missing files will have their value set to \code{NA}. If
 \code{ignore.missing.file = FALSE}, \code{dscquery} will throw an
 error whenever a missing file is encountered.}
 
 \item{omit.file.columns}{If \code{omit.file.columns = TRUE}, all
-columns or list elements specifying DSC output files (list elements
-or column names ending in "output.file") will not be included in
-the return value.}
+columns or list elements specifying DSC output files will not be
+included in the return value (these are list elements or column
+names ending in "output.file").}
 
-\item{exec}{The command or pathname of the dsc-query executable.}
-
-\item{return.type}{If \code{return.type = "list"}, the DSC outputs
-are returned in a data frame. For columns containing more complex
-outputs that cannot be stored in individual entries of a data frame
-(e.g., matrices, \code{NULL}), the names of the files containing
-the DSC outputs will be returned instead; individual outputs can
-then be retrieved later using \code{\link{read_dsc}}.
-
-Whether or not to only extract atomic values
-(simple R data types) or extract all objects. When set to TRUE the
-return will be an R data.frame. Otherwise a nested list will be
-returned which can be converted to `tibble` and queried like a
-data.frame (https://tibble.tidyverse.org).}
+\item{exec}{The command or pathname of the \code{dsc-query}
+executable.}
 
 \item{verbose}{If \code{verbose = TRUE}, print progress of DSC
 query command to the console.}
@@ -100,6 +85,18 @@ and must be loaded from the RDS files.
 
 When targets are unassigned, these are stored as missing values
 (\code{NA}) in the appropriate columns.
+
+For columns containing more complex outputs that cannot be stored
+in individual entries of a data frame (e.g., matrices,
+\code{NULL}), the names of the files containing the DSC outputs
+will be returned instead; individual outputs can then be retrieved
+later using \code{\link{read_dsc}}.
+
+Whether or not to only extract atomic values
+(simple R data types) or extract all objects. When set to TRUE the
+return will be an R data.frame. Otherwise a nested list will be
+returned which can be converted to `tibble` and queried like a
+data.frame (https://tibble.tidyverse.org).
 }
 \description{
 This is an R interface to the \code{dsc-query} program
