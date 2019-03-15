@@ -68,37 +68,37 @@
 #'
 #' @param return.type If \code{return.type = "data.frame"}, the DSC
 #' outputs are returned in a data frame; if \code{return.type =
-#' "list", the DSC outputs in a list. See "Value" for more information
-#' about the different return types, and the benefits of each.
+#' "list"}, the DSC outputs in a list. See "Value" for more
+#' information about the different return types, and the benefits (and
+#' limitations) of each.
 #'
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
 #' @return A list or data frame containing the result of the DSC
-#' query, with columns corresponding to the query target. When
-#' reasonable to do so, the DSC outputs are extracted into the columns
-#' of the data frame; when the values are not extracted, the file
-#' names containing the outputs are provided instead.
+#' query.
+#' 
+#' When \code{return.type = "data.frame"}, the output is a
+#' data frame.  When possible, DSC outputs are extracted into the
+#' columns of the data frame; when this is not possible (e.g., for
+#' more complex outputs such as matrices), file names containing the
+#' DSC outputs are provided instead. In the latter case, individual
+#' outputs can be retrieved using \code{\link{read_dsc}}.
 #'
-#' Note that data frames cannot contain NULL values, and therefore
-#' NULL-valued DSC outputs cannot be extracted into the data frame,
-#' and must be loaded from the RDS files.
+#' When \code{return.type = "list"}, the output is a list, with list
+#' elements corresponding to the query targets.
+#'
+#' A data frame is most convenient with the outputs are not complex.
+#'
+#' On the other hand, if many outputs are large or complex objects, it
+#' may be better to output a list, which is a much more flexible data
+#' structure. Note that a list can be later converted to a data frame
+#' using \code{\link{as.data.frame}}, or converted to a "tibble" using
+#' the \code{\link[tibble]{as_tibble}} function from the tibble
+#' package, or converted to many other data structures.
 #'
 #' When targets are unassigned, these are stored as missing values
 #' (\code{NA}) in the appropriate columns.
-#'
-#' For columns containing more complex outputs that cannot be stored
-#' in individual entries of a data frame (e.g., matrices,
-#' \code{NULL}), the names of the files containing the DSC outputs
-#' will be returned instead; individual outputs can then be retrieved
-#' later using \code{\link{read_dsc}}.
-#'
-#' Whether or not to only extract atomic values
-#' (simple R data types) or extract all objects. When set to TRUE the
-#' return will be an R data.frame. Otherwise a nested list will be
-#' returned which can be converted to `tibble` and queried like a
-#' data.frame (https://tibble.tidyverse.org).
-
 #'
 #' @note We have made considerable effort to prevent column names from
 #' being duplicated. However, we have not tested this extensively for
@@ -180,6 +180,8 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
                       return.type = c("data.frame", "list"),
                       verbose = TRUE) {
 
+  browser()
+  
   # CHECK & PROCESS INPUTS
   # ----------------------
   # Check input argument "dsc.outdir".
@@ -199,11 +201,35 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   if (length(c(targets,targets.notreq)) == 0)
     stop(paste("Arguments \"targets\" and \"targets.notreq\" must specify",
                "at least one target; they cannot both be \"NULL\""))
+
+  # Check input argument "conditions".
+  if (!is.null(conditions))
+    if (!(is.character(conditions) & is.vector(conditions) &
+          length(conditions) > 0))
+      stop(paste("Argument \"conditions\" should be \"NULL\", or a character",
+                 "vector with at least one element"))
+
+  # Check input argument "groups".
+  if (!is.null(groups))
+    if (!(is.character(groups) & is.vector(groups) & length(groups) > 0))
+      stop(paste("Argument \"groups\" should be \"NULL\", or a character",
+                 "vector with at least one element"))
+  
+  # Check input argument "ignore.missing.file".
+  if (!(is.logical(ignore.missing.file) & length(ignore.missing.file) == 1))
+    stop("Argument \"ignore.missing.file\" should be TRUE or FALSE")
+  
+  # Check input argument "omit.file.columns".
+  if (!(is.logical(omit.file.columns) & length(omit.file.columns) == 1))
+    stop("Argument \"omit.file.columns\" should be TRUE or FALSE")
   
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
     stop("Argument \"exec\" should be a character vector of length 1")
 
+  # Check and process input argument "return.type".
+  return.type <- match.arg(return.type)
+  
   # Check input argument "verbose".
   if (!(is.logical(verbose) & length(verbose) == 1))
     stop("Argument \"verbose\" should be TRUE or FALSE")
