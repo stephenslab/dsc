@@ -2,62 +2,82 @@
 #'
 #' @description This is an R interface to \code{dsc-query} for
 #' conveniently extracting and exploring DSC results within the R
-#' environment. For details, see the documentation for the
+#' environment. For further details, see the documentation for the
 #' \code{dsc-query} command.
 #'
-#' @param dsc.outdir Directory where DSC output is stored.
+#' @param dsc.outdir Directory where the DSC output is stored.
 #'
-#' @param targets Query targets specified as
-#' character string separated by space, or a character vector, e.g.,
-#' \code{targets = "simulate.n analyze score.error"} and
-#' \code{targets = c("simulate.n","analyze","score.error")} are equivalent.
-#' Using \code{paste}, eg \code{paste("simulate",c("n","p","df"),sep=".")}
-#' one can specify multiple properties from the same module.
-#' These will be the names of the columns in the returned data frame.
+#' @param targets Query targets specified as a character string
+#' separated by spaces, or a character vector, e.g., \code{targets =
+#' "simulate.n analyze score.error"} and \code{targets =
+#' c("simulate.n","analyze","score.error")} are equivalent. DSC
+#' pipelines (i.e., rows of the returned data frame) in which any of
+#' the targets are missing (\code{NA}) will be automatically removed
+#' from the data frame; to allow for missing values in the output
+#' columns (or list elements), use argument \code{targets.notreq}
+#' instead. This input argument specifies the \code{--target} flag in
+#' the \code{dsc-query} call. Note that, to easily specify multiple
+#' targets from the same module, we recommend using
+#' \code{\link{paste}}; e.g., \code{paste("simulate",
+#' c("n","p","df"),sep = ".")}. These targets will be the names of the
+#' columns in the data frame if a data frame is returned, or the names
+#' of the list elements if a list is returned.
 #'
-#' @param others Additional query items similarly specified as
-#' \code{targets}. Difference between \code{targets} and
-#' \code{others} is that the rows whose \code{targets} columns
-#' containing all missing values will be removed, while \code{others}
-#' columns will not have this impact.
+#' @param targets.notreq Non-required query targets; this is the same
+#' as \code{targets}, except that missing values are allowed.
 #'
-#' @param conditions The default \code{NULL} means "no conditions", in
-#' which case the results for all DSC pipelines are returned.
-#' Query conditions are specified as R expressions with target names in the
-#' format \code{$(...)}.
+#' @param conditions Conditions used to filter DSC pipeline
+#' results. The default, \code{conditions = NULL}, means that no
+#' conditions are specified, in which case results for all DSC
+#' pipelines are returned. Query conditions are specified as R
+#' expressions with target names in the format \code{$(...)} (see
+#' below for examples). This input argument specifies the
+#' \code{--condition} flag in the call to \code{dsc-query}.
 #'
-#' @param groups Definition of module groups. For example,
+#' @param groups Define module groups. This argument specifies the
+#' \code{--groups} flag in the call to \code{dsc-query}. For example,
 #' \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
-#' will dynamically create module groups \code{method} and \code{score}
-#' even if they have not previously been defined when running DSC.
+#' will define two module groups, \code{method} and \code{score}.
 #'
-#' @param omit.file.columns If TRUE will remove columns of filenames.
-#' That is, columns ending with "output.file" colnames.
+#' @param omit.file.columns If \code{omit.file.columns = TRUE}, all
+#' columns or list elements specifying DSC output files (list elements
+#' or column names ending in "output.file") will not be included in
+#' the return value.
 #' 
-#' @param ignore.missing.file If TRUE will return NA for missing file
-#' when extracting values from files.
+#' @param ignore.missing.file If \code{ignore.missing.file = TRUE},
+#' all DSC output files that are missing will have \code{NA} for the
+#' file name, when extracting target outputs from files, any outputs
+#' with missing files will have their value set to \code{NA}. If
+#' \code{ignore.missing.file = FALSE}, \code{dscquery} will throw an
+#' error whenever a missing file is encountered.
 #'
-#' @param add.path If TRUE, the returned file column in data frame
-#' will contain full pathnames, not just the base filenames.
+#' @param add.path If \code{add.path = TRUE}, all file names are given
+#' as full pathnames; if \code{add.path = FALSE}, all file names are
+#' given as relative paths.
 #'
 #' @param exec The command or pathname of the dsc-query executable.
 #'
-#' @param max.extract.vector Vector-valued DSC outputs not exceeding
-#' this length are automatically extracted to the data frame.
+#' @param return.type If \code{return.type = "list"}, the DSC outputs
+#' are returned in a data frame. For columns containing more complex
+#' outputs that cannot be stored in individual entries of a data frame
+#' (e.g., matrices, \code{NULL}), the names of the files containing
+#' the DSC outputs will be returned instead; individual outputs can
+#' then be retrieved later using \code{\link{read_dsc}}.
 #'
-#' @param atomic_only Whether or not to only extract atomic values (simple
-#' R data types) or extract all objects. When set to TRUE the return will be
-#' an R data.frame. Otherwise a nested list will be returned which can be converted
-#' to `tibble` and queried like a data.frame (https://tibble.tidyverse.org/).
+#' Whether or not to only extract atomic values
+#' (simple R data types) or extract all objects. When set to TRUE the
+#' return will be an R data.frame. Otherwise a nested list will be
+#' returned which can be converted to `tibble` and queried like a
+#' data.frame (https://tibble.tidyverse.org).
 #'
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
-#' @return A data frame containing the result of the DSC query, with
-#' columns corresponding to the query target. When reasonable to do
-#' so, the DSC outputs are extracted into the columns of the data
-#' frame; when the values are not extracted, the file names containing
-#' the outputs are provided instead.
+#' @return A list or data frame containing the result of the DSC
+#' query, with columns corresponding to the query target. When
+#' reasonable to do so, the DSC outputs are extracted into the columns
+#' of the data frame; when the values are not extracted, the file
+#' names containing the outputs are provided instead.
 #'
 #' Note that data frames cannot contain NULL values, and therefore
 #' NULL-valued DSC outputs cannot be extracted into the data frame,
@@ -139,26 +159,28 @@
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
-                      groups = NULL, add.path = FALSE, ignore.missing.file = FALSE,
+dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
+                      conditions = NULL, groups = NULL, add.path = FALSE,
+                      ignore.missing.file = FALSE,
                       omit.file.columns = FALSE, exec = "dsc-query",
-                      max.extract.vector = 10, atomic_only = TRUE,
+                      return.type = c("data.frame", "list"),
                       verbose = TRUE) {
 
   # CHECK INPUTS
   # ------------
   # Check input argument "dsc.outdir".
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
-    stop("Argument \"dsc.outdir\" should be a character string")
+    stop("Argument \"dsc.outdir\" should be a character vector of length 1")
 
   # Check input argument "targets".
-  if (!(is.character(targets) & is.vector(targets) & !is.list(targets)))
-    stop("Argument \"targets\" should be a character string or vector")
+  if (!(is.character(targets) & is.vector(targets)) & length(targets) > 0)
+      stop(paste("Argument \"targets\" should be a character vector with",
+                 "at least one element"))
 
   # Check input argument "others".
   if (!is.null(others))
-    if (!(is.character(others) & is.vector(others) & !is.list(others)))
-      stop("Argument \"others\" should be a character string or vector")
+    if (!(is.character(others) & is.vector(others)))
+      stop("Argument \"others\" should \"NULL\", or a character vector")
 
   # Check input argument "add.path".
   if (!(is.logical(add.path) & length(add.path) == 1))
@@ -432,3 +454,4 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   }
   return(dat)
 }
+
