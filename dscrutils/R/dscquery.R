@@ -178,22 +178,26 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
                       return.type = c("data.frame", "list"),
                       verbose = TRUE) {
 
-  # CHECK INPUTS
-  # ------------
+  # CHECK & PROCESS INPUTS
+  # ----------------------
   # Check input argument "dsc.outdir".
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
     stop("Argument \"dsc.outdir\" should be a character vector of length 1")
 
   # Check input arguments "targets" and "targets.notreq".
-  if (!(is.character(targets) & is.vector(targets)))
-    stop(paste("Argument \"targets\" should be a character vector with",
-               "at least one element"))
-
-  # Check input argument "others".
-  if (!is.null(others))
-    if (!(is.character(others) & is.vector(others)))
-      stop("Argument \"others\" should \"NULL\", or a character vector")
-
+  if (!is.null(targets))
+    if (!(is.character(targets) & is.vector(targets) & length(targets) > 0))
+      stop(paste("Argument \"targets\" should be \"NULL\", or a character",
+                 "vector with at least one element"))
+  if (!is.null(targets.notreq))
+    if (!(is.character(targets.notreq) & is.vector(targets.notreq) &
+          length(targets.notreq) > 0))
+      stop(paste("Argument \"targets.notreq\" should be \"NULL\", or a",
+                 "character vector with at least one element"))
+  if (length(c(targets,targets.notreq)) == 0)
+    stop(paste("Arguments \"targets\" and \"targets.notreq\" must specify",
+               "at least one target; they cannot both be \"NULL\"")
+  
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
     stop("Argument \"exec\" should be a character vector of length 1")
