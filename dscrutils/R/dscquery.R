@@ -263,8 +263,11 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   
   # RUN DSC QUERY COMMAND
   # ---------------------
-  out     <- build.dscquery.call(c(targets,targets.notreq),groups,
-                                 dsc.outdir,outfile,exec)
+  #
+  # TO DO: Add note here about -c flag.
+  #
+  out <- build.dscquery.call(c(targets,targets.notreq),groups,
+                             dsc.outdir,outfile,exec)
   outfile <- out$outfile
   cmd.str <- out$cmd.str
   run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
@@ -274,17 +277,21 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   if (verbose)
     cat("Importing dsc-query output.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
-                  check.names = FALSE,comment.char = "",na.strings = "NA")
+                  check.names = FALSE,comment.char = "",
+                  na.strings = "NA")
 
   # FILTER BY TARGETS
   # -----------------
+  #
+  # TO DO: Work on this next.
+  #
   target_cols <- which(gsub(":.*|\\.output\\.file", "", names(dat)) %in% targets)
   # columns indexed by `target_cols` should have at least one non-missing value
   target_rows <- which(apply(dat[, target_cols, drop=FALSE], 1, function(r) !all(r %in% NA)))
   dat <- dat[target_rows, , drop=FALSE]
 
-  # PRE-FILTER BY CONDITIONS
-  # ------------------------
+  # PRE-FILTER RESULTS
+  # ------------------
   col_names = names(dat)
   query_expr = vector()
   if (length(condition_targets)) {
@@ -294,7 +301,7 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
     }
   }
   if (length(query_expr)) {
-    query_expr = paste(query_expr, sep = '&')
+    query_expr = paste(query_expr,sep = "&")
     dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
   }
   
@@ -302,7 +309,6 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   # ----------------------------
   # Get the indices of all the columns of the form
   # "module.variable:output".
-
   cols <- which(sapply(as.list(col_names), function (x) {
     n <- nchar(x)
     if (n < 7 | length(unlist(strsplit(x,"[:]"))) != 2)
@@ -451,7 +457,8 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
 
   dat.names  <- unlist(lapply(dat,names))
   col_names = setdiff(dat.names, col_names)
-  if (atomic_only) { 
+  if (atomic_only) {
+      
     # POST-FILTER BY CONDITIONS 
     # -------------------------
     # Remaining columns to filter
