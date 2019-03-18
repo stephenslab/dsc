@@ -198,8 +198,11 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
                  "character vector with at least one element"))
   if (length(c(targets,targets.notreq)) == 0)
     stop(paste("Arguments \"targets\" and \"targets.notreq\" must specify",
-               "at least one target; they cannot both be \"NULL\""))
-
+               "at least one name; they cannot both be \"NULL\""))
+  if (length(intersect(targets,targets.notreq)) > 0)
+    stop(paste("Names cannot be the mentioned in both \"targets\" and",
+               "\"targets.notreq\""))
+  
   # Check input argument "conditions".
   if (!is.null(conditions))
     if (!(is.character(conditions) & is.vector(conditions) &
@@ -254,27 +257,24 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   } else
     condition_targets <- NULL
 
+  # Add the targets appearing in the condition expressions to
+  # "targets.notreq".
+  targets.notreq <- c(targets.notreq,condition_targets)
+  
   # RUN DSC QUERY COMMAND
   # ---------------------
-  # Generate a temporary directory where the query output will be
-  # stored.
-  outfile <- tempfile(fileext = ".csv")
-  if (is.null(others)) query_target = paste(targets, collapse = " ")
-  else query_target = paste(paste(targets, collapse = " "), paste(others, collapse = " "))
-  cmd.str <- paste(exec,dsc.outdir,"-o",outfile,"-f",
-                   "--target", query_target)
-  if (length(groups) >= 1)
-    cmd.str <- paste(cmd.str, "-g", paste(paste0('"', groups, '"'), collapse = " "))
-  ret = run_cmd(cmd.str, ferr=ifelse(verbose, "", FALSE))
-
-  # LOAD DSC QUERY
-  # --------------
+  out     <- build.dscquery.call(c(targets,targets.notreq),groups,
+                                 dsc.outdir,outfile,exec)
+  outfile <- out$outfile
+  cmd.str <- out$cmd.str
+  run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
+  
+  # IMPORT DSC QUERY RESULTS
+  # ------------------------
   if (verbose)
-    cat("Loading dsc-query output from CSV file.\n")
+    cat("Importing dsc-query output.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
-                  check.names = FALSE,comment.char = "",
-                  na.strings = "NA")
-  n   <- nrow(dat)
+                  check.names = FALSE,comment.char = "",na.strings = "NA")
 
   # FILTER BY TARGETS
   # -----------------
@@ -507,4 +507,15 @@ process.query.condition <- function (condition) {
   # expression, and (2) the modified condition expression in which all
   # instances $(x) are replaced with x.
   return(list(targets = targets,condition = condition))
+}
+
+# This is a helper function used in dscquery to build the call to the
+# command-line program, "dsc-query".
+build.dscquery.call <- function (targets, groups, dsc.outdir, outfile, exec) {
+  outfile <- tempfile(fileext = ".csv")
+  cmd.str <- sprintf("%s %s -o %s --target \"%s\" --force",exec,dsc.outdir,
+                     outfile,paste(targets,collapse = " "))
+  if (!is.null(groups))
+    cmd.str <- sprintf("%s -g \"%s\"",cmd.str,paste(groups,collapse = " "))
+  return(list(outfile = outfile,cmd.str = cmd.str))
 }
