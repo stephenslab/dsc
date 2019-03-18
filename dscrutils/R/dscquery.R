@@ -120,7 +120,7 @@
 #' # filtering step can speed up the query when there are many
 #' # simulation results.
 #' dat2 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-#'                 conditions = "$(analyze) == 'mean'")
+#'                  conditions = "$(analyze) == 'mean'")
 #' 
 #' # Return results only for simulations in which the error summary is
 #' # greater than 0.25. This condition is applied after loading the full
@@ -180,8 +180,6 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
                       return.type = c("data.frame", "list"),
                       verbose = TRUE) {
 
-  browser()
-  
   # CHECK & PROCESS INPUTS
   # ----------------------
   # Check input argument "dsc.outdir".
@@ -234,33 +232,27 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   if (!(is.logical(verbose) & length(verbose) == 1))
     stop("Argument \"verbose\" should be TRUE or FALSE")
 
-  split_string = function(value) {
-    if (is.character(value) && is.vector(value)) return(strsplit(paste(value, collapse = " "), ' +')[[1]])
-    else return(value)
-  }
-
-  targets = split_string(targets)
-  others = split_string(others)
-
-  # This list keeps track of condition variables
-  # It matches `conditions`
-  condition_targets = list()
-  # This vector keeps track of additional columns involved in `condition` but
-  # not in `targets` or `others` and will be removed after use
-  additional_columns = vector()
+  # PROCESS CONDITIONS
+  # ------------------
+  # Find the targets that are mentioned in the condition expressions
+  # but not in the "targets" or "targets.notreq" arguments, and
+  # replace all instances of $(x) with x in these expressions so that
+  # they can be interpreted as valid R expressions.
   if (!is.null(conditions)) {
-      pattern = '(?<=\\$\\().*?(?=\\))'
-      for (i in 1:length(conditions)) {
-        condition_targets[[i]] = regmatches(conditions[i], gregexpr(pattern, conditions[i], perl=T))[[1]]
-        if (length(condition_targets[[i]]) == 0)
-          stop(paste("Cannot find valid target in the format of $(...) in condition statement:", conditions[i]))
-        for (item in condition_targets[[i]])
-          conditions[i] = sub(paste0('\\$\\(', item, '\\)'), item, conditions[i])
-        additional_columns = append(additional_columns, setdiff(condition_targets[i], c(targets, others)))
-      }
-  }
-  if (length(additional_columns))
-      others = append(others, additional_columns)
+    n                 <- length(conditions)
+    condition_targets <- vector("list",n)
+    for (i in 1:n) {
+      out <- process.query.condition(conditions[i])
+      condition_targets[[i]] <- out$targets
+      conditions[i]          <- out$condition
+    }
+
+    # Get the unique set of targets that appear in the condition
+    # expressions, and not elsewhere.
+    condition_targets <- setdiff(do.call(c,condition_targets),
+                                 c(targets,targets.notreq))
+  } else
+    condition_targets <- NULL
 
   # RUN DSC QUERY COMMAND
   # ---------------------
@@ -493,3 +485,26 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   return(dat)
 }
 
+# Given a condition expression, return (1) the list of targets that
+# appear in the condition expression; and (2) the modified condition
+# expression in which all instances $(x) are replaced with x.
+process.query.condition <- function (condition) {
+  pattern <- "(?<=\\$\\().*?(?=\\))"
+
+  # Identify names of all targets, written as $(...), used in
+  # condition expression.
+  targets <- regmatches(condition,gregexpr(pattern,condition,perl = TRUE))[[1]]
+  if (length(targets) == 0)
+    stop(paste("Cannot find target syntax $(...) in condition statement:",
+               condition))
+
+  # Replace all instances of $(x) in condition expression with x,
+  # where x is the name of the target.
+  for (x in targets)
+    condition <- sub(paste0("\\$\\(",x,"\\)"),x,condition)
+
+  # Return (1) the list of targets that appear in the condition
+  # expression, and (2) the modified condition expression in which all
+  # instances $(x) are replaced with x.
+  return(list(targets = targets,condition = condition))
+}
