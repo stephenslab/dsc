@@ -67,7 +67,7 @@
 #' (\code{NA}) in the appropriate columns.
 #'
 #' When targets involve module groups, additional columns of module names
-#' will be  added to the output indicating which exact module the output
+#' will be added to the output indicating which exact module the output
 #' come from.
 #'
 #' @note We have made considerable effort to prevent column names from
@@ -200,8 +200,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
           stop(paste("Cannot find valid target in the format of $(...) in condition statement:", conditions[i]))
         for (item in condition_targets[[i]])
           conditions[i] = sub(paste0('\\$\\(', item, '\\)'), item, conditions[i])
-        # use '^[^.]*$' to match only specific fields not grouping labels, as additional columns.
-        additional_columns = append(additional_columns, grep('^[^.]*$', setdiff(condition_targets[i], c(targets, others)), value=T, invert=T))
+        additional_columns = append(additional_columns, setdiff(condition_targets[i], c(targets, others)))
       }
   }
   if (length(additional_columns))
@@ -425,6 +424,11 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   
     # REMOVE UNASKED COLUMNS 
     # ----------------------
+    # use '^[^.]*$' to match only specific fields not grouping labels
+    group_labels = grep('^[^.]*$', additional_columns, value=T)
+    v = c(targets, others)
+    valid_groups = unique(sapply(1:length(v), function(i) strsplit(v, '[.]')[[i]][1]))
+    additional_columns = setdiff(additional_columns, valid_groups)
     if (length(additional_columns)) {
       col_names = setdiff(names(dat), additional_columns)
       dat = dat[, col_names, drop=FALSE]
