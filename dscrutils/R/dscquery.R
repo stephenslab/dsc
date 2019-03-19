@@ -285,7 +285,6 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   # Filter out rows in which one or more of the targets are unassigned
   # or missing.
   dat <- filter.by.query.targets(dat,targets)
-  browser()
   
   # FILTER BY CONDITIONS
   # --------------------
@@ -295,27 +294,17 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   for (i in 1:n)
     dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
 
-  # Convert the DSC query result to a list.
-  dat <- as.list(dat)
+  # EXTRACT DSC OUTPUT
+  # ------------------
+  # TO DO: Add more details here.
+  dat <- read.dsc.outputs(dat,dsc.outdir)
+
+  browser()
+  
+  # TO DO: Attempt to flatten data structure.
   
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
-  # Get the indices of all the columns of the form
-  # "module.variable:output".
-  cols <- which(sapply(as.list(col_names), function (x) {
-    n <- nchar(x)
-    if (n < 7 | length(unlist(strsplit(x,"[:]"))) != 2)
-      return(FALSE)
-    else
-      return(substr(x,n-6,n) == ":output")
-  }))
-
-  dat <- as.list(dat)
-  for (i in 1:length(dat)) {
-    dat[[i]]        <- data.frame(dat[[i]],stringsAsFactors = FALSE)
-    names(dat[[i]]) <- names(dat)[i]
-  }
-
   # Repeat for each column of the form "module.variable:output".
   if (length(cols) > 0) {
     if (verbose)
@@ -365,7 +354,8 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
             out <- out[[var]]
           } else
             out <- out$DSC_DEBUG$time$elapsed
-          if (is.null(out)) out <- NA
+          if (is.null(out))
+            out <- NA
           entries <- which(dsc.module.files == k)
           values[entries] <- rep(list(out),length(entries))
         }
@@ -541,6 +531,111 @@ filter.by.condition <- function (dat, expr, targets) {
 }
 
 # TO DO: Explain here what this function does.
-read.dsc.outputs <- function (dat) {
+#
+# NOTES:
+#
+#   - dsc should be a data frame.
+#
+read.dsc.outputs <- function (dat, dsc.outdir) {
 
+  # Convert the DSC query result to a nested list.
+  dat <- as.list(dat)
+  n   <- length(dat)
+  for (i in 1:n)
+    dat[[i]] <- as.list(dat[[i]])
+
+  # Determine which columns contain names of files that should be
+  # read; these are columns of the form "module.variable:output". If
+  # none of the columns contain names of files, there is nothing to do
+  # here.
+  cols <- which(sapply(as.list(names(dat)),function (x) {
+    n <- nchar(x)
+    if (n < 7)
+      return(FALSE)
+    else if (length(unlist(strsplit(x,"[:]"))) != 2)
+      return(FALSE)
+    else
+      return(substr(x,n - 6,n) == ":output")
+  }))
+  if (length(cols) == 0)
+    return(dat)
+  
+  # Create a new nested list data structure in which each element
+  # corresponds to a single file containing DSC results; each of these
+  # list elements is also a list, in which each of these elements
+  # corresponds to a single variable extracted from the DSC results
+  # file.
+  files      <- unique(do.call(c,dat[cols]))
+  n          <- length(files)
+  out        <- rep(list(list()),n)
+  vars       <- rep(as.character(NA),n)
+  names(out) <- files
+  for (i in cols) {
+
+    # Get the name of the variable to extract.
+    x <- names(dat)[i]
+    x <- unlist(strsplit(x,"[.]"))[2]
+    x <- substr(x,1,nchar(x) - 7)
+    vars[i] <- x
+        
+    for (j in dat[[i]])
+      out[[j]][[x]] <- NA
+  }
+
+  # Extract the outputs.
+  for (i in files) {
+    x <- import.dsc.output(i,dsc.outdir,ignore.missing.file)
+    if (!is.null(x))
+      for (j in names(out[[i]]))
+        if (j == "DSC_TIME")
+          out[[i]][[j]] <- out$DSC_DEBUG$time$elapsed
+        else if (!is.element(j,names(x)))
+          stop(sprintf("Variable \"%s\" unavailable in \"%s\"",j,i))
+        else
+          out[[i]][[j]] <- x[[j]]
+  }
+
+  # Copy the DSC outputs from the intermediate nexted list to final
+  # nested list, "dat". The names of the DSC output files are replaced
+  # by the extracted values of the requested targets.
+  for (i in cols) {
+    n <- length(dat[[i]])
+    v <- vars[i]
+    for (j in 1:n) {
+      file          <- dat[[i]][[j]]
+      dat[[i]][[j]] <- out[[file]][[v]]
+    }
+  }
+
+  # Remove the ":output" suffix from the names of the extracted
+  # columns.
+  for (i in cols) {
+    x <- names(dat)[i]
+    n <- nchar(x)
+    names(dat)[i] <- substr(x,1,n - 7)
+  }
+
+  return(dat)
+}
+
+# Helper function used by read.dsc.outputs to load the DSC output from
+# either an RDS or "pickle" file.
+import.dsc.output <- function (file, dsc.outdir, ignore.missing.file) {
+  rds <- file.path(dsc.outdir,paste0(file,".rds"))
+  pkl <- file.path(dsc.outdir,paste0(file,".pkl"))
+  if (file.exists(rds) & file.exists(pkl))
+    stop(sprintf(paste("Both %s and %s DSC files exist; DSC output files",
+                       "should be cleaned up using \"dsc --clean\""),rds,pkl))
+  else if (file.exists(rds))
+    out <- read_dsc(rds)
+  else if (file.exists(pkl))
+    out <- read_dsc(pkl)
+  else {
+    out <- NULL
+    if (!ignore.missing.file)
+      stop(sprintf(paste("Unable to read from either %s or %s. You can set",
+                         "ignore.missing.file = TRUE to ignore this issue."),
+                   rds,pkl))
+  }
+  return(out)
 }
