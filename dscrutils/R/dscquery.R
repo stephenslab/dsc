@@ -296,71 +296,24 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
 
   # EXTRACT DSC OUTPUT
   # ------------------
-  # TO DO: Add more details here.
-  dat <- read.dsc.outputs(dat,dsc.outdir)
+  # After this step, dat will become a nested list, in which each
+  # element dat[[i]][j]] is the value of target i in pipeline j.
+  if (verbose)
+    cat("Reading DSC outputs:\n")
+  dat <- read.dsc.outputs(dat,dsc.outdir,verbose)
 
   browser()
-  
+
+  #
   # TO DO: Attempt to flatten data structure.
+  #
   
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
   # Repeat for each column of the form "module.variable:output".
   if (length(cols) > 0) {
-    if (verbose)
-      cat("Reading DSC outputs:\n")
     for (j in cols) {
 
-      # Get the column name (col), module name (module), variable name
-      # (var) and new column name (col.new).
-      col     <- names(dat)[j]
-      x       <- unlist(strsplit(col,"[.]"))
-      module  <- x[1]
-      var     <- substr(x[2], 1, nchar(x[2])-7)
-      col.new <- paste(module,var,sep = ".")
-      if (verbose)
-        cat(" - ",col.new,": ",sep = "")
-
-      # This list will contain the value of the variable for each table row.
-      values <- as.list(rep(NA,n))
-
-      # If any of the serialized data files exist, try to extract the
-      # value of the selected output from each of the RDS files.
-      # Repeat for each row of the query table.
-      dsc.module.files  <- factor(dat[[j]][[1]])
-      available.targets <- which(!is.na(dsc.module.files))
-      if (length(available.targets) > 0) {
-
-        # Repeat for each target.
-        values <- vector("list",length(dsc.module.files))
-        for (k in levels(dsc.module.files)) {
-          dscfile <- file.path(dsc.outdir,paste0(k,".rds"))
-          if (!file.exists(dscfile))
-            dscfile <- file.path(dsc.outdir,paste0(k,".pkl"))
-          if (!file.exists(dscfile)) {
-            dscfile <- NA
-            if (!ignore.missing.file) stop(paste("Unable to read", file.path(dsc.outdir,paste0(k,".{rds,pkl}")),
-                            "because it does not exist. You can set `ignore.missing.file=TRUE` if you want to skip it."))
-          }
-          if (is.na(dscfile)) out <- list()
-          else out <- read_dsc(dscfile)
-          if (var != 'DSC_TIME') {
-
-            # Check that the variable is one of the outputs in the file.
-            if (!is.element(var,names(out)))
-              stop(paste0("Output \"",var,"\" unavailable in ",dscfile))
-
-            # Extract the value of the variable.
-            out <- out[[var]]
-          } else
-            out <- out$DSC_DEBUG$time$elapsed
-          if (is.null(out))
-            out <- NA
-          entries <- which(dsc.module.files == k)
-          values[entries] <- rep(list(out),length(entries))
-        }
-        values <- values[available.targets]
-        
         # If all the available values are atomic, not NULL, and scalar
         # (i.e., length of 1), then the values can fit into the column
         # of a data frame. If not, then there is nothing to be done.
@@ -530,13 +483,13 @@ filter.by.condition <- function (dat, expr, targets) {
   return(dat)
 }
 
-# TO DO: Explain here what this function does.
-#
-# NOTES:
-#
-#   - dsc should be a data frame.
-#
-read.dsc.outputs <- function (dat, dsc.outdir) {
+# This is a helper function used by dscquery that (1) converts the
+# "data" data frame to a nested list, and (2) replaces all names of
+# files with the values of the requested targets. It is more
+# complicated than it might seem from the description because it tries
+# to read the targets efficiently by reading from each DSC output file
+# no more than once.
+read.dsc.outputs <- function (dat, dsc.outdir, verbose) {
 
   # Convert the DSC query result to a nested list.
   dat <- as.list(dat)
@@ -584,6 +537,8 @@ read.dsc.outputs <- function (dat, dsc.outdir) {
 
   # Extract the outputs.
   for (i in files) {
+    if (verbose)
+      cat(" - ",i,"\n",sep = "")
     x <- import.dsc.output(i,dsc.outdir,ignore.missing.file)
     if (!is.null(x))
       for (j in names(out[[i]]))
