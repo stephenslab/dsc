@@ -302,129 +302,53 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
     cat("Reading DSC outputs:\n")
   dat <- read.dsc.outputs(dat,dsc.outdir,verbose)
 
-  browser()
-
-  #
-  # TO DO: Attempt to flatten data structure.
-  #
-  
-  # PROCESS THE DSC QUERY RESULT
-  # ----------------------------
-  # Repeat for each column of the form "module.variable:output".
-  if (length(cols) > 0) {
-    for (j in cols) {
-
-        # If all the available values are atomic, not NULL, and scalar
-        # (i.e., length of 1), then the values can fit into the column
-        # of a data frame. If not, then there is nothing to be done.
-        if (all(sapply(values,
-                       function (x) !is.null(x) &
-                                    is.atomic(x) &
-                                    length(x) == 1))) {
-          if (verbose)
-            cat("extracted atomic values\n")
-
-          dsc.module.files <- vector(class(unlist(values)),
-                                     length(dsc.module.files))
-          dsc.module.files[] <- NA
-          dsc.module.files[available.targets] <- unlist(values)
-          dat[[j]] <- data.frame(dsc.module.files,stringsAsFactors = FALSE)
-          names(dat[[j]]) <- col.new
-          names(dat)[j]   <- col.new
-        } else {
-
-          # If (1) all the available values are vectors, (2) the
-          # vectors are of the same length, and (3) the vector lengths
-          # to not exceed the maximum allowed vector length, then
-          # incorporate the vector values into the data frame.
-          extract.vectors   <- FALSE
-          all.lengths.same <- FALSE
-          if (all(sapply(values,function (x) is.vector(x) & !is.list(x))))
-            if (length(unique(sapply(values,length)))==1) {
-              all.lengths.same <- TRUE
-              if (max(sapply(values,length)) <= max.extract.vector)
-                extract.vectors <- TRUE
-            }
-          if (extract.vectors || !atomic_only) {
-            if (verbose)
-              if (extract.vectors)
-                cat("extracted vector values\n")
-              else
-                cat("extracted complex objects\n")
-            if (length(available.targets) < length(dsc.module.files)) {
-              tmp = values
-              values = list()
-              ii = 1
-              for (jj in 1:length(dsc.module.files)) {
-                if (jj %in% available.targets) {
-                  values[[jj]] = tmp[[ii]]
-                  ii = ii + 1
-                } else {
-                  if (extract.vectors)
-                    values[[jj]] = rep(NA, length(tmp[[1]]))
-                  else
-                    values[[jj]] = NA
-                }
-              }
-            }
-            if (extract.vectors) {
-              dat[[j]] <- data.frame(do.call(rbind,values),
-                                   check.names = FALSE,
-                                   stringsAsFactors = FALSE)
-              names(dat[[j]]) <- paste(col.new,1:ncol(dat[[j]]),sep = ".")
-            } else {
-              dat[[j]] = values
-              names(dat)[j] = col.new
-            }
-          } else {
-            names(dat[[j]]) <- col.new
-            if (verbose)
-              if (all.lengths.same)
-                cat("vectors not extracted (set max.extract.vector =",
-                    max(sapply(values,length)),
-                    "to extract)\n")
-              else
-                cat("not extracted (filenames provided)\n")
-          }
-        }
-      }
+  # ATTEMPT TO FLATTEN RETURN VALUE
+  # -------------------------------
+  # Only do this if a data frame is requested.
+  if (return.type == "data.frame") {
+    newdat <- flatten.nested.list(dat)
+    if (any(sapply(newdat,is.list)))
+      warning(paste("Unable to store DSC outputs as a data frame;",
+                    "returning a list instead"))
+    else {
+      dat <- newdat
+      dat <- as.data.frame(dat,stringsAsFactors = FALSE)
     }
+    rm(newdat)
   }
 
-  dat.names  <- unlist(lapply(dat,names))
-  col_names = setdiff(dat.names, col_names)
-  if (atomic_only) {
+  ## if (atomic_only) {
       
-    # POST-FILTER BY CONDITIONS 
-    # -------------------------
-    # Remaining columns to filter
-    # Output the query result as a data frame.
-    dat        <- do.call(cbind,dat)
-    names(dat) <- dat.names
-    query_expr = vector()
-    if (length(condition_targets)) {
-      for (i in 1:length(condition_targets)) {
-        if (sum(condition_targets[[i]] %in% col_names))
-          query_expr = append(query_expr, conditions[i])
-      }
-    } 
-    if (length(query_expr)) {
-      query_expr = paste(query_expr, sep = '&')
-      dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
-    }
+  ##   # POST-FILTER BY CONDITIONS 
+  ##   # -------------------------
+  ##   # Remaining columns to filter
+  ##   # Output the query result as a data frame.
+  ##   dat        <- do.call(cbind,dat)
+  ##   names(dat) <- dat.names
+  ##   query_expr = vector()
+  ##   if (length(condition_targets)) {
+  ##     for (i in 1:length(condition_targets)) {
+  ##       if (sum(condition_targets[[i]] %in% col_names))
+  ##         query_expr = append(query_expr, conditions[i])
+  ##     }
+  ##   } 
+  ##   if (length(query_expr)) {
+  ##     query_expr = paste(query_expr, sep = '&')
+  ##     dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
+  ##   }
   
-    # REMOVE UNASKED COLUMNS 
-    # ----------------------
-    if (length(additional_columns)) {
-      col_names = setdiff(names(dat), additional_columns)
-      dat = dat[, col_names, drop=FALSE]
-    }
-    if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
-  } else {
-    if (length(col_names) > 0 && any(unlist(condition_targets) %in% col_names))
-      cat(paste("Filtering on columns", paste(col_names, collapse = ', '), "are disabled when atomic_only = FALSE is set.\n"))
-    cat("A nested list is returned due to option atomic_only = FALSE. To use the result ... (FIXME)\n")
-  }
+  ##   # REMOVE UNASKED COLUMNS 
+  ##   # ----------------------
+  ##   if (length(additional_columns)) {
+  ##     col_names = setdiff(names(dat), additional_columns)
+  ##     dat = dat[, col_names, drop=FALSE]
+  ##   }
+  ##   if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
+  ## } else {
+  ##   if (length(col_names) > 0 && any(unlist(condition_targets) %in% col_names))
+  ##     cat(paste("Filtering on columns", paste(col_names, collapse = ', '), "are disabled when atomic_only = FALSE is set.\n"))
+  ##   cat("A nested list is returned due to option atomic_only = FALSE. To use the result ... (FIXME)\n")
+  ## }
   return(dat)
 }
 
@@ -593,4 +517,20 @@ import.dsc.output <- function (file, dsc.outdir, ignore.missing.file) {
                    rds,pkl))
   }
   return(out)
+}
+
+# Given a nested list, x, attempt to "flatten" the elements of x
+# whenever it is possible to do so. This is a helper function for
+# dscquery.
+flatten.nested.list <- function (x) {
+  n <- length(x)
+  for (i in 1:n)
+      
+    # If all the list elements are atomic, not NULL, and scalar
+    # (i.e., length of 1), then the values can be "flattened" as a vector.
+    # If not, then there is nothing to be done.
+    if (all(sapply(x[[i]],function (a) !is.null(a) & is.atomic(a) &
+                                       length(a) == 1)))
+      x[[i]] <- unlist(x[[i]])
+  return(x)
 }
