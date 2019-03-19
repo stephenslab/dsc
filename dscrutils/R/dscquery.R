@@ -252,14 +252,14 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
 
     # Get the unique set of targets that appear in the condition
     # expressions, and not elsewhere.
-    condition_targets <- setdiff(do.call(c,condition_targets),
-                                 c(targets,targets.notreq))
+    targets_conditions_only <- setdiff(do.call(c,condition_targets),
+                                       c(targets,targets.notreq))
   } else
-    condition_targets <- NULL
+    targets_conditions_only <- NULL
 
   # Add the targets appearing in the condition expressions to
   # "targets.notreq".
-  targets.notreq <- c(targets.notreq,condition_targets)
+  targets.notreq <- c(targets.notreq,targets_conditions_only)
   
   # RUN DSC QUERY COMMAND
   # ---------------------
@@ -285,15 +285,18 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   # Filter out rows in which one or more of the targets are unassigned
   # or missing.
   dat <- filter.by.query.targets(dat,targets)
-
   browser()
   
   # FILTER BY CONDITIONS
   # --------------------
-  # TO DO: Explain here what this step does.
+  # Filter rows of the data frame by each condition. If one or more
+  # targets is unavailable, the condition is not applied.
   n <- length(conditions)
   for (i in 1:n)
-    dat <- filter.by.condition(dat,conditions[i])
+    dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
+
+  # Convert the DSC query result to a list.
+  dat <- as.list(dat)
   
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
@@ -526,4 +529,18 @@ filter.by.query.targets <- function (dat, targets) {
   rows      <- which(!apply(is.na(dat[cols]),1,any))
   return(dat[rows,])
 }
-  
+
+# Filter rows of the data frame "dat" by the given expression ("expr")
+# mentioning one or more variables (columns) listed in "targets". If
+# one or more targets is unavailable, the unmodified data frame is
+# returned.
+filter.by.condition <- function (dat, expr, targets) {
+  if (all(is.element(targets,names(dat))))
+    dat <- subset(dat,eval(parse(text = expr)))
+  return(dat)
+}
+
+# TO DO: Explain here what this function does.
+read.dsc.outputs <- function (dat) {
+
+}
