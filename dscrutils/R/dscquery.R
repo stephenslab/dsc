@@ -56,11 +56,11 @@
 #' included in the return value (these are list elements or column
 #' names ending in "output.file").
 #' 
-#' @param ignore.missing.file If \code{ignore.missing.file = TRUE},
+#' @param ignore.missing.filess If \code{ignore.missing.files = TRUE},
 #' all DSC output files that are missing will have \code{NA} for the
 #' file name; when extracting target outputs from files, any outputs
 #' with missing files will have their value set to \code{NA}. If
-#' \code{ignore.missing.file = FALSE}, \code{dscquery} will throw an
+#' \code{ignore.missing.files = FALSE}, \code{dscquery} will throw an
 #' error whenever a missing file is encountered.
 #'
 #' @param exec The command or pathname of the \code{dsc-query}
@@ -175,7 +175,7 @@
 #'
 dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
                       conditions = NULL, groups = NULL, 
-                      ignore.missing.file = FALSE,
+                      ignore.missing.files = FALSE,
                       omit.file.columns = FALSE, exec = "dsc-query",
                       return.type = c("data.frame", "list"),
                       verbose = TRUE) {
@@ -216,9 +216,9 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
       stop(paste("Argument \"groups\" should be \"NULL\", or a character",
                  "vector with at least one element"))
   
-  # Check input argument "ignore.missing.file".
-  if (!(is.logical(ignore.missing.file) & length(ignore.missing.file) == 1))
-    stop("Argument \"ignore.missing.file\" should be TRUE or FALSE")
+  # Check input argument "ignore.missing.files".
+  if (!(is.logical(ignore.missing.files) & length(ignore.missing.files) == 1))
+    stop("Argument \"ignore.missing.files\" should be TRUE or FALSE")
   
   # Check input argument "omit.file.columns".
   if (!(is.logical(omit.file.columns) & length(omit.file.columns) == 1))
@@ -300,7 +300,7 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   # element dat[[i]][j]] is the value of target i in pipeline j.
   if (verbose)
     cat("Reading DSC outputs:\n")
-  dat <- read.dsc.outputs(dat,dsc.outdir,verbose)
+  dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files,verbose)
 
   # ATTEMPT TO FLATTEN RETURN VALUE
   # -------------------------------
@@ -413,7 +413,7 @@ filter.by.condition <- function (dat, expr, targets) {
 # complicated than it might seem from the description because it tries
 # to read the targets efficiently by reading from each DSC output file
 # no more than once.
-read.dsc.outputs <- function (dat, dsc.outdir, verbose) {
+read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files,  verbose) {
 
   # Convert the DSC query result to a nested list.
   dat <- as.list(dat)
@@ -463,7 +463,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, verbose) {
   for (i in files) {
     if (verbose)
       cat(" - ",i,"\n",sep = "")
-    x <- import.dsc.output(i,dsc.outdir,ignore.missing.file)
+    x <- import.dsc.output(i,dsc.outdir,ignore.missing.files)
     if (!is.null(x))
       for (j in names(out[[i]]))
         if (j == "DSC_TIME")
@@ -499,7 +499,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, verbose) {
 
 # Helper function used by read.dsc.outputs to load the DSC output from
 # either an RDS or "pickle" file.
-import.dsc.output <- function (file, dsc.outdir, ignore.missing.file) {
+import.dsc.output <- function (file, dsc.outdir, ignore.missing.files) {
   rds <- file.path(dsc.outdir,paste0(file,".rds"))
   pkl <- file.path(dsc.outdir,paste0(file,".pkl"))
   if (file.exists(rds) & file.exists(pkl))
@@ -511,9 +511,9 @@ import.dsc.output <- function (file, dsc.outdir, ignore.missing.file) {
     out <- read_dsc(pkl)
   else {
     out <- NULL
-    if (!ignore.missing.file)
+    if (!ignore.missing.files)
       stop(sprintf(paste("Unable to read from either %s or %s. You can set",
-                         "ignore.missing.file = TRUE to ignore this issue."),
+                         "ignore.missing.files = TRUE to ignore this issue."),
                    rds,pkl))
   }
   return(out)
