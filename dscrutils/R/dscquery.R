@@ -11,8 +11,8 @@
 #' separated by spaces, or by a character vector; for example,
 #' \code{targets = "simulate.n analyze score.error"} and \code{targets
 #' = c("simulate.n","analyze","score.error")} are equivalent. DSC
-#' pipelines (i.e., rows of the returned data frame) in which any of
-#' the targets are unassigned or missing (\code{NA}) will be
+#' pipelines (i.e., rows of the returned data frame) in which one of
+#' more of the targets are unassigned or missing (\code{NA}) will be
 #' automatically removed from the data frame; to allow for unassigned
 #' or missing values in the output columns (or list elements), use
 #' argument \code{targets.notreq} instead. This input argument,
@@ -263,9 +263,9 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   
   # RUN DSC QUERY COMMAND
   # ---------------------
-  #
-  # TO DO: Add note here about -c flag.
-  #
+  # Note that although the dsc-query program has the option to pass in
+  # conditions, this feature is not used here, as the queries in this
+  # interface are specified as R expressions.
   out <- build.dscquery.call(c(targets,targets.notreq),groups,
                              dsc.outdir,outfile,exec)
   outfile <- out$outfile
@@ -282,28 +282,18 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
 
   # FILTER BY TARGETS
   # -----------------
-  #
-  # TO DO: Work on this next.
-  #
-  target_cols <- which(gsub(":.*|\\.output\\.file", "", names(dat)) %in% targets)
-  # columns indexed by `target_cols` should have at least one non-missing value
-  target_rows <- which(apply(dat[, target_cols, drop=FALSE], 1, function(r) !all(r %in% NA)))
-  dat <- dat[target_rows, , drop=FALSE]
+  # Filter out rows in which one or more of the targets are unassigned
+  # or missing.
+  dat <- filter.by.query.targets(dat,targets)
 
-  # PRE-FILTER RESULTS
-  # ------------------
-  col_names = names(dat)
-  query_expr = vector()
-  if (length(condition_targets)) {
-    for (i in 1:length(condition_targets)) {
-      if (sum(condition_targets[[i]] %in% col_names) == length(condition_targets[[i]]))
-        query_expr = append(query_expr, conditions[i])
-    }
-  }
-  if (length(query_expr)) {
-    query_expr = paste(query_expr,sep = "&")
-    dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
-  }
+  browser()
+  
+  # FILTER BY CONDITIONS
+  # --------------------
+  # TO DO: Explain here what this step does.
+  n <- length(conditions)
+  for (i in 1:n)
+    dat <- filter.by.condition(dat,conditions[i])
   
   # PROCESS THE DSC QUERY RESULT
   # ----------------------------
@@ -526,3 +516,14 @@ build.dscquery.call <- function (targets, groups, dsc.outdir, outfile, exec) {
     cmd.str <- sprintf("%s -g \"%s\"",cmd.str,paste(groups,collapse = " "))
   return(list(outfile = outfile,cmd.str = cmd.str))
 }
+
+# For data frame "dat" containing the (raw) output of a dsc-query call,
+# filter out rows in which one or more of the targets are unassigned
+# or missing. This is a help function used in dscquery.
+filter.by.query.targets <- function (dat, targets) {
+  col_names <- gsub(":.*|\\.output\\.file","",names(dat))    
+  cols      <- which(is.element(col_names,targets))
+  rows      <- which(!apply(is.na(dat[cols]),1,any))
+  return(dat[rows,])
+}
+  
