@@ -427,7 +427,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
     # use '^[^.]*$' to match only specific fields not grouping labels
     group_labels = grep('^[^.]*$', additional_columns, value=T)
     v = c(targets, others)
-    valid_groups = unique(sapply(1:length(v), function(i) strsplit(v, '[.]')[[i]][1]))
+    valid_groups = unique(sapply(1:length(v), function(i) strsplit(v[[i]], '[.]')[[1]]))
     additional_columns = setdiff(additional_columns, valid_groups)
     if (length(additional_columns)) {
       col_names = setdiff(names(dat), additional_columns)
