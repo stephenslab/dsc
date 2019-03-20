@@ -7,7 +7,8 @@
 #'
 #' @param dsc.outdir Directory where DSC output is stored.
 #'
-#' @param targets Query targets specified as
+#' @param targets Query targets include module (or module group) parameters
+#' and output. They are specified as
 #' character string separated by space, or a character vector, e.g.,
 #' \code{targets = "simulate.n analyze score.error"} and
 #' \code{targets = c("simulate.n","analyze","score.error")} are equivalent.
@@ -68,7 +69,9 @@
 #'
 #' When targets involve module groups, additional columns of module names
 #' will be added to the output indicating which exact module the output
-#' come from.
+#' come from. When module (or module group) names are directly used as targets, 
+#' additional columns of `.output.file`
+#' will be added to the output to represent results from modules.
 #'
 #' @note We have made considerable effort to prevent column names from
 #' being duplicated. However, we have not tested this extensively for
