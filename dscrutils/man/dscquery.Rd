@@ -7,12 +7,13 @@
 dscquery(dsc.outdir, targets, others = NULL, conditions = NULL,
   groups = NULL, add.path = FALSE, ignore.missing.file = FALSE,
   omit.file.columns = FALSE, exec = "dsc-query",
-  max.extract.vector = 10, verbose = TRUE)
+  max.extract.vector = 10, atomic_only = TRUE, verbose = TRUE)
 }
 \arguments{
 \item{dsc.outdir}{Directory where DSC output is stored.}
 
-\item{targets}{Query targets specified as
+\item{targets}{Query targets include module (or module group) parameters
+and output. They are specified as
 character string separated by space, or a character vector, e.g.,
 \code{targets = "simulate.n analyze score.error"} and
 \code{targets = c("simulate.n","analyze","score.error")} are equivalent.
@@ -50,6 +51,11 @@ That is, columns ending with "output.file" colnames.}
 \item{max.extract.vector}{Vector-valued DSC outputs not exceeding
 this length are automatically extracted to the data frame.}
 
+\item{atomic_only}{Whether or not to only extract atomic values (simple
+R data types) or extract all objects. When set to TRUE the return will be
+an R data.frame. Otherwise a nested list will be returned which can be converted
+to `tibble` and queried like a data.frame (https://tibble.tidyverse.org/).}
+
 \item{verbose}{If \code{verbose = TRUE}, print progress of DSC
 query command to the console.}
 }
@@ -66,6 +72,12 @@ and must be loaded from the RDS files.
 
 When targets are unassigned, these are stored as missing values
 (\code{NA}) in the appropriate columns.
+
+When targets involve module groups, additional columns of module names
+will be added to the output indicating which exact module the output
+come from. When module (or module group) names are directly used as targets, 
+additional columns of `.output.file`
+will be added to the output to represent results from modules.
 }
 \description{
 This is an R interface to \code{dsc-query} for
