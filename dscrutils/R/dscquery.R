@@ -425,15 +425,15 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   
     # REMOVE UNASKED COLUMNS 
     # ----------------------
-    # Add group info to additional columns
-    additional_columns = unique(c(additional_columns, sapply(1:length(additional_columns), function(i) strsplit(additional_columns, '[.]')[[i]][1])))
-    # check if some groups are valid in targets and remove them from here
-    valid_groups = unique(sapply(1:length(required_columns), function(i) strsplit(required_columns, '[.]')[[i]][[1]]))
-    additional_columns = setdiff(additional_columns, valid_groups)
-    # for groups in additional_columns we need to add .output.file to it
-    group_files = paste0(grep('^[^.]*$', additional_columns, value=T), '.output.file')
-    additional_columns = append(additional_columns, group_files)
     if (length(additional_columns)) {
+      # Add group info to additional columns
+      additional_columns = unique(c(additional_columns, sapply(1:length(additional_columns), function(i) strsplit(additional_columns, '[.]')[[i]][1])))
+      # check if some groups are valid in targets and remove them from here
+      valid_groups = unique(sapply(1:length(required_columns), function(i) strsplit(required_columns, '[.]')[[i]][[1]]))
+      additional_columns = setdiff(additional_columns, valid_groups)
+      # for groups in additional_columns we need to add .output.file to it
+      group_files = paste0(grep('^[^.]*$', additional_columns, value=T), '.output.file')
+      additional_columns = append(additional_columns, group_files)
       col_names = setdiff(names(dat), additional_columns)
       dat = dat[, col_names, drop=FALSE]
     }
