@@ -192,6 +192,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   # This vector keeps track of additional columns involved in `condition` but
   # not in `targets` or `others` and will be removed after use
   additional_columns = vector()
+  required_columns = c(targets, others)
   if (!is.null(conditions)) {
       pattern = '(?<=\\$\\().*?(?=\\))'
       for (i in 1:length(conditions)) {
@@ -200,7 +201,7 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
           stop(paste("Cannot find valid target in the format of $(...) in condition statement:", conditions[i]))
         for (item in condition_targets[[i]])
           conditions[i] = sub(paste0('\\$\\(', item, '\\)'), item, conditions[i])
-        additional_columns = append(additional_columns, setdiff(condition_targets[i], c(targets, others)))
+        additional_columns = append(additional_columns, setdiff(condition_targets[[i]], required_columns))
       }
   }
   if (length(additional_columns))
@@ -424,11 +425,14 @@ dscquery <- function (dsc.outdir, targets, others = NULL, conditions = NULL,
   
     # REMOVE UNASKED COLUMNS 
     # ----------------------
-    # use '^[^.]*$' to match only specific fields not grouping labels
-    group_labels = grep('^[^.]*$', additional_columns, value=T)
-    v = c(targets, others)
-    valid_groups = unique(sapply(1:length(v), function(i) strsplit(v[[i]], '[.]')[[1]]))
+    # Add group info to additional columns
+    additional_columns = unique(c(additional_columns, sapply(1:length(additional_columns), function(i) strsplit(additional_columns, '[.]')[[i]][1])))
+    # check if some groups are valid in targets and remove them from here
+    valid_groups = unique(sapply(1:length(required_columns), function(i) strsplit(required_columns, '[.]')[[i]][[1]]))
     additional_columns = setdiff(additional_columns, valid_groups)
+    # for groups in additional_columns we need to add .output.file to it
+    group_files = paste0(grep('^[^.]*$', additional_columns, value=T), '.output.file')
+    additional_columns = append(additional_columns, group_files)
     if (length(additional_columns)) {
       col_names = setdiff(names(dat), additional_columns)
       dat = dat[, col_names, drop=FALSE]
