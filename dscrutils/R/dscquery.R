@@ -10,20 +10,22 @@
 #' @param targets Query targets specified as a character string
 #' separated by spaces, or by a character vector; for example,
 #' \code{targets = "simulate.n analyze score.error"} and \code{targets
-#' = c("simulate.n","analyze","score.error")} are equivalent. DSC
-#' pipelines (i.e., rows of the returned data frame) in which one of
-#' more of the targets are unassigned or missing (\code{NA}) will be
-#' automatically removed from the data frame; to allow for unassigned
-#' or missing values in the output columns (or list elements), use
-#' argument \code{targets.notreq} instead. This input argument,
-#' together with \code{targets.notreq}, specifies the \code{--target}
-#' flag in the \code{dsc-query} call. At least one of \code{targets}
-#' and \code{targets.notreq} must not be \code{NULL} or empty. Note
-#' that, to easily specify multiple targets from the same module, we
-#' recommend using \code{\link{paste}}; e.g., \code{paste("simulate",
-#' c("n","p","df"),sep = ".")}. These targets will be the names of the
-#' columns in the data frame if a data frame is returned, or the names
-#' of the list elements if a list is returned.
+#' = c("simulate.n","analyze","score.error")} are equivalent. A query
+#' target may either be a module group, a module parameter, or a module
+#' output. DSC pipelines (i.e., rows of the returned data frame) in
+#' which one of more of the targets are unassigned or missing
+#' (\code{NA}) will be automatically removed from the data frame; to
+#' allow for unassigned or missing values in the output columns (or
+#' list elements), use argument \code{targets.notreq} instead. This
+#' input argument, together with \code{targets.notreq}, specifies the
+#' \code{--target} flag in the \code{dsc-query} call. At least one of
+#' \code{targets} and \code{targets.notreq} must not be \code{NULL} or
+#' empty. Note that, to easily specify multiple targets from the same
+#' module, we recommend using \code{\link{paste}}; e.g.,
+#' \code{paste("simulate", c("n","p","df"),sep = ".")}. These targets
+#' will be the names of the columns in the data frame if a data frame
+#' is returned, or the names of the list elements if a list is
+#' returned.
 #'
 #' @param targets.notreq Non-required query targets; this is the same
 #' as \code{targets}, except that unassigned or missing values are not
@@ -51,7 +53,12 @@
 #' \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 #' will define two module groups, \code{method} and \code{score}.
 #'
-#' @param omit.file.columns If \code{omit.file.columns = TRUE}, all
+#' @param omit.file.columns When \code{omit.file.columns = FALSE}, an
+#' additional column giving the name of the DSC output file is
+#' provided for each query target that is a module group. Setting
+#' \code{omit.file.columns = TRUE} supresses these additional columns.
+#'
+#' all
 #' columns or list elements specifying DSC output files will not be
 #' included in the return value (these are list elements or column
 #' names ending in "output.file").
