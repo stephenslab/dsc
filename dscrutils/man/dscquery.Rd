@@ -38,7 +38,7 @@ removed from the return value. This input argument, together with
 \item{conditions}{Conditions used to filter DSC pipeline results;
 rows in which one or more of the conditions evaluate to
 \code{FALSE} or \code{NA} are removed from the output (this is
-convention used by \code{\link{subset}}). When \code{conditions =
+convention used by \code{\link{which}}). When \code{conditions =
 NULL}, no additional filtering of DSC pipelines is
 performed. Although results can always be filtered \emph{post hoc},
 using \code{conditions} to filter can significantly speed up

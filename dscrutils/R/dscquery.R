@@ -245,21 +245,44 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
       condition_targets[[i]] <- out$targets
       conditions[i]          <- out$condition
     }
+  }
 
+  # RUN DSC QUERY COMMAND
+  # ---------------------
+  # If one or more conditions are specified, run the dsc-query program
+  # once *without* the conditions. This is done to find which data
+  # will be retained for the final output.
+  if (!is.null(conditions)) {
+    if (verbose)
+      cat("Calling dsc-query with non-condition targets.\n")
+    targets_all <- c(targets,targets.notreq)
+    out     <- build.dscquery.call(targets_all,groups,dsc.outdir,outfile,exec)
+    outfile <- out$outfile
+    cmd.str <- out$cmd.str
+    run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
+    dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
+                    check.names = FALSE,comment.char = "",
+                    na.strings = "NA",nrows = 1)
+    if (any(duplicated(names(dat))))
+      stop("One or more names in dsc-query output are the same")
+    final_outputs    <- names(dat)
+    i                <- which(sapply(as.list(final_outputs),is.output.column))
+    final_outputs[i] <- sapply(as.list(final_outputs[i]),
+                               function (x) substr(x,1,nchar(x) - 7))
+    
     # Add the targets appearing in the condition expressions to the
     # "non-required" targets.
     targets.notreq <- c(targets.notreq,setdiff(do.call(c,condition_targets),
                                                targets.notreq))
-  } else
-    condition_targets <- NULL
-  
-  # RUN DSC QUERY COMMAND
-  # ---------------------
+  }
+
   # Note that although the dsc-query program has the option to pass in
   # conditions, this feature is not used here, as the queries in this
   # interface are specified as R expressions.
-  out <- build.dscquery.call(c(targets,targets.notreq),groups,
-                             dsc.outdir,outfile,exec)
+  if (verbose)
+    cat("Calling dsc-query with all targets.\n")
+  targets_all <- c(targets,targets.notreq)
+  out     <- build.dscquery.call(targets_all,groups,dsc.outdir,outfile,exec)
   outfile <- out$outfile
   cmd.str <- out$cmd.str
   run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
@@ -282,8 +305,6 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   # or missing.
   dat <- filter.by.query.targets(dat,targets)
 
-  browser()
-  
   # PRE-FILTER BY CONDITIONS
   # ------------------------
   # Filter rows of the data frame by each condition. If one or more
@@ -322,20 +343,26 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
       dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
   }
 
-  browser()
-  
-  ##   # REMOVE UNASKED COLUMNS 
-  ##   # ----------------------
-  ##   if (length(additional_columns)) {
-  ##     col_names = setdiff(names(dat), additional_columns)
-  ##     dat = dat[, col_names, drop=FALSE]
-  ##   }
-  ##   if (omit.filenames) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
-  ## } else {
-  ##   if (length(col_names) > 0 && any(unlist(condition_targets) %in% col_names))
-  ##     cat(paste("Filtering on columns", paste(col_names, collapse = ', '), "are disabled when atomic_only = FALSE is set.\n"))
-  ##   cat("A nested list is returned due to option atomic_only = FALSE. To use the result ... (FIXME)\n")
-  ## }
+  # REMOVE NON-REQUESTED OUTPUTS
+  # ----------------------------
+  # Remove any data that were added only to take care of the filtering
+  # by condition.
+  if (!is.null(conditions))
+    dat <- dat[final_outputs]
+
+  # Remove any outputs ending with "output.file".
+  if (omit.filenames) {
+    i <- which(!sapply(as.list(names(dat)),function (x) {
+           n <- nchar(x)
+           if (n < 12)
+             return(FALSE)
+           else
+             return(substr(x,n - 11,n) == ".output.file")
+         }))
+    dat <- dat[i]
+  }
+
+  rownames(dat) <- NULL
   return(dat)
 }
 
@@ -420,15 +447,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
   # Determine which columns contain names of files that should be
   # read; these are columns of the form "module.variable:output". If
   # there are no such columns, there is nothing to do here. 
-  cols <- which(sapply(as.list(names(dat)),function (x) {
-    n <- nchar(x)
-    if (n < 7)
-      return(FALSE)
-    else if (length(unlist(strsplit(x,"[:]"))) != 2)
-      return(FALSE)
-    else
-      return(substr(x,n - 6,n) == ":output")
-  }))
+  cols <- which(sapply(as.list(names(dat)),is.output.column))
   if (length(cols) == 0)
     return(dat)
   
@@ -527,3 +546,19 @@ flatten.nested.list <- function (x) {
       x[[i]] <- unlist(x[[i]])
   return(x)
 }
+
+# Return TRUE if x is a name of a dsc-query output column of the form
+# module.variable:output"; otherwise, return FALSE
+is.output.column <- function (x) {
+  n <- nchar(x)
+  if (n < 7)
+    return(FALSE)
+  else if (length(unlist(strsplit(x,"[:]"))) != 2)
+    return(FALSE)
+  else
+    return(substr(x,n - 6,n) == ":output")
+}
+
+is.out.file <- function (x) {
+}
+    
