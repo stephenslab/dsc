@@ -34,7 +34,7 @@
 #' @param conditions Conditions used to filter DSC pipeline results;
 #' rows in which one or more of the conditions evaluate to
 #' \code{FALSE} or \code{NA} are removed from the output (this is
-#' convention used by \code{\link{subset}}). When \code{conditions =
+#' convention used by \code{\link{which}}). When \code{conditions =
 #' NULL}, no additional filtering of DSC pipelines is
 #' performed. Although results can always be filtered \emph{post hoc},
 #' using \code{conditions} to filter can significantly speed up
@@ -281,9 +281,11 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   # Filter out rows in which one or more of the targets are unassigned
   # or missing.
   dat <- filter.by.query.targets(dat,targets)
+
+  browser()
   
-  # FILTER BY CONDITIONS
-  # --------------------
+  # PRE-FILTER BY CONDITIONS
+  # ------------------------
   # Filter rows of the data frame by each condition. If one or more
   # targets is unavailable, the condition is not applied.
   if (!is.null(conditions)) {
@@ -309,27 +311,18 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
     dat <- as.data.frame(dat.new,check.names = FALSE,stringsAsFactors = FALSE)
   rm(dat.new)
 
+  # POST-FILTER BY CONDITIONS 
+  # -------------------------
+  # Filter rows of the data frame by each condition. This is second
+  # filtering step is necessary to take care of any conditions that
+  # couldn't be applied in the pre-filtering step.
+  if (!is.null(conditions)) {
+    n <- length(conditions)
+    for (i in 1:n)
+      dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
+  }
+
   browser()
-  
-  ## if (atomic_only) {
-      
-  ##   # POST-FILTER BY CONDITIONS 
-  ##   # -------------------------
-  ##   # Remaining columns to filter
-  ##   # Output the query result as a data frame.
-  ##   dat        <- do.call(cbind,dat)
-  ##   names(dat) <- dat.names
-  ##   query_expr = vector()
-  ##   if (length(condition_targets)) {
-  ##     for (i in 1:length(condition_targets)) {
-  ##       if (sum(condition_targets[[i]] %in% col_names))
-  ##         query_expr = append(query_expr, conditions[i])
-  ##     }
-  ##   } 
-  ##   if (length(query_expr)) {
-  ##     query_expr = paste(query_expr, sep = '&')
-  ##     dat = subset(dat, eval(parse(text=query_expr)), drop=FALSE)
-  ##   }
   
   ##   # REMOVE UNASKED COLUMNS 
   ##   # ----------------------
@@ -396,8 +389,13 @@ filter.by.query.targets <- function (dat, targets) {
 # one or more targets is unavailable, the unmodified data frame is
 # returned.
 filter.by.condition <- function (dat, expr, targets) {
-  if (all(is.element(targets,names(dat))))
-    dat <- subset(dat,eval(parse(text = expr)))
+  if (all(is.element(targets,names(dat)))) {
+    rows <- which(with(dat,eval(parse(text = expr))))
+    if (is.data.frame(dat))
+      dat <- dat[rows,]
+    else
+      dat <- lapply(dat,function (x) x[rows])
+  }
   return(dat)
 }
 
