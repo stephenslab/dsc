@@ -1,10 +1,11 @@
 [global]
+import os
 parameter: ncpu = 30
 parameter: rerun = 0
 test_path = path('../vignettes')
 
 [default_1]
-input: [x for x in get_output(f'find {test_path:a} -name "*.dsc" -type f').strip().split('\n') if not 'error' in os.path.basename(x)], group_by = 1, concurrent = False
+input: [x for x in get_output(f'find {test_path:a} -name "*.dsc" -type f').strip().split('\n') if not 'error' in os.path.basename(x) and os.path.basename(x) not in ('test1.dsc', 'test2.dsc')], group_by = 1, concurrent = False
 bash: expand = True, workdir = f'{_input:d}'
   dsc {_input} -c {ncpu} --truncate
   if [ {rerun} -ne 0 ]; then

@@ -105,7 +105,7 @@ DSC,simulate,simulate.scenario,analyze,analyze.output.file,score,score.output.fi
         q = test_outcome(res, '1.csv')
         observed = get_output('(head -n 2 1.csv && tail -n +3 1.csv | sort) | head').strip().split('\n')
         expected = '''
-DSC,simulate.q,cis,cis.ci_lwr:output,cis.ci_upr:output,cis.output.file,summ_probs,summ_probs.prob:output
+DSC,simulate.q,cis,cis.output.file,cis.ci_upr:output,cis.ci_lwr:output,summ_probs,summ_probs.prob:output
 1,0.0,gamma_ci,gamma_ci/simulate_1_cause_grid_adapt_1_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_1_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_1_gamma_ci_1,NA,NA
 1,0.0,gamma_ci,gamma_ci/simulate_1_cause_grid_adapt_2_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_2_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_2_gamma_ci_1,NA,NA
 1,0.0,gamma_ci,gamma_ci/simulate_1_cause_grid_adapt_3_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_3_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_3_gamma_ci_1,NA,NA

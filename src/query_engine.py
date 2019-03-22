@@ -174,6 +174,7 @@ class Query_Processor:
         return res
 
     def check_overlapping_groups(self):
+        # for between groups
         for k in list(self.groups.keys()):
             if len(self.groups[k]) == 0:
                 del self.groups[k]
@@ -183,6 +184,18 @@ class Query_Processor:
                     overlap = set(self.groups[k1]).intersection(set(self.groups[k2]))
                     if len(overlap):
                         raise DBError(f"Overlapping groups ``{k1}: {', '.join(self.groups[k1])}`` and ``{k2}: {', '.join(self.groups[k2])}`` is not allowed! You should drop the one that causes the conflict, or use, eg, -g \"{k1}:\" to erase the other one if it is build-in.")
+        # for mixing up group and modules in the group
+        # FIXME: only check it in targets not conditions
+        # possibly a wontfix
+        targets = [x.split('.')[0] for x in self.targets]
+        modules = [x for x in targets if x not in self.groups]
+        groups = [x for x in targets if x in self.groups]
+        modules_in_groups = flatten_list([self.groups[k] for k in groups])
+        for item in modules:
+            if item in modules_in_groups:
+                for k in self.groups:
+                    if item in self.groups[k]:
+                        raise DBError(f"Query targets cannot involve both ``{item}`` and ``{k}``, i.e., a module and a group containing that module.")
 
     def add_na_group_parameters(self):
         if len(self.groups) == 0:
@@ -439,6 +452,8 @@ class Query_Processor:
                     to_merge[k].append(col)
                     break
             self.groups[g] = ordered_group
+            # handle non-trivial groups first
+            to_merge = dict(sorted(to_merge.items(), key=lambda kv: (len(kv[1]), kv[0]), reverse=True))
             for k in to_merge:
                 if len(ordered_group) > 1:
                     table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(tuple, 1)

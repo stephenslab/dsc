@@ -135,7 +135,7 @@ def main():
     p.add_argument('--debug', action='store_true', help = SUPPRESS)
     p.add_argument('--version', action = 'version', version = __version__)
     p.add_argument('dsc_output', metavar = "DSC output folder or a single output file", help = '')
-    p.add_argument('-o', metavar = "str", dest = 'output', required = True,
+    p.add_argument('-o', '--output', metavar = "str", required = True,
                    help = '''Output notebook / data file name.
                    In query applications if file name ends with ".csv", ".ipynb" or ".xlsx" then only data file will be saved
                    as result of query. Otherwise both data file in ".xlsx" format and a notebook that displays the data
