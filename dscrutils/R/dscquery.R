@@ -31,17 +31,20 @@
 #' \code{dsc-query} call. At least one of \code{targets} and
 #' \code{targets.notreq} must not be \code{NULL} or empty.
 #'
-#' @param conditions Conditions used to filter DSC pipeline
-#' results. When \code{conditions = NULL}, no additional filtering of
-#' DSC pipelines is performed. Although results can always be filtered
-#' \emph{post hoc}, using \code{conditions} to filter can
-#' significantly speed up queries when the DSC outputs are very large,
-#' as this will filter results, whenever possible, \emph{before} they
-#' are loaded into R. Query conditions are specified as R expressions,
-#' in which target names are written as \code{$(...)}; for example, to
-#' request only results in which the value of parameter \code{sigma}
-#' in module \code{simulate} is greater than or equal to \code{0.1},
-#' set \code{conditions = "$(simulate.sigma) >= 0.1"} (see below for
+#' @param conditions Conditions used to filter DSC pipeline results;
+#' rows in which one or more of the conditions evaluate to
+#' \code{FALSE} or \code{NA} are removed from the output (this is
+#' convention used by \code{\link{subset}}). When \code{conditions =
+#' NULL}, no additional filtering of DSC pipelines is
+#' performed. Although results can always be filtered \emph{post hoc},
+#' using \code{conditions} to filter can significantly speed up
+#' queries when the DSC outputs are very large, as this will filter
+#' results, whenever possible, \emph{before} they are loaded into
+#' R. Query conditions are specified as R expressions, in which target
+#' names are written as \code{$(...)}; for example, to request only
+#' results in which the value of parameter \code{sigma} in module
+#' \code{simulate} is greater than or equal to \code{0.1}, set
+#' \code{conditions = "$(simulate.sigma) >= 0.1"} (see below for
 #' additional examples). This input argument specifies the
 #' \code{--condition} flag in the call to \code{dsc-query}.
 #'
@@ -67,40 +70,22 @@
 #' @param exec The command or pathname of the \code{dsc-query}
 #' executable.
 #'
-#' @param return.type If \code{return.type = "data.frame"}, the DSC
-#' outputs are returned in a data frame; if \code{return.type =
-#' "list"}, the DSC outputs in a list. See "Value" for more
-#' information about the different return types, and the benefits (and
-#' limitations) of each.
-#'
 #' @param verbose If \code{verbose = TRUE}, print progress of DSC
 #' query command to the console.
 #'
 #' @return A list or data frame containing the result of the DSC
 #' query.
 #' 
-#' When \code{return.type = "data.frame"}, the output is a
-#' data frame.  When possible, DSC outputs are extracted into the
-#' columns of the data frame; when this is not possible (e.g., for
-#' more complex outputs such as matrices), file names containing the
-#' DSC outputs are provided instead. In the latter case, individual
-#' outputs can be retrieved using \code{\link{read_dsc}}.
+#' When possible, DSC outputs are extracted into the columns of the
+#' data frame. When outputs one or more outputs are large or complex
+#' objects, the output is a list, with list elements corresponding to
+#' the query targets. Each top-level list element should have the same
+#' length.
 #'
-#' When \code{return.type = "list"}, the output is a list, with list
-#' elements corresponding to the query targets. Each top-level list
-#' element should have the same length.
-#'
-#' A data frame is most convenient with the outputs are not complex.
-#'
-#' On the other hand, if many outputs are large or complex objects, it
-#' may be better to output a list, which is a much more flexible data
-#' structure. Note that a list can be later converted to a data frame
-#' using \code{\link{as.data.frame}}, or converted to a "tibble" using
-#' the \code{\link[tibble]{as_tibble}} function from the tibble
-#' package, or converted to many other data structures.
-#'
-#' When targets are unassigned, these are stored as missing values
-#' (\code{NA}).
+#' Note that a list can be later converted to a data frame using
+#' \code{\link{as.data.frame}}, or converted to a "tibble" using the
+#' \code{\link[tibble]{as_tibble}} function from the tibble package,
+#' or converted to many other data structures.
 #'
 #' All targets specified by the "targets" and "targets.notreq"
 #' arguments, except for targets that are module names, should have
@@ -110,6 +95,9 @@
 #' output for the module group is automatically included.  Additional
 #' outputs giving file names of the DSC results files are included for
 #' all targets that are modules or module groups.
+#'
+#' When targets are unassigned, these are stored as missing values
+#' (\code{NA}).
 #'
 #' @details A call to dscquery cannot include targets that involve
 #' both a module, and a module group containing that module. For
@@ -190,7 +178,6 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
                       conditions = NULL, groups = NULL, 
                       ignore.missing.files = FALSE,
                       omit.filenames = FALSE, exec = "dsc-query",
-                      return.type = c("data.frame", "list"),
                       verbose = TRUE) {
 
   # CHECK & PROCESS INPUTS
@@ -241,19 +228,15 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   if (!(is.character(exec) & length(exec) == 1))
     stop("Argument \"exec\" should be a character vector of length 1")
 
-  # Check and process input argument "return.type".
-  return.type <- match.arg(return.type)
-  
   # Check input argument "verbose".
   if (!(is.logical(verbose) & length(verbose) == 1))
     stop("Argument \"verbose\" should be TRUE or FALSE")
 
   # PROCESS CONDITIONS
   # ------------------
-  # Find the targets that are mentioned in the condition expressions
-  # but not in the "targets" or "targets.notreq" arguments, and
+  # Find the targets that are mentioned in the condition expressions, and
   # replace all instances of $(x) with x in these expressions so that
-  # they can be interpreted as valid R expressions.
+  # they can be evaluated as R expressions.
   if (!is.null(conditions)) {
     n                 <- length(conditions)
     condition_targets <- vector("list",n)
@@ -263,16 +246,12 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
       conditions[i]          <- out$condition
     }
 
-    # Get the unique set of targets that appear in the condition
-    # expressions, and not elsewhere.
-    targets_conditions_only <- setdiff(do.call(c,condition_targets),
-                                       c(targets,targets.notreq))
+    # Add the targets appearing in the condition expressions to the
+    # "non-required" targets.
+    targets.notreq <- c(targets.notreq,setdiff(do.call(c,condition_targets),
+                                               targets.notreq))
   } else
-    targets_conditions_only <- NULL
-
-  # Add the targets appearing in the condition expressions to
-  # "targets.notreq".
-  targets.notreq <- c(targets.notreq,targets_conditions_only)
+    condition_targets <- NULL
   
   # RUN DSC QUERY COMMAND
   # ---------------------
@@ -287,12 +266,16 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   
   # IMPORT DSC QUERY RESULTS
   # ------------------------
+  # As a safeguard, we check for any duplicated column names, and if
+  # there are any, we halt and report an error.
   if (verbose)
     cat("Importing dsc-query output.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
                   check.names = FALSE,comment.char = "",
                   na.strings = "NA")
-
+  if (any(duplicated(names(dat))))
+    stop("One or more names in dsc-query output are the same")
+  
   # FILTER BY TARGETS
   # -----------------
   # Filter out rows in which one or more of the targets are unassigned
@@ -303,33 +286,31 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   # --------------------
   # Filter rows of the data frame by each condition. If one or more
   # targets is unavailable, the condition is not applied.
-  n <- length(conditions)
-  for (i in 1:n)
-    dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
+  if (!is.null(conditions)) {
+    n <- length(conditions)
+    for (i in 1:n)
+      dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
+  }
 
+  browser()
+  
   # EXTRACT DSC OUTPUT
   # ------------------
   # After this step, dat will become a nested list, in which each
   # element dat[[i]][j]] is the value of target i in pipeline j.
   if (verbose)
-    cat("Reading DSC outputs:\n")
-  dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files,verbose)
+    cat("Reading DSC outputs.\n")
+  dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
 
   # ATTEMPT TO FLATTEN RETURN VALUE
   # -------------------------------
-  # Only do this if a data frame is requested.
-  if (return.type == "data.frame") {
-    newdat <- flatten.nested.list(dat)
-    if (any(sapply(newdat,is.list)))
-      warning(paste("Unable to store DSC outputs as a data frame;",
-                    "returning a list instead"))
-    else {
-      dat <- newdat
-      dat <- as.data.frame(dat,stringsAsFactors = FALSE)
-    }
-    rm(newdat)
-  }
+  dat.new <- flatten.nested.list(dat)
+  if (all(!sapply(dat.new,is.list)))
+    dat <- as.data.frame(dat.new,check.names = FALSE,stringsAsFactors = FALSE)
+  rm(dat.new)
 
+  browser()
+  
   ## if (atomic_only) {
       
   ##   # POST-FILTER BY CONDITIONS 
@@ -426,7 +407,7 @@ filter.by.condition <- function (dat, expr, targets) {
 # complicated than it might seem from the description because it tries
 # to read the targets efficiently by reading from each DSC output file
 # no more than once.
-read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
+read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
 
   # Convert the DSC query result to a nested list.
   dat <- as.list(dat)
@@ -474,8 +455,6 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
 
   # Extract the outputs.
   for (i in files) {
-    if (verbose)
-      cat(" - ",i,"\n",sep = "")
     x <- import.dsc.output(i,dsc.outdir,ignore.missing.files)
     if (!is.null(x))
       for (j in names(out[[i]]))
