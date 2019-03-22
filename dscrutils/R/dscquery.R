@@ -100,13 +100,16 @@
 #' package, or converted to many other data structures.
 #'
 #' When targets are unassigned, these are stored as missing values
-#' (\code{NA}) in the appropriate columns.
+#' (\code{NA}).
 #'
 #' All targets specified by the "targets" and "targets.notreq"
 #' arguments, except for targets that are module names, should have
 #' columns (or list elements) of the same name in the output.
-#' Additional columns giving file names of the DSC results files are
-#' added for all targets that are modules or module groups. 
+#' Whenever a target of the form "x.y" is requested, where "x" is a
+#' module group and "y" is a module parameter or output, an additional
+#' output for the module group is automatically included.  Additional
+#' outputs giving file names of the DSC results files are included for
+#' all targets that are modules or module groups.
 #'
 #' @details A call to dscquery cannot include targets that involve
 #' both a module, and a module group containing that module. For
