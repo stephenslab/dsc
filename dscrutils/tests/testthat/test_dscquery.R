@@ -50,8 +50,8 @@ test_that(paste("Filtering by conditions argument for one_sample_location",
 test_that("ash DSC query example returns a 10 x 6 data frame",{
 
   # Retrieve some results from the "ash" DSC experiment. In this
-  # example, the beta estimates are long vectors (length 1,000), so the
-  # results are not extracted into the outputted data frame.
+  # example, the beta estimates are long vectors (of length one
+  # thousand), so the results are not returned in a data frame.
   dsc.dir <- system.file("datafiles","ash","dsc_result",package = "dscrutils")
   dat <- dscquery(dsc.dir,
            targets = c(paste("simulate",c("nsamp","g"),sep="."),
@@ -59,11 +59,12 @@ test_that("ash DSC query example returns a 10 x 6 data frame",{
                              sep=".")),
            conditions = "$(simulate.g) =='list(c(2/3,1/3),c(0,0),c(1,2))'",
            verbose = FALSE)
-  expect_equal(dim(dat),c(10,6))
+  expect_false(is.data.frame(dat))
+  expect_equal(length(dat),6)
 })
 
-test_that(paste("Second ash DSC example with max.extract.vector = 1000",
-                "returns a n x m data frame"),{
+test_that(paste("Second ash DSC example without shrink.beta_est",
+                "returns a data frame"),{
 
   # This is the same as the previous example, but extracts the
   # vector-valued beta estimates into the outputted data frame. As a
@@ -72,10 +73,11 @@ test_that(paste("Second ash DSC example with max.extract.vector = 1000",
   dsc.dir <- system.file("datafiles","ash","dsc_result",package = "dscrutils")
   dat <- dscquery(dsc.dir,
            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
-                       "shrink.beta_est","shrink.pi0_est"),
+                       "shrink.pi0_est"),
            conditions ="$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
-           max.extract.vector = 1000,verbose = FALSE)
-  expect_equal(dim(dat),c(10,1005))
+           verbose = FALSE)
+  expect_true(is.data.frame(dat))
+  expect_equal(dim(dat),c(10,5))
 })
 
 test_that(paste("Second one_sample_location DSC example returns an error",
