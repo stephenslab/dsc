@@ -53,17 +53,14 @@
 #' \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 #' will define two module groups, \code{method} and \code{score}.
 #'
-#' @param omit.file.columns When \code{omit.file.columns = FALSE}, an
-#' additional column giving the name of the DSC output file is
-#' provided for each query target that is a module group. Setting
-#' \code{omit.file.columns = TRUE} supresses these additional columns.
-#'
-#' all
-#' columns or list elements specifying DSC output files will not be
-#' included in the return value (these are list elements or column
-#' names ending in "output.file").
+#' @param omit.filenames When \code{omit.filenames = FALSE}, an
+#' additional column (or list element) giving the name of the DSC
+#' output file is provided for each query target that is a module or
+#' module group. This is useful if you want to directly inspect the
+#' stored results. Setting \code{omit.filenames = TRUE} supresses
+#' these additional outputs.
 #' 
-#' @param ignore.missing.filess If \code{ignore.missing.files = TRUE},
+#' @param ignore.missing.files If \code{ignore.missing.files = TRUE},
 #' all DSC output files that are missing will have \code{NA} for the
 #' file name; when extracting target outputs from files, any outputs
 #' with missing files will have their value set to \code{NA}. If
@@ -106,6 +103,12 @@
 #'
 #' When targets are unassigned, these are stored as missing values
 #' (\code{NA}) in the appropriate columns.
+#'
+#' All targets specified by the "targets" and "targets.notreq"
+#' arguments, except for targets that are module names, should have
+#' correspecting columns or list elements in the output. Additional
+#' columns giving file names of the DSC results files are added for
+#' all targets that are modules or module groups
 #'
 #' @note We have made considerable effort to prevent column names from
 #' being duplicated. However, we have not tested this extensively for
@@ -183,7 +186,7 @@
 dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
                       conditions = NULL, groups = NULL, 
                       ignore.missing.files = FALSE,
-                      omit.file.columns = FALSE, exec = "dsc-query",
+                      omit.filenames = FALSE, exec = "dsc-query",
                       return.type = c("data.frame", "list"),
                       verbose = TRUE) {
 
@@ -227,9 +230,9 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   if (!(is.logical(ignore.missing.files) & length(ignore.missing.files) == 1))
     stop("Argument \"ignore.missing.files\" should be TRUE or FALSE")
   
-  # Check input argument "omit.file.columns".
-  if (!(is.logical(omit.file.columns) & length(omit.file.columns) == 1))
-    stop("Argument \"omit.file.columns\" should be TRUE or FALSE")
+  # Check input argument "omit.filenames".
+  if (!(is.logical(omit.filenames) & length(omit.filenames) == 1))
+    stop("Argument \"omit.filenames\" should be TRUE or FALSE")
   
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
@@ -350,7 +353,7 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   ##     col_names = setdiff(names(dat), additional_columns)
   ##     dat = dat[, col_names, drop=FALSE]
   ##   }
-  ##   if (omit.file.columns) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
+  ##   if (omit.filenames) dat <- dat[, !grepl("output.file", dat.names), drop=FALSE]
   ## } else {
   ##   if (length(col_names) > 0 && any(unlist(condition_targets) %in% col_names))
   ##     cat(paste("Filtering on columns", paste(col_names, collapse = ', '), "are disabled when atomic_only = FALSE is set.\n"))
@@ -420,7 +423,7 @@ filter.by.condition <- function (dat, expr, targets) {
 # complicated than it might seem from the description because it tries
 # to read the targets efficiently by reading from each DSC output file
 # no more than once.
-read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files,  verbose) {
+read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
 
   # Convert the DSC query result to a nested list.
   dat <- as.list(dat)
