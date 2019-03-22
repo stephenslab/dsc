@@ -195,7 +195,7 @@ class Query_Processor:
             if item in modules_in_groups:
                 for k in self.groups:
                     if item in self.groups[k]:
-                        raise DBError(f"The use of module ``{item}`` as query target is not allowed because it is already contained in group ``{k}``.")
+                        raise DBError(f"Query targets cannot involve both ``{item}`` and ``{k}``, i.e., a module and a group containing that module.")
 
     def add_na_group_parameters(self):
         if len(self.groups) == 0:
