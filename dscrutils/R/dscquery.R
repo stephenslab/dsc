@@ -292,12 +292,12 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
       dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
   }
 
-  browser()
-  
   # EXTRACT DSC OUTPUT
   # ------------------
-  # After this step, dat will become a nested list, in which each
-  # element dat[[i]][j]] is the value of target i in pipeline j.
+  # Extract outputs from DSC files for all columns with names of the
+  # form "module.variable:output". After this step, dat will become a
+  # nested list, in which each element dat[[i]][j]] is the value of
+  # target i in pipeline j.
   if (verbose)
     cat("Reading DSC outputs.\n")
   dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
@@ -403,10 +403,14 @@ filter.by.condition <- function (dat, expr, targets) {
 
 # This is a helper function used by dscquery that (1) converts the
 # "data" data frame to a nested list, and (2) replaces all names of
-# files with the values of the requested targets. It is more
-# complicated than it might seem from the description because it tries
-# to read the targets efficiently by reading from each DSC output file
-# no more than once.
+# files in "module.variable:output" columns with the values of the
+# requested targets. Note that the data frame may contain other
+# columns containing file names, but only columns specifically with
+# names of the form "module.variable:output" are processed here.
+#
+# This function is more complicated than it might seem from the
+# description because it tries to read the targets efficiently by
+# reading from each DSC output file no more than once.
 read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
 
   # Convert the DSC query result to a nested list.
@@ -417,8 +421,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
 
   # Determine which columns contain names of files that should be
   # read; these are columns of the form "module.variable:output". If
-  # none of the columns contain names of files, there is nothing to do
-  # here.
+  # there are no such columns, there is nothing to do here. 
   cols <- which(sapply(as.list(names(dat)),function (x) {
     n <- nchar(x)
     if (n < 7)
