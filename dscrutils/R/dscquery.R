@@ -2,30 +2,27 @@
 #'
 #' @description This is an R interface to the \code{dsc-query} program
 #' for conveniently extracting and exploring DSC results within the R
-#' environment. For additional documentation, run
+#' environment. For additional information, run
 #' \code{system("dsc-query --help")}.
 #'
 #' @param dsc.outdir Directory where the DSC output is stored.
 #'
-#' @param targets Query targets specified as a character string
-#' separated by spaces, or by a character vector; for example,
-#' \code{targets = "simulate.n analyze score.error"} and \code{targets
-#' = c("simulate.n","analyze","score.error")} are equivalent. A query
-#' target may either be a module group, a module parameter, or a module
-#' output. DSC pipelines (i.e., rows of the returned data frame) in
-#' which one of more of the targets are unassigned or missing
-#' (\code{NA}) will be automatically removed from the data frame; to
-#' allow for unassigned or missing values in the output columns (or
-#' list elements), use argument \code{targets.notreq} instead. This
-#' input argument, together with \code{targets.notreq}, specifies the
-#' \code{--target} flag in the \code{dsc-query} call. At least one of
-#' \code{targets} and \code{targets.notreq} must not be \code{NULL} or
-#' empty. Note that, to easily specify multiple targets from the same
-#' module, we recommend using \code{\link{paste}}; e.g.,
-#' \code{paste("simulate", c("n","p","df"),sep = ".")}. These targets
-#' will be the names of the columns in the data frame if a data frame
-#' is returned, or the names of the list elements if a list is
-#' returned.
+#' @param targets Query targets specified as a character vector; for
+#' example, \code{targets = c("simulate.n","analyze","score.error")}.
+#' A query target may be a module, a module group, a module parameter,
+#' or a module output. These are \emph{required} targets; that is, DSC
+#' pipelines (i.e., rows of the returned data frame) in which one of
+#' more of the targets are unassigned or missing (\code{NA}) will be
+#' automatically removed. To allow for unassigned or missing values,
+#' use argument \code{targets.notreq} instead. This input argument,
+#' together with \code{targets.notreq}, specifies the \code{--target}
+#' flag in the \code{dsc-query} call. At least one of \code{targets}
+#' and \code{targets.notreq} must not be \code{NULL} or empty. Note
+#' that, to easily specify multiple targets from the same module, we
+#' recommend using \code{\link{paste}}; e.g., \code{paste("simulate",
+#' c("n","p","df"),sep = ".")}. These targets will be the names of the
+#' columns in the data frame if a data frame is returned, or the names
+#' of the list elements if a list is returned.
 #'
 #' @param targets.notreq Non-required query targets; this is the same
 #' as \code{targets}, except that unassigned or missing values are not
@@ -90,7 +87,8 @@
 #' outputs can be retrieved using \code{\link{read_dsc}}.
 #'
 #' When \code{return.type = "list"}, the output is a list, with list
-#' elements corresponding to the query targets.
+#' elements corresponding to the query targets. Each top-level list
+#' element should have the same length.
 #'
 #' A data frame is most convenient with the outputs are not complex.
 #'
@@ -106,13 +104,15 @@
 #'
 #' All targets specified by the "targets" and "targets.notreq"
 #' arguments, except for targets that are module names, should have
-#' correspecting columns or list elements in the output. Additional
-#' columns giving file names of the DSC results files are added for
-#' all targets that are modules or module groups
+#' columns (or list elements) of the same name in the output.
+#' Additional columns giving file names of the DSC results files are
+#' added for all targets that are modules or module groups. 
 #'
-#' @note We have made considerable effort to prevent column names from
-#' being duplicated. However, we have not tested this extensively for
-#' possible column name conflicts.
+#' @details A call to dscquery cannot include targets that involve
+#' both a module, and a module group containing that module. For
+#' example, setting \code{targets = c("mean.est","analyze")} will
+#' generate an error if "mean" is a module, and it is a member of the
+#' "analyze" module group.
 #'
 #' This function may not work in Windows.
 #'

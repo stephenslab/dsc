@@ -5,22 +5,21 @@
 \title{R interface for querying DSC output.}
 \usage{
 dscquery(dsc.outdir, targets, targets.notreq = NULL, conditions = NULL,
-  groups = NULL, ignore.missing.file = FALSE,
-  omit.file.columns = FALSE, exec = "dsc-query",
+  groups = NULL, ignore.missing.files = FALSE,
+  omit.filenames = FALSE, exec = "dsc-query",
   return.type = c("data.frame", "list"), verbose = TRUE)
 }
 \arguments{
 \item{dsc.outdir}{Directory where the DSC output is stored.}
 
-\item{targets}{Query targets specified as a character string
-separated by spaces, or by a character vector; for example,
-\code{targets = "simulate.n analyze score.error"} and \code{targets
-= c("simulate.n","analyze","score.error")} are equivalent. DSC
-pipelines (i.e., rows of the returned data frame) in which any of
-the targets are unassigned or missing (\code{NA}) will be
-automatically removed from the data frame; to allow for unassigned
-or missing values in the output columns (or list elements), use
-argument \code{targets.notreq} instead. This input argument,
+\item{targets}{Query targets specified as a character vector; for
+example, \code{targets = c("simulate.n","analyze","score.error")}.
+A query target may be a module, a module group, a module parameter,
+or a module output. These are \emph{required} targets; that is, DSC
+pipelines (i.e., rows of the returned data frame) in which one of
+more of the targets are unassigned or missing (\code{NA}) will be
+automatically removed. To allow for unassigned or missing values,
+use argument \code{targets.notreq} instead. This input argument,
 together with \code{targets.notreq}, specifies the \code{--target}
 flag in the \code{dsc-query} call. At least one of \code{targets}
 and \code{targets.notreq} must not be \code{NULL} or empty. Note
@@ -56,17 +55,19 @@ additional examples). This input argument specifies the
 \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 will define two module groups, \code{method} and \code{score}.}
 
-\item{ignore.missing.file}{If \code{ignore.missing.file = TRUE},
+\item{ignore.missing.files}{If \code{ignore.missing.files = TRUE},
 all DSC output files that are missing will have \code{NA} for the
 file name; when extracting target outputs from files, any outputs
 with missing files will have their value set to \code{NA}. If
-\code{ignore.missing.file = FALSE}, \code{dscquery} will throw an
+\code{ignore.missing.files = FALSE}, \code{dscquery} will throw an
 error whenever a missing file is encountered.}
 
-\item{omit.file.columns}{If \code{omit.file.columns = TRUE}, all
-columns or list elements specifying DSC output files will not be
-included in the return value (these are list elements or column
-names ending in "output.file").}
+\item{omit.filenames}{When \code{omit.filenames = FALSE}, an
+additional column (or list element) giving the name of the DSC
+output file is provided for each query target that is a module or
+module group. This is useful if you want to directly inspect the
+stored results. Setting \code{omit.filenames = TRUE} supresses
+these additional outputs.}
 
 \item{exec}{The command or pathname of the \code{dsc-query}
 executable.}
@@ -92,7 +93,8 @@ DSC outputs are provided instead. In the latter case, individual
 outputs can be retrieved using \code{\link{read_dsc}}.
 
 When \code{return.type = "list"}, the output is a list, with list
-elements corresponding to the query targets.
+elements corresponding to the query targets. Each top-level list
+element should have the same length.
 
 A data frame is most convenient with the outputs are not complex.
 
@@ -105,17 +107,25 @@ package, or converted to many other data structures.
 
 When targets are unassigned, these are stored as missing values
 (\code{NA}) in the appropriate columns.
+
+All targets specified by the "targets" and "targets.notreq"
+arguments, except for targets that are module names, should have
+columns (or list elements) of the same name in the output.
+Additional columns giving file names of the DSC results files are
+added for all targets that are modules or module groups.
 }
 \description{
 This is an R interface to the \code{dsc-query} program
 for conveniently extracting and exploring DSC results within the R
-environment. For additional documentation, run
+environment. For additional information, run
 \code{system("dsc-query --help")}.
 }
-\note{
-We have made considerable effort to prevent column names from
-being duplicated. However, we have not tested this extensively for
-possible column name conflicts.
+\details{
+A call to dscquery cannot include targets that involve
+both a module, and a module group containing that module. For
+example, setting \code{targets = c("mean.est","analyze")} will
+generate an error if "mean" is a module, and it is a member of the
+"analyze" module group.
 
 This function may not work in Windows.
 }
@@ -133,7 +143,7 @@ dat1 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error")
 # filtering step can speed up the query when there are many
 # simulation results.
 dat2 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-                conditions = "$(analyze) == 'mean'")
+                 conditions = "$(analyze) == 'mean'")
 
 # Return results only for simulations in which the error summary is
 # greater than 0.25. This condition is applied after loading the full
