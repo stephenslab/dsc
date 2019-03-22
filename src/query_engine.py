@@ -439,6 +439,8 @@ class Query_Processor:
                     to_merge[k].append(col)
                     break
             self.groups[g] = ordered_group
+            # handle non-trivial groups first
+            to_merge = dict(sorted(to_merge.items(), key=lambda kv: (len(kv[1]), kv[0]), reverse=True))
             for k in to_merge:
                 if len(ordered_group) > 1:
                     table[f'{g}{k}'] = table.loc[:, to_merge[k]].apply(tuple, 1)
