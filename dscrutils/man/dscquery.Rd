@@ -4,8 +4,8 @@
 \alias{dscquery}
 \title{R interface for querying DSC output.}
 \usage{
-dscquery(dsc.outdir, targets, targets.notreq = NULL, conditions = NULL,
-  groups = NULL, ignore.missing.files = FALSE,
+dscquery(dsc.outdir, targets = NULL, targets.notreq = NULL,
+  conditions = NULL, groups = NULL, ignore.missing.files = FALSE,
   omit.filenames = FALSE, exec = "dsc-query", verbose = TRUE)
 }
 \arguments{
@@ -58,9 +58,9 @@ additional examples). This input argument specifies the
 will define two module groups, \code{method} and \code{score}.}
 
 \item{ignore.missing.files}{If \code{ignore.missing.files = TRUE},
-all DSC output files that are missing will have \code{NA} for the
+all DSC output files that are not found will have \code{NA} for the
 file name; when extracting target outputs from files, any outputs
-with missing files will have their value set to \code{NA}. If
+in which files are not found will have their value set to \code{NA}. If
 \code{ignore.missing.files = FALSE}, \code{dscquery} will throw an
 error whenever a missing file is encountered.}
 

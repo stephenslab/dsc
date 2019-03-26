@@ -61,9 +61,9 @@
 #' these additional outputs.
 #' 
 #' @param ignore.missing.files If \code{ignore.missing.files = TRUE},
-#' all DSC output files that are missing will have \code{NA} for the
+#' all DSC output files that are not found will have \code{NA} for the
 #' file name; when extracting target outputs from files, any outputs
-#' with missing files will have their value set to \code{NA}. If
+#' in which files are not found will have their value set to \code{NA}. If
 #' \code{ignore.missing.files = FALSE}, \code{dscquery} will throw an
 #' error whenever a missing file is encountered.
 #'
@@ -377,18 +377,10 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   if (!is.null(conditions))
     dat <- dat[final_outputs]
 
-  # Remove any outputs ending with "output.file".
+  # Remove any outputs ending with "output.file", if requested.
   if (omit.filenames) {
-    i <- which(!sapply(as.list(names(dat)),function (x) {
-           n <- nchar(x)
-           if (n < 12)
-             return(FALSE)
-           else
-             return(substr(x,n - 11,n) == ".output.file")
-         }))
-    dat <- dat[i]
-  }
-
+    dat <- remove.output.files(dat)
+    
   rownames(dat) <- NULL
   return(dat)
 }
@@ -597,7 +589,22 @@ remove.output.suffix <- function (dat) {
   return(dat)
 }
 
+# Remove all columns or list elements from "dat" with names ending in
+# ".output.file".
+remove.output.files <- function (dat) {
+  i <- which(!sapply(as.list(names(dat)),
+                     function (x) {
+                       n <- nchar(x)
+                       if (n < 12)
+                         return(FALSE)
+                       else
+                         return(substr(x,n - 11,n) == ".output.file")
+                       }))
+  return(dat[i])
+}
+
 # Return TRUE if and only if "dat" is a data frame or list containing
 # no results.
 is.empty.result <- function (dat)
   any(sapply(dat,length)) == 0
+
