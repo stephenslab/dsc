@@ -253,36 +253,49 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # once *without* the conditions. This is done to find which data
   # will be retained for the final output.
   if (!is.null(conditions)) {
+
+    # Run dsc-query.
     if (verbose)
       cat("Calling dsc-query with non-condition targets.\n")
-    targets_all <- c(targets,targets.notreq)
-    out     <- build.dscquery.call(targets_all,groups,dsc.outdir,outfile,exec)
+    out     <- build.dscquery.call(c(targets,targets.notreq),groups,
+                                   dsc.outdir,outfile,exec)
     outfile <- out$outfile
     cmd.str <- out$cmd.str
     run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
+
+    # Read the column names from the result of running dsc-query. (By
+    # setting nrows = 1, we don't read the full output.)
     dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
-                    check.names = FALSE,comment.char = "",
-                    na.strings = "NA",nrows = 1)
+                    check.names = FALSE,comment.char = "",na.strings = "NA",
+                    nrows = 1)
     if (any(duplicated(names(dat))))
       stop("One or more names in dsc-query output are the same")
-    final_outputs    <- names(dat)
-    i                <- which(sapply(as.list(final_outputs),is.output.column))
-    final_outputs[i] <- sapply(as.list(final_outputs[i]),
-                               function (x) substr(x,1,nchar(x) - 7))
+
+    # Determine the names of the columns (or list elements) for the
+    # final return value. This involves removing the ":output" suffix
+    # whenever it appears.
+    final_outputs <- names(dat)
+    n <- length(final_outputs)
+    for (i in 1:n)
+      if (is.output.column(final_outputs[i])) {
+        x <- final_outputs[i]
+        final_outputs[i] <- substr(x,1,nchar(x) - 7)
+      }
     
     # Add the targets appearing in the condition expressions to the
-    # "non-required" targets.
+    # set of "non-required" targets.
     targets.notreq <- c(targets.notreq,setdiff(do.call(c,condition_targets),
                                                targets.notreq))
   }
 
-  # Note that although the dsc-query program has the option to pass in
+  # Now we are ready to run dsc-query with all targets. Note that
+  # although the dsc-query program has the option to pass in
   # conditions, this feature is not used here, as the queries in this
   # interface are specified as R expressions.
   if (verbose)
-    cat("Calling dsc-query with all targets.\n")
-  targets_all <- c(targets,targets.notreq)
-  out     <- build.dscquery.call(targets_all,groups,dsc.outdir,outfile,exec)
+    cat("Calling dsc-query with all targets (condition and non-condition).\n")
+  out     <- build.dscquery.call(c(targets,targets.notreq),groups,
+                                 dsc.outdir,outfile,exec)
   outfile <- out$outfile
   cmd.str <- out$cmd.str
   run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
@@ -304,11 +317,6 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # Filter out rows in which one or more of the targets are unassigned
   # or missing.
   dat <- filter.by.query.targets(dat,targets)
-  if (nrow(dat) == 0) {
-    warning(paste("One or more equired targets are unassigned or missing",
-                  "in all DSC results; returning NULL"))
-    return(NULL)
-  }
   
   # PRE-FILTER BY CONDITIONS
   # ------------------------
@@ -317,11 +325,8 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   if (!is.null(conditions)) {
     n <- length(conditions)
     for (i in 1:n)
-      dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
-  }
-  if (nrow(dat) == 0) {
-    warning("No DSC results satisfy conditions; returning NULL")
-    return(NULL)
+      if (!is.empty.result(dat))
+        dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
   }
 
   # EXTRACT DSC OUTPUT
@@ -332,15 +337,10 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # target i in pipeline j.
   if (verbose)
     cat("Reading DSC outputs.\n")
-  dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
-
-  # ATTEMPT TO FLATTEN RETURN VALUE
-  # -------------------------------
-  dat.new <- flatten.nested.list(dat)
-  if (all(!sapply(dat.new,is.list)))
-    dat <- as.data.frame(dat.new,check.names = FALSE,stringsAsFactors = FALSE)
-  rm(dat.new)
-
+  if (!is.empty.result(dat))
+    dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
+  dat <- remove.output.suffix(dat)
+    
   # POST-FILTER BY CONDITIONS 
   # -------------------------
   # Filter rows of the data frame (or nested list) by each condition.
@@ -349,11 +349,25 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   if (!is.null(conditions)) {
     n <- length(conditions)
     for (i in 1:n)
-      dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
+      if (!is.empty.result(dat))
+        dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
   }
-  if (any(sapply(dat,length) == 0)) {
-    warning("No DSC results satisfy conditions; returning NULL")
-    return(NULL)
+
+  # ATTEMPT TO FLATTEN RETURN VALUE
+  # -------------------------------
+  if (is.empty.result(dat)) {
+    if (is.list(dat)) {
+      dat.new <- matrix(0,0,length(dat))
+      colnames(dat.new) <- names(dat)
+      dat <- as.data.frame(dat.new,check.names = FALSE)
+      rm(dat.new)
+    }
+  } else {
+    dat.new <- flatten.nested.list(dat)
+    if (all(!sapply(dat.new,is.list)))
+       dat <- as.data.frame(dat.new,check.names = FALSE,
+                            stringsAsFactors = FALSE)
+    rm(dat.new)
   }
 
   # REMOVE NON-REQUESTED OUTPUTS
@@ -469,7 +483,10 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
   # list elements is also a list, in which each of these elements
   # corresponds to a single variable extracted from the DSC results
   # file.
+  #
+  # Here we need to be careful to skip missing (NA) files.
   files      <- unique(do.call(c,dat[cols]))
+  files      <- files[!is.na(files)]
   n          <- length(files)
   out        <- rep(list(list()),n)
   vars       <- rep(as.character(NA),n)
@@ -481,9 +498,10 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
     x <- unlist(strsplit(x,"[.]"))[2]
     x <- substr(x,1,nchar(x) - 7)
     vars[i] <- x
-        
+
     for (j in dat[[i]])
-      out[[j]][[x]] <- NA
+      if (!is.na(j))
+        out[[j]][[x]] <- NA
   }
 
   # Extract the outputs.
@@ -506,19 +524,12 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
     n <- length(dat[[i]])
     v <- vars[i]
     for (j in 1:n) {
-      file          <- dat[[i]][[j]]
-      dat[[i]][[j]] <- out[[file]][[v]]
+      file <- dat[[i]][[j]]
+      if (!is.na(file))
+        dat[[i]][[j]] <- out[[file]][[v]]
     }
   }
-
-  # Remove the ":output" suffix from the names of the extracted
-  # columns.
-  for (i in cols) {
-    x <- names(dat)[i]
-    n <- nchar(x)
-    names(dat)[i] <- substr(x,1,n - 7)
-  }
-
+  
   return(dat)
 }
 
@@ -572,6 +583,21 @@ is.output.column <- function (x) {
     return(substr(x,n - 6,n) == ":output")
 }
 
-is.out.file <- function (x) {
+# Remove the ":output" suffix from the column names of the data frame
+# or names of the list element.
+remove.output.suffix <- function (dat) {
+  x <- names(dat)
+  n <- length(x)
+  for (i in 1:n)
+    if (is.output.column(x[i])) {
+      n    <- nchar(x[i])
+      x[i] <- substr(x[i],1,n - 7)
+    }
+  names(dat) <- x
+  return(dat)
 }
-    
+
+# Return TRUE if and only if "dat" is a data frame or list containing
+# no results.
+is.empty.result <- function (dat)
+  any(sapply(dat,length)) == 0
