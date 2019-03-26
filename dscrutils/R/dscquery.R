@@ -378,7 +378,7 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     dat <- dat[final_outputs]
 
   # Remove any outputs ending with "output.file", if requested.
-  if (omit.filenames) {
+  if (omit.filenames)
     dat <- remove.output.files(dat)
     
   rownames(dat) <- NULL
@@ -457,12 +457,22 @@ filter.by.condition <- function (dat, expr, targets) {
 # reading from each DSC output file no more than once.
 read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
 
-  # Convert the DSC query result to a nested list.
+  # Convert the DSC query result to a nested list. Here we use a
+  # "trick", setting all missing values to NA with logical type. This
+  # helps later on when using "unlist" to combine several values that
+  # are of different types, some of which are NA; with NAs set to
+  # logical, "unlist" should do a better job getting the best type.
+  #
+  # Note that the "as.logical" part is redundant, this is helpful to
+  # make it explicit that the NA is of type logical.
   dat <- as.list(dat)
   n   <- length(dat)
-  for (i in 1:n)
-    dat[[i]] <- as.list(dat[[i]])
-
+  for (i in 1:n) {
+    x           <- as.list(dat[[i]])
+    x[is.na(x)] <- as.logical(NA)
+    dat[[i]]    <- x
+  }
+  
   # Determine which columns contain names of files that should be
   # read; these are columns of the form "module.variable:output". If
   # there are no such columns, there is nothing to do here. 
@@ -477,6 +487,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
   # file.
   #
   # Here we need to be careful to skip missing (NA) files.
+  #
   files      <- unique(do.call(c,dat[cols]))
   files      <- files[!is.na(files)]
   n          <- length(files)
@@ -599,7 +610,7 @@ remove.output.files <- function (dat) {
                          return(FALSE)
                        else
                          return(substr(x,n - 11,n) == ".output.file")
-                       }))
+                     }))
   return(dat[i])
 }
 
@@ -607,4 +618,3 @@ remove.output.files <- function (dat) {
 # no results.
 is.empty.result <- function (dat)
   any(sapply(dat,length)) == 0
-
