@@ -95,29 +95,27 @@ test_that(paste("Second one_sample_location DSC example returns an error",
 
 test_that(paste("dscquery appropriately handles unassigned targets when",
                 "other targets are scalars"),{
-  dat <- data.frame(sim_params.params_store = c(NA,NA,5,5),
+  dat <- data.frame(DSC                     = c(1,2,1,2),
+                    sim_params.params_store = c(NA,NA,5,5),
                     cause.z                 = c(0.25,0.25,NA,NA))
   dsc.dir <- system.file("datafiles","misc","results1",package = "dscrutils")
   out <- dscquery(dsc.dir,
                   targets.notreq = c("sim_params.params_store","cause.z"),
-                  ignore.missing.files = TRUE,verbose = TRUE)
+                  verbose = FALSE)
   expect_equal(dat,out)
   expect_equal(is.na(dat),is.na(out))
 })
 
 test_that(paste("dscquery appropriately handles unassigned targets when",
                 "other targets are long vectors"),{
-  dat <- data.frame(sim_params.params_store = c(NA,NA,
-                      "sim_params/simulate_1_sim_params_1",
-                      "sim_params/simulate_2_sim_params_1"),
-                    cause.z = c(0.25,0.25,NA,NA),
-                    stringsAsFactors = FALSE)
+  dat <- list(DSC                     = list(1,2,1,2),
+              sim_params.params_store = list(NA,NA,1:20,1:20),
+              cause.z                 = list(0.25,0.25,NA,NA))
   dsc.dir <- system.file("datafiles","misc","results2",package = "dscrutils")
   out <- dscquery(dsc.dir,
                   targets.notreq = c("sim_params.params_store","cause.z"),
                   verbose = FALSE)
   expect_equal(dat,out)
-  expect_equal(is.na(dat),is.na(out))
 })
 
 test_that(paste("dscquery appropriately handles unassigned targets when",
