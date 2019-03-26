@@ -174,7 +174,7 @@
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
+dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
                       conditions = NULL, groups = NULL, 
                       ignore.missing.files = FALSE,
                       omit.filenames = FALSE, exec = "dsc-query",
@@ -304,7 +304,12 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
   # Filter out rows in which one or more of the targets are unassigned
   # or missing.
   dat <- filter.by.query.targets(dat,targets)
-
+  if (nrow(dat) == 0) {
+    warning(paste("One or more equired targets are unassigned or missing",
+                  "in all DSC results; returning NULL"))
+    return(NULL)
+  }
+  
   # PRE-FILTER BY CONDITIONS
   # ------------------------
   # Filter rows of the data frame by each condition. If one or more
@@ -313,6 +318,10 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
     n <- length(conditions)
     for (i in 1:n)
       dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
+  }
+  if (nrow(dat) == 0) {
+    warning("No DSC results satisfy conditions; returning NULL")
+    return(NULL)
   }
 
   # EXTRACT DSC OUTPUT
@@ -334,13 +343,17 @@ dscquery <- function (dsc.outdir, targets, targets.notreq = NULL,
 
   # POST-FILTER BY CONDITIONS 
   # -------------------------
-  # Filter rows of the data frame by each condition. This is second
-  # filtering step is necessary to take care of any conditions that
-  # couldn't be applied in the pre-filtering step.
+  # Filter rows of the data frame (or nested list) by each condition.
+  # This is second filtering step is necessary to take care of any
+  # conditions that couldn't be applied in the pre-filtering step.
   if (!is.null(conditions)) {
     n <- length(conditions)
     for (i in 1:n)
       dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
+  }
+  if (any(sapply(dat,length) == 0)) {
+    warning("No DSC results satisfy conditions; returning NULL")
+    return(NULL)
   }
 
   # REMOVE NON-REQUESTED OUTPUTS
@@ -411,10 +424,10 @@ filter.by.query.targets <- function (dat, targets) {
   return(dat[rows,])
 }
 
-# Filter rows of the data frame "dat" by the given expression ("expr")
-# mentioning one or more variables (columns) listed in "targets". If
-# one or more targets is unavailable, the unmodified data frame is
-# returned.
+# Filter rows of the data frame (or nested list) "dat" by the given
+# expression ("expr") mentioning one or more variables (columns)
+# listed in "targets". If one or more targets is unavailable, the
+# unmodified data frame is returned.
 filter.by.condition <- function (dat, expr, targets) {
   if (all(is.element(targets,names(dat)))) {
     rows <- which(with(dat,eval(parse(text = expr))))
@@ -450,7 +463,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
   cols <- which(sapply(as.list(names(dat)),is.output.column))
   if (length(cols) == 0)
     return(dat)
-  
+
   # Create a new nested list data structure in which each element
   # corresponds to a single file containing DSC results; each of these
   # list elements is also a list, in which each of these elements

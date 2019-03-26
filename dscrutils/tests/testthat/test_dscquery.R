@@ -98,8 +98,9 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
   dat <- data.frame(sim_params.params_store = c(NA,NA,5,5),
                     cause.z                 = c(0.25,0.25,NA,NA))
   dsc.dir <- system.file("datafiles","misc","results1",package = "dscrutils")
-  out <- dscquery(dsc.dir,targets = c("sim_params.params_store","cause.z"),
-                  verbose = FALSE)[-1]
+  out <- dscquery(dsc.dir,
+                  targets.notreq = c("sim_params.params_store","cause.z"),
+                  ignore.missing.files = TRUE,verbose = TRUE)
   expect_equal(dat,out)
   expect_equal(is.na(dat),is.na(out))
 })
@@ -112,8 +113,9 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
                     cause.z = c(0.25,0.25,NA,NA),
                     stringsAsFactors = FALSE)
   dsc.dir <- system.file("datafiles","misc","results2",package = "dscrutils")
-  out <- dscquery(dsc.dir,targets = c("sim_params.params_store","cause.z"),
-                  verbose = FALSE)[-1]
+  out <- dscquery(dsc.dir,
+                  targets.notreq = c("sim_params.params_store","cause.z"),
+                  verbose = FALSE)
   expect_equal(dat,out)
   expect_equal(is.na(dat),is.na(out))
 })
