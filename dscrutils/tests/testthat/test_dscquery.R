@@ -107,7 +107,7 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
 })
 
 test_that(paste("dscquery appropriately handles unassigned targets when",
-                "other targets are long vectors"),{
+                "other targets are vectors"),{
   dat <- list(DSC                     = list(1,2,1,2),
               sim_params.params_store = list(NA,NA,1:20,1:20),
               cause.z                 = list(0.25,0.25,NA,NA))
@@ -117,19 +117,3 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
                   verbose = FALSE)
   expect_equal(dat,out)
 })
-
-test_that(paste("dscquery appropriately handles unassigned targets when",
-                "other targets are short vectors (length <= 10)"),{
-  dat        <- rbind(c(rep(NA,4),0.25),
-                      c(rep(NA,4),0.25),
-                      c(1:4,NA),
-                      c(1:4,NA))
-  dat        <- as.data.frame(dat)
-  names(dat) <- c(paste0("sim_params.params_store.",1:4),"cause.z")
-  dsc.dir <- system.file("datafiles","misc","results3",package = "dscrutils")
-  out <- dscquery(dsc.dir,targets = c("sim_params.params_store","cause.z"),
-                  verbose = FALSE)[-1]
-  expect_equal(dat,out)
-  expect_equal(is.na(dat),is.na(out))
-})
-
