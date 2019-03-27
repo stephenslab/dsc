@@ -53,6 +53,14 @@
 #' \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 #' will define two module groups, \code{method} and \code{score}.
 #'
+#' @param return.type If \code{return.type = "data.frame"}, the DSC
+#' outputs are returned in a data frame; if \code{return.type =
+#' "list"}, the DSC output a list. If \code{return.type = "auto"}, a
+#' list or data frame is returned depending on which data structure is
+#' most appropriate for the DSC outputs. See "Value" for more
+#' information about the different return types, and the benefits (and
+#' limitations) of each.
+#' 
 #' @param omit.filenames When \code{omit.filenames = FALSE}, an
 #' additional column (or list element) giving the name of the DSC
 #' output file is provided for each query target that is a module or
@@ -75,12 +83,21 @@
 #'
 #' @return A list or data frame containing the result of the DSC
 #' query.
-#' 
+#'
+#' When \code{return.type = "data.frame"}, the output is a data frame.
 #' When possible, DSC outputs are extracted into the columns of the
-#' data frame. When outputs one or more outputs are large or complex
-#' objects, the output is a list, with list elements corresponding to
-#' the query targets. Each top-level list element should have the same
-#' length.
+#' data frame; when this is not possible (e.g., for more complex
+#' outputs such as matrices), file names containing the DSC outputs
+#' are provided instead. A data frame is most convenient with the
+#' outputs are not complex.
+#'
+#' When \code{return.type = "list"}, the output is a list, with list
+#' elements corresponding to the query targets. Each top-level list
+#' element should have the same length.
+#' 
+#' When \code{return.type = "auto"}, DSC outputs are extracted into
+#' the columns of the data frame unless one or more outputs are large
+#' or complex objects, in which case the return value is a list.
 #'
 #' Note that a list can be later converted to a data frame using
 #' \code{\link{as.data.frame}}, or converted to a "tibble" using the
@@ -175,7 +192,8 @@
 #' @export
 #'
 dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
-                      conditions = NULL, groups = NULL, 
+                      conditions = NULL, groups = NULL,
+                      return.type = c("auto", "data.frame", "list"),
                       ignore.missing.files = FALSE,
                       omit.filenames = FALSE, exec = "dsc-query",
                       verbose = TRUE) {
@@ -216,6 +234,9 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
       stop(paste("Argument \"groups\" should be \"NULL\", or a character",
                  "vector with at least one element"))
   
+  # Check and process input argument "return.type".
+  return.type <- match.arg(return.type)
+
   # Check input argument "ignore.missing.files".
   if (!(is.logical(ignore.missing.files) & length(ignore.missing.files) == 1))
     stop("Argument \"ignore.missing.files\" should be TRUE or FALSE")
@@ -337,10 +358,44 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # target i in pipeline j.
   if (verbose)
     cat("Reading DSC outputs.\n")
+  dat.unextracted <- dat
   if (!is.empty.result(dat))
     dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
   dat <- remove.output.suffix(dat)
     
+  # OPTIONALLY FLATTEN RETURN VALUE
+  # -------------------------------
+  if (return.type == "data.frame") {
+
+    # Handle the edge case when there are no results to return (i.e.,
+    # zero rows in data frame).
+    if (is.empty.result(dat)) {
+      if (is.list(dat)) {
+        dat.new           <- matrix(0,0,length(dat))
+        colnames(dat.new) <- names(dat)
+        dat               <- as.data.frame(dat.new,check.names = FALSE)
+        rm(dat.new)
+      }
+    } else {
+
+      # Flatten all the results into a data frame. For anything that
+      # cannot be inserted into a column of a data frame, give the
+      # output file instead.
+      dat <- flatten.nested.list(dat)
+      n   <- length(dat)  
+      for (i in 1:n)
+        if (is.list(dat[[i]]))
+          dat[[i]] <- dat.unextracted[[paste0(names(dat)[i],":output")]]
+      dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
+    }
+  } else if (return.type == "auto") {
+    dat.new <- flatten.nested.list(dat)
+    if (all(!sapply(dat.new,is.list)))
+      dat <- as.data.frame(dat.new,check.names = FALSE,
+                           stringsAsFactors = FALSE)
+    rm(dat.new)
+  }
+
   # POST-FILTER BY CONDITIONS 
   # -------------------------
   # Filter rows of the data frame (or nested list) by each condition.
@@ -351,23 +406,6 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     for (i in 1:n)
       if (!is.empty.result(dat))
         dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
-  }
-
-  # ATTEMPT TO FLATTEN RETURN VALUE
-  # -------------------------------
-  if (is.empty.result(dat)) {
-    if (is.list(dat)) {
-      dat.new <- matrix(0,0,length(dat))
-      colnames(dat.new) <- names(dat)
-      dat <- as.data.frame(dat.new,check.names = FALSE)
-      rm(dat.new)
-    }
-  } else {
-    dat.new <- flatten.nested.list(dat)
-    if (all(!sapply(dat.new,is.list)))
-       dat <- as.data.frame(dat.new,check.names = FALSE,
-                            stringsAsFactors = FALSE)
-    rm(dat.new)
   }
 
   # REMOVE NON-REQUESTED OUTPUTS

@@ -5,7 +5,8 @@
 \title{R interface for querying DSC output.}
 \usage{
 dscquery(dsc.outdir, targets = NULL, targets.notreq = NULL,
-  conditions = NULL, groups = NULL, ignore.missing.files = FALSE,
+  conditions = NULL, groups = NULL, return.type = c("auto",
+  "data.frame", "list"), ignore.missing.files = FALSE,
   omit.filenames = FALSE, exec = "dsc-query", verbose = TRUE)
 }
 \arguments{
@@ -57,6 +58,14 @@ additional examples). This input argument specifies the
 \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 will define two module groups, \code{method} and \code{score}.}
 
+\item{return.type}{If \code{return.type = "data.frame"}, the DSC
+outputs are returned in a data frame; if \code{return.type =
+"list"}, the DSC output a list. If \code{return.type = "auto"}, a
+list or data frame is returned depending on which data structure is
+most appropriate for the DSC outputs. See "Value" for more
+information about the different return types, and the benefits (and
+limitations) of each.}
+
 \item{ignore.missing.files}{If \code{ignore.missing.files = TRUE},
 all DSC output files that are not found will have \code{NA} for the
 file name; when extracting target outputs from files, any outputs
@@ -81,11 +90,20 @@ query command to the console.}
 A list or data frame containing the result of the DSC
 query.
 
+When \code{return.type = "data.frame"}, the output is a data frame.
 When possible, DSC outputs are extracted into the columns of the
-data frame. When outputs one or more outputs are large or complex
-objects, the output is a list, with list elements corresponding to
-the query targets. Each top-level list element should have the same
-length.
+data frame; when this is not possible (e.g., for more complex
+outputs such as matrices), file names containing the DSC outputs
+are provided instead. A data frame is most convenient with the
+outputs are not complex.
+
+When \code{return.type = "list"}, the output is a list, with list
+elements corresponding to the query targets. Each top-level list
+element should have the same length.
+
+When \code{return.type = "auto"}, DSC outputs are extracted into
+the columns of the data frame unless one or more outputs are large
+or complex objects, in which case the return value is a list.
 
 Note that a list can be later converted to a data frame using
 \code{\link{as.data.frame}}, or converted to a "tibble" using the
