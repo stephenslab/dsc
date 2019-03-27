@@ -363,8 +363,10 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
   dat <- remove.output.suffix(dat)
     
-  # OPTIONALLY FLATTEN RETURN VALUE
-  # -------------------------------
+  # (OPTIONALLY) FLATTEN RETURN VALUE
+  # ---------------------------------
+  # If return.type is "list", there is nothing that needs to be done
+  # here.
   if (return.type == "data.frame") {
 
     # Handle the edge case when there are no results to return (i.e.,
@@ -389,6 +391,8 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
       dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
     }
   } else if (return.type == "auto") {
+      
+    # If all the outputs can be stored in a data frame, do so.
     dat.new <- flatten.nested.list(dat)
     if (all(!sapply(dat.new,is.list)))
       dat <- as.data.frame(dat.new,check.names = FALSE,
