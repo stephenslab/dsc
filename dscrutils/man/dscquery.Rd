@@ -188,8 +188,7 @@ dat6 <-
   dscquery(dsc.dir2,
            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
                        "shrink.beta_est","shrink.pi0_est"),
-           conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
-           max.extract.vector = 1000)
+           conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'")
 
 \dontrun{
 
