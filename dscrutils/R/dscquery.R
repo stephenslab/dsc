@@ -175,8 +175,7 @@
 #'   dscquery(dsc.dir2,
 #'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
 #'                        "shrink.beta_est","shrink.pi0_est"),
-#'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
-#'            max.extract.vector = 1000)
+#'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'")
 #'
 #' \dontrun{
 #'
@@ -365,41 +364,32 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     
   # (OPTIONALLY) FLATTEN RETURN VALUE
   # ---------------------------------
-  # If return.type is "list", there is nothing that needs to be done
-  # here.
-  if (return.type == "data.frame") {
-
-    # Handle the edge case when there are no results to return (i.e.,
-    # zero rows in data frame).
-    if (is.empty.result(dat)) {
-      if (is.list(dat)) {
-        dat.new           <- matrix(0,0,length(dat))
-        colnames(dat.new) <- names(dat)
-        dat               <- as.data.frame(dat.new,check.names = FALSE)
-        rm(dat.new)
-      }
-    } else {
-
-      # Flatten all the results into a data frame. For anything that
-      # cannot be inserted into a column of a data frame, give the
-      # output file instead.
-      dat <- flatten.nested.list(dat)
-      n   <- length(dat)  
-      for (i in 1:n)
-        if (is.list(dat[[i]]))
-          dat[[i]] <- dat.unextracted[[paste0(names(dat)[i],":output")]]
-      dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
+  # Handle the edge case when there are no results to return (i.e.,
+  # zero rows in data frame).
+  if (is.empty.result(dat)) {
+    if (return.type == "data.frame" || return.type == "auto") {
+      dat.new           <- matrix(0,0,length(dat))
+      colnames(dat.new) <- names(dat)
+      dat               <- as.data.frame(dat.new,check.names = FALSE)
+      rm(dat.new)
     }
+  } else if (return.type == "data.frame") {
+
+    # Flatten all the results into a data frame. For anything that
+    # cannot be inserted into a column of a data frame, give the
+    # output file instead.
+    dat <- flatten.nested.list(dat)
+    n   <- length(dat)  
+    for (i in 1:n)
+      if (is.list(dat[[i]]))
+        dat[[i]] <- dat.unextracted[[paste0(names(dat)[i],":output")]]
+    dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
   } else if (return.type == "auto") {
       
     # If all the outputs can be stored in a data frame, do so.
-    dat.new <- flatten.nested.list(dat)
-    if (all(!sapply(dat.new,is.list)))
-      dat <- as.data.frame(dat.new,check.names = FALSE,
-                           stringsAsFactors = FALSE)
-    else
-      dat <- dat.new
-    rm(dat.new)
+    dat <- flatten.nested.list(dat)
+    if (all(!sapply(dat,is.list)))
+      dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
   } else if (return.type  == "list")
     dat <- flatten.nested.list(dat)
 

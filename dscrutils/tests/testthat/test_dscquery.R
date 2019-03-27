@@ -117,3 +117,4 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
                   verbose = FALSE)
   expect_equal(dat,out)
 })
+
