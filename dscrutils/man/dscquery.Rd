@@ -77,7 +77,7 @@ error whenever a missing file is encountered.}
 additional column (or list element) giving the name of the DSC
 output file is provided for each query target that is a module or
 module group. This is useful if you want to directly inspect the
-stored results. Setting \code{omit.filenames = TRUE} supresses
+stored results. Setting \code{omit.filenames = TRUE} suppresses
 these additional outputs.}
 
 \item{exec}{The command or pathname of the \code{dsc-query}

@@ -40,8 +40,8 @@ test_that(paste("Filtering by conditions argument for one_sample_location",
   # module was run, and which which the error summary is greater than
   # 0.25.
   dat4 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-                  conditions = c("$(score.error) > 0.25",
-                                 "$(analyze) == 'median'"),
+                   conditions = c("$(score.error) > 0.25",
+                                  "$(analyze) == 'median'"),
                    verbose = FALSE)
   expect_equal(subset(dat1,analyze == "median" & score.error > 0.25),
                dat4,check.attributes = FALSE)
@@ -81,7 +81,7 @@ test_that(paste("Second ash DSC example without shrink.beta_est",
 })
 
 test_that(paste("Second one_sample_location DSC example returns an error",
-                "because mse.score does not exist"),{
+                "because score.mse does not exist"),{
 
   # This query should generate an error because there is no output
   # called "score" in the "mse" module.
@@ -90,7 +90,7 @@ test_that(paste("Second one_sample_location DSC example returns an error",
   expect_error(dscquery(dsc.dir,
                         targets = c("simulate.n","analyze","score.mse"),
                         conditions = "$(simulate.n) > 10",
-                        verbose = FALSE))
+                        verbose = TRUE))
 })
 
 test_that(paste("dscquery appropriately handles unassigned targets when",
@@ -108,9 +108,9 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
 
 test_that(paste("dscquery appropriately handles unassigned targets when",
                 "other targets are vectors"),{
-  dat <- list(DSC                     = list(1,2,1,2),
+  dat <- list(DSC                     = c(1,2,1,2),
               sim_params.params_store = list(NA,NA,1:20,1:20),
-              cause.z                 = list(0.25,0.25,NA,NA))
+              cause.z                 = c(0.25,0.25,NA,NA))
   dsc.dir <- system.file("datafiles","misc","results2",package = "dscrutils")
   out <- dscquery(dsc.dir,
                   targets.notreq = c("sim_params.params_store","cause.z"),

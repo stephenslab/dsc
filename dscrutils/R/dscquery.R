@@ -65,7 +65,7 @@
 #' additional column (or list element) giving the name of the DSC
 #' output file is provided for each query target that is a module or
 #' module group. This is useful if you want to directly inspect the
-#' stored results. Setting \code{omit.filenames = TRUE} supresses
+#' stored results. Setting \code{omit.filenames = TRUE} suppresses
 #' these additional outputs.
 #' 
 #' @param ignore.missing.files If \code{ignore.missing.files = TRUE},
@@ -397,8 +397,11 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     if (all(!sapply(dat.new,is.list)))
       dat <- as.data.frame(dat.new,check.names = FALSE,
                            stringsAsFactors = FALSE)
+    else
+      dat <- dat.new
     rm(dat.new)
-  }
+  } else if (return.type  == "list")
+    dat <- flatten.nested.list(dat)
 
   # POST-FILTER BY CONDITIONS 
   # -------------------------
