@@ -1,7 +1,12 @@
-language: python
+language:
+  - python
+  - r
+
 python:
   - "3.7"
+
 dist: xenial
+
 addons:
   apt:
     update: true
@@ -9,8 +14,13 @@ addons:
       - r-base
       - r-base-dev
       - r-cran-yaml
+
+r_build_args: --no-build-vignettes
+r_check_args: --as-cran --ignore-vignettes
+  
 install:
   - pip install --ignore-installed -r requirements.txt
+  
 script:
   - python -m pip install . --no-deps -vv
   - dsc --help
