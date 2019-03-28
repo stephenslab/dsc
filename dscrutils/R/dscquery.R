@@ -99,10 +99,9 @@
 #' the columns of the data frame unless one or more outputs are large
 #' or complex objects, in which case the return value is a list.
 #'
-#' Note that a list can be later converted to a data frame using
+#' Note that a list can sometimes be converted to a data frame using
 #' \code{\link{as.data.frame}}, or converted to a "tibble" using the
-#' \code{\link[tibble]{as_tibble}} function from the tibble package,
-#' or converted to many other data structures.
+#' \code{\link[tibble]{as_tibble}} function from the tibble package.
 #'
 #' All targets specified by the "targets" and "targets.notreq"
 #' arguments, except for targets that are module names, should have
@@ -379,10 +378,19 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     # cannot be inserted into a column of a data frame, give the
     # output file instead.
     dat <- flatten.nested.list(dat)
-    n   <- length(dat)  
+    n   <- length(dat)
+    some.cols.unextracted <- FALSE
     for (i in 1:n)
-      if (is.list(dat[[i]]))
+      if (is.list(dat[[i]])) {
         dat[[i]] <- dat.unextracted[[paste0(names(dat)[i],":output")]]
+        if (!some.cols.unextracted) {
+          some.cols.unextracted <- TRUE
+          message(paste("Results for one or more targets were not added to",
+                        "the data frame because their contents are complex;",
+                        "consider setting return.type = \"list\" to retrieve",
+                        "the results for these targets"))
+        }
+      }
     dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
   } else if (return.type == "auto") {
       
@@ -390,8 +398,14 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     dat <- flatten.nested.list(dat)
     if (all(!sapply(dat,is.list)))
       dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
-  } else if (return.type  == "list")
+  } else if (return.type  == "list") {
     dat <- flatten.nested.list(dat)
+    if (all(!sapply(dat,is.list)))
+      message(paste("return.type = \"list\" was chosen, but results can also",
+                    "be returned as a data frame with return.type =",
+                    "\"data.frame\" or return.type = \"auto\"; a data frame",
+                    "may be more convenient for analyzing these results"))
+}
 
   # POST-FILTER BY CONDITIONS 
   # -------------------------
