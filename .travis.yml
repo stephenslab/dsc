@@ -25,9 +25,9 @@ script:
   - dsc --help
   - dsc-query --version
   - sudo R --slave -e 'options(repos = "https://cran.mtu.edu"); install.packages(c("dplyr","rlang","ggplot2","shiny","reticulate","testthat"),type = "source")'
-  - R CMD build --no-manual dscrutils
+  - R CMD build dscrutils
   - sudo R CMD INSTALL dscrutils_0.3.4.tar.gz
-  - R CMD check --as-cran --no-examples --no-manual dscrutils_0.3.4.tar.gz
+  - R CMD check --as-cran --no-examples dscrutils_0.3.4.tar.gz
   - cd test && python test_parser.py && python test_query.py
 
 branches:
