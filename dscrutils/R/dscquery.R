@@ -395,7 +395,7 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
 
   # POST-FILTER BY CONDITIONS 
   # -------------------------
-  # Filter rows of the data frame (or nested list) by each condition.
+  # Filter rows of the data frame (or list) by each condition.
   # This is second filtering step is necessary to take care of any
   # conditions that couldn't be applied in the pre-filtering step.
   if (!is.null(conditions)) {
