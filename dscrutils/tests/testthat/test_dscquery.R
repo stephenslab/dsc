@@ -90,7 +90,7 @@ test_that(paste("Second one_sample_location DSC example returns an error",
   expect_error(dscquery(dsc.dir,
                         targets = c("simulate.n","analyze","score.mse"),
                         conditions = "$(simulate.n) > 10",
-                        verbose = TRUE))
+                        verbose = FALSE))
 })
 
 test_that(paste("dscquery appropriately handles unassigned targets when",
