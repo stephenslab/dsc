@@ -131,7 +131,7 @@
 #' # Retrieve the number of samples ("simulate.n") and error summary
 #' # ("score.error") from all simulations in the "one_sample_location"
 #' # DSC experiment.
-#' dsc.dir <- system.file("datafiles","one_sample_location",
+c#' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
 #' dat1 <- dscquery(dsc.dir,
 #'                  targets = c("simulate.n","analyze","score.error"))
@@ -328,8 +328,8 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
   dat <- remove.output.suffix(dat)
     
-  # (OPTIONALLY) FLATTEN RETURN VALUE
-  # ---------------------------------
+  # OPTIONALLY FLATTEN RETURN VALUE
+  # -------------------------------
   # Handle the edge case when there are no results to return (i.e.,
   # zero rows in data frame).
   if (is.empty.result(dat)) {
@@ -365,6 +365,10 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     dat <- flatten.nested.list(dat)
     if (all(!sapply(dat,is.list)))
       dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
+    else
+      message(paste("dscquery is returning a list because one or more",
+                    "outputs are complex; consider converting the list to",
+                    "a tibble using the \"tibble\" package"))
   } else if (return.type  == "list") {
     dat <- flatten.nested.list(dat)
     if (all(!sapply(dat,is.list)))
