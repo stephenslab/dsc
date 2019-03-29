@@ -20,6 +20,7 @@ Suggests:
     ggplot2,
     dplyr,
     rlang,
+    tibble,
     shiny,
     reticulate,
     testthat
