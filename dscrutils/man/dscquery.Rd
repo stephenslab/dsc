@@ -38,20 +38,23 @@ removed from the return value. This input argument, together with
 
 \item{conditions}{Conditions used to filter DSC pipeline results;
 rows in which one or more of the conditions evaluate to
-\code{FALSE} or \code{NA} are removed from the output (this is
-convention used by \code{\link{which}}). When \code{conditions =
-NULL}, no additional filtering of DSC pipelines is
-performed. Although results can always be filtered \emph{post hoc},
-using \code{conditions} to filter can significantly speed up
-queries when the DSC outputs are very large, as this will filter
-results, whenever possible, \emph{before} they are loaded into
-R. Query conditions are specified as R expressions, in which target
-names are written as \code{$(...)}; for example, to request only
-results in which the value of parameter \code{sigma} in module
-\code{simulate} is greater than or equal to \code{0.1}, set
-\code{conditions = "$(simulate.sigma) >= 0.1"} (see below for
-additional examples). This input argument specifies the
-\code{--condition} flag in the call to \code{dsc-query}.}
+\code{FALSE} or \code{NA} are removed from the output (removing
+conditions that evaluate to \code{NA} is convention used by
+\code{\link{which}}). When \code{conditions = NULL}, no additional
+filtering of DSC pipelines is performed. Although results can
+always be filtered \emph{post hoc}, using \code{conditions} to
+filter can significantly speed up queries when the DSC outputs are
+very large, as this will filter results, whenever possible,
+\emph{before} they are loaded into R. Query conditions are
+specified as R expressions, in which target names are written as
+\code{$(...)}; for example, to request only results in which the
+value of parameter \code{sigma} in module \code{simulate} is
+greater than or equal to \code{0.1}, set \code{conditions =
+"$(simulate.sigma) >= 0.1"} (see below for additional
+examples). This input argument specifies the \code{--condition}
+flag in the call to \code{dsc-query}. All targets used in the
+conditions must also be included in \code{targets} or
+\code{targets.notreq}.}
 
 \item{groups}{Defines module groups. This argument specifies the
 \code{--groups} flag in the call to \code{dsc-query}. For example,
@@ -105,10 +108,9 @@ When \code{return.type = "auto"}, DSC outputs are extracted into
 the columns of the data frame unless one or more outputs are large
 or complex objects, in which case the return value is a list.
 
-Note that a list can be later converted to a data frame using
+Note that a list can sometimes be converted to a data frame using
 \code{\link{as.data.frame}}, or converted to a "tibble" using the
-\code{\link[tibble]{as_tibble}} function from the tibble package,
-or converted to many other data structures.
+\code{\link[tibble]{as_tibble}} function from the tibble package.
 
 All targets specified by the "targets" and "targets.notreq"
 arguments, except for targets that are module names, should have
