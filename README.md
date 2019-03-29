@@ -93,6 +93,13 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.5
+
+Major improvements to `dscrquery`
+
+- Performance improvement #168
+- Output format improvement #174
+
 0.3.4
 
 - Reimplement `dsc-query` and `dscrquery` for improved handling of missing value #145.
