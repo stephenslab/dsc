@@ -128,65 +128,60 @@
 #'
 #' @examples
 #'
-#' # Retrieve the number of samples ("n") and error summary ("error")
-#' # from all simulations in the "one_sample_location" DSC experiment.
+#' # Retrieve the number of samples ("simulate.n") and error summary
+#' # ("score.error") from all simulations in the "one_sample_location"
+#' # DSC experiment.
 #' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
-#' dat1 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error")
-#'
-#' # Retrieve the results only for simulations in which the "mean"
-#' # module was run. Because this condition is about a module name, it
-#' # is applied before loading the full set of results into R, so the
-#' # filtering step can speed up the query when there are many
-#' # simulation results.
-#' dat2 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-#'                  conditions = "$(analyze) == 'mean'")
+#' dat1 <- dscquery(dsc.dir,
+#'                  targets = c("simulate.n","analyze","score.error"))
 #' 
+#' # Retrieve the results only for simulations in which the "mean" module
+#' # was run. Because this is a condition for a module name, it is
+#' # applied before loading the full set of results into R. Therefore,
+#' # this type of filtering step can speed up the query when there are
+#' # many simulation results.
+#' dat2 <- dscquery(dsc.dir,
+#'                  targets = c("simulate.n","analyze","score.error"),
+#'                  conditions = "$(analyze) == 'mean'")
+#'
 #' # Return results only for simulations in which the error summary is
-#' # greater than 0.25. This condition is applied after loading the full
-#' # set of results into R, and so this sort of condition will not
+#' # greater than 0.2. This condition is applied only after loading the
+#' # full set of results into R. Therefore, this type of condition will not
 #' # reduce the query runtime.
-#' dat3 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-#'                conditions = "$(score.error) > 0.25")
+#' dat3 <- dscquery(dsc.dir,
+#'                  targets = c("simulate.n","analyze","score.error"),
+#'                  conditions = "$(score.error) > 0.2")
 #'
 #' # Retrieve the DSC results only for simulations in which the "mean"
 #' # module was run, and which which the error summary is greater than
-#' # 0.25. The conditions in this case are applied before and after
+#' # 0.2. The conditions in this case are applied both before and after
 #' # loading results into R.
-#' dat4 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
-#'                  conditions = c("$(score.error) > 0.25",
-#'                                "$(analyze) == 'median'"))
-#'
+#' dat4 <- dscquery(dsc.dir,
+#'                  targets = c("simulate.n","analyze","score.error"),
+#'                  conditions = c("$(score.error) > 0.2",
+#'                                 "$(analyze) == 'median'"))
+#' 
 #' # Retrieve some results from the "ash" DSC experiment. In this
-#' # example, the beta estimates are long vectors (length 1,000), so the
-#' # results are not extracted into the outputted data frame.
+#' # example, the beta estimates are vectors, so the results are
+#' # extracted into a list by default.
 #' dsc.dir2 <- system.file("datafiles","ash","dsc_result",
 #'                         package = "dscrutils")
 #' dat5 <-
 #'   dscquery(dsc.dir2,
-#'            targets = c(paste("simulate",c("nsamp","g"),sep="."),
-#'                        paste("shrink",c("mixcompdist","beta_est","pi0_est"),
-#'                              sep=".")),
+#'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
+#'                        "shrink.beta_est","shrink.pi0_est"),
 #'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'")
-#'
-#' # This is the same as the previous example, but extracts the
-#' # vector-valued beta estimates into the outputted data frame. As a
-#' # result, the data frame of query results is much larger (it has over
-#' # 1000 columns).
+#' 
+#' # This is the same as the previous example, but extracts the results
+#' # into data frame. Since the vectors cannot be stored in a data frame,
+#' # the names of the files storing the vectors are returned instead.
 #' dat6 <-
 #'   dscquery(dsc.dir2,
 #'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
 #'                        "shrink.beta_est","shrink.pi0_est"),
-#'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'")
-#'
-#' \dontrun{
-#'
-#' # This query should generate an error because there is no output
-#' # called "mse" in the "score" module.
-#' dat7 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.mse"),
-#'                  conditions = "$(simulate.n) > 10")
-#'
-#' }
+#'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
+#'            return.type = "data.frame")
 #'
 #' @importFrom utils read.csv
 #'
