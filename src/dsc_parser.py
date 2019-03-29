@@ -180,16 +180,20 @@ class DSC_Script:
         '''
         input looks like: ['--data_file', '1.txt', '2.txt', ...]
         '''
-        if gparams is None or not 'global' in self.content['DSC']:
+        if gparams is None: 
             return
+        if not 'global' in self.content['DSC'] and gparams is not None:
+            raise ValueError(f"Invalid option ``{' '.join(gparams)}``")
         global_vars = OrderedDict()
         curr_key = None
         for v in gparams:
             if v.startswith('--'):
                 curr_key = v[2:]
-            if curr_key and not curr_key in global_vars:
+            if curr_key is None:
+                raise ValueError(f"Invalid argument ``{v}``.")
+            if not curr_key in global_vars:
                 global_vars[curr_key] = []
-            elif curr_key in global_vars:
+            else:
                 global_vars[curr_key].append(v)
         for k in global_vars:
             if k in self.content['DSC']['global']:
