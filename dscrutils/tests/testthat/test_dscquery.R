@@ -138,3 +138,15 @@ test_that("dscquery conditions correctly filter out rows when result is NA",{
                   verbose = FALSE)
   expect_equal(dat,out)
 })    
+
+test_that(paste("dscquery filtering by condition works when",
+                "return.type = list and some columns are complex"),{
+  dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
+                         package = "dscrutils")
+  out <- dscquery(dsc.dir,targets = c("analyze","simulate.data","score.error"),
+                  conditions = c("$(analyze) == 'mean'",
+                                 "$(score.error) < 0.05"),
+                  verbose = FALSE)
+  expect_equivalent(sapply(out,length),rep(13,7))
+})
+          
