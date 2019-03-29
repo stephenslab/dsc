@@ -33,20 +33,23 @@
 #'
 #' @param conditions Conditions used to filter DSC pipeline results;
 #' rows in which one or more of the conditions evaluate to
-#' \code{FALSE} or \code{NA} are removed from the output (this is
-#' convention used by \code{\link{which}}). When \code{conditions =
-#' NULL}, no additional filtering of DSC pipelines is
-#' performed. Although results can always be filtered \emph{post hoc},
-#' using \code{conditions} to filter can significantly speed up
-#' queries when the DSC outputs are very large, as this will filter
-#' results, whenever possible, \emph{before} they are loaded into
-#' R. Query conditions are specified as R expressions, in which target
-#' names are written as \code{$(...)}; for example, to request only
-#' results in which the value of parameter \code{sigma} in module
-#' \code{simulate} is greater than or equal to \code{0.1}, set
-#' \code{conditions = "$(simulate.sigma) >= 0.1"} (see below for
-#' additional examples). This input argument specifies the
-#' \code{--condition} flag in the call to \code{dsc-query}.
+#' \code{FALSE} or \code{NA} are removed from the output (removing
+#' conditions that evaluate to \code{NA} is convention used by
+#' \code{\link{which}}). When \code{conditions = NULL}, no additional
+#' filtering of DSC pipelines is performed. Although results can
+#' always be filtered \emph{post hoc}, using \code{conditions} to
+#' filter can significantly speed up queries when the DSC outputs are
+#' very large, as this will filter results, whenever possible,
+#' \emph{before} they are loaded into R. Query conditions are
+#' specified as R expressions, in which target names are written as
+#' \code{$(...)}; for example, to request only results in which the
+#' value of parameter \code{sigma} in module \code{simulate} is
+#' greater than or equal to \code{0.1}, set \code{conditions =
+#' "$(simulate.sigma) >= 0.1"} (see below for additional
+#' examples). This input argument specifies the \code{--condition}
+#' flag in the call to \code{dsc-query}. All targets used in the
+#' conditions must also be included in \code{targets} or
+#' \code{targets.notreq}.
 #'
 #' @param groups Defines module groups. This argument specifies the
 #' \code{--groups} flag in the call to \code{dsc-query}. For example,
@@ -256,6 +259,11 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # Find the targets that are mentioned in the condition expressions, and
   # replace all instances of $(x) with x in these expressions so that
   # they can be evaluated as R expressions.
+  #
+  # Here is where we also check that each of the targets mentioned in
+  # the condition expressions is also included in the "targets" or
+  # "targets.notreq" arguments.
+  all_targets <- c(targets,targets.notreq)
   if (!is.null(conditions)) {
     n                 <- length(conditions)
     condition_targets <- vector("list",n)
@@ -263,56 +271,20 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
       out <- process.query.condition(conditions[i])
       condition_targets[[i]] <- out$targets
       conditions[i]          <- out$condition
+      if (!all(is.element(condition_targets[[i]],all_targets)))
+        stop(paste("All targets mentioned in conditions must also be",
+                   "included in \"targets\" or \"targets.notreq\""))
     }
   }
 
   # RUN DSC QUERY COMMAND
   # ---------------------
-  # If one or more conditions are specified, run the dsc-query program
-  # once *without* the conditions. This is done to find which data
-  # will be retained for the final output.
-  if (!is.null(conditions)) {
-
-    # Run dsc-query.
-    if (verbose)
-      cat("Calling dsc-query with non-condition targets.\n")
-    out     <- build.dscquery.call(c(targets,targets.notreq),groups,
-                                   dsc.outdir,outfile,exec)
-    outfile <- out$outfile
-    cmd.str <- out$cmd.str
-    run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
-
-    # Read the column names from the result of running dsc-query. (By
-    # setting nrows = 1, we don't read the full output.)
-    dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
-                    check.names = FALSE,comment.char = "",na.strings = "NA",
-                    nrows = 1)
-    if (any(duplicated(names(dat))))
-      stop("One or more names in dsc-query output are the same")
-
-    # Determine the names of the columns (or list elements) for the
-    # final return value. This involves removing the ":output" suffix
-    # whenever it appears.
-    final_outputs <- names(dat)
-    n <- length(final_outputs)
-    for (i in 1:n)
-      if (is.output.column(final_outputs[i])) {
-        x <- final_outputs[i]
-        final_outputs[i] <- substr(x,1,nchar(x) - 7)
-      }
-    
-    # Add the targets appearing in the condition expressions to the
-    # set of "non-required" targets.
-    targets.notreq <- c(targets.notreq,setdiff(do.call(c,condition_targets),
-                                               targets.notreq))
-  }
-
   # Now we are ready to run dsc-query with all targets. Note that
   # although the dsc-query program has the option to pass in
   # conditions, this feature is not used here, as the queries in this
   # interface are specified as R expressions.
   if (verbose)
-    cat("Calling dsc-query with all targets (condition and non-condition).\n")
+    cat("Calling dsc-query.\n")
   out     <- build.dscquery.call(c(targets,targets.notreq),groups,
                                  dsc.outdir,outfile,exec)
   outfile <- out$outfile
@@ -421,15 +393,9 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
 
   # REMOVE NON-REQUESTED OUTPUTS
   # ----------------------------
-  # Remove any data that were added only to take care of the filtering
-  # by condition.
-  if (!is.null(conditions))
-    dat <- dat[final_outputs]
-
   # Remove any outputs ending with "output.file", if requested.
   if (omit.filenames)
     dat <- remove.output.files(dat)
-    
   rownames(dat) <- NULL
   return(dat)
 }
