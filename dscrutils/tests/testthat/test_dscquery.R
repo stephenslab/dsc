@@ -1,7 +1,7 @@
 context("dscrutils")
 
-test_that(paste("First one_sample_location DSC query examples returns",
-                "a 40 x 7 data frame"),{
+test_that(paste("First one_sample_location DSC query examples returns a",
+                "40 x 7 data frame"),{
 
   # Retrieve results from the "one_sample_location" DSC experiment in
   # which the true mean is 1. The MSE (mean squared error) values
@@ -14,24 +14,24 @@ test_that(paste("First one_sample_location DSC query examples returns",
 })
 
 test_that(paste("Filtering by conditions argument for one_sample_location",
-                "DSC query gives same result as filtering in with subset"),{
+                "DSC query gives same result as filtering with subset"),{
 
   # Retrieve results from all simulations.                  
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
-  dat1 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
+  dat1 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
                    verbose = FALSE)
 
   # Retrieve results only for simulations in which the "mean" module
   # was run.
-  dat2 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
+  dat2 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
                    conditions = "$(analyze) == 'mean'",verbose = FALSE)
   expect_equal(subset(dat1,analyze == "mean"),dat2,
                check.attributes = FALSE)
 
   # Retrieve results only for simulations in which the error summary
   # is greater than 0.25.
-  dat3 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
+  dat3 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
                    conditions = "$(score.error) > 0.25",verbose = FALSE)
   expect_equal(subset(dat1,score.error > 0.25),dat3,
                check.attributes = FALSE)
@@ -39,7 +39,7 @@ test_that(paste("Filtering by conditions argument for one_sample_location",
   # Retrieve the DSC results only for simulations in which the "mean"
   # module was run, and which which the error summary is greater than
   # 0.25.
-  dat4 <- dscquery(dsc.dir,targets = "simulate.n analyze score.error",
+  dat4 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
                    conditions = c("$(score.error) > 0.25",
                                   "$(analyze) == 'median'"),
                    verbose = FALSE)
@@ -63,8 +63,8 @@ test_that("ash DSC query example returns a 10 x 6 data frame",{
   expect_equal(length(dat),6)
 })
 
-test_that(paste("Second ash DSC example without shrink.beta_est",
-                "returns a data frame"),{
+test_that(paste("Second ash DSC example without shrink.beta_est returns a",
+                "data frame"),{
 
   # This is the same as the previous example, but extracts the
   # vector-valued beta estimates into the outputted data frame. As a
@@ -74,7 +74,7 @@ test_that(paste("Second ash DSC example without shrink.beta_est",
   dat <- dscquery(dsc.dir,
            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
                        "shrink.pi0_est"),
-           conditions ="$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
+           conditions ="$(simulate.g) == 'list(c(2/3,1/3),c(0,0),c(1,2))'",
            verbose = FALSE)
   expect_true(is.data.frame(dat))
   expect_equal(dim(dat),c(10,5))
