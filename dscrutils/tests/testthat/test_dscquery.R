@@ -126,3 +126,15 @@ test_that(paste("dscquery throws an error when targets mentioned in",
   expect_error(dscquery(dsc.dir,targets = c("simulate.true_mean"),
                         conditions = "$(score.error) < 1",verbose = FALSE))
 })
+
+test_that("dscquery conditions correctly filter out rows when result is NA",{
+  dsc.dir <- system.file("datafiles","misc","results2",package = "dscrutils")
+  dat <- data.frame(DSC                     = 1:2,
+                    sim_params.params_store = c(NA,NA),
+                    cause.z                 = c(0.25,0.25))
+  out <- dscquery(dsc.dir,
+                  targets.notreq = c("sim_params.params_store","cause.z"),
+                  conditions = "$(cause.z) == 0.25",
+                  verbose = FALSE)
+  expect_equal(dat,out)
+})    
