@@ -165,7 +165,7 @@ test_that(paste("dscquery adds output.file column when a module group is",
                 "requested as a target"),{
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
-  dat     <- dscquery(dsc.dir,targets = "analyze")
+  dat     <- dscquery(dsc.dir,targets = "analyze",verbose = FALSE)
   expect_equal(names(dat),c("DSC","analyze","analyze.output.file"))
 })
 
@@ -173,7 +173,18 @@ test_that(paste("dscquery adds corresponding module group name",
                 "when 'group.variable' target is requested"),{
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
-  dat <- dscquery(dsc.dir,targets = "score.error")
+  dat <- dscquery(dsc.dir,targets = "score.error",verbose = FALSE)
   expect_equal(names(dat),c("DSC","score","score.error"))
 })
 
+test_that("dscquery list and data frame contents are the same",{
+  dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
+                         package = "dscrutils")
+  out1 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
+                   return.type = "data.frame",verbose = FALSE)
+  out2 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
+                   return.type = "list",verbose = FALSE)
+  expect_equal(out1,as.data.frame(out2,stringsAsFactors = FALSE))
+})
+
+    
