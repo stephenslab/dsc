@@ -118,3 +118,11 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
   expect_equal(dat,out)
 })
 
+test_that(paste("dscquery throws an error when targets mentioned in",
+                "conditions are not included in targets or targets.notreq",
+                "arguments"),{
+  dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
+                         package = "dscrutils")
+  expect_error(dscquery(dsc.dir,targets = c("simulate.true_mean"),
+                        conditions = "$(score.error) < 1",verbose = FALSE))
+})
