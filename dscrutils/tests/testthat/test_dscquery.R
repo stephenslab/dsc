@@ -149,4 +149,31 @@ test_that(paste("dscquery filtering by condition works when return value is",
                   verbose = FALSE)
   expect_equivalent(sapply(out,length),rep(13,7))
 })
-          
+
+test_that(paste("dscquery returns a data frame with the correct column names",
+                "even when the result is empty"),{ 
+  dsc.dir <- system.file("datafiles","misc","results1",package = "dscrutils")
+  dat        <- as.data.frame(matrix(0,0,3))
+  names(dat) <- c("DSC","sim_params.params_store","cause.z")
+  out        <- dscquery(dsc.dir,
+                         targets = c("sim_params.params_store","cause.z"),
+                         verbose = FALSE)
+  expect_equal(dat,out)
+})
+
+test_that(paste("dscquery adds output.file column when a module group is",
+                "requested as a target"),{
+  dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
+                         package = "dscrutils")
+  dat     <- dscquery(dsc.dir,targets = "analyze")
+  expect_equal(names(dat),c("DSC","analyze","analyze.output.file"))
+})
+
+test_that(paste("dscquery adds corresponding module group name",
+                "when 'group.variable' target is requested"),{
+  dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
+                         package = "dscrutils")
+  dat <- dscquery(dsc.dir,targets = "score.error")
+  expect_equal(names(dat),c("DSC","score","score.error"))
+})
+
