@@ -31,7 +31,7 @@ class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, global_params = None, truncate = False, replicate = None):
+    def __init__(self, content, output = None, sequence = None, global_params = [], truncate = False, replicate = None):
         self.content = dict()
         if os.path.isfile(content):
             script_name = os.path.split(os.path.splitext(content)[0])[-1]
