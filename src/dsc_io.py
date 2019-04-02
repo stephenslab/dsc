@@ -70,7 +70,7 @@ def load_rds(filename, types = None):
               res = np.matrix(data)
          elif isinstance(data, RV.Array):
               res = np.array(data)
-         elif isinstance(data, RI.NULL):
+         elif data == RI.NULL:
               res = None
          else:
               # I do not know what to do for this
@@ -82,7 +82,7 @@ def load_rds(filename, types = None):
 
     def load_dict(res, data, types):
         '''load data to res'''
-        names = data.names if isinstance(data.names, RI.NULL) else [i + 1 for i in range(len(data))]
+        names = data.names if data.names != RI.NULL else [i + 1 for i in range(len(data))]
         for name, value in zip(names, list(data)):
             if isinstance(value, RV.ListVector):
                 res[name] = {}
