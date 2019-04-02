@@ -82,7 +82,7 @@ def load_rds(filename, types = None):
 
     def load_dict(res, data, types):
         '''load data to res'''
-        names = data.names if data.names else [i + 1 for i in range(len(data))]
+        names = data.names if isinstance(data.names, RI.NULL) else [i + 1 for i in range(len(data))]
         for name, value in zip(names, list(data)):
             if isinstance(value, RV.ListVector):
                 res[name] = {}
