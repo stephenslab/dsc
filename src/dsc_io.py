@@ -42,47 +42,52 @@ def load_rds(filename, types = None):
     numpy2ri.activate()
     from rpy2.robjects import pandas2ri
     pandas2ri.activate()
-    def load(data, types):
-         if types is not None and not isinstance(data, types):
-              return np.array([])
-         if isinstance(data, RI.RNULLType):
-              res = None
-         elif isinstance(data, RV.BoolVector):
-              data = RO.r['as.integer'](data)
-              res = np.array(data, dtype = int)
-              # Handle c(NA, NA) situation
-              if np.sum(np.logical_and(res != 0, res != 1)):
-                   res = res.astype(float)
-                   res[res < 0] = np.nan
-                   res[res > 1] = np.nan
-         elif isinstance(data, RV.FactorVector):
-              data = RO.r['as.character'](data)
-              res = np.array(data, dtype = str)
-         elif isinstance(data, RV.IntVector):
-              res = np.array(data, dtype = int)
-         elif isinstance(data, RV.FloatVector):
-              res = np.array(data, dtype = float)
-         elif isinstance(data, RV.StrVector):
-              res = np.array(data, dtype = str)
-         elif isinstance(data, RV.DataFrame):
-              res = pd.DataFrame(data)
-         elif isinstance(data, RV.Matrix):
-              res = np.matrix(data)
-         elif isinstance(data, RV.Array):
-              res = np.array(data)
-         elif data == RI.NULL:
-              res = None
-         else:
-              # I do not know what to do for this
-              # But I do not want to throw an error either
-              res = str(data)
-         if isinstance(res, np.ndarray) and res.shape == (1,):
-             res = res[0]
-         return res
+    def load(data, types, rpy2_version = 3):
+        if types is not None and not isinstance(data, types):
+            return np.array([])
+        if rpy2_version == 2:
+            # below works for rpy2 version 2.9.X
+            if isinstance(data, RI.RNULLType):
+                res = None
+            elif isinstance(data, RV.BoolVector):
+                data = RO.r['as.integer'](data)
+                res = np.array(data, dtype = int)
+                # Handle c(NA, NA) situation
+                if np.sum(np.logical_and(res != 0, res != 1)):
+                    res = res.astype(float)
+                    res[res < 0] = np.nan
+                    res[res > 1] = np.nan
+            elif isinstance(data, RV.FactorVector):
+                data = RO.r['as.character'](data)
+                res = np.array(data, dtype = str)
+            elif isinstance(data, RV.IntVector):
+                res = np.array(data, dtype = int)
+            elif isinstance(data, RV.FloatVector):
+                res = np.array(data, dtype = float)
+            elif isinstance(data, RV.StrVector):
+                res = np.array(data, dtype = str)
+            elif isinstance(data, RV.DataFrame):
+                res = pd.DataFrame(data)
+            elif isinstance(data, RV.Matrix):
+                res = np.matrix(data)
+            elif isinstance(data, RV.Array):
+                res = np.array(data)
+            else:
+                # I do not know what to do for this
+                # But I do not want to throw an error either
+                res = str(data)
+        else:
+            if isinstance(data, RI.NULLType):
+                res = None
+            else:
+                res = data
+        if isinstance(res, np.ndarray) and res.shape == (1,):
+           res = res[0]
+        return res
 
     def load_dict(res, data, types):
         '''load data to res'''
-        names = data.names if data.names != RI.NULL else [i + 1 for i in range(len(data))]
+        names = data.names if not isinstance(data.names, RI.NULLType) else [i + 1 for i in range(len(data))]
         for name, value in zip(names, list(data)):
             if isinstance(value, RV.ListVector):
                 res[name] = {}

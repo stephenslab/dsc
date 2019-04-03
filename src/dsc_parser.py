@@ -111,7 +111,7 @@ class DSC_Script:
             install_package_interactive(f'dscrutils@stephenslab/dsc/dscrutils>={__version__}', 'R_library')
         if 'R' in script_types and 'PY' in script_types:
             install_package_interactive('reticulate', 'R_library')
-            install_package_interactive('rpy2', 'Python_Module')
+            install_package_interactive('rpy2>=3.0.1', 'Python_Module')
         self.runtime.rlib.extend(flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
         self.runtime.pymodule.extend(flatten_list([x.pymodule for x in self.modules.values() if x.rlib]))
         # FIXME: maybe this should be allowed in the future
