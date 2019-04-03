@@ -511,7 +511,7 @@ def install_package_interactive(lib, libtype, required=True):
         from sos.targets_python import Py_Module as target_check
     ret = target_check(lib).target_exists()
     if not ret:
-        if am.get(f"{libtype.replace('_', ' ')} {lib.split('@')[0]} needs to be installed or updated. Would you like to proceed (requires internet connection)?"):
+        if am.get(f"{libtype.replace('_', ' ')} {lib.split('@')[0]} needs to be installed or updated. Would you like to proceed (requires internet connection)"):
             ret = target_check(lib, autoinstall=True).target_exists()
     if not ret and required:
         raise ModuleNotFoundError(f"Required {libtype.replace('_', ' ')} ``{lib.split('@')[0]}`` is not available or obsolete. Please install it and try again.")
