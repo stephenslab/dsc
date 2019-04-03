@@ -15,25 +15,6 @@ from .utils import flatten_list
 def dict2yaml(value):
     return yaml.dump(value, default_flow_style=False).strip()
 
-R_SOURCE = '''
-source.file <- source
-source <- function(x) {
- if (is.null(DSC_LIBPATH)) {
-  source.file(x)
- } else {
- found <- F
- files <- paste(DSC_LIBPATH, x, sep="/")
- for (i in 1:length(files))
-   if (file.exists(files[i])) {
-   source.file(files[i])
-   found <- T
-   break
-   }
- if (!found) source.file(x)
- }
-}
-'''
-
 BASH_UTILS = '''
 expandPath() {
   case $1 in
@@ -323,7 +304,7 @@ class RPlug(BasePlug):
         return res
 
     def get_input(self, params, lib):
-        res = ('DSC_LIBPATH <- c({})\n'.format(','.join([repr(x) for x in lib])) + R_SOURCE) if len(lib) else ''
+        res = 'dscrutils:::source_dirs(c({}))\n'.format(','.join([repr(x) for x in lib])) if len(lib) else ''
         # load parameters
         keys = [x for x in params if not x in self.container_vars]
         res += '\n' + '\n'.join(self.container)

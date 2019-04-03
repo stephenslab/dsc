@@ -95,3 +95,16 @@ run_cmd <- function(cmd_str, shell_exec="/bin/bash", fout='',ferr='') {
     stop(paste(strsplit(cmd_str, " +")[[1]][1], "command failed (returned a non-zero exit status)"))
   return(out)
 }
+
+# finds all .R and .r files within a folder and sources them
+source_dir <- function(folder, recursive = TRUE, ...) 
+{ 
+    files <- list.files(folder, pattern = "[.][rR]$", 
+                        full.names = TRUE, recursive = recursive)
+    if (length(files))
+      src <- invisible(lapply(files, source, ...))
+}
+
+source_dirs <- function(folders, ...) {
+  for (folder in folders) source_dir(folder, ...)
+}

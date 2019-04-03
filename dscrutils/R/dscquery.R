@@ -131,7 +131,7 @@
 #' # Retrieve the number of samples ("simulate.n") and error summary
 #' # ("score.error") from all simulations in the "one_sample_location"
 #' # DSC experiment.
-c#' dsc.dir <- system.file("datafiles","one_sample_location",
+#' dsc.dir <- system.file("datafiles","one_sample_location",
 #'                        "dsc_result",package = "dscrutils")
 #' dat1 <- dscquery(dsc.dir,
 #'                  targets = c("simulate.n","analyze","score.error"))
