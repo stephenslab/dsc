@@ -190,9 +190,8 @@ c#' dsc.dir <- system.file("datafiles","one_sample_location",
 dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
                       conditions = NULL, groups = NULL,
                       return.type = c("auto", "data.frame", "list"),
-                      ignore.missing.files = FALSE,
-                      omit.filenames = FALSE, exec = "dsc-query",
-                      verbose = TRUE) {
+                      ignore.missing.files = FALSE, omit.filenames = TRUE,
+                      exec = "dsc-query", verbose = TRUE) {
 
   # CHECK & PROCESS INPUTS
   # ----------------------

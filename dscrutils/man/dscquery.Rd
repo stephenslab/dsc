@@ -2,153 +2,17 @@
 % Please edit documentation in R/dscquery.R
 \name{dscquery}
 \alias{dscquery}
-\title{R interface for querying DSC output.}
+\title{dsc.dir <- system.file("datafiles","one_sample_location",
+                       "dsc_result",package = "dscrutils")
+dat1 <- dscquery(dsc.dir,
+                 targets = c("simulate.n","analyze","score.error"))}
 \usage{
 dscquery(dsc.outdir, targets = NULL, targets.notreq = NULL,
   conditions = NULL, groups = NULL, return.type = c("auto",
   "data.frame", "list"), ignore.missing.files = FALSE,
-  omit.filenames = FALSE, exec = "dsc-query", verbose = TRUE)
-}
-\arguments{
-\item{dsc.outdir}{Directory where the DSC output is stored.}
-
-\item{targets}{Query targets specified as a character vector; for
-example, \code{targets = c("simulate.n","analyze","score.error")}.
-A query target may be a module, a module group, a module parameter,
-or a module output. These are \emph{required} targets; that is, DSC
-pipelines (i.e., rows of the returned data frame) in which one of
-more of the targets are unassigned or missing (\code{NA}) will be
-automatically removed. To allow for unassigned or missing values,
-use argument \code{targets.notreq} instead. This input argument,
-together with \code{targets.notreq}, specifies the \code{--target}
-flag in the \code{dsc-query} call. At least one of \code{targets}
-and \code{targets.notreq} must not be \code{NULL} or empty. Note
-that, to easily specify multiple targets from the same module, we
-recommend using \code{\link{paste}}; e.g., \code{paste("simulate",
-c("n","p","df"),sep = ".")}. These targets will be the names of the
-columns in the data frame if a data frame is returned, or the names
-of the list elements if a list is returned.}
-
-\item{targets.notreq}{Non-required query targets; this is the same
-as \code{targets}, except that unassigned or missing values are not
-removed from the return value. This input argument, together with
-\code{targets}, specifies the \code{--target} flag in the
-\code{dsc-query} call. At least one of \code{targets} and
-\code{targets.notreq} must not be \code{NULL} or empty.}
-
-\item{conditions}{Conditions used to filter DSC pipeline results;
-rows in which one or more of the conditions evaluate to
-\code{FALSE} or \code{NA} are removed from the output (removing
-conditions that evaluate to \code{NA} is convention used by
-\code{\link{which}}). When \code{conditions = NULL}, no additional
-filtering of DSC pipelines is performed. Although results can
-always be filtered \emph{post hoc}, using \code{conditions} to
-filter can significantly speed up queries when the DSC outputs are
-very large, as this will filter results, whenever possible,
-\emph{before} they are loaded into R. Query conditions are
-specified as R expressions, in which target names are written as
-\code{$(...)}; for example, to request only results in which the
-value of parameter \code{sigma} in module \code{simulate} is
-greater than or equal to \code{0.1}, set \code{conditions =
-"$(simulate.sigma) >= 0.1"} (see below for additional
-examples). This input argument specifies the \code{--condition}
-flag in the call to \code{dsc-query}. All targets used in the
-conditions must also be included in \code{targets} or
-\code{targets.notreq}.}
-
-\item{groups}{Defines module groups. This argument specifies the
-\code{--groups} flag in the call to \code{dsc-query}. For example,
-\code{groups = c("method: mean median", "score: abs_err sqrt_err")}
-will define two module groups, \code{method} and \code{score}.}
-
-\item{return.type}{If \code{return.type = "data.frame"}, the DSC
-outputs are returned in a data frame; if \code{return.type =
-"list"}, the DSC output a list. If \code{return.type = "auto"}, a
-list or data frame is returned depending on which data structure is
-most appropriate for the DSC outputs. See "Value" for more
-information about the different return types, and the benefits (and
-limitations) of each.}
-
-\item{ignore.missing.files}{If \code{ignore.missing.files = TRUE},
-all DSC output files that are not found will have \code{NA} for the
-file name; when extracting target outputs from files, any outputs
-in which files are not found will have their value set to \code{NA}. If
-\code{ignore.missing.files = FALSE}, \code{dscquery} will throw an
-error whenever a missing file is encountered.}
-
-\item{omit.filenames}{When \code{omit.filenames = FALSE}, an
-additional column (or list element) giving the name of the DSC
-output file is provided for each query target that is a module or
-module group. This is useful if you want to directly inspect the
-stored results. Setting \code{omit.filenames = TRUE} suppresses
-these additional outputs.}
-
-\item{exec}{The command or pathname of the \code{dsc-query}
-executable.}
-
-\item{verbose}{If \code{verbose = TRUE}, print progress of DSC
-query command to the console.}
-}
-\value{
-A list or data frame containing the result of the DSC
-query.
-
-When \code{return.type = "data.frame"}, the output is a data frame.
-When possible, DSC outputs are extracted into the columns of the
-data frame; when this is not possible (e.g., for more complex
-outputs such as matrices), file names containing the DSC outputs
-are provided instead. A data frame is most convenient with the
-outputs are not complex.
-
-When \code{return.type = "list"}, the output is a list, with list
-elements corresponding to the query targets. Each top-level list
-element should have the same length.
-
-When \code{return.type = "auto"}, DSC outputs are extracted into
-the columns of the data frame unless one or more outputs are large
-or complex objects, in which case the return value is a list.
-
-Note that a list can sometimes be converted to a data frame using
-\code{\link{as.data.frame}}, or converted to a "tibble" using the
-\code{\link[tibble]{as_tibble}} function from the tibble package.
-
-All targets specified by the "targets" and "targets.notreq"
-arguments, except for targets that are module names, should have
-columns (or list elements) of the same name in the output.
-Whenever a target of the form "x.y" is requested, where "x" is a
-module group and "y" is a module parameter or output, an additional
-output for the module group is automatically included.  Additional
-outputs giving file names of the DSC results files are included for
-all targets that are modules or module groups.
-
-When targets are unassigned, these are stored as missing values
-(\code{NA}).
+  omit.filenames = TRUE, exec = "dsc-query", verbose = TRUE)
 }
 \description{
-This is an R interface to the \code{dsc-query} program
-for conveniently extracting and exploring DSC results within the R
-environment. For additional information, run
-\code{system("dsc-query --help")}.
-}
-\details{
-A call to dscquery cannot include targets that involve
-both a module, and a module group containing that module. For
-example, setting \code{targets = c("mean.est","analyze")} will
-generate an error if "mean" is a module, and it is a member of the
-"analyze" module group.
-
-This function may not work in Windows.
-}
-\examples{
-
-# Retrieve the number of samples ("simulate.n") and error summary
-# ("score.error") from all simulations in the "one_sample_location"
-# DSC experiment.
-dsc.dir <- system.file("datafiles","one_sample_location",
-                       "dsc_result",package = "dscrutils")
-dat1 <- dscquery(dsc.dir,
-                 targets = c("simulate.n","analyze","score.error"))
-
 # Retrieve the results only for simulations in which the "mean" module
 # was run. Because this is a condition for a module name, it is
 # applied before loading the full set of results into R. Therefore,
@@ -157,7 +21,8 @@ dat1 <- dscquery(dsc.dir,
 dat2 <- dscquery(dsc.dir,
                  targets = c("simulate.n","analyze","score.error"),
                  conditions = "$(analyze) == 'mean'")
-
+}
+\details{
 # Return results only for simulations in which the error summary is
 # greater than 0.2. This condition is applied only after loading the
 # full set of results into R. Therefore, this type of condition will not
@@ -195,5 +60,4 @@ dat6 <-
                        "shrink.beta_est","shrink.pi0_est"),
            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
            return.type = "data.frame")
-
 }
