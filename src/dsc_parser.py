@@ -113,7 +113,7 @@ class DSC_Script:
             install_package_interactive('reticulate', 'R_library')
             install_package_interactive('rpy2>=3.0.1', 'Python_Module')
         self.runtime.rlib.extend(flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
-        self.runtime.pymodule.extend(flatten_list([x.pymodule for x in self.modules.values() if x.rlib]))
+        self.runtime.pymodule.extend(flatten_list([x.pymodule for x in self.modules.values() if x.pymodule]))
         # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
