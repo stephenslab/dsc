@@ -45,6 +45,11 @@ def load_rds(filename, types = None):
     def load(data, types, rpy2_version = 3):
         if types is not None and not isinstance(data, types):
             return np.array([])
+        # FIXME: I'm not sure if I should keep two versions here
+        # rpy2_version 2.9.X is more tedious but it handles BoolVector better
+        # rpy2 version 3.0.1 converts bool to integer directly without dealing with
+        # NA properly. It gives something like (0,1,-234235).
+        # Possibly the best thing to do is to open an issue for it to the developers.
         if rpy2_version == 2:
             # below works for rpy2 version 2.9.X
             if isinstance(data, RI.RNULLType):
