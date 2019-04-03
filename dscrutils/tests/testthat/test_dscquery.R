@@ -10,7 +10,7 @@ test_that(paste("First one_sample_location DSC query examples returns a",
                          package = "dscrutils")
   dat <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
                   conditions = "$(simulate.n) > 10",verbose = FALSE)
-  expect_equal(dim(dat),c(40,7))
+  expect_equal(dim(dat),c(40,6))
 })
 
 test_that(paste("Filtering by conditions argument for one_sample_location",
@@ -147,7 +147,7 @@ test_that(paste("dscquery filtering by condition works when return value is",
                   conditions = c("$(analyze) == 'mean'",
                                  "$(score.error) < 0.05"),
                   verbose = FALSE)
-  expect_equivalent(sapply(out,length),rep(13,7))
+  expect_equivalent(sapply(out,length),rep(13,6))
 })
 
 test_that(paste("dscquery returns a data frame with the correct column names",
@@ -162,10 +162,11 @@ test_that(paste("dscquery returns a data frame with the correct column names",
 })
 
 test_that(paste("dscquery adds output.file column when a module group is",
-                "requested as a target"),{
+                "requested as a target, and omit.filenames = FALSE"),{
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
-  dat     <- dscquery(dsc.dir,targets = "analyze",verbose = FALSE)
+  dat     <- dscquery(dsc.dir,targets = "analyze",omit.filenames = FALSE,
+                      verbose = FALSE)
   expect_equal(names(dat),c("DSC","analyze","analyze.output.file"))
 })
 
