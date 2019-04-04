@@ -258,6 +258,7 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # the condition expressions is also included in the "targets" or
   # "targets.notreq" arguments.
   all_targets <- c(targets,targets.notreq)
+  all_targets <- c(all_targets,get.module.names(all_targets))
   if (!is.null(conditions)) {
     n                 <- length(conditions)
     condition_targets <- vector("list",n)
@@ -585,6 +586,18 @@ flatten.nested.list <- function (x) {
                                        length(a) == 1)))
       x[[i]] <- unlist(x[[i]])
   return(x)
+}
+
+# Extract the module names or module group names from a set of targets.
+get.module.names <- function (targets) {
+  n   <- length(targets)
+  out <- NULL
+  for (i in 1:n) {
+    x <- unlist(strsplit(targets[i],"[.]"))
+    if (length(x) > 1)
+      out <- c(out,x[1])
+  }
+  return(out)
 }
 
 # Return TRUE if x is a name of a dsc-query output column of the form
