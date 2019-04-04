@@ -1,8 +1,8 @@
 Package: dscrutils
 Encoding: UTF-8
 Type: Package
-Version: 0.3.5
-Date: 2019-02-11
+Version: 0.3.5.1
+Date: 2019-04-04
 Title: Dynamic Statistical Comparisons R Interface
 Authors@R: c(person("Gao","Wang",role=c("aut","cre"),
                     email="wangow@gmail.com"),
