@@ -9,50 +9,16 @@ from .utils import uniq_list, case_insensitive_uniq_list, flatten_list, filter_s
 from .yhat_sqldf import sqldf
 from .line import parse_filter
 
-SQL_KEYWORDS = set([
-    'ADD', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ASENSITIVE', 'BEFORE',
-    'BETWEEN', 'BIGINT', 'BINARY', 'BLOB', 'BOTH', 'BY', 'CALL', 'CASCADE', 'CASE',
-    'CHANGE', 'CHAR', 'CHARACTER', 'CHECK', 'COLLATE', 'COLUMN', 'CONDITION',
-    'CONSTRAINT', 'CONTINUE', 'CONVERT', 'CREATE', 'CROSS', 'CURRENT_DATE',
-    'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'CURRENT_USER', 'CURSOR', 'DATABASE',
-    'DATABASES', 'DAY_HOUR', 'DAY_MICROSECOND', 'DAY_MINUTE', 'DAY_SECOND', 'DEC',
-    'DECIMAL', 'DECLARE', 'DEFAULT', 'DELAYED', 'DELETE', 'DESC',
-    'DESCRIBE', 'DETERMINISTIC', 'DISTINCT', 'DISTINCTROW', 'DIV', 'DOUBLE',
-    'DROP', 'DUAL', 'EACH', 'ELSE', 'ELSEIF', 'ENCLOSED', 'ESCAPED', 'EXISTS',
-    'EXIT', 'EXPLAIN', 'FALSE', 'FETCH', 'FLOAT', 'FLOAT4', 'FLOAT8', 'FOR',
-    'FORCE', 'FOREIGN', 'FROM', 'FULLTEXT', 'GRANT', 'GROUP', 'HAVING', 'HIGH_PRIORITY',
-    'HOUR_MICROSECOND', 'HOUR_MINUTE', 'HOUR_SECOND', 'IF', 'IGNORE', 'IN',
-    'INDEX', 'INFILE', 'INNER', 'INOUT', 'INSENSITIVE', 'INSERT',
-    'INT', 'INT1', 'INT2', 'INT3', 'INT4', 'INT8', 'INTEGER', 'INTERVAL', 'INTO',
-    'IS', 'ITERATE', 'JOIN', 'KEY', 'KEYS', 'KILL', 'LEADING', 'LEAVE', 'LEFT',
-    'LIKE', 'LIMIT', 'LINES', 'LOAD', 'LOCALTIME', 'LOCALTIMESTAMP',
-    'LOCK', 'LONG', 'LONGBLOB', 'LONGTEXT', 'LOOP', 'LOW_PRIORITY', 'MATCH',
-    'MEDIUMBLOB', 'MEDIUMINT', 'MEDIUMTEXT', 'MIDDLEINT', 'MINUTE_MICROSECOND',
-    'MINUTE_SECOND', 'MOD', 'MODIFIES', 'NATURAL', 'NOT', 'NO_WRITE_TO_BINLOG',
-    'NULL', 'NUMERIC', 'ON', 'OPTIMIZE', 'OPTION', 'OPTIONALLY', 'OR',
-    'ORDER', 'OUT', 'OUTER', 'OUTFILE', 'PRECISION', 'PRIMARY', 'PROCEDURE',
-    'PURGE', 'READ', 'READS', 'REAL', 'REFERENCES', 'REGEXP', 'RELEASE',
-    'RENAME', 'REPEAT', 'REPLACE', 'REQUIRE', 'RESTRICT', 'RETURN',
-    'REVOKE', 'RIGHT', 'RLIKE', 'SCHEMA', 'SCHEMAS', 'SECOND_MICROSECOND',
-    'SELECT', 'SENSITIVE', 'SEPARATOR', 'SET', 'SHOW', 'SMALLINT',
-    'SONAME', 'SPATIAL', 'SPECIFIC', 'SQL', 'SQLEXCEPTION', 'SQLSTATE',
-    'SQLWARNING', 'SQL_BIG_RESULT', 'SQL_CALC_FOUND_ROWS', 'SQL_SMALL_RESULT',
-    'SSL', 'STARTING', 'STRAIGHT_JOIN', 'TABLE', 'TERMINATED',
-    'THEN', 'TINYBLOB', 'TINYINT', 'TINYTEXT', 'TO', 'TRAILING',
-    'TRIGGER', 'TRUE', 'UNDO', 'UNION', 'UNIQUE', 'UNLOCK', 'UNSIGNED',
-    'UPDATE', 'USAGE', 'USE', 'USING', 'UTC_DATE', 'UTC_TIME', 'UTC_TIMESTAMP', 'VALUES',
-    'VARBINARY', 'VARCHAR', 'VARCHARACTER', 'VARYING', 'WHEN', 'WHERE', 'WHILE',
-    'WITH', 'WRITE', 'XOR', 'YEAR_MONTH', 'ZEROFILL', 'ASENSITIVE', 'CALL', 'CONDITION',
-    'CONNECTION', 'CONTINUE', 'CURSOR', 'DECLARE', 'DETERMINISTIC', 'EACH',
-    'ELSEIF', 'EXIT', 'FETCH', 'GOTO', 'INOUT', 'INSENSITIVE', 'ITERATE', 'LABEL', 'LEAVE',
-    'LOOP', 'MODIFIES', 'OUT', 'READS', 'RELEASE', 'REPEAT', 'RETURN', 'SCHEMA', 'SCHEMAS',
-    'SENSITIVE', 'SPECIFIC', 'SQL', 'SQLEXCEPTION', 'SQLSTATE', 'SQLWARNING', 'TRIGGER',
-    'UNDO', 'UPGRADE', 'WHILE', 'ABS', 'ACOS', 'ADDDATE', 'ADDTIME', 'ASCII', 'ASIN',
-    'ATAN', 'AVG', 'BETWEEN', 'AND', 'BINARY', 'BIN', 'BIT_AND',
-    'BIT_OR', 'CASE', 'CAST', 'CEIL', 'CHAR', 'CHARSET', 'CONCAT', 'CONV', 'COS', 'COT',
-    'COUNT', 'DATE', 'DAY', 'DIV', 'EXP', 'IS', 'LIKE', 'MAX', 'MIN', 'MOD', 'MONTH',
-    'LOG', 'POW', 'SIN', 'SLEEP', 'SORT', 'STD', 'VALUES', 'SUM'
-])
+# keywords for SQLite
+# https://www.sqlite.org/lang_keywords.html
+SQLITE_KEYWORDS = set(['ABORT', 'ACTION', 'ADD', 'AFTER', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ATTACH', 'AUTOINCREMENT', 'BEFORE', 'BEGIN', 
+    'BETWEEN', 'BY', 'CASCADE', 'CASE', 'CAST', 'CHECK', 'COLLATE', 'COLUMN', 'COMMIT', 'CONFLICT', 'CONSTRAINT', 'CREATE', 'CROSS', 'CURRENT', 'CURRENT_DATE', 
+    'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'DATABASE', 'DEFAULT', 'DEFERRABLE', 'DEFERRED', 'DELETE', 'DESC', 'DETACH', 'DISTINCT', 'DO', 'DROP', 'EACH', 'ELSE', 'END', 
+    'ESCAPE', 'EXCEPT', 'EXCLUSIVE', 'EXISTS', 'EXPLAIN', 'FAIL', 'FILTER', 'FOLLOWING', 'FOR', 'FOREIGN', 'FROM', 'FULL', 'GLOB', 'GROUP', 'HAVING', 'IF', 'IGNORE', 'IMMEDIATE', 
+    'IN', 'INDEX', 'INDEXED', 'INITIALLY', 'INNER', 'INSERT', 'INSTEAD', 'INTERSECT', 'INTO', 'IS', 'ISNULL', 'JOIN', 'KEY', 'LEFT', 'LIKE', 'LIMIT', 'MATCH', 'NATURAL', 'NO', 'NOT', 
+    'NOTHING', 'NOTNULL', 'NULL', 'OF', 'OFFSET', 'ON', 'OR', 'ORDER', 'OUTER', 'OVER', 'PARTITION', 'PLAN', 'PRAGMA', 'PRECEDING', 'PRIMARY', 'QUERY', 'RAISE', 'RANGE', 'RECURSIVE', 
+    'REFERENCES', 'REGEXP', 'REINDEX', 'RELEASE', 'RENAME', 'REPLACE', 'RESTRICT', 'RIGHT', 'ROLLBACK', 'ROW', 'ROWS', 'SAVEPOINT', 'SELECT', 'SET', 'TABLE', 'TEMP', 'TEMPORARY', 'THEN', 
+    'TO', 'TRANSACTION', 'TRIGGER', 'UNBOUNDED', 'UNION', 'UNIQUE', 'UPDATE', 'USING', 'VACUUM', 'VALUES', 'VIEW', 'VIRTUAL', 'WHEN', 'WHERE', 'WINDOW', 'WITH', 'WITHOUT'])
 
 NA = None
 
@@ -122,7 +88,7 @@ class Query_Processor:
                 output += x
             else:
                 output += '_'
-        if re.match(r'^[0-9][a-zA-Z0-9_]+$', output) or (output.upper() in SQL_KEYWORDS and kw):
+        if re.match(r'^[0-9][a-zA-Z0-9_]+$', output) or (output.upper() in SQLITE_KEYWORDS and kw):
             output = '_' + output
         return output
 
@@ -303,7 +269,7 @@ class Query_Processor:
         return [pipelines[i] for i in non_empty_targets], [target_tables[i] for i in non_empty_targets], [condition_tables[i] for i in non_empty_targets]
 
     def get_from_clause(self):
-        res = [f'FROM {sequence[0]} ' + ' '.join(["INNER JOIN {1} ON {0}.__parent__ = {1}.__id__".format(sequence[i], sequence[i+1]) for i in range(len(sequence) - 1)]).strip() \
+        res = [f'FROM "{sequence[0]}" ' + ' '.join(['INNER JOIN "{1}" ON "{0}".__parent__ = "{1}".__id__'.format(sequence[i], sequence[i+1]) for i in range(len(sequence) - 1)]).strip() \
              for sequence in self.pipelines]
         return res
 
@@ -318,13 +284,13 @@ class Query_Processor:
             else:
                 idx = [x for x in self.data.keys() if x.lower() == item[0].lower()][0]
                 if item[1].lower() not in [x.lower() for x in self.data[idx].keys()]:
-                    clause.append("{0}.__output__ AS {0}_DSC_VAR_{1}".\
+                    clause.append('"{0}".__output__ AS {0}_DSC_VAR_{1}'.\
                                   format(item[0], item[1] if not item[1].startswith('output.') else item[1][7:]))
                 else:
                     if item[1] == '__output__':
-                        clause.append("{0}.{1} AS {0}_DSC_OUTPUT_".format(item[0], item[1]))
+                        clause.append('"{0}".{1} AS {0}_DSC_OUTPUT_'.format(item[0], item[1]))
                     else:
-                        clause.append("{0}.{1} AS {0}_DSC_FIELD_{1}".format(item[0], item[1]))
+                        clause.append('"{0}".{1} AS {0}_DSC_FIELD_{1}'.format(item[0], item[1]))
         clause = "SELECT " + ', '.join(clause)
         return clause, tables, fields
 
@@ -389,7 +355,7 @@ class Query_Processor:
                         self.check_table_field(vv[1], 2)
                 valid_idx = [idx for idx, vv in enumerate(value) if vv[1][0] in valid_tables]
                 if len(valid_idx) >= 1:
-                    value = ' OR '.join([f"{value[i][0]} ({'.'.join(value[i][1])} {value[i][2]} {value[i][3]})" if len(value[i][0]) else f"{'.'.join(value[i][1])} {value[i][2]} {value[i][3]}" for i in valid_idx])
+                    value = ' OR '.join([f"{value[i][0]} ([{value[i][1][0]}].{value[i][1][1]} {value[i][2]} {value[i][3]})" if len(value[i][0]) else f"[{'.'.join(value[i][1][0])}].{'.'.join(value[i][1][1])} {value[i][2]} {value[i][3]}" for i in valid_idx])
                     if len(valid_idx) > 1:
                         tmp.append(f"({value})")
                     else:
@@ -518,7 +484,7 @@ class Query_Processor:
             raise DBError("Incompatible targets ``{}``{}".\
                           format(', '.join(self.targets),
                                  f' under condition ``{" AND ".join(["(%s)" % x for x in self.raw_condition])}``' if self.raw_condition is not None else ''))
-        res = [('+'.join(reversed(pipeline)), self.adjust_table(sqldf(query, self.data), pipeline)) \
+        res = [('+'.join(reversed(pipeline)), self.adjust_table(sqldf(query.strip(), self.data, flatten_list([[y[0] if len(y) else y for y in x] for x in self.target_tables + self.condition_tables])), pipeline)) \
                      for pipeline, query in zip(self.pipelines, self.queries)]
         res = [x for x in res if x[1] is not None]
         if len(res) == 0:

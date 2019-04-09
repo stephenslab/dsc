@@ -36,7 +36,7 @@ class PandaSQL:
             self._conn = self.engine.connect()
             self._init_connection(self._conn)
 
-    def __call__(self, query, env=None):
+    def __call__(self, query, env=None, names=None):
         """
         Execute the SQL query.
         Automatically creates tables mentioned in the query from dataframes before executing.
@@ -48,9 +48,10 @@ class PandaSQL:
         """
         if env is None:
             env = get_outer_frame_variables()
-
+        if names is None:
+            names = extract_table_names(query)
         with self.conn as conn:
-            for table_name in extract_table_names(query):
+            for table_name in names:
                 if table_name not in env:
                     # don't raise error because the table may be already in the database
                     continue
@@ -127,7 +128,7 @@ def write_table(df, tablename, conn):
                index=not any(name is None for name in df.index.names))  # load index into db if all levels are named
 
 
-def sqldf(query, env=None, db_uri='sqlite:///:memory:'):
+def sqldf(query, env=None, names=None, db_uri='sqlite:///:memory:'):
     """
     Query pandas data frames using sql syntax
     This function is meant for backward compatibility only. New users are encouraged to use the PandaSQL class.
@@ -159,4 +160,4 @@ def sqldf(query, env=None, db_uri='sqlite:///:memory:'):
     >>> sqldf("select * from df;", locals())
     >>> sqldf("select avg(x) from df;", locals())
     """
-    return PandaSQL(db_uri)(query, env)
+    return PandaSQL(db_uri)(query, env, [x for x in names if x])
