@@ -303,7 +303,7 @@ def main():
                    rerun of their module unless they are directly required by a downstream module that needs re-execution.
                    In other words this is useful to remove large yet unused intermediate module output.''')
     ro = p.add_argument_group('Runtime behavior')
-    ro.add_argument('-c', type = int, metavar = 'N', default = max(int(os.cpu_count() / 2), 1),
+    ro.add_argument('-c', type = int, metavar = 'N', default = max(min(int(os.cpu_count() / 2), 8), 1),
                    dest='__max_jobs__',
                    help = '''Maximum number of CPU threads for local runs, or job managing sockets for remote execution.''')
     ro.add_argument('--ignore-errors', action='store_true', dest='try_catch',
