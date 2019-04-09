@@ -1008,9 +1008,9 @@ class DSC_Section:
             if not '*' in rhs:
                 # is a valid group
                 # that is, only exists alternating modules not concatenate modules
-                self.groups[lhs] = rhs.replace(',','').replace(')','').replace('(','').split()
+                self.groups[lhs] = [x.strip() for x in rhs.replace(')','').replace('(','').split(',')]
             else:
-                self.concats[lhs] = rhs.replace(',','').replace(')','').replace('(','').replace('*', '').split()
+                self.concats[lhs] = [x.strip() for x in rhs.replace(')','').replace('(','').replace('*', '').split(',')]
             # http://www.regular-expressions.info/wordboundaries.html
             value = re.sub(r"\b%s\b" % lhs, rhs, value)
         return value
@@ -1101,7 +1101,7 @@ class DSC_Pipeline:
     def find_dependent(variable, pipeline, module_name):
         curr_idx = len(pipeline)
         if curr_idx == 0:
-            raise FormatError('Pipeline variable ``$`` is not allowed in the input of the first module of a DSC sequence.')
+            raise FormatError(f'``{module_name}`` cannot be the first module in a pipeline because it requires upstream pipeline variable ``${variable}``.')
         curr_idx = curr_idx - 1
         dependent = None
         while curr_idx >= 0:
