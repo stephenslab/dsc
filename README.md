@@ -98,6 +98,7 @@ Goal for 0.4.0
 - Now SQLite keywords can be used as module names: no error message will be triggered.
 - Introduce an explicit syntax for base module: a module without executable is considered base module.
 - Bump `rpy2` version requirment version 3.0.0+ for benchmark with R and Python modules.
+- SoS bumped to version 0.19.5 for improved memory usage on job submitter and improved Python module version check.
 
 0.3.5
 
