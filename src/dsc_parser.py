@@ -310,11 +310,11 @@ class DSC_Script:
         if len([x for n, x in enumerate(modules) if x in modules[:n]]):
             raise FormatError(f"Duplicate module in block ``{','.join(modules)}``.")
         if derived is not None and '@EXEC' not in self.content[block]:
-            self.content[block]['@EXEC'] = [self.content[derived[1]]['meta']['exec']]
-        if '@EXEC' not in self.content[block]:
-            if block not in self.base_modules:
-                raise FormatError(f"Cannot find executable specification for module ``{block}`` (expected syntax is ``{block}: <executable specification>``).")
-        else:
+            try:
+                self.content[block]['@EXEC'] = [self.content[derived[1]]['meta']['exec']]
+            except KeyError:
+                raise FormatError(f"Cannot derive executable for ``{block}`` from its base module ``{derived[1]}``. Please specify it explicitly.")
+        if '@EXEC' in self.content[block]:
             if len(modules) != len(self.content[block]['@EXEC']) and len(self.content[block]['@EXEC']) > 1:
                 raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['@EXEC'])}`` executables are provided.")
             if len(modules) > 1 and len(self.content[block]['@EXEC']) == 1:
