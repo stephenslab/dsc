@@ -484,7 +484,7 @@ class Query_Processor:
             raise DBError("Incompatible targets ``{}``{}".\
                           format(', '.join(self.targets),
                                  f' under condition ``{" AND ".join(["(%s)" % x for x in self.raw_condition])}``' if self.raw_condition is not None else ''))
-        res = [('+'.join(reversed(pipeline)), self.adjust_table(sqldf(query.strip(), self.data, flatten_list([[y[0] if len(y) else y for y in x] for x in self.target_tables + self.condition_tables])), pipeline)) \
+        res = [('+'.join(reversed(pipeline)), self.adjust_table(sqldf(query.strip(), self.data, pipeline), pipeline)) \
                      for pipeline, query in zip(self.pipelines, self.queries)]
         res = [x for x in res if x[1] is not None]
         if len(res) == 0:

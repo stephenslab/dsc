@@ -51,9 +51,10 @@ test_that(paste("dscquery correctly allows condition targets that are",
                 "names of module groups"),{
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
-  capture.output(dat <- dscquery(dsc.dir,
-                                 targets = c("simulate.n","score.error"),
-                                 conditions = c("$(simulate) == 't'")))
+  dat <- dscquery(dsc.dir,
+                  targets = c("simulate.n","score.error"),
+                  conditions = c("$(simulate) == 't'"),
+                  verbose = FALSE)
   expect_equal(dim(dat),c(20,5))
 })
 
