@@ -160,4 +160,4 @@ def sqldf(query, env=None, names=None, db_uri='sqlite:///:memory:'):
     >>> sqldf("select * from df;", locals())
     >>> sqldf("select avg(x) from df;", locals())
     """
-    return PandaSQL(db_uri)(query, env, [x for x in names if x])
+    return PandaSQL(db_uri)(query, env, set([x for x in names if x]))
