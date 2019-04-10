@@ -93,6 +93,12 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.6
+
+- Now SQLite keywords can be used as module names: no error message will be triggered.
+- Introduce an explicit syntax for base module: a module without executable is considered base module.
+- Bump `rpy2` version requirment version 3.0.0+ for benchmark with R and Python modules.
+
 0.3.5
 
 Major improvements to `dscrquery`
