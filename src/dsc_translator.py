@@ -38,7 +38,9 @@ class DSC_Translator:
         job_header = "import msgpack\nfrom collections import OrderedDict\n"\
                      f"[global]\nIO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
                      ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"\
-                     f"{inspect.getsource(n2a)}\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
+                     f"{inspect.getsource(n2a)}"
+        if debug is None:
+            job_header += f"\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
         self.depends = dict()
         conf_dict = dict()
