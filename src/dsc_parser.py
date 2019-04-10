@@ -99,7 +99,7 @@ class DSC_Script:
         self.runtime.output = remove_quotes(self.runtime.output) 
         def get_missing_module_message(k):
             if k in self.base_modules:
-                return f"Module ``{k}`` is not meant to be used directly due to lack of executable specifications."
+                return f"Module ``{k}`` cannot be used directly due to lack of executable specifications."
             else:
                 msg_avail_module = f"Available modules are ``{', '.join([x for x in self.content.keys() if x != 'DSC'])}``" + \
                                    (f"\nAvailable groups are ``{', '.join(try_get_value(self.content, ('DSC', 'define')).keys())}``"
