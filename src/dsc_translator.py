@@ -24,7 +24,7 @@ class DSC_Translator:
       * Pipelines are executed via nested SoS workflows
     '''
     def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False,
-                 host_conf = None):
+                 host_conf = None, debug = None):
         # FIXME: to be replaced by the R utils package
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
@@ -66,7 +66,7 @@ class DSC_Translator:
                     # Has the core been processed?
                     if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
                         job_translator = self.Step_Translator(step, self.db, None,
-                                                              try_catch, host_conf)
+                                                              try_catch, host_conf, debug)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
                         exe_signatures[step.name] = job_translator.exe_signature
@@ -208,7 +208,7 @@ class DSC_Translator:
         return res
 
     class Step_Translator:
-        def __init__(self, step, db, step_map, try_catch, host_conf = None):
+        def __init__(self, step, db, step_map, try_catch, host_conf = None, debug = None):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -231,6 +231,7 @@ class DSC_Translator:
             self.current_depends = uniq_list([x[0] for x in step.depends]) if step.depends else []
             self.db = db
             self.conf = host_conf
+            self.debug = True if debug is not None else False
             self.input_vars = None
             self.header = ''
             self.loop_string = ['', '']
@@ -329,7 +330,8 @@ class DSC_Translator:
 
         def get_step_option(self):
             if not self.prepare:
-                self.step_option += "empty_log(_output)\n"
+                if not self.debug:
+                    self.step_option += "empty_log(_output)\n"
                 if self.conf is None or (self.step.name in self.conf and self.conf[self.step.name]['queue'] is None) \
                    or (self.step.name not in self.conf and self.conf['default']['queue'] is None):
                     return
@@ -362,27 +364,31 @@ class DSC_Translator:
                     self.action += plugin.get_cmd_args(cmd['args'], self.params)
                     # Add action
                     if len(cmd['path']) == 0:
-                        script_begin = plugin.load_env(self.step.depends,
-                                                       idx > 0 and len(self.step.rv))
-                        script_begin += '\n' + plugin.get_input(self.params,
-                                                                self.step.libpath if self.step.libpath else [])
-                        if len(self.step.rf):
-                            script_begin += '\n' + plugin.get_output(self.step.rf)
-                        script_begin = '\n'.join([x for x in script_begin.split('\n') if x])
-                        script_begin = f"{cmd['header']}\n{script_begin.strip()}\n\n## BEGIN DSC CORE"
-                        script_end = plugin.get_return(self.step.rv) if len(self.step.rv) else ''
-                        script_end = f'## END DSC CORE\n\n{script_end.strip()}'.strip()
-                        script = '\n'.join([script_begin, cmd['content'], script_end])
-                        if self.try_catch:
-                            script = plugin.add_try(script, len([self.step.rf.values()]))
-                        script = f"""## {str(plugin)} script UUID: ${{DSC_STEP_ID_}}\n{script}\n"""
-                        script = '\n'.join([f'  {x}' for x in script.split('\n')])
+                        if self.debug:
+                            script = plugin.get_return(None)
+                        else:
+                            script_begin = plugin.load_env(self.step.depends,
+                                                           idx > 0 and len(self.step.rv))
+                            script_begin += '\n' + plugin.get_input(self.params,
+                                                                    self.step.libpath if self.step.libpath else [])
+                            if len(self.step.rf):
+                                script_begin += '\n' + plugin.get_output(self.step.rf)
+                            script_begin = '\n'.join([x for x in script_begin.split('\n') if x])
+                            script_begin = f"{cmd['header']}\n{script_begin.strip()}\n\n## BEGIN DSC CORE"
+                            script_end = plugin.get_return(self.step.rv) if len(self.step.rv) else ''
+                            script_end = f'## END DSC CORE\n\n{script_end.strip()}'.strip()
+                            script = '\n'.join([script_begin, cmd['content'], script_end])
+                            if self.try_catch:
+                                script = plugin.add_try(script, len([self.step.rf.values()]))
+                            script = f"""## {str(plugin)} script UUID: ${{DSC_STEP_ID_}}\n{script}\n"""
+                            script = '\n'.join([f'  {x}' for x in script.split('\n')])
                         self.action += script
                         self.exe_signature.append(cmd['signature'])
                     else:
                         self.exe_check.append(f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
-                self.action += "\nremove_log(_output)"
+                if not self.debug:
+                    self.action += "\nremove_log(_output)"
 
         def dump(self):
             return '\n'.join([x for x in

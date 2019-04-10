@@ -111,7 +111,9 @@ def execute(args, unknown_args):
         workflow2html(f'{DSC_CACHE}/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
     # FIXME: make sure try_catch works, or justify that it is not necessary to have.
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
-                              args.__max_jobs__, args.try_catch, conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'})
+                              args.__max_jobs__, args.try_catch,
+                              conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'},
+                              args.debug)
     # Apply clean-up
     if args.to_remove:
         if args.to_remove == 'all':

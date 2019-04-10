@@ -213,6 +213,8 @@ class Shell(BasePlug):
         return res
 
     def get_return(self, output_vars):
+        if output_vars is None:
+            return "\ttouch $[_output]"
         if len(output_vars) == 0:
             return ''
         res = deepcopy(output_vars)
@@ -325,6 +327,8 @@ class RPlug(BasePlug):
         return '\n'.join(res)
 
     def get_return(self, output_vars):
+        if output_vars is None:
+            return '\tsaveRDS(0, ${_output:r})'
         if len(output_vars) == 0:
             return ''
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
@@ -473,6 +477,8 @@ class PyPlug(BasePlug):
             f"\nwith open(${{_output:nr}} + '.yml', 'w') as f:\n\tf.write({repr(dict2yaml(res))})"
 
     def get_return(self, output_vars):
+        if output_vars is None:
+            return '\timport pickle; pickle.dump(0, open(${_output:r}, "wb"))'
         if len(output_vars) == 0:
             return ''
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
