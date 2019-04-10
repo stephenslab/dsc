@@ -1024,7 +1024,7 @@ class DSC_Section:
                 # that is, only exists alternating modules not concatenate modules
                 self.groups[lhs] = [x.strip() for x in rhs.replace(')','').replace('(','').split(',')]
             else:
-                self.concats[lhs] = [x.strip() for x in rhs.replace(')','').replace('(','').replace('*', '').split(',')]
+                self.concats[lhs] = [x.strip() for x in re.split("\,|\*", rhs.replace(')','').replace('(',''))]
             # http://www.regular-expressions.info/wordboundaries.html
             value = re.sub(r"\b%s\b" % lhs, rhs, value)
         return value
