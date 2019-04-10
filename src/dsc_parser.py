@@ -44,6 +44,7 @@ class DSC_Script:
         exe = ''
         headline = False
         parens_counter = Counter('()')
+        self.base_modules = []
         for line in self.transcript:
             if line.lstrip().startswith('#'):
                 continue
@@ -55,8 +56,11 @@ class DSC_Script:
                     res = []
                     exe = ''
                 if len(text) != 2 or (len(text[1].strip()) == 0 and text[0].strip() != 'DSC' and not DSC_DERIVED_BLOCK.search(text[0].strip())):
-                    raise FormatError(f'Invalid syntax ``{line}``. '\
-                                      'Should be in the format of ``module names: module executables``')
+                    # a line only with module names not module executable
+                    # eg. "module: " not "module: R(...)"
+                    # then this module is a base module
+                    # which can be used to derive other modules but not to be used directly
+                    self.base_modules.append(text[0].strip())
                 res.append(f'{text[0]}:')
                 exe += re.sub('\\\\$', '\n', text[1])
                 parens_counter.update(Counter(text[1]))
@@ -88,22 +92,28 @@ class DSC_Script:
             if block == 'DSC':
                 continue
             self.extract_modules(block, derived[block] if block in derived else None)
+        self.content = dict([(k,v) for k,v in self.content.items() if k not in self.base_modules])
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
             self.runtime.output = script_name
         self.runtime.output = remove_quotes(self.runtime.output) 
-        msg_avail_module = f"Available modules are ``{', '.join([x for x in self.content.keys() if x != 'DSC'])}``" + \
-                                (f"\nAvailable groups are ``{', '.join(try_get_value(self.content, ('DSC', 'define')).keys())}``"
-                                if try_get_value(self.content, ('DSC', 'define')) else '')
+        def get_missing_module_message(k):
+            if k in self.base_modules:
+                return f"Module ``{k}`` is not meant to be used directly due to lack of executable specifications."
+            else:
+                msg_avail_module = f"Available modules are ``{', '.join([x for x in self.content.keys() if x != 'DSC'])}``" + \
+                                   (f"\nAvailable groups are ``{', '.join(try_get_value(self.content, ('DSC', 'define')).keys())}``"
+                                   if try_get_value(self.content, ('DSC', 'define')) else '')
+                return f"Module or group name ``{k}`` is not defined!\n" + msg_avail_module
         for k,v in list(self.runtime.groups.items()) + list(self.runtime.concats.items()):
             if k in self.content or k in ['default', 'DSC']:
                 raise FormatError(f"Group name ``{k}`` conflicts with existing module name or DSC keywords!")
             for vv in v:
                 if vv not in self.content:
-                    raise FormatError(f"Module or group name ``{vv}`` is not defined!\n" + msg_avail_module)
+                    raise FormatError(get_missing_module_message(vv))
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
-                raise FormatError(f"Module or group name ``{k}`` is not defined!\n" + msg_avail_module)
+                raise FormatError(get_missing_module_message(k))
         self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path, truncate))
                              for x in self.runtime.sequence_ordering.keys()])
         script_types =  [m.exe['type'] for m in self.modules.values()]
@@ -301,10 +311,14 @@ class DSC_Script:
             raise FormatError(f"Duplicate module in block ``{','.join(modules)}``.")
         if derived is not None and '@EXEC' not in self.content[block]:
             self.content[block]['@EXEC'] = [self.content[derived[1]]['meta']['exec']]
-        if len(modules) != len(self.content[block]['@EXEC']) and len(self.content[block]['@EXEC']) > 1:
-            raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['@EXEC'])}`` executables are provided.")
-        if len(modules) > 1 and len(self.content[block]['@EXEC']) == 1:
-            self.content[block]['@EXEC'] = self.content[block]['@EXEC'] * len(modules)
+        if '@EXEC' not in self.content[block]:
+            if block not in self.base_modules:
+                raise FormatError(f"Cannot find executable specification for module ``{block}`` (expected syntax is ``{block}: <executable specification>``).")
+        else:
+            if len(modules) != len(self.content[block]['@EXEC']) and len(self.content[block]['@EXEC']) > 1:
+                raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['@EXEC'])}`` executables are provided.")
+            if len(modules) > 1 and len(self.content[block]['@EXEC']) == 1:
+                self.content[block]['@EXEC'] = self.content[block]['@EXEC'] * len(modules)
         # collection module specific parameters
         tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
         for key in self.content[block]:
