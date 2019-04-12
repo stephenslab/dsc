@@ -13,7 +13,7 @@ except ImportError:
     from hashlib import md5 as xxh
 from collections import OrderedDict
 from sos.targets import path
-from .utils import uniq_list, dict2str, n2a, empty_log, remove_log, install_package
+from .utils import uniq_list, dict2str, n2a, empty_log, remove_log, load_io_db, install_package
 from .syntax import DSC_CACHE
 __all__ = ['DSC_Translator']
 
@@ -24,7 +24,7 @@ class DSC_Translator:
       * Pipelines are executed via nested SoS workflows
     '''
     def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False,
-                 host_conf = None, debug = None):
+                 host_conf = None, debug = False):
         # FIXME: to be replaced by the R utils package
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
@@ -35,11 +35,9 @@ class DSC_Translator:
                         host_conf[kk] = host_conf[k]
                     del host_conf[k]
         conf_header = 'from dsc.dsc_database import build_config_db\n'
-        job_header = "import msgpack\nfrom collections import OrderedDict\n"\
-                     f"[global]\nIO_DB = msgpack.unpackb(open('{self.output}/{self.db}.conf.mpk'"\
-                     ", 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)\n\n"\
-                     f"{inspect.getsource(n2a)}"
-        if debug is None:
+        job_header = f"[global]\nIO_DB = '{self.output}/{self.db}.conf.mpk'\n\n"\
+                     f"{inspect.getsource(n2a)}\n{inspect.getsource(load_io_db)}"
+        if not debug:
             job_header += f"\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
         self.depends = dict()
@@ -107,16 +105,17 @@ class DSC_Translator:
             # Execution pool
             ii = 1
             for y in sequence:
-                tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y} in pipeline #{workflow_id + 1})]"]
+                tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y} in pipeline #{workflow_id + 1})]\ndata_io = load_io_db(IO_DB, '{workflow_id + 1}', '{y}')"]
                 if ii > 1:
-                    tmp_str.append(f"depends: [sos_step('%s_%s' % (n2a(x[1]).lower(), x[0])) for x in IO_DB['{workflow_id + 1}']['{y}']['depends']]")
-                tmp_str.append(f"output: IO_DB['{workflow_id + 1}']['{y}']['output']")
-                tmp_str.append(f"sos_run('{y}', {y}_output_files = IO_DB['{workflow_id + 1}']['{y}']['output'], " + \
-                               (f"{y}_input_files = IO_DB['{workflow_id + 1}']['{y}']['input'], " if len(self.depends[y]) else "") + \
+                    # use a placeholder string for dependency
+                    tmp_str.append("DEPENDS_STR")
+                tmp_str.append(f"output: data_io['output']")
+                tmp_str.append(f"sos_run('{y}', {y}_output_files = data_io['output'], " + \
+                               (f"{y}_input_files = data_io['input'], " if len(self.depends[y]) else "") + \
                                f"DSC_STEP_ID_ = {abs(int(xxh(repr(exe_signatures[y])).hexdigest(), 16)) % (10**8)})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))
-                self.job_pool[(y, workflow_id + 1)] = '\n'.join(tmp_str)
+                self.job_pool[(y, workflow_id + 1)] = tmp_str
                 ii += 1
         conf_str_py = 'import msgpack\nfrom collections import OrderedDict\n' + \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks as sos_chunks\n' + \
@@ -165,16 +164,20 @@ class DSC_Translator:
 
     def filter_execution(self):
         '''Filter steps removing the ones having common input and output'''
+        io_db = load_io_db(f'{self.output}/{self.db}.conf.mpk')
         included_steps = []
         for x in self.job_pool:
             if self.step_map[x[1]][x[0]] == x:
-                self.job_str += f'\n{self.job_pool[x]}'
+                if self.job_pool[x][1] == 'DEPENDS_STR':
+                    depends_str = [f"sos_step('{n2a(s[1]).lower()}_{s[0]}')" for s in io_db[str(x[1])][x[0]]['depends']]
+                    self.job_pool[x][1] = f'depends: {", ".join(depends_str)}'
+                self.job_str += "\n" + "\n".join(self.job_pool[x])
                 included_steps.append(x)
         #
         self.last_steps = [x for x in self.last_steps if x in included_steps]
-        self.job_str += "\n\n[DSC]\ndepends: {}\noutput: {}".\
+        self.job_str += "\n\n[DSC]\ndata_io = load_io_db(IO_DB)\ndepends: {}\noutput: {}".\
                         format(', '.join([f"sos_step('{n2a(x[1]).lower()}_{x[0]}')" for x in self.last_steps]),
-                               ', '.join([f"IO_DB['{x[1]}']['{x[0]}']['output']" for x in self.last_steps]))
+                               ', '.join([f"data_io['{x[1]}']['{x[0]}']['output']" for x in self.last_steps]))
 
     def install_libs(self, libs, lib_type):
         if lib_type not in ["R_library", "Python_Module"]:
@@ -210,7 +213,7 @@ class DSC_Translator:
         return res
 
     class Step_Translator:
-        def __init__(self, step, db, step_map, try_catch, host_conf = None, debug = None):
+        def __init__(self, step, db, step_map, try_catch, host_conf = None, debug = False):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -233,7 +236,7 @@ class DSC_Translator:
             self.current_depends = uniq_list([x[0] for x in step.depends]) if step.depends else []
             self.db = db
             self.conf = host_conf
-            self.debug = True if debug is not None else False
+            self.debug = debug
             self.input_vars = None
             self.header = ''
             self.loop_string = ['', '']

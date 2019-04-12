@@ -748,6 +748,12 @@ def n2a(col_num, col_abs=False):
         col_num = int((col_num - 1) / 26)
     return col_abs + col_str
 
+def load_io_db(fn, sequence_id = None, module = None):
+    import msgpack
+    from collections import OrderedDict
+    data = msgpack.unpackb(open(fn, 'rb').read(), encoding = 'utf-8', object_pairs_hook = OrderedDict)
+    return data[sequence_id][module] if sequence_id and module else data
+
 def is_sublist(sub, lst):
     ln = len(sub)
     for i in range(len(lst) - ln + 1):
