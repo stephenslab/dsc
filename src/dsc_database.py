@@ -351,6 +351,9 @@ class ResultDB:
 
     def __get_pipeline(self, module, module_id, module_idx, iteres):
         '''Input are last module name, ID, and its index (in its data frame)'''
+        # FIXME: this iterative function is the speed bottleneck in this class.
+        # 88% total computing time is spent on this
+        # need to use an alternative implementation
         iteres.append((module, module_id))
         depend_id = self.data[module]['__parent__'][module_idx]
         if depend_id == -9:
