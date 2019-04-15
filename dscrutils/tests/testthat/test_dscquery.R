@@ -198,4 +198,16 @@ test_that("dscquery list and data frame contents are the same",{
   expect_equal(out1,as.data.frame(out2,stringsAsFactors = FALSE))
 })
 
-    
+test_that(paste("dscquery properly handles modules outputs and module",
+                "parameters when they are NULL"),{
+  dsc.dir <- system.file("datafiles","null_output","null_output",
+                         package = "dscrutils")
+  dat1 <- data.frame(DSC   = rep(1:4,each = 2),
+                     foo.a = rep(c("NULL","4"),times = 2),
+                     stringsAsFactors = FALSE)
+  dat2 <- list(DSC = 1:4,bar.data = list(NULL,NULL,NULL,0.2167549))
+  out1 <- dscquery(dsc.dir,"foo.a",verbose = FALSE)
+  out2 <- dscquery(dsc.dir,"bar.data",verbose = FALSE)
+  expect_equal(out1,dat1)
+  expect_equal(out2,dat2,tolerance = 1e-6)
+})
