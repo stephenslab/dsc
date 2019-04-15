@@ -9,7 +9,7 @@ foo: R(if (is.null(a)) a <- 1; x <- a*rnorm(1))
   a: NULL, 4
   $data: x
 
-bar: R(x <- rnorm(1); if (x < 0) x <- "NULL")
+bar: R(x <- rnorm(1); if (x < 0) x <- NULL)
   $data: x
 
 DSC:

@@ -531,7 +531,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
         else if (!is.element(j,names(x)))
           stop(sprintf("Variable \"%s\" unavailable in \"%s\"",j,i))
         else
-          out[[i]][[j]] <- x[[j]]
+          out[[i]][j] <- list(x[[j]])
   }
 
   # Copy the DSC outputs from the intermediate nexted list to final
@@ -543,7 +543,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
     for (j in 1:n) {
       file <- dat[[i]][[j]]
       if (!is.na(file))
-        dat[[i]][[j]] <- out[[file]][[v]]
+        dat[[i]][j] <- list(out[[file]][[v]])
     }
   }
   
