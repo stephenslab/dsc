@@ -1,0 +1,1 @@
+../../../../vignettes/one_sample_location/first_investigation.dsc
