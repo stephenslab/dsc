@@ -376,7 +376,7 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
                     "be returned as a data frame with return.type =",
                     "\"data.frame\" or return.type = \"auto\"; a data frame",
                     "may be more convenient for analyzing these results"))
-}
+  }
 
   # POST-FILTER BY CONDITIONS 
   # -------------------------
