@@ -36,7 +36,7 @@ class DSC_Translator:
                     del host_conf[k]
         conf_header = 'from dsc.dsc_database import build_config_db\n'
         job_header = f"[global]\nIO_DB = '{self.output}/{self.db}.conf.mpk'\n\n"\
-                     f"{inspect.getsource(n2a)}\n{inspect.getsource(load_io_db)}"
+                     f"{inspect.getsource(load_io_db)}"
         if not debug:
             job_header += f"\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
@@ -126,7 +126,6 @@ class DSC_Translator:
                       f"\n\topen('{DSC_CACHE}/{self.db}.io.mpk', 'wb').write(msgpack.packb(__io_db__))\n\n" + \
                       "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
-        # tmp_dep = ", ".join([f"sos_step('{n2a(x+1)}')" for x, y in enumerate(set(io_info_files))])
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
                             (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \

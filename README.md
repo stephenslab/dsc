@@ -93,6 +93,12 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.7
+
+- `dscquery` now properly handles `NULL` module output variables.
+- Some performance improvements on I/O database.
+- SoS bumped to version 0.19.6 for various bug fixes on cluster job submitter.
+
 0.3.6
 
 - Now SQLite keywords can be used as module names: no error message will be triggered.
