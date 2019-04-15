@@ -125,7 +125,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                     continue
                 kk = kk.split(' ')[0]
                 if kk in names:
-                    raise ValueError(f'\nIdentical modules found: ``{kk}``!')
+                    raise ValueError(f'\nIdentical instances found in module ``{kk.split(":")[0]}``!')
                 content = uniq_list(reversed([x for x in chunks(kk.split(":"), 2)]))
                 # content example:
                 # [('rcauchy', '71c60831e6ac5e824cb845171bd19933'),
