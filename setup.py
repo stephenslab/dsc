@@ -52,8 +52,8 @@ setup(name        = "dsc",
       packages    = ['dsc', 'dsc.parser'],
       cmdclass    = cmdclass,
       package_dir = {'dsc': 'src'},
-      install_requires = ['numpy', 'pandas>=0.23.4', 'sympy', 'numexpr',
-                          'sos>=0.19.5', 'sos-pbs>=0.17.5', 'h5py', 'PTable',
+      install_requires = ['numpy', 'pandas>=0.24.1', 'sympy', 'numexpr',
+                          'sos>=0.19.6', 'sos-pbs>=0.19.6', 'h5py', 'PTable',
                           'pyarrow>=0.5.0', 'sqlalchemy', 'tzlocal',
                           'msgpack-python']
       )
