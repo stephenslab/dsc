@@ -10,7 +10,7 @@ test_that(paste("First one_sample_location DSC query examples returns a",
                          package = "dscrutils")
   dat <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
                   conditions = "$(simulate.n) > 10",verbose = FALSE)
-  expect_equal(dim(dat),c(40,6))
+  expect_equal(dim(dat),c(8,6))
 })
 
 test_that(paste("Filtering by conditions argument for one_sample_location",
@@ -55,7 +55,7 @@ test_that(paste("dscquery correctly allows condition targets that are",
                   targets = c("simulate.n","score.error"),
                   conditions = c("$(simulate) == 't'"),
                   verbose = FALSE)
-  expect_equal(dim(dat),c(20,5))
+  expect_equal(dim(dat),c(4,5))
 })
 
 test_that("ash DSC query example returns a 10 x 6 data frame",{
@@ -88,7 +88,7 @@ test_that(paste("Second ash DSC example without shrink.beta_est returns a",
            conditions ="$(simulate.g) == 'list(c(2/3,1/3),c(0,0),c(1,2))'",
            verbose = FALSE)
   expect_true(is.data.frame(dat))
-  expect_equal(dim(dat),c(10,5))
+  expect_equal(dim(dat),c(2,5))
 })
 
 test_that(paste("Second one_sample_location DSC example returns an error",
@@ -155,10 +155,9 @@ test_that(paste("dscquery filtering by condition works when return value is",
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
   out <- dscquery(dsc.dir,targets = c("analyze","simulate.data","score.error"),
-                  conditions = c("$(analyze) == 'mean'",
-                                 "$(score.error) < 0.05"),
+                  conditions=c("$(analyze) == 'mean'","$(score.error) < 0.2"),
                   verbose = FALSE)
-  expect_equivalent(sapply(out,length),rep(13,6))
+  expect_equivalent(sapply(out,length),rep(2,6))
 })
 
 test_that(paste("dscquery returns a data frame with the correct column names",

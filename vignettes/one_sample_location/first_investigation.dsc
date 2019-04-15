@@ -67,3 +67,4 @@ DSC:
     analyze: mean, median
     score: abs_err, sq_err
   run: simulate * analyze * score
+  output: dsc_result
