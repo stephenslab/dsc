@@ -97,7 +97,7 @@ Goal for 0.4.0
 
 - `dscquery` now properly handles `NULL` module output variables.
 - Some performance improvements on I/O database.
-- SoS bumped to version 0.19.6 for various bug fixes on cluster job submitter.
+- SoS bumped to version 0.19.7 for various bug fixes on cluster job submitter.
 
 0.3.6
 

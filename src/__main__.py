@@ -86,12 +86,10 @@ def execute(args, unknown_args):
                         format(' '.join(', '.join(args.target).split())))
     from .dsc_parser import DSC_Script, DSC_Pipeline
     from .dsc_translator import DSC_Translator
-    from .dsc_database import ResultDB
     script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, global_params = unknown_args, truncate = args.truncate, replicate = 1 if args.truncate else args.replicate)
     script.init_dsc(env)
     db = os.path.basename(script.runtime.output)
     pipeline_obj = DSC_Pipeline(script).pipelines
-    master_tables = list(set([x[list(x.keys())[-1]].name for x in pipeline_obj]))
     #
     import platform
     # FIXME: always assume args.host is a Linux machine; thus not checking it
@@ -193,14 +191,11 @@ def execute(args, unknown_args):
     if args.debug:
         script_to_html(os.path.abspath(script_run), f'{DSC_CACHE}/{db}.run.html')
         return
-    # Recover DSC database alone from meta-file
-    if not ((os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')
-             and os.path.isfile(f'{DSC_CACHE}/{db}.io.mpk'))):
-        env.logger.warning('Cannot build DSC database because meta-data for this project is corrupted.')
-    else:
-        env.logger.info("Building DSC database ...")
-        ResultDB(f'{script.runtime.output}/{db}', master_tables, script.runtime.sequence_ordering).\
-            Build(script = open(script.runtime.output + '.html').read(), groups = script.runtime.groups, depends = pipeline.get_dependency())
+    # Get DSC meta database
+    env.logger.info("Building DSC database ...")
+    content['workflow'] = "build"
+    with Silencer(env.verbosity if args.debug else 0):
+        cmd_run(script.get_sos_options(db, content), [])
     if args.__construct__ == "all":
         return
     # Run
