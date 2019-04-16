@@ -9,7 +9,8 @@ test_that(paste("First one_sample_location DSC query examples returns a",
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
   dat <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
-                  conditions = "$(simulate.n) > 10",verbose = FALSE)
+                  conditions = "$(simulate.n) > 10",omit.filenames = TRUE,
+                  verbose = FALSE)
   expect_equal(dim(dat),c(8,6))
 })
 
@@ -156,7 +157,7 @@ test_that(paste("dscquery filtering by condition works when return value is",
                          package = "dscrutils")
   out <- dscquery(dsc.dir,targets = c("analyze","simulate.data","score.error"),
                   conditions=c("$(analyze) == 'mean'","$(score.error) < 0.2"),
-                  verbose = FALSE)
+                  omit.filenames = TRUE,verbose = FALSE)
   expect_equivalent(sapply(out,length),rep(2,6))
 })
 
