@@ -49,7 +49,7 @@ command-line shell:
 
 ```bash
 R CMD build dscrutils
-R CMD check --as-cran dscrutils_0.2.6.5.tar.gz
+R CMD check --as-cran dscrutils_0.3.6.4.tar.gz
 ```
 
 To update the package documentation from the
