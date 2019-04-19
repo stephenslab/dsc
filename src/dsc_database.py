@@ -217,18 +217,10 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
     open(conf_db, "wb").write(msgpack.packb(conf))
 
 class ResultDB:
-    def __init__(self, prefix, targets, ordering):
+    def __init__(self, prefix):
         self.prefix = prefix
-        # when set to None uses the last modules of pipelines
-        # as master tables
-        self.targets = targets
-        self.ordering = ordering
-        # master tables
-        self.master = OrderedDict()
         # data: every module is a table
         self.data = OrderedDict()
-        # modules that appear at the end of pipelines
-        self.end_modules = []
         if os.path.isfile(f"{self.prefix}.map.mpk"):
             self.maps = msgpack.unpackb(open(f"{self.prefix}.map.mpk", "rb").read(), encoding = 'utf-8',
                                         object_pairs_hook = OrderedDict)
@@ -252,7 +244,7 @@ class ResultDB:
             raise DBError('Cannot load source data to build database!')
         KWS = ['__pipeline_id__', '__pipeline_name__', '__module__', '__out_vars__']
         seen = set()
-        for workflow_id, workflow in self.metadata.items():
+        for workflow in self.metadata.values():
             workflow_len = len(workflow)
             for m_id, module in enumerate(workflow.keys()):
                 pipeline_module = f"{workflow[module][0]}:{workflow[module][1]}"
@@ -260,13 +252,6 @@ class ResultDB:
                     continue
                 seen.add(pipeline_module)
                 data = self.rawdata[pipeline_module]
-                is_end_module = (m_id + 1) == workflow_len
-                if self.targets is not None:
-                    # For given target we must treat it as if it is end of a pipeline
-                    # so that we can query from it
-                    is_end_module = module in self.targets or is_end_module
-                if not module in self.end_modules and is_end_module:
-                    self.end_modules.append(module)
                 #
                 len_ext = len(data['__ext__']) + 1
                 for k, v in data.items():
@@ -279,95 +264,32 @@ class ResultDB:
                     # each key reads like
                     # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
                     k = k.split(' ')
-                    self.data[module]['__output__'].append(find_namemap(k[0]))
                     # ID numbers all module instances
-                    mk = k[0].split(":")
-                    self.data[module]['__id__'].append(":".join(mk[:2]))
+                    mk = [':'.join(kk.split(":")[:2]) for kk in k]
                     num_parents = 1
-                    if len(mk) > 2:
+                    if len(mk) > 1:
                         # Have to fine its ID ...
                         # see which module has __module_id__ == k[i] and return its ID
-                        parents = [":".join(x) for x in chunks(mk[2:],2)]
-                        num_parents = len(parents)
-                        self.data[module]['__parent__'].extend(parents)
+                        num_parents = len(mk[1:])
+                        self.data[module]['__parent__'].extend(mk[1:])
                     else:
                         self.data[module]['__parent__'].append(None)
                     # Assign other parameters
+                    self.data[module]['__output__'].extend([find_namemap(k[0])] * num_parents)
+                    self.data[module]['__id__'].extend([mk[0]] * num_parents)
                     for kk, vv in v.items():
                         if kk not in KWS:
                             if kk not in self.data[module]:
                                 self.data[module][kk] = []
                             self.data[module][kk].extend([remove_quotes(vv)] * num_parents)
 
-    def __get_pipeline(self, module, module_id, module_idx, iteres):
-        '''Input are last module name, ID, and its index (in its data frame)'''
-        # FIXME: this iterative function is the speed bottleneck in this class.
-        # 88% total computing time is spent on this
-        # need to use an alternative implementation
-        iteres.append((module, module_id))
-        depend_id = self.data[module]['__parent__'][module_idx]
-        if depend_id == None:
-            return
-        else:
-            idx = None
-            module = None
-            for k in self.data:
-                # try get some idx
-                idx = [i for i, value in enumerate(self.data[k]['__id__']) if value == depend_id]
-                if len(idx) == 0:
-                    idx = None
-                else:
-                    module = k
-                    break
-            if idx is None or module is None:
-                raise DBError('Cannot find module instance ID ``{}`` in any tables!'.format(depend_id))
-            for i in idx:
-                self.__get_pipeline(module, depend_id, i, iteres)
-
-    def write_master_table(self, module):
-        '''
-        Create a master table in DSCR flavor. Columns are:
-        name, module1, module1_instance_ID, module2, module2_instance_ID, ...
-        I'll create multiple master tables for as many as in self.end_modules.
-        '''
-        pipelines = []
-        # A pipeline instance can be retrieved via:
-        # (module -> depend_id -> id -> module ... )_n
-        for module_idx, module_id in enumerate(self.data[module]['__id__']):
-            tmp = []
-            self.__get_pipeline(module, module_id, module_idx, tmp)
-            tmp = uniq_list(tmp)
-            if self.ordering:
-                ordering = list(self.ordering)
-                tmp.sort(key = lambda x: ordering.index(x[0]))
-            pipelines.append(tuple(tmp))
-        data = OrderedDict()
-        for pipeline in pipelines:
-            key = tuple(x[0] for x in pipeline)
-            if key not in data:
-                data[key] = [key]
-            data[key].append([x[1] for x in pipeline])
-        for key in list(data.keys()):
-            header = data[key].pop(0)
-            data[key] = pd.DataFrame(data[key], columns = header)
-        keys = filter_sublist(list(data.keys()), ordered = False)
-        for key in list(data.keys()):
-            if key not in keys:
-                del data[key]
-            else:
-                data['+'.join(key)] = data.pop(key)
-        return data
-
-    def Build(self, script = None, groups = None, depends = None):
+    def Build(self, script = None, groups = None, depends = None, pipelines = None):
         self.load_parameters()
-        for module in self.end_modules:
-            self.master[f'pipeline_{module}'] = self.write_master_table(module)
         output = dict()
         for module in self.data:
             cols = ['__id__', '__parent__', '__output__'] + [x for x in self.data[module].keys() if x not in self.meta_kws]
             output[module] = self.data[module].pop('__out_vars__')
             self.data[module] = pd.DataFrame(self.data[module], columns = cols)
-        self.data.update(self.master)
         if script is not None:
             self.data['.html'] = script
         if groups is not None:
@@ -375,6 +297,7 @@ class ResultDB:
         if depends is not None:
             self.data['.depends'] = depends
         self.data['.output'] = output
+        self.data['.pipelines'] = pipelines
         pickle.dump(self.data, open(self.prefix + '.db', 'wb'))
 
 if __name__ == '__main__':

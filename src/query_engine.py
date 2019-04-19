@@ -58,23 +58,23 @@ class Query_Processor:
         # 3. only keep tables that do exist in database
         self.target_tables = self.filter_tables(self.target_tables)
         self.condition_tables = self.filter_tables(self.condition_tables)
-        # 4. identify all pipelines in database
-        self.pipelines = self.get_pipelines()
-        # 5. identify and extract which part of each pipeline are involved
+        # 4. identify and extract which part of each pipeline are involved
         # based on tables in target / condition
-        self.pipelines, self.target_tables, self.condition_tables = self.filter_pipelines()
-        # 6. make select / from / where clause
+        # input pipelines (from data) are: 
+        # [('rnorm', 'mean', 'MSE'), ('rnorm', 'median', 'MSE'), ... ('rt', 'winsor', 'MSE')]
+        self.pipelines, self.target_tables, self.condition_tables = self.filter_pipelines(self.data['.pipelines'])
+        # 5. make select / from / where clause
         select_clauses = self.get_select_clause()
         from_clauses = self.get_from_clause()
         where_clauses = self.get_where_clause()
         self.queries = uniq_list([' '.join(x) for x in list(zip(*[select_clauses, from_clauses, where_clauses]))])
-        # 7. run queries
+        # 6. run queries
         self.output_tables = self.run_queries()
-        # 8. merge table
+        # 7. merge table
         self.output_table = self.merge_tables()
-        # 9. fillna
+        # 8. fillna
         self.fillna()
-        # 10. finally show warnings
+        # 9. finally show warnings
         self.warn()
 
     @staticmethod
@@ -206,18 +206,9 @@ class Query_Processor:
     def filter_tables(self, tables):
         return uniq_list([x for x in tables if x[0].lower() in
                           [y.lower() for y in self.data.keys()
-                           if not y.startswith('pipeline_') and not y.startswith('.')]])
+                          if not y.startswith('.')]])
 
-    def get_pipelines(self):
-        '''
-        example output:
-        [('rnorm', 'mean', 'MSE'), ('rnorm', 'median', 'MSE'), ... ('rt', 'winsor', 'MSE')]
-        '''
-        res = [[tuple(kk.split('+')) for kk in self.data[k].keys()]
-               for k in self.data.keys() if k.startswith("pipeline_")]
-        return sum(res, [])
-
-    def filter_pipelines(self):
+    def filter_pipelines(self, pipelines):
         '''
         for each pipeline extract the sub pipeline that the query involves
         '''
@@ -259,14 +250,14 @@ class Query_Processor:
                     raise ValueError(f'Requested module ``{primary[idx+1]}`` is an orphan branch. Please consider using separate queries for information from this module.')
             return primary
         #
-        valid_tables = [[item[0] for item in self.target_tables + self.condition_tables if item[0] in pipeline] for pipeline in self.pipelines]
+        valid_tables = [[item[0] for item in self.target_tables + self.condition_tables if item[0] in pipeline] for pipeline in pipelines]
         # 1. Further filter pipelines to minimally match target table dependencies
         # 2. For pipelines containing each other we only keep the longest pipelines
-        pipelines = filter_sublist([get_sequence(tables, pipeline) for tables, pipeline in zip(valid_tables, self.pipelines)])
-        target_tables = [[item for item in self.target_tables if item[0] in pipeline] for pipeline in pipelines]
-        condition_tables = [[item for item in self.condition_tables if item[0] in pipeline] for pipeline in pipelines]
+        long_pipelines = filter_sublist([get_sequence(tables, pipeline) for tables, pipeline in zip(valid_tables, pipelines)])
+        target_tables = [[item for item in self.target_tables if item[0] in pipeline] for pipeline in long_pipelines]
+        condition_tables = [[item for item in self.condition_tables if item[0] in pipeline] for pipeline in long_pipelines]
         non_empty_targets = [idx for idx, item in enumerate(target_tables) if len(item) > 0]
-        return [pipelines[i] for i in non_empty_targets], [target_tables[i] for i in non_empty_targets], [condition_tables[i] for i in non_empty_targets]
+        return [long_pipelines[i] for i in non_empty_targets], [target_tables[i] for i in non_empty_targets], [condition_tables[i] for i in non_empty_targets]
 
     def get_from_clause(self):
         res = [f'FROM "{sequence[0]}" ' + ' '.join(['INNER JOIN "{1}" ON "{0}".__parent__ = "{1}".__id__'.format(sequence[i], sequence[i+1]) for i in range(len(sequence) - 1)]).strip() \

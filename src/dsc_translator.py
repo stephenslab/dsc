@@ -126,7 +126,6 @@ class DSC_Translator:
                       f"\n\topen('{DSC_CACHE}/{self.db}.io.mpk', 'wb').write(msgpack.packb(__io_db__))\n\n" + \
                       "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
-        master_tables = list(set([x[list(x.keys())[-1]].name for x in workflows]))
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
                             (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \
@@ -144,9 +143,8 @@ class DSC_Translator:
                             "\n[build (Build meta-database)]\n"\
                             f"depends: '{DSC_CACHE}/{self.db}.io.mpk', '{self.output}/{self.db}.map.mpk'\n"\
                             f"output: '{self.output}/{self.db}.db'"\
-                            "\nResultDB(f'{_output:n}', "\
-                            f"{master_tables}, {dict(runtime.sequence_ordering)})."\
-                            f"Build(script = open('{runtime.output}.html').read(), groups = {runtime.groups}, depends = {self.get_dependency()})"
+                            "\nResultDB(f'{_output:n}')."\
+                            f"Build(script = open('{runtime.output}.html').read(), groups = {runtime.groups}, depends = {self.get_dependency()}, pipelines = {runtime.sequence})"
         #
         self.install_libs(runtime.rlib, "R_library")
         self.install_libs([x for x in runtime.pymodule if x != 'dsc'], "Python_Module")
