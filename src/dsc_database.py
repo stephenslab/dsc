@@ -7,7 +7,7 @@ import os, msgpack, glob, pickle, copy, shutil
 import pandas as pd
 from collections import OrderedDict
 from .utils import uniq_list, flatten_list, chunks, remove_multiple_strings, extend_dict, \
-    remove_quotes, DBError, filter_sublist
+    remove_quotes, DBError
 from .addict import Dict as dotdict
 from .syntax import DSC_CACHE
 
@@ -245,7 +245,6 @@ class ResultDB:
         KWS = ['__pipeline_id__', '__pipeline_name__', '__module__', '__out_vars__']
         seen = set()
         for workflow in self.metadata.values():
-            workflow_len = len(workflow)
             for m_id, module in enumerate(workflow.keys()):
                 pipeline_module = f"{workflow[module][0]}:{workflow[module][1]}"
                 if pipeline_module in seen:
@@ -265,18 +264,17 @@ class ResultDB:
                     # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
                     k = k.split(' ')
                     # ID numbers all module instances
-                    mk = [':'.join(kk.split(":")[:2]) for kk in k]
                     num_parents = 1
-                    if len(mk) > 1:
+                    if len(k) > 1:
                         # Have to fine its ID ...
                         # see which module has __module_id__ == k[i] and return its ID
-                        num_parents = len(mk[1:])
-                        self.data[module]['__parent__'].extend(mk[1:])
+                        num_parents = len(k[1:])
+                        self.data[module]['__parent__'].extend(k[1:])
                     else:
                         self.data[module]['__parent__'].append(None)
                     # Assign other parameters
                     self.data[module]['__output__'].extend([find_namemap(k[0])] * num_parents)
-                    self.data[module]['__id__'].extend([mk[0]] * num_parents)
+                    self.data[module]['__id__'].extend([k[0]] * num_parents)
                     for kk, vv in v.items():
                         if kk not in KWS:
                             if kk not in self.data[module]:

@@ -60,7 +60,7 @@ class Query_Processor:
         self.condition_tables = self.filter_tables(self.condition_tables)
         # 4. identify and extract which part of each pipeline are involved
         # based on tables in target / condition
-        # input pipelines (from data) are: 
+        # input pipelines (from data) are:
         # [('rnorm', 'mean', 'MSE'), ('rnorm', 'median', 'MSE'), ... ('rt', 'winsor', 'MSE')]
         self.pipelines, self.target_tables, self.condition_tables = self.filter_pipelines(self.data['.pipelines'])
         # 5. make select / from / where clause

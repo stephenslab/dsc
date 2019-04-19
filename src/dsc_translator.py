@@ -35,7 +35,7 @@ class DSC_Translator:
                         host_conf[kk] = host_conf[k]
                     del host_conf[k]
         conf_header = 'from dsc.dsc_database import build_config_db, ResultDB\n'
-        job_header = f"[global]\nIO_DB = '{self.output}/{self.db}.conf.mpk'\n\n"\
+        job_header = f"[global]\nimport os\n\nIO_DB = '{self.output}/{self.db}.conf.mpk'\n\n"\
                      f"{inspect.getsource(load_io_db)}"
         if not debug:
             job_header += f"\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
