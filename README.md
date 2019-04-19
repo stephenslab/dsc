@@ -93,6 +93,10 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.8
+
+- Issue #171 is partially improved.
+
 0.3.7
 
 - `dscquery` now properly handles `NULL` module output variables.
