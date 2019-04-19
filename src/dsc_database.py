@@ -234,25 +234,9 @@ class ResultDB:
                                         object_pairs_hook = OrderedDict)
         else:
             raise DBError(f"Cannot build DSC meta-data: hash table ``{self.prefix}.map.mpk`` is missing!")
-        self.meta_kws = ['__id__', '__module_id__', '__output__', '__parent__', '__out_vars__']
+        self.meta_kws = ['__id__', '__output__', '__parent__', '__out_vars__']
 
     def load_parameters(self):
-        #
-        def search_dependent_index(x):
-            res = []
-            for xx in x:
-                out = None
-                for vv in self.data.values():
-                    try:
-                        # FIXME: maybe slow here
-                        out = vv['__id__'][vv['__module_id__'].index(xx)]
-                        break
-                    except ValueError:
-                        continue
-                if out is None:
-                    raise DBError(f'Cannot find the queried dependency module instance ``{xx}``!')
-                res.append(out)
-            return tuple(res) if len(res) > 1 else res[0]
         #
         def find_namemap(x):
             if x in self.maps:
@@ -267,24 +251,14 @@ class ResultDB:
         except:
             raise DBError('Cannot load source data to build database!')
         KWS = ['__pipeline_id__', '__pipeline_name__', '__module__', '__out_vars__']
-        # flatten dictionary removing duplicate keys because those keys are just `__input_output__` and `__ext__`
-        # All other info in counts should be unique
-
-        # from collections import Counter
-        # counts =  Counter(key for sub in self.rawdata.values() for key in sub)
-        # data = OrderedDict([(key, value) for sub in self.rawdata.values() for key, value in sub.items() if counts[key] == 1])
-        #
-        # total number of module instances involved
-        # some instances can be identical
-        inst_cnts = 0
-        seen = []
-        for workflow_id in self.metadata:
-            workflow_len = len(self.metadata[workflow_id])
-            for m_id, module in enumerate(self.metadata[workflow_id].keys()):
-                pipeline_module = '{}:{}'.format(self.metadata[workflow_id][module][0], self.metadata[workflow_id][module][1])
+        seen = set()
+        for workflow_id, workflow in self.metadata.items():
+            workflow_len = len(workflow)
+            for m_id, module in enumerate(workflow.keys()):
+                pipeline_module = f"{workflow[module][0]}:{workflow[module][1]}"
                 if pipeline_module in seen:
                     continue
-                seen.append(pipeline_module)
+                seen.add(pipeline_module)
                 data = self.rawdata[pipeline_module]
                 is_end_module = (m_id + 1) == workflow_len
                 if self.targets is not None:
@@ -298,56 +272,32 @@ class ResultDB:
                 for k, v in data.items():
                     if k in ['__input_output___', '__ext__']:
                         continue
-                    inst_cnts += 1
-                    # each v is a dict of a module instances
-                    # each k reads like
-                    # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
-                    # avoid name conflict
-                    #
-                    if module in self.data:
-                        keys1 = repr(sorted([x for x in v.keys() if not x in KWS]))
-                        keys2 = repr(sorted([x for x in self.data[module].keys() if not x in self.meta_kws]))
-                        if keys1 != keys2:
-                            raise DBError('Inconsistent keys between module '\
-                                          '``{0} ({1})`` and ``{2} ({3})``.'.\
-                                          format(inst_cnts, keys1, self.data[module]['__id__'], keys2))
-                    else:
-                        self.data[module] = dict()
-                        for x in self.meta_kws:
-                            self.data[module][x] = []
+                    if module not in self.data:
+                        self.data[module] = dict([(x, []) for x in self.meta_kws])
                         self.data[module]['__out_vars__'] = v['__out_vars__']
-                    # ID numbers all module instances
-                    self.data[module]['__id__'].append(inst_cnts)
+                    # each v is a dict of a module instances
+                    # each key reads like
+                    # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
                     k = k.split(' ')
-                    self.data[module]['__module_id__'].append(k[0])
                     self.data[module]['__output__'].append(find_namemap(k[0]))
-                    if len(k) > 1:
+                    # ID numbers all module instances
+                    mk = k[0].split(":")
+                    self.data[module]['__id__'].append(":".join(mk[:2]))
+                    num_parents = 1
+                    if len(mk) > 2:
                         # Have to fine its ID ...
                         # see which module has __module_id__ == k[i] and return its ID
-                        self.data[module]['__parent__'].append(search_dependent_index(k[1:]))
+                        parents = [":".join(x) for x in chunks(mk[2:],2)]
+                        num_parents = len(parents)
+                        self.data[module]['__parent__'].extend(parents)
                     else:
-                        self.data[module]['__parent__'].append(-9)
+                        self.data[module]['__parent__'].append(None)
                     # Assign other parameters
                     for kk, vv in v.items():
                         if kk not in KWS:
                             if kk not in self.data[module]:
                                 self.data[module][kk] = []
-                            self.data[module][kk].append(remove_quotes(vv))
-                # Expand `__parent__` tuple
-                self.data[module] = self.__expand_parents(self.data[module], KWS)
-
-    @staticmethod
-    def __expand_parents(table, KWS):
-        # for lines with __parent__ being a tuple, make it 2 lines
-        lengths = [len(item) if isinstance(item, tuple) else 1 for item in table['__parent__']]
-        for k in table:
-            if k in KWS:
-                continue
-            if k == '__parent__':
-                table[k] = flatten_list(table[k])
-            else:
-                table[k] = flatten_list([[item]*length for item, length in zip(table[k], lengths)])
-        return table
+                            self.data[module][kk].extend([remove_quotes(vv)] * num_parents)
 
     def __get_pipeline(self, module, module_id, module_idx, iteres):
         '''Input are last module name, ID, and its index (in its data frame)'''
@@ -356,7 +306,7 @@ class ResultDB:
         # need to use an alternative implementation
         iteres.append((module, module_id))
         depend_id = self.data[module]['__parent__'][module_idx]
-        if depend_id == -9:
+        if depend_id == None:
             return
         else:
             idx = None
