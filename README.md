@@ -93,6 +93,10 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.9
+
+- Issue #183
+
 0.3.8
 
 - Issue #171 is partially improved.
