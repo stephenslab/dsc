@@ -245,11 +245,15 @@ class Query_Processor:
             # in which case an warning message will be given
             orphans = []
             for idx, item in enumerate(primary):
+                if item in orphans:
+                    continue
                 if idx == len(primary) - 1:
                     break
                 if self.depends is not None and primary[idx+1] not in self.depends[item]:
                     logger.warning(f'Requested module ``{primary[idx+1]}`` is an orphan branch with respect to module ``{item}``; thus removed from sub-query involving module ``{item}``.')
-            return [item for item in primary if not item in orphans]
+                    orphans.append(primary[idx+1])
+            primary = [item for item in primary if not item in orphans]
+            return primary
         #
         valid_tables = [[item[0] for item in self.target_tables + self.condition_tables if item[0] in pipeline] for pipeline in pipelines]
         # 1. Further filter pipelines to minimally match target table dependencies
