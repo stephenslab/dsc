@@ -17,8 +17,8 @@ jobs:
       - run:
           name: Installation information
           command: |
-          dsc --help
-          dsc-query --version
+            dsc --help
+            dsc-query --version
       - run:
           name: Run tests
           command: |
