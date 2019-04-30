@@ -7,7 +7,9 @@ jobs:
       - checkout
       - run:
           name: Install Python
-          command: apt-get install -y python3 python3-pip
+          command: |
+            apt-get update
+            apt-get install -y python3 python3-pip
       - run:
           name: Install Python dependencies
           command: pip3 install --ignore-installed -r requirements.txt
@@ -49,7 +51,7 @@ jobs:
                                r-cran-testthat
       - run:
           name: Install package dependencies
-          command: r -e "devtools::install_deps(dependencies = TRUE, upgrade = FALSE)"
+          command: r -e 'devtools::install_deps("dscrutils", dependencies = TRUE, upgrade = FALSE)'
       - run:
           name: Session information and installed package versions
           command: |
