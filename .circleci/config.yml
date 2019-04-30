@@ -1,0 +1,32 @@
+version: 2
+jobs:
+  dsc:
+    docker:
+      - image: ubuntu:xenial
+    steps:
+      - checkout
+      - run:
+          name: Install Python
+          command: apt-get install -y python3 python3-pip
+      - run:
+          name: Install Python dependencies
+          command: pip3 install --ignore-installed -r requirements.txt
+      - run:
+          name: Install DSC
+          command: python3 -m pip install . --no-deps -vv
+      - run:
+          name: Installation information
+          command: |
+          dsc --help
+          dsc-query --version
+      - run:
+          name: Run tests
+          command: |
+            cd test/
+            python3 test_parser.py
+            python3 test_query.py
+workflows:
+  version: 2
+  all:
+    jobs:
+      - dsc
