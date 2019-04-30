@@ -247,7 +247,7 @@ class Query_Processor:
             while idx < (len(primary) - 1):
                 item = primary[idx]
                 if self.depends is not None and primary[idx+1] not in self.depends[item]:
-                    warnings.append(f'Requested module ``{primary[idx+1]}`` is not connected to module ``{item}``; thus removed from sub-query involving module ``{item}``.')
+                    warnings.append(f'Requested/intermediate module ``{primary[idx+1]}`` is not connected to module ``{item}``; thus removed from sub-query involving module ``{item}``.')
                     del primary[idx+1]
                     idx -= 1
                 idx += 1
