@@ -25,8 +25,51 @@ jobs:
             cd test/
             python3 test_parser.py
             python3 test_query.py
+  dscrutils:
+    docker:
+      - image: rocker/r-apt:xenial
+    steps:
+      - restore_cache:
+          keys:
+            - cache
+      - checkout
+      - run:
+          name: Install devtools (and other dependencies) via APT
+          command: |
+            apt-get update
+            apt-get install -y r-cran-devtools
+            # System dependencies
+            apt-get install -y libxml2-dev qpdf
+            # R packages available from c2d4u3.5
+            apt-get install -y r-cran-dplyr \
+                               r-cran-ggplot2 \
+                               r-cran-reticulate \
+                               r-cran-rlang \
+                               r-cran-shiny \
+                               r-cran-testthat
+      - run:
+          name: Install package dependencies
+          command: r -e "devtools::install_deps(dependencies = TRUE, upgrade = FALSE)"
+      - run:
+          name: Session information and installed package versions
+          command: |
+            r -e 'print(sessionInfo())'
+            r -e 'print(installed.packages()[, c("Package", "Version")])'
+      - run:
+          name: Build and check
+          command: |
+            R CMD build --no-manual dscrutils
+            R CMD check --as-cran --no-manual dscrutils_*.tar.gz
+      - store_artifacts:
+          path: dscrutils.Rcheck/
+      - save_cache:
+          key: cache
+          paths:
+            - "/usr/local/lib/R/site-library"
+
 workflows:
   version: 2
   all:
     jobs:
       - dsc
+      - dscrutils
