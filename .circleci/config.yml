@@ -2,7 +2,7 @@ version: 2
 jobs:
   dsc:
     docker:
-      - image: ubuntu:xenial
+      - image: ubuntu:bionic
     steps:
       - checkout
       - run:
@@ -30,7 +30,7 @@ jobs:
             python3 test_query.py
   dscrutils:
     docker:
-      - image: rocker/r-apt:xenial
+      - image: rocker/r-apt:bionic
     steps:
       - restore_cache:
           keys:
