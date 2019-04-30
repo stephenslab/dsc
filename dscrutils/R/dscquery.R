@@ -8,7 +8,9 @@
 #' @param dsc.outdir Directory where the DSC output is stored.
 #'
 #' @param targets Query targets specified as a character vector; for
-#' example, \code{targets = c("simulate.n","analyze","score.error")}.
+#' example, \code{targets = c("simulate.n","analyze","score.error")},
+#' or, a character string separated by space, for example,
+#' \code{targets = "simulate.n analyze score.error"},
 #' A query target may be a module, a module group, a module parameter,
 #' or a module output. These are \emph{required} targets; that is, DSC
 #' pipelines (i.e., rows of the returned data frame) in which one of
@@ -204,11 +206,13 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
     if (!(is.character(targets) & is.vector(targets) & length(targets) > 0))
       stop(paste("Argument \"targets\" should be \"NULL\", or a character",
                  "vector with at least one element"))
+    targets = strsplit(paste(targets, collapse=" "), "\\s+")[[1]]
   if (!is.null(targets.notreq))
     if (!(is.character(targets.notreq) & is.vector(targets.notreq) &
           length(targets.notreq) > 0))
       stop(paste("Argument \"targets.notreq\" should be \"NULL\", or a",
                  "character vector with at least one element"))
+    targets.notreq = strsplit(paste(targets.notreq, collapse=" "), "\\s+")[[1]]
   if (length(c(targets,targets.notreq)) == 0)
     stop(paste("Arguments \"targets\" and \"targets.notreq\" must specify",
                "at least one name; they cannot both be \"NULL\""))

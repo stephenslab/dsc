@@ -7,13 +7,15 @@
 dscquery(dsc.outdir, targets = NULL, targets.notreq = NULL,
   conditions = NULL, groups = NULL, return.type = c("auto",
   "data.frame", "list"), ignore.missing.files = FALSE,
-  omit.filenames = TRUE, exec = "dsc-query", verbose = TRUE)
+  omit.filenames = FALSE, exec = "dsc-query", verbose = TRUE)
 }
 \arguments{
 \item{dsc.outdir}{Directory where the DSC output is stored.}
 
 \item{targets}{Query targets specified as a character vector; for
-example, \code{targets = c("simulate.n","analyze","score.error")}.
+example, \code{targets = c("simulate.n","analyze","score.error")},
+or, a character string separated by space, for example,
+\code{targets = "simulate.n analyze score.error"},
 A query target may be a module, a module group, a module parameter,
 or a module output. These are \emph{required} targets; that is, DSC
 pipelines (i.e., rows of the returned data frame) in which one of
