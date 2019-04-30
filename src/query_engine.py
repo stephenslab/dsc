@@ -212,7 +212,7 @@ class Query_Processor:
         '''
         for each pipeline extract the sub pipeline that the query involves
         '''
-        def get_sequence(primary, reference):
+        def get_sequence(primary, reference, warnings):
             '''
             tracing back dependencies
             eg, input is primary = ['mnm_identity'], reference = ['oracle_generator', 'small_data', 'identity', 'mnm_identity']
@@ -244,21 +244,24 @@ class Query_Processor:
             # a sequence can lose dependency half-way
             # in which case an warning message will be given
             orphans = []
-            for idx, item in enumerate(primary):
-                if item in orphans:
-                    continue
-                if idx == len(primary) - 1:
-                    break
+            idx = 0
+            while idx < (len(primary) - 1):
+                item = primary[idx]
                 if self.depends is not None and primary[idx+1] not in self.depends[item]:
-                    logger.warning(f'Requested module ``{primary[idx+1]}`` is an orphan branch with respect to module ``{item}``; thus removed from sub-query involving module ``{item}``.')
-                    orphans.append(primary[idx+1])
-            primary = [item for item in primary if not item in orphans]
+                    warnings.append(f'Requested module ``{primary[idx+1]}`` is an orphan branch with respect to module ``{item}``; thus removed from sub-query involving module ``{item}``.')
+                    del primary[idx+1]
+                    idx -= 1
+                idx += 1
             return primary
         #
         valid_tables = [[item[0] for item in self.target_tables + self.condition_tables if item[0] in pipeline] for pipeline in pipelines]
         # 1. Further filter pipelines to minimally match target table dependencies
         # 2. For pipelines containing each other we only keep the longest pipelines
-        long_pipelines = filter_sublist([get_sequence(tables, pipeline) for tables, pipeline in zip(valid_tables, pipelines)])
+        warnings = []
+        long_pipelines = filter_sublist([get_sequence(tables, pipeline, warnings) for tables, pipeline in zip(valid_tables, pipelines)])
+        if len(warnings):
+            for item in uniq_list(warnings):
+                logger.warning(item)
         target_tables = [[item for item in self.target_tables if item[0] in pipeline] for pipeline in long_pipelines]
         condition_tables = [[item for item in self.condition_tables if item[0] in pipeline] for pipeline in long_pipelines]
         non_empty_targets = [idx for idx, item in enumerate(target_tables) if len(item) > 0]
