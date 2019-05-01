@@ -1,6 +1,8 @@
 version: 2
 jobs:
   build:
+    environment:
+      DEBIAN_FRONTEND: noninteractive
     docker:
       - image: ubuntu:bionic
     steps:
@@ -9,7 +11,7 @@ jobs:
           name: Install Python
           command: |
             apt-get update
-            apt-get install -y python3 python3-pip
+            DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip
             pip3 install --upgrade pip
       - run:
           name: Install Python dependencies
@@ -26,7 +28,7 @@ jobs:
           name: Install R
           command: |
             apt-get update
-            apt-get install -y r-base r-base-dev r-cran-yaml
+            DEBIAN_FRONTEND=noninteractive apt-get install -y r-base r-base-dev r-cran-yaml
       - run:
           name: Install R dependencies
           command: Rscript -e 'devtools::install_deps("dscrutils", dependencies = TRUE)'
