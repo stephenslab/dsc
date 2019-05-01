@@ -1,8 +1,6 @@
 version: 2
 jobs:
   build:
-    environment:
-      DEBIAN_FRONTEND: noninteractive
     docker:
       - image: ubuntu:bionic
     steps:
