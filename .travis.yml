@@ -20,8 +20,9 @@ install:
   - conda config --set auto_update_conda no
   - conda config --add channels defaults
   - conda config --add channels conda-forge
+  - conda update --all
   - travis_retry conda install --file requirements.txt
-  - conda install r-dplyr r-rlang r-ggplot2 r-shiny r-reticulate r-testthat
+  - conda install r-dplyr r-rlang r-ggplot2 r-shiny r-reticulate r-testthat r-yaml
 
 script:
   - python -m pip install . --no-deps -vv
