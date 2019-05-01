@@ -40,7 +40,7 @@ jobs:
           command: |
             Rscript -e 'print(sessionInfo())'
             Rscript -e 'print(installed.packages()[, c("Package", "Version")])'
-       - run:
+      - run:
           name: Test dscrutils
           command: R CMD check --as-cran --no-manual dscrutils_*.tar.gz
       - run:
