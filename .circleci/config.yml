@@ -28,7 +28,10 @@ jobs:
           name: Install R
           command: |
             apt-get update
-            DEBIAN_FRONTEND=noninteractive apt-get install -y r-base r-base-dev r-cran-yaml
+            DEBIAN_FRONTEND=noninteractive apt-get install -y r-base \
+                                                              r-base-dev \
+                                                              r-cran-devtools \
+                                                              r-cran-yaml
       - run:
           name: Install R dependencies
           command: Rscript -e 'devtools::install_deps("dscrutils", dependencies = TRUE)'
