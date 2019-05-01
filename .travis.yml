@@ -5,32 +5,39 @@ python:
   
 dist: xenial
 
-addons:
-  apt:
-    update: true
-    packages:
-      - r-base
-      - r-base-dev
-      - r-cran-yaml
-
 env:
   global:
     - _R_CHECK_FORCE_SUGGESTS_: false
 
 install:
-  - pip install --ignore-installed -r requirements.txt
+  - wget https://repo.continuum.io/miniconda/Miniconda3-4.3.27.1-Linux-x86_64.sh -O miniconda.sh
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes
+  - conda config --set quiet yes
+  - conda config --set changeps1 no
+  - conda config --set auto_update_conda no
+  - conda config --add channels defaults
+  - conda config --add channels conda-forge
+  - travis_retry conda install --file requirements.txt
+  - conda install r-dplyr \
+                  r-rlang \
+                  r-ggplot2 \
+                  r-shiny \
+                  r-reticulate \
+                  r-testthat \
 
 script:
   - python -m pip install . --no-deps -vv
   - dsc --help
   - dsc-query --version
-  - sudo R --slave -e 'options(repos = "https://cran.mtu.edu"); install.packages(c("dplyr","rlang","ggplot2","shiny","reticulate","testthat"),type = "source")'
   - R CMD build --no-manual dscrutils
-  - sudo R CMD INSTALL dscrutils_*.tar.gz
+  - R CMD INSTALL dscrutils_*.tar.gz
   - R CMD check --as-cran --no-manual dscrutils_*.tar.gz
   - cd test && python test_parser.py && python test_query.py
 
 branches:
   only:
     - master
-  
+
