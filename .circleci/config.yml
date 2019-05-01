@@ -6,6 +6,9 @@ jobs:
     docker:
       - image: ubuntu:bionic
     steps:
+      - restore_cache:
+          keys:
+            - r-cache
       - checkout
       - run:
           name: Install Python
@@ -56,4 +59,7 @@ jobs:
             python3 test_query.py
       - store_artifacts:
           path: dscrutils.Rcheck/
-
+      - save_cache:
+          key: r-cache
+          paths:
+            - "/usr/local/lib/R/site-library"
