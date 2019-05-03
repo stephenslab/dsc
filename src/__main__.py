@@ -139,6 +139,8 @@ def execute(args, unknown_args):
     mode = "default"
     if args.__construct__ == "none":
         mode = "force"
+    if args.__construct__ == "sloppy":
+        mode = "skip"
     content = {'__sig_mode__': mode,
                'script': script_prepare,
                '__bin_dirs__': exec_path,
@@ -147,7 +149,7 @@ def execute(args, unknown_args):
         if not (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')):
             env.logger.warning(f'Cannot use ``--touch`` option because project meta-data is corrupted.')
         else:
-            mode = "fast"
+            mode = "build"
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         cmd_run(script.get_sos_options(db, content), [])
@@ -276,10 +278,11 @@ def main():
     ce.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''Benchmark output. It overrides "DSC::output" defined in DSC file.''')
     mt = p.add_argument_group('Maintenance')
-    mt.add_argument('-s', '--skip', metavar = "option", choices = ["default", "none", "all"],
+    mt.add_argument('-s', '--skip', metavar = "option", choices = ["default", "sloppy", "none", "all"],
                    dest = '__construct__', default = "default",
                    help = '''Behavior of how DSC is executed in the presence of existing results.
-                   "default": skips modules whose "environment" has not been changed since previous execution.
+                   "default": skips modules whose status have not been changed since previous execution.
+                   "sloppy": skips modules whose timestamp are newer than their upstream modules.
                    "none": executes DSC from scratch.
                    "all": skips all execution yet build DSC database of what the specified benchmark is
                    supposed to look like, thus making it possible to explore partial benchmark results.''')
