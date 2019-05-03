@@ -147,7 +147,7 @@ def execute(args, unknown_args):
         if not (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')):
             env.logger.warning(f'Cannot use ``--touch`` option because project meta-data is corrupted.')
         else:
-            mode = "build"
+            mode = "fast"
     # Get mapped IO database
     with Silencer(env.verbosity if args.debug else 0):
         cmd_run(script.get_sos_options(db, content), [])
