@@ -1156,7 +1156,7 @@ def process_based_on(cfg, item):
         item.pop('based_on')
         for rkey in referred_keys:
             # find item...
-            val = cfg
+            val = copy.deepcopy(cfg)
             for key in rkey.split('.'):
                 if not isinstance(val, dict):
                     raise ValueError(f'Based on key {item} not found')
@@ -1235,9 +1235,9 @@ def remote_config_parser(host, paths):
         else:
             tpl = None
         if 'queue_type' in conf['DSC'][k] and conf['DSC'][k]['queue_type'] != 'process':
-            conf['DSC'][f'{k}-process'] = {'based_on': f'hosts.{k}',
+            conf['DSC'][f'{k}.local'] = {'based_on': f'hosts.{k}',
                                            'queue_type': 'process',
                                            'status_check_interval': 3}
             if tpl is not None:
-                conf['DSC'][f'{k}-process']['job_template'] = '\n'.join([x for x in tpl if not x.startswith('#')])
+                conf['DSC'][f'{k}.local']['job_template'] = '\n'.join([x for x in tpl if not x.startswith('#')])
     return conf

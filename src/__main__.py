@@ -130,9 +130,9 @@ def execute(args, unknown_args):
              script.runtime.sequence, exec_content, lib_content)
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
     # Setup
-    env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
     from sos.__main__ import cmd_run
     from sos.converter import script_to_html
+    env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
     script_prepare = pipeline.write_pipeline(1)
     if args.debug:
         script_to_html(os.path.abspath(script_prepare), f'{DSC_CACHE}/{db}.prepare.html')
@@ -147,7 +147,7 @@ def execute(args, unknown_args):
                'workflow': "deploy"}
     if args.__recover__:
         if not (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')):
-            env.logger.warning(f'Cannot use ``--touch`` option because project meta-data is corrupted.')
+            env.logger.warning(f'Cannot use ``--touch`` option because project meta-data is missing.')
         else:
             mode = "build"
     # Get mapped IO database
@@ -161,12 +161,12 @@ def execute(args, unknown_args):
     # Configure job templates
     if args.host:
         # write default config
-        yaml.safe_dump({'localhost':'localhost', 'hosts': conf['DSC']}, open(script_run[:-3] + 'localhost.yml', 'w'),
+        yaml.safe_dump({'localhost': 'localhost', 'hosts': conf['DSC']}, open(script_run[:-3] + 'localhost.yml', 'w'),
                   default_flow_style=False)
         if  conf['DSC'][args.host]['address'] == 'localhost':
             # the only version of config file to use
             # make a copy of it to output directory for maintenance purpose
-            yaml.safe_dump({'localhost':'localhost',
+            yaml.safe_dump({'localhost': 'localhost',
                        'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}},
                       open(f'{script.runtime.output}/{db}.queue', 'w'),
                       default_flow_style=False)
@@ -190,9 +190,6 @@ def execute(args, unknown_args):
                                  script_run[:-3] + 'remote.yml',
                                  f'{script.runtime.output}/{db}.db',
                                  f'{script.runtime.output}/{db}.conf.mpk'])
-    if args.debug:
-        script_to_html(os.path.abspath(script_run), f'{DSC_CACHE}/{db}.run.html')
-        return
     # Get DSC meta database
     env.logger.info("Building DSC database ...")
     content['workflow'] = "build"
@@ -201,11 +198,11 @@ def execute(args, unknown_args):
     if args.__construct__ == "all":
         return
     # Run
-    if args.host:
+    if len(args.to_host):
         # send files to remote
         env.logger.info(f"Syncing & installing resources on ``{args.host}`` (may take a while) ...")
         content = {'__sig_mode__': mode,
-                   '__queue__': f'{args.host}-process',
+                   '__queue__': f'{args.host}.local',
                    '__config__': script_run[:-3] + 'localhost.yml',
                    '__dag__': (script_run[:-3] + ".dot") if args.__dag__ else '',
                    'script': pipeline.write_pipeline(args.to_host)}
@@ -216,7 +213,9 @@ def execute(args, unknown_args):
             env.logger.error(f"Failed to communicate with ``{args.host}``")
             env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"dsc\" on ``{args.host}``.")
             raise RuntimeError(e)
-
+    if args.debug:
+        script_to_html(os.path.abspath(script_run), f'{DSC_CACHE}/{db}.run.html')
+        return
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
     cfg_file = (script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml')) if args.host else f'{DSC_CACHE}/{db}.conf.yml'
