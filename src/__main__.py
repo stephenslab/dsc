@@ -107,9 +107,8 @@ def execute(args, unknown_args):
     #
     if args.debug:
         workflow2html(f'{DSC_CACHE}/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
-    # FIXME: make sure try_catch works, or justify that it is not necessary to have.
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
-                              args.__max_jobs__, args.try_catch,
+                              args.__max_jobs__, False,
                               conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'},
                               args.debug)
     # Apply clean-up
@@ -305,11 +304,6 @@ def main():
     ro.add_argument('-c', type = int, metavar = 'N', default = max(min(int(os.cpu_count() / 2), 8), 1),
                    dest='__max_jobs__',
                    help = '''Maximum number of CPU threads for local runs, or job managing sockets for remote execution.''')
-    ro.add_argument('--ignore-errors', action='store_true', dest='try_catch',
-                   help = '''Bypass all errors from computational programs.
-                   This will keep the benchmark running but
-                   all results will be set to missing values and
-                   the problematic script will be saved when possible.''')
     ro.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
