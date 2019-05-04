@@ -22,7 +22,7 @@ DSC:
       #SBATCH --output={cur_dir}/{job_name}.out
       #SBATCH --error={cur_dir}/{job_name}.err
       cd {cur_dir}
-      module load R
+      module load R 2> /dev/null
     partition: "SBATCH --partition=broadwl"
     account: ""
     submit_cmd: sbatch {job_file}
