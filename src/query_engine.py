@@ -131,7 +131,7 @@ class Query_Processor:
         res = dict()
         for g in groups:
             if len(g.split(':')) != 2:
-                raise FormatError(f"Illegal module group option ``{g}``. Please use format ``group: module1, module2``")
+                raise FormatError(f"Invalid module group option ``{g}``. Please use format ``group: module1, module2``")
             g = tuple(x.strip() for x in g.split(':'))
             v = uniq_list([x.strip() for x in re.split(r',\s+|\s+|,', g[1]) if x.strip()])
             if g[0] in v:

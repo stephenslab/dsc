@@ -434,7 +434,7 @@ build.dscquery.call <- function (targets, groups, dsc.outdir, outfile, exec) {
   cmd.str <- sprintf("%s %s -o %s --target \"%s\" --force",exec,dsc.outdir,
                      outfile,paste(targets,collapse = " "))
   if (!is.null(groups))
-    cmd.str <- sprintf("%s -g \"%s\"",cmd.str,paste(groups,collapse = " "))
+    cmd.str <- sprintf("%s -g \"%s\"",cmd.str,paste(paste0('"', groups, '"'),collapse = " "))
   return(list(outfile = outfile,cmd.str = cmd.str))
 }
 
