@@ -221,6 +221,7 @@ def execute(args, unknown_args):
     content = {'__max_running_jobs__': args.__max_jobs__ if not args.host else None,
                '__max_procs__': args.__max_jobs__,
                '__sig_mode__': mode,
+               'keep_going': args.keep_going,
                '__bin_dirs__': exec_path,
                '__remote__': args.host if len(args.to_host) else None,
                '__config__': cfg_file,
@@ -301,6 +302,8 @@ def main():
                    rerun of their module unless they are directly required by a downstream module that needs re-execution.
                    In other words this is useful to remove large yet unused intermediate module output.''')
     ro = p.add_argument_group('Runtime behavior')
+    ro.add_argument('--keep-going', action='store_true', dest='keep_going',
+                   help = '''Try to finish as much as possible the entire benchmark in the presence of error in some modules.''')
     ro.add_argument('-c', type = int, metavar = 'N', default = max(min(int(os.cpu_count() / 2), 8), 1),
                    dest='__max_jobs__',
                    help = '''Maximum number of CPU threads for local runs, or job managing sockets for remote execution.''')
