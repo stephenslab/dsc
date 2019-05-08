@@ -8,30 +8,43 @@
 #' @param dsc.outdir Directory where the DSC output is stored.
 #'
 #' @param targets Query targets specified as a character vector; for
-#' example, \code{targets = c("simulate.n","analyze","score.error")},
-#' or, a character string separated by space, for example,
-#' \code{targets = "simulate.n analyze score.error"},
+#' example, \code{targets = c("simulate.n","analyze","score.error")}.
 #' A query target may be a module, a module group, a module parameter,
-#' or a module output. These are \emph{required} targets; that is, DSC
-#' pipelines (i.e., rows of the returned data frame) in which one of
-#' more of the targets are unassigned or missing (\code{NA}) will be
-#' automatically removed. To allow for unassigned or missing values,
-#' use argument \code{targets.notreq} instead. This input argument,
-#' together with \code{targets.notreq}, specifies the \code{--target}
-#' flag in the \code{dsc-query} call. At least one of \code{targets}
-#' and \code{targets.notreq} must not be \code{NULL} or empty. Note
-#' that, to easily specify multiple targets from the same module, we
-#' recommend using \code{\link{paste}}; e.g., \code{paste("simulate",
-#' c("n","p","df"),sep = ".")}. These targets will be the names of the
-#' columns in the data frame if a data frame is returned, or the names
-#' of the list elements if a list is returned.
+#' or a module output. Targets that are not assigned are set to
+#' \code{NA}. This argument specifies the \code{--target} flag in the
+#' \code{dsc-query} call. At least one target must be chosen;
+#' \code{targets} cannot be \code{NULL} or empty. These targets will
+#' be the names of the columns in the data frame if a data frame is
+#' returned, or the names of the list elements if a list is returned.
+#' This input argument specifies the \code{--target} option in the
+#' \code{dsc-query} call.
 #'
+#' @param module.outputs Character vector specifying names of modules
+#' or module groups in the DSC. For each specified module or module
+#' group, an additional list element is provided, and this list
+#' element contains all module outputs, as well as information
+#' recorded by DSC such as the runtime and the replicate number (see
+#' the \code{"DSC_DEBUG"} entry). This option can be useful for
+#' testing or debugging.
+#'
+#' @param module.output.files Character vector specifying names of
+#' modules or module groups in the DSC. For each specified module or
+#' module group, an additional data frame column (or list element)
+#' giving the name of the DSC output file is provided. This can be
+#' useful if you want to manually load the stored results (e.g., for
+#' testing or debugging). For more details on DSC output files and how
+#' to import these results into R, see \code{\link{dscread}}.
+#' 
+#' @param omit.filenames When \code{omit.filenames = FALSE}, an
+#' additional column (or list element) giving the name of the DSC
+#' output file is provided for each query target that is a module or
+#' module group. This is useful if you want to directly inspect the
+#' stored results. Setting \code{omit.filenames = TRUE} suppresses
+#' these additional outputs.
+#' 
 #' @param targets.notreq Non-required query targets; this is the same
 #' as \code{targets}, except that unassigned or missing values are not
-#' removed from the return value. This input argument, together with
-#' \code{targets}, specifies the \code{--target} flag in the
-#' \code{dsc-query} call. At least one of \code{targets} and
-#' \code{targets.notreq} must not be \code{NULL} or empty.
+#' removed from the return value. 
 #'
 #' @param conditions Conditions used to filter DSC pipeline results;
 #' rows in which one or more of the conditions evaluate to
@@ -66,19 +79,11 @@
 #' information about the different return types, and the benefits (and
 #' limitations) of each.
 #' 
-#' @param omit.filenames When \code{omit.filenames = FALSE}, an
-#' additional column (or list element) giving the name of the DSC
-#' output file is provided for each query target that is a module or
-#' module group. This is useful if you want to directly inspect the
-#' stored results. Setting \code{omit.filenames = TRUE} suppresses
-#' these additional outputs.
-#' 
 #' @param ignore.missing.files If \code{ignore.missing.files = TRUE},
-#' all DSC output files that are not found will have \code{NA} for the
-#' file name; when extracting target outputs from files, any outputs
-#' in which files are not found will have their value set to \code{NA}. If
-#' \code{ignore.missing.files = FALSE}, \code{dscquery} will throw an
-#' error whenever a missing file is encountered.
+#' all targets corresponding to DSC output files that cannot be found
+#' will be treated as if the targets are not assigned (\code{NA}). If
+#' \code{ignore.missing.files = FALSE}, \code{dscquery} will generate
+#' an error whenever a file cannot be found.
 #'
 #' @param exec The command or pathname of the \code{dsc-query}
 #' executable.
@@ -189,11 +194,12 @@
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
-                      conditions = NULL, groups = NULL,
+dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
+                      module.output.files = NULL, conditions = NULL,
+                      groups = NULL,
                       return.type = c("auto", "data.frame", "list"),
-                      ignore.missing.files = FALSE, omit.filenames = FALSE,
-                      exec = "dsc-query", verbose = TRUE) {
+                      ignore.missing.files = FALSE,  exec = "dsc-query",
+                      verbose = TRUE) {
 
   # CHECK & PROCESS INPUTS
   # ----------------------
