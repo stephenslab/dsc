@@ -24,8 +24,9 @@
 #' group, an additional list element is provided, and this list
 #' element contains all module outputs, as well as information
 #' recorded by DSC such as the runtime and the replicate number (see
-#' the \code{"DSC_DEBUG"} entry). This option can be useful for
-#' testing or debugging.
+#' the \code{"DSC_DEBUG"} element). This option can be useful for
+#' testing or debugging. Any module or module group included in
+#' \code{module.outputs} must also be included in \code{targets}.
 #'
 #' @param module.output.files Character vector specifying names of
 #' modules or module groups in the DSC. For each specified module or
@@ -33,7 +34,10 @@
 #' giving the name of the DSC output file is provided. This can be
 #' useful if you want to manually load the stored results (e.g., for
 #' testing or debugging). For more details on DSC output files and how
-#' to import these results into R, see \code{\link{dscread}}.
+#' to import these results into R, see \code{\link{dscread}}. This
+#' option can be useful for testing or debugging. Any module or module
+#' group included in \code{module.output.files} must also be included
+#' in \code{targets}.
 #' 
 #' @param omit.filenames When \code{omit.filenames = FALSE}, an
 #' additional column (or list element) giving the name of the DSC
@@ -207,24 +211,34 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
     stop("Argument \"dsc.outdir\" should be a character vector of length 1")
 
-  # Check input arguments "targets" and "targets.notreq".
-  if (!is.null(targets))
-    if (!(is.character(targets) & is.vector(targets) & length(targets) > 0))
-      stop(paste("Argument \"targets\" should be \"NULL\", or a character",
-                 "vector with at least one element"))
-    targets = strsplit(paste(targets, collapse=" "), "\\s+")[[1]]
-  if (!is.null(targets.notreq))
-    if (!(is.character(targets.notreq) & is.vector(targets.notreq) &
-          length(targets.notreq) > 0))
-      stop(paste("Argument \"targets.notreq\" should be \"NULL\", or a",
+  # Check and process input argument "targets".
+  if (!(is.character(targets) & is.vector(targets) & length(targets) > 0))
+    stop(paste("Argument \"targets\" should be a character vector with",
+               "at least one element"))
+  all_targets <- c(targets,get.module.names(targets))
+
+  # Check input argument "module.outputs".
+  if (!is.null(module.outputs)) {
+    if (!(is.character(module.outputs) & is.vector(module.outputs) &
+          length(module.outputs) > 0))
+      stop(paste("Argument \"module.outputs\" should be \"NULL\", or a",
                  "character vector with at least one element"))
-    targets.notreq = strsplit(paste(targets.notreq, collapse=" "), "\\s+")[[1]]
-  if (length(c(targets,targets.notreq)) == 0)
-    stop(paste("Arguments \"targets\" and \"targets.notreq\" must specify",
-               "at least one name; they cannot both be \"NULL\""))
-  if (length(intersect(targets,targets.notreq)) > 0)
-    stop(paste("Names cannot be the mentioned in both \"targets\" and",
-               "\"targets.notreq\""))
+    if (length(setdiff(module.outputs,all_targets)) > 0)
+      stop(paste("All modules and module groups included in",
+                 "\"module.outputs\" must also be included in \"targets\""))
+  }
+  
+  # Check input argument "module.output.files".
+  if (!is.null(module.output.files)) {
+    if (!(is.character(module.output.files) & is.vector(module.output.files) &
+          length(module.output.files) > 0))
+      stop(paste("Argument \"module.output.files\" should be \"NULL\", or a",
+                 "character vector with at least one element"))
+    if (length(setdiff(module.output.files,all_targets)) > 0)
+      stop(paste("All modules and module groups included in",
+                 "\"module.output.files\" must also be included in",
+                 "\"targets\""))
+  }
   
   # Check input argument "conditions".
   if (!is.null(conditions))
@@ -246,10 +260,6 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   if (!(is.logical(ignore.missing.files) & length(ignore.missing.files) == 1))
     stop("Argument \"ignore.missing.files\" should be TRUE or FALSE")
   
-  # Check input argument "omit.filenames".
-  if (!(is.logical(omit.filenames) & length(omit.filenames) == 1))
-    stop("Argument \"omit.filenames\" should be TRUE or FALSE")
-  
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
     stop("Argument \"exec\" should be a character vector of length 1")
@@ -265,10 +275,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   # they can be evaluated as R expressions.
   #
   # Here is where we also check that each of the targets mentioned in
-  # the condition expressions is also included in the "targets" or
-  # "targets.notreq" arguments.
-  all_targets <- c(targets,targets.notreq)
-  all_targets <- c(all_targets,get.module.names(all_targets))
+  # the condition expressions is also included in the "targets" argument.
   if (!is.null(conditions)) {
     n                 <- length(conditions)
     condition_targets <- vector("list",n)
@@ -278,7 +285,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
       conditions[i]          <- out$condition
       if (!all(is.element(condition_targets[[i]],all_targets)))
         stop(paste("All targets mentioned in conditions must also be",
-                   "included in \"targets\" or \"targets.notreq\""))
+                   "included in \"targets\""))
     }
   }
 
@@ -290,11 +297,12 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   # interface are specified as R expressions.
   if (verbose)
     cat("Calling dsc-query.\n")
-  out     <- build.dscquery.call(c(targets,targets.notreq),groups,
-                                 dsc.outdir,outfile,exec)
+  out     <- build.dscquery.call(targets,groups,dsc.outdir,outfile,exec)
   outfile <- out$outfile
   cmd.str <- out$cmd.str
   run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
+
+  browser()
   
   # IMPORT DSC QUERY RESULTS
   # ------------------------

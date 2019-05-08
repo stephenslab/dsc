@@ -29,8 +29,9 @@ or module groups in the DSC. For each specified module or module
 group, an additional list element is provided, and this list
 element contains all module outputs, as well as information
 recorded by DSC such as the runtime and the replicate number (see
-the \code{"DSC_DEBUG"} entry). This option can be useful for
-testing or debugging.}
+the \code{"DSC_DEBUG"} element). This option can be useful for
+testing or debugging. Any module or module group included in
+\code{module.outputs} must also be included in \code{targets}.}
 
 \item{module.output.files}{Character vector specifying names of
 modules or module groups in the DSC. For each specified module or
@@ -38,7 +39,10 @@ module group, an additional data frame column (or list element)
 giving the name of the DSC output file is provided. This can be
 useful if you want to manually load the stored results (e.g., for
 testing or debugging). For more details on DSC output files and how
-to import these results into R, see \code{\link{dscread}}.}
+to import these results into R, see \code{\link{dscread}}. This
+option can be useful for testing or debugging. Any module or module
+group included in \code{module.output.files} must also be included
+in \code{targets}.}
 
 \item{conditions}{Conditions used to filter DSC pipeline results;
 rows in which one or more of the conditions evaluate to
