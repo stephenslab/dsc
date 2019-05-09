@@ -21,12 +21,12 @@
 #'
 #' @param module.outputs Character vector specifying names of modules
 #' or module groups in the DSC. For each specified module or module
-#' group, an additional list element is provided, and this list
-#' element contains all module outputs, as well as information
-#' recorded by DSC such as the runtime and the replicate number (see
-#' the \code{"DSC_DEBUG"} element). This option can be useful for
-#' testing or debugging. Any module or module group included in
-#' \code{module.outputs} must also be included in \code{targets}.
+#' group, an additional list element is provided containing the full
+#' module outputs, as well as information recorded by DSC such as the
+#' runtime and the replicate number (see the \code{"DSC_DEBUG"}
+#' element). This option can be useful for testing or debugging. Any
+#' module or module group included in \code{module.outputs} must also
+#' be included in \code{targets}.
 #'
 #' @param module.output.files Character vector specifying names of
 #' modules or module groups in the DSC. For each specified module or
@@ -225,16 +225,16 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
                  "character vector with at least one element"))
     if (length(setdiff(module.outputs,all_targets)) > 0)
       stop(paste("All modules and module groups included in",
-                 "\"module.outputs\" must also be included in \"targets\""))
+                 "\"module.outputs\" must also be mentioned in \"targets\""))
   }
-  
+
   # Check input argument "module.output.files".
   if (!is.null(module.output.files)) {
     if (!(is.character(module.output.files) & is.vector(module.output.files) &
           length(module.output.files) > 0))
       stop(paste("Argument \"module.output.files\" should be \"NULL\", or a",
                  "character vector with at least one element"))
-    if (length(setdiff(module.output.files,all_targets)) > 0)
+    if (length(setdiff(module.output.files,targets)) > 0)
       stop(paste("All modules and module groups included in",
                  "\"module.output.files\" must also be included in",
                  "\"targets\""))
@@ -255,6 +255,10 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   
   # Check and process input argument "return.type".
   return.type <- match.arg(return.type)
+  if (return.type == "data.frame" & length(module.outputs) > 1)
+    stop(paste("Full module outputs cannot be returned in a data frame;",
+               "select return.type = \"list\" or return.type = \"auto\"",
+               "instead"))
 
   # Check input argument "ignore.missing.files".
   if (!(is.logical(ignore.missing.files) & length(ignore.missing.files) == 1))
@@ -285,7 +289,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
       conditions[i]          <- out$condition
       if (!all(is.element(condition_targets[[i]],all_targets)))
         stop(paste("All targets mentioned in conditions must also be",
-                   "included in \"targets\""))
+                   "mentioned in \"targets\""))
     }
   }
 
@@ -302,12 +306,10 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   cmd.str <- out$cmd.str
   run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
 
-  browser()
-  
   # IMPORT DSC QUERY RESULTS
   # ------------------------
-  # As a safeguard, we check for any duplicated column names, and if
-  # there are any, we halt and report an error.
+  # As a safeguard, we check for any duplicated column (or list
+  # element) names, and if there are any, we halt and report an error.
   if (verbose)
     cat("Importing dsc-query output.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
@@ -315,12 +317,6 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
                   na.strings = "NA")
   if (any(duplicated(names(dat))))
     stop("One or more names in dsc-query output are the same")
-  
-  # FILTER BY TARGETS
-  # -----------------
-  # Filter out rows in which one or more of the targets are unassigned
-  # or missing.
-  dat <- filter.by.query.targets(dat,targets)
   
   # PRE-FILTER BY CONDITIONS
   # ------------------------
@@ -336,7 +332,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   # EXTRACT DSC OUTPUT
   # ------------------
   # Extract outputs from DSC files for all columns with names of the
-  # form "module.variable:output". After this step, dat will become a
+  # form "module.variable:output". After this step, "dat" will become a
   # nested list, in which each element dat[[i]][j]] is the value of
   # target i in pipeline j.
   if (verbose)
@@ -345,7 +341,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   if (!is.empty.result(dat))
     dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
   dat <- remove.output.suffix(dat)
-    
+
   # OPTIONALLY FLATTEN RETURN VALUE
   # -------------------------------
   # Handle the edge case when there are no results to return (i.e.,
@@ -395,7 +391,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
                     "\"data.frame\" or return.type = \"auto\"; a data frame",
                     "may be more convenient for analyzing these results"))
   }
-
+  
   # POST-FILTER BY CONDITIONS 
   # -------------------------
   # Filter rows of the data frame (or list) by each condition.
@@ -408,12 +404,17 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
         dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
   }
 
+  # EXTRACT FULL MODULE OUTPUTS
+  # ---------------------------
+  # TO DO.
+
   # REMOVE NON-REQUESTED OUTPUTS
   # ----------------------------
-  # Remove any outputs ending with "output.file", if requested.
-  if (omit.filenames)
-    dat <- remove.output.files(dat)
+  # Remove any outputs ending with "output.file" that were not
+  # requested by the "module.output.files" argument.
+  dat <- remove.output.files(dat,module.output.files)
   rownames(dat) <- NULL
+
   return(dat)
 }
 
@@ -450,16 +451,6 @@ build.dscquery.call <- function (targets, groups, dsc.outdir, outfile, exec) {
   if (!is.null(groups))
     cmd.str <- sprintf("%s -g %s",cmd.str,paste(paste0('"', groups, '"'),collapse = " "))
   return(list(outfile = outfile,cmd.str = cmd.str))
-}
-
-# For data frame "dat" containing the (raw) output of a dsc-query call,
-# filter out rows in which one or more of the targets are unassigned
-# or missing. This is a help function used in dscquery.
-filter.by.query.targets <- function (dat, targets) {
-  col_names <- gsub(":.*|\\.output\\.file","",names(dat))    
-  cols      <- which(is.element(col_names,targets))
-  rows      <- which(!apply(is.na(dat[cols]),1,any))
-  return(dat[rows,])
 }
 
 # Filter rows of the data frame (or nested list) "dat" by the given
@@ -644,17 +635,22 @@ remove.output.suffix <- function (dat) {
   return(dat)
 }
 
-# Remove all columns or list elements from "dat" with names ending in
-# ".output.file".
-remove.output.files <- function (dat) {
-  i <- which(!sapply(as.list(names(dat)),
-                     function (x) {
-                       n <- nchar(x)
-                       if (n < 12)
-                         return(FALSE)
-                       else
-                         return(substr(x,n - 11,n) == ".output.file")
-                     }))
+# For any column (or list element) with name "x.output.file", where
+# "x" is a module name or module group name, remove the column or list
+# element unless "x" is specified in "module.output.files".
+remove.output.files <- function (dat, module.output.files) {
+  output.file.suffix  <- ".output.file"
+  module.output.files <- paste0(module.output.files,output.file.suffix)
+  i <- which(sapply(as.list(names(dat)),
+                    function (x) {
+                      n <- nchar(x)
+                      if (n < 12)
+                        return(TRUE)
+                      else if (substr(x,n - 11,n) != output.file.suffix)
+                        return(TRUE)
+                      else 
+                        return(is.element(x,module.output.files))
+                    }))
   return(dat[i])
 }
 
