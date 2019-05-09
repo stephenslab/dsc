@@ -33,23 +33,13 @@
 #' module group, an additional data frame column (or list element)
 #' giving the name of the DSC output file is provided. This can be
 #' useful if you want to manually load the stored results (e.g., for
-#' testing or debugging). For more details on DSC output files and how
-#' to import these results into R, see \code{\link{dscread}}. This
-#' option can be useful for testing or debugging. Any module or module
-#' group included in \code{module.output.files} must also be included
-#' in \code{targets}.
+#' testing or debugging). For more details on DSC output files, how to
+#' interpret the file paths, and how to import the contents of these
+#' files into R, see \code{\link{dscread}}. This option can be useful
+#' for testing or debugging. Note that any module or module group
+#' included in \code{module.output.files} must also be included in
+#' \code{targets}.
 #' 
-#' @param omit.filenames When \code{omit.filenames = FALSE}, an
-#' additional column (or list element) giving the name of the DSC
-#' output file is provided for each query target that is a module or
-#' module group. This is useful if you want to directly inspect the
-#' stored results. Setting \code{omit.filenames = TRUE} suppresses
-#' these additional outputs.
-#' 
-#' @param targets.notreq Non-required query targets; this is the same
-#' as \code{targets}, except that unassigned or missing values are not
-#' removed from the return value. 
-#'
 #' @param conditions Conditions used to filter DSC pipeline results;
 #' rows in which one or more of the conditions evaluate to
 #' \code{FALSE} or \code{NA} are removed from the output (removing
@@ -67,8 +57,7 @@
 #' "$(simulate.sigma) >= 0.1"} (see below for additional
 #' examples). This input argument specifies the \code{--condition}
 #' flag in the call to \code{dsc-query}. All targets used in the
-#' conditions must also be included in \code{targets} or
-#' \code{targets.notreq}.
+#' conditions must also be included in \code{targets}.
 #'
 #' @param groups Defines module groups. This argument specifies the
 #' \code{--groups} flag in the call to \code{dsc-query}. For example,
@@ -81,7 +70,9 @@
 #' list or data frame is returned depending on which data structure is
 #' most appropriate for the DSC outputs. See "Value" for more
 #' information about the different return types, and the benefits (and
-#' limitations) of each.
+#' limitations) of each. Note that \code{return.type = "data.frame"}
+#' cannot be used when one or more modules or module groups are named
+#' in \code{module.output.files}.
 #' 
 #' @param ignore.missing.files If \code{ignore.missing.files = TRUE},
 #' all targets corresponding to DSC output files that cannot be found
