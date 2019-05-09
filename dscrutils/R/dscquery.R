@@ -19,14 +19,14 @@
 #' This input argument specifies the \code{--target} option in the
 #' \code{dsc-query} call.
 #'
-#' @param module.outputs Character vector specifying names of modules
-#' or module groups in the DSC. For each specified module or module
-#' group, an additional list element is provided containing the full
-#' module outputs, as well as information recorded by DSC such as the
-#' runtime and the replicate number (see the \code{"DSC_DEBUG"}
+#' @param module.outputs.all Character vector specifying names of
+#' modules or module groups in the DSC. For each specified module or
+#' module group, an additional list element is provided containing the
+#' full module outputs, as well as information recorded by DSC such as
+#' the runtime and the replicate number (see the \code{"DSC_DEBUG"}
 #' element). This option can be useful for testing or debugging. Any
-#' module or module group included in \code{module.outputs} must also
-#' be included in \code{targets}.
+#' module or module group included in \code{module.outputs.all} must
+#' also be included in \code{targets}.
 #'
 #' @param module.output.files Character vector specifying names of
 #' modules or module groups in the DSC. For each specified module or
@@ -189,7 +189,7 @@
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
+dscquery <- function (dsc.outdir, targets = NULL, module.outputs.all = NULL,
                       module.output.files = NULL, conditions = NULL,
                       groups = NULL,
                       return.type = c("auto", "data.frame", "list"),
@@ -208,15 +208,17 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
                "at least one element"))
   all_targets <- c(targets,get.module.names(targets))
 
-  # Check input argument "module.outputs".
-  if (!is.null(module.outputs)) {
-    if (!(is.character(module.outputs) & is.vector(module.outputs) &
-          length(module.outputs) > 0))
-      stop(paste("Argument \"module.outputs\" should be \"NULL\", or a",
+  # Check input argument "module.outputs.all".
+  if (!is.null(module.outputs.all)) {
+    if (!(is.character(module.outputs.all) &
+          is.vector(module.outputs.all) &
+          length(module.outputs.all) > 0))
+      stop(paste("Argument \"module.outputs.all\" should be \"NULL\", or a",
                  "character vector with at least one element"))
-    if (length(setdiff(module.outputs,all_targets)) > 0)
+    if (length(setdiff(module.outputs.all,all_targets)) > 0)
       stop(paste("All modules and module groups included in",
-                 "\"module.outputs\" must also be mentioned in \"targets\""))
+                 "\"module.outputs.all\" must also be mentioned in",
+                 "\"targets\""))
   }
 
   # Check input argument "module.output.files".
@@ -246,10 +248,10 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs = NULL,
   
   # Check and process input argument "return.type".
   return.type <- match.arg(return.type)
-  if (return.type == "data.frame" & length(module.outputs) > 1)
-    stop(paste("Full module outputs cannot be returned in a data frame;",
-               "select return.type = \"list\" or return.type = \"auto\"",
-               "instead"))
+  if (return.type == "data.frame" & length(module.outputs.all) > 1)
+    stop(paste("Complete module outputs requested with \"module.outputs.all\"",
+               "cannot be returned in a data frame; select return.type =",
+               "\"list\" or return.type = \"auto\" instead"))
 
   # Check input argument "ignore.missing.files".
   if (!(is.logical(ignore.missing.files) & length(ignore.missing.files) == 1))

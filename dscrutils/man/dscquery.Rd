@@ -4,7 +4,7 @@
 \alias{dscquery}
 \title{R interface for querying DSC output.}
 \usage{
-dscquery(dsc.outdir, targets = NULL, module.outputs = NULL,
+dscquery(dsc.outdir, targets = NULL, module.outputs.all = NULL,
   module.output.files = NULL, conditions = NULL, groups = NULL,
   return.type = c("auto", "data.frame", "list"),
   ignore.missing.files = FALSE, exec = "dsc-query", verbose = TRUE)
@@ -24,14 +24,14 @@ returned, or the names of the list elements if a list is returned.
 This input argument specifies the \code{--target} option in the
 \code{dsc-query} call.}
 
-\item{module.outputs}{Character vector specifying names of modules
-or module groups in the DSC. For each specified module or module
-group, an additional list element is provided containing the full
-module outputs, as well as information recorded by DSC such as the
-runtime and the replicate number (see the \code{"DSC_DEBUG"}
+\item{module.outputs.all}{Character vector specifying names of
+modules or module groups in the DSC. For each specified module or
+module group, an additional list element is provided containing the
+full module outputs, as well as information recorded by DSC such as
+the runtime and the replicate number (see the \code{"DSC_DEBUG"}
 element). This option can be useful for testing or debugging. Any
-module or module group included in \code{module.outputs} must also
-be included in \code{targets}.}
+module or module group included in \code{module.outputs.all} must
+also be included in \code{targets}.}
 
 \item{module.output.files}{Character vector specifying names of
 modules or module groups in the DSC. For each specified module or
