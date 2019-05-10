@@ -34,34 +34,32 @@ dscread <- function (outdir, outfile) {
   rds     <- paste0(outfile,".rds")
   pkl     <- paste0(outfile,".pkl")
   if (file.exists(rds) & file.exists(pkl))
-    stop(sprintf(paste("Both %s and %s DSC files exist; DSC output files",
-                       "should be cleaned up using \"dsc --clean\""),
-                 rdsfile,pklfile))
-  else if (file.exists(rds))
-    out <- read_dsc(rds)
-  else if (file.exists(pkl))
-    out <- read_dsc(pkl)
-  
-  inext = file_ext(infile)
-  if (inext == "") {
-    for (item in c("rds", "pkl", "yml")) {
-      if (file.exists(paste0(infile, ".", item))) {
-        inext = item
-        infile = paste0(infile, ".", item)
-        break
-      }
-    }
-  }
-  if (inext == "")
-      stop(paste("Cannot determine extension for input file", infile))
-  if (inext == "pkl") {
+    stop(sprintf(paste("Both %s and %s DSC output files exist; files should",
+                       "be cleaned up by running \"dsc --clean\""),rds,pkl))
+
+  # Attempt to read the data stored in the DSC output file.
+  if (file.exists(rds))
+
+    # Read from the .rds file.
+    out <- tryCatch(readRDS(outfile),
+      error = function (e) stop(sprintf(paste("Unable to read from %s;",
+                                              "file may be corrupted"),rds)))
+  else {
+
+    # Read from the .pkl file.
     if (!requireNamespace("reticulate",quietly = TRUE))
       stop("Cannot read from .pkl file due to missing reticulate package")
-    result = reticulate::py_load_object(infile)
-    return(rapply(result, reticulate::py_to_r, classes = "python.builtin.object", how = "replace"))
-    # yaml.load_file(infile))
-  } else
-    out <- readRDS(outfile)
+    out <- tryCatch(reticulate::py_load_object(infile),
+                    error = function (e) stop(""))
+    out <- rapply(out,reticulate::py_to_r,classes = "python.builtin.object",
+                  how = "replace")
+  }
+                
+  # We may use this in the future to read from YAML files:
+  #
+  #   yaml.load_file(infile))
+  #
+
   return(out)
 }
 

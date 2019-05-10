@@ -19,6 +19,9 @@ Add description here.
 }
 \examples{
 
-# Add examples here.
+# Add one or more examples building on 
 
+}
+\seealso{
+\code{\link{dscquery}}
 }

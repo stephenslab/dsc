@@ -199,3 +199,6 @@ dat6 <-
            return.type = "data.frame")
 
 }
+\seealso{
+\code{\link{dscread}}
+}
