@@ -15,4 +15,7 @@ test_that("dscread generates an error when both R and Python files are found",{
                           package = "dscrutils")
   expect_error(dscread(dsc.dir,"t_1"))
 })
-          
+
+test_that("",{
+
+})
