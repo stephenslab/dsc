@@ -556,23 +556,12 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
 
 # Helper function used by read.dsc.outputs to load the DSC output from
 # either an RDS or "pickle" file.
-import.dsc.output <- function (file, dsc.outdir, ignore.missing.files) {
-  rds <- file.path(dsc.outdir,paste0(file,".rds"))
-  pkl <- file.path(dsc.outdir,paste0(file,".pkl"))
-  if (file.exists(rds) & file.exists(pkl))
-    stop(sprintf(paste("Both %s and %s DSC files exist; DSC output files",
-                       "should be cleaned up using \"dsc --clean\""),rds,pkl))
-  else if (file.exists(rds))
-    out <- read_dsc(rds)
-  else if (file.exists(pkl))
-    out <- read_dsc(pkl)
-  else {
-    out <- NULL
-    if (!ignore.missing.files)
-      stop(sprintf(paste("Unable to read from either %s or %s. You can set",
-                         "ignore.missing.files = TRUE to ignore this issue."),
-                   rds,pkl))
-  }
+import.dsc.output <- function (outfile, outdir, ignore.missing.files) {
+  out <- dscread(outdir,outfile)
+  if (is.null(out) & !ignore.missing.files)
+    stop(sprintf(paste("Unable to read from DSC output file %s---you can set",
+                       "ignore.missing.files = TRUE to ignore this issue."),
+                 outfile))
   return(out)
 }
 
