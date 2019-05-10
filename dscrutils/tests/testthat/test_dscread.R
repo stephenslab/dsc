@@ -11,11 +11,14 @@ test_that("Contents of Python and R output files are the same",{
 })
 
 test_that("dscread generates an error when both R and Python files are found",{
-  dsc.dir1 <- system.file("datafiles","dscread_test_files","R+python",
-                          package = "dscrutils")
+  dsc.dir <- system.file("datafiles","dscread_test_files","R+python",
+                         package = "dscrutils")
   expect_error(dscread(dsc.dir,"t_1"))
 })
 
-test_that("",{
-
+test_that("dscread generates a warning & NULL output when file is not found",{
+  dsc.dir <- system.file("datafiles","dscread_test_files","R",
+                         package = "dscrutils")
+  expect_warning(out <- dscread(dsc.dir,"t_2"))
+  expect_null(out)
 })
