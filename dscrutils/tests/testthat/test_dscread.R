@@ -9,3 +9,10 @@ test_that("Contents of Python and R output files are the same",{
   dat2     <- dscread(dsc.dir2,"t_1")
   expect_equal(sort(names(dat1)),sort(names(dat2)))
 })
+
+test_that("dscread generates an error when both R and Python files are found",{
+  dsc.dir1 <- system.file("datafiles","dscread_test_files","R+python",
+                          package = "dscrutils")
+  expect_error(dscread(dsc.dir,"t_1"))
+})
+          
