@@ -128,6 +128,8 @@
 #'
 #' This function may not work in Windows.
 #'
+#' @seealso \code{\link{dscread}}
+#' 
 #' @examples
 #'
 #' # Retrieve the number of samples ("simulate.n") and error summary

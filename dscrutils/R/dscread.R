@@ -9,10 +9,12 @@
 #' @param outfile Describe argument "outfile" here.
 #'
 #' @return Describe return value here.
+#'
+#' @seealso \code{\link{dscquery}}
 #' 
 #' @examples
 #'
-#' # Add examples here.
+#' # Add one or more examples building on 
 #' 
 #' @importFrom tools file_ext
 #' @importFrom yaml yaml.load_file
@@ -21,12 +23,12 @@
 #'
 dscread <- function (outdir, outfile) {
 
-  # CHECK & PROCESS INPUTS
-  # ----------------------
-  # Check input argument "dsc.outdir".
-  if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
-    stop("Argument \"dsc.outdir\" should be a character vector of length 1")
-
+  # Check the input arguments.
+  if (!(is.character(outdir) & length(outdir) == 1))
+    stop("Argument \"outdir\" should be a character vector of length 1")
+  if (!(is.character(outfile) & length(outfile) == 1))
+    stop("Argument \"outfile\" should be a character vector of length 1")
+  
   # Look for files with extensions "rds" and "pkl".
   outfile <- file.path(outdir,outfile)
   rds     <- paste0(outfile,".rds")
