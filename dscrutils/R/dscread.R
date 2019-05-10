@@ -55,12 +55,10 @@ dscread <- function (outdir, outfile) {
         return(NULL)
       })
 
-    # This additional processing step may not be needed:
-    #
-    #   out <- rapply(out,reticulate::py_to_r,
-    #                 classes = "python.builtin.object",
-    #                 how = "replace")
-    #
+    # This additional processing step is needed to convert more
+    # complex Python data structures such as a pandas data frames.
+    out <- rapply(out,reticulate::py_to_r,classes = "python.builtin.object",
+                  how = "replace")
   } else {
     warning(sprintf(paste("Unable to read from DSC output file %s as one or",
                           "more files may be missing; returning NULL"),

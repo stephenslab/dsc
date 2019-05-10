@@ -80,10 +80,11 @@ cannot be used when one or more modules or module groups are named
 in \code{module.output.files}.}
 
 \item{ignore.missing.files}{If \code{ignore.missing.files = TRUE},
-all targets corresponding to DSC output files that cannot be found
-will be treated as if the targets are not assigned (\code{NA}). If
+all targets corresponding to DSC output files that cannot be found,
+or cannot be read (e.g., because they are corrupted), will be
+treated as if the targets are not assigned (\code{NA}). If
 \code{ignore.missing.files = FALSE}, \code{dscquery} will generate
-an error whenever a file cannot be found.}
+an error whenever a file cannot be found or read.}
 
 \item{exec}{The command or pathname of the \code{dsc-query}
 executable.}

@@ -75,10 +75,11 @@
 #' in \code{module.output.files}.
 #' 
 #' @param ignore.missing.files If \code{ignore.missing.files = TRUE},
-#' all targets corresponding to DSC output files that cannot be found
-#' will be treated as if the targets are not assigned (\code{NA}). If
+#' all targets corresponding to DSC output files that cannot be found,
+#' or cannot be read (e.g., because they are corrupted), will be
+#' treated as if the targets are not assigned (\code{NA}). If
 #' \code{ignore.missing.files = FALSE}, \code{dscquery} will generate
-#' an error whenever a file cannot be found.
+#' an error whenever a file cannot be found or read.
 #'
 #' @param exec The command or pathname of the \code{dsc-query}
 #' executable.
@@ -195,7 +196,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs.all = NULL,
                       module.output.files = NULL, conditions = NULL,
                       groups = NULL,
                       return.type = c("auto", "data.frame", "list"),
-                      ignore.missing.files = FALSE,  exec = "dsc-query",
+                      ignore.missing.files = FALSE, exec = "dsc-query",
                       verbose = TRUE) {
 
   # CHECK & PROCESS INPUTS
@@ -559,7 +560,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
 import.dsc.output <- function (outfile, outdir, ignore.missing.files) {
   out <- dscread(outdir,outfile)
   if (is.null(out) & !ignore.missing.files)
-    stop(sprintf(paste("Unable to read from DSC output file %s---you can set",
+    stop(sprintf(paste("Unable to read from DSC output file %s. You can set",
                        "ignore.missing.files = TRUE to ignore this issue."),
                  outfile))
   return(out)
