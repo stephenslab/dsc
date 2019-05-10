@@ -1,20 +1,35 @@
-#' @title Add title here.
+#' @title Read DSC Module Outputs
 #'
-#' @description Add description here.
+#' @description Reads in DSC module outputs generated from a single
+#' run of a module instance.
 #'
-#' @detail Add more details here.
+#' @details DSC module outputs are either stored in RDS files (see
+#' \code{\link{readRDS}}) or a Python "pickle" file. For DSC module
+#' outputs stored as Python pickle files, the reticulate package is
+#' used to import the data into R.
 #' 
 #' @param outdir Directory where the DSC output is stored.
 #'
-#' @param outfile Describe argument "outfile" here.
+#' @param outfile File specifying the file path relative to the DSC
+#' directory. You can use \code{\link{dscquery}} with the
+#' \code{module.output.file} to obtain a correct file path. Note that
+#' the file path should not contain the file extension (".rds" or
+#' ".pkl").
 #'
-#' @return Describe return value here.
+#' @return The return file is a list containing the DSC module
+#' outputs. This list always includes a "DSC_DEBUG" list element
+#' containing additional information recorded by DSC, such as the
+#' replicate id.
 #'
 #' @seealso \code{\link{dscquery}}
 #' 
 #' @examples
 #'
-#' # Add one or more examples building on 
+#' dsc.dir <- system.file("datafiles","one_sample_location",
+#'                        "dsc_result",package = "dscrutils")
+#' dat <- dscquery(dsc.dir,targets = "simulate",
+#'                 module.output.file = "simulate")
+#' out <- dscread(dsc.dir,dat$simulate.output.file[1])
 #' 
 #' @importFrom tools file_ext
 #' @importFrom yaml yaml.load_file

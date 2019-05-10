@@ -2,24 +2,42 @@
 % Please edit documentation in R/dscread.R
 \name{dscread}
 \alias{dscread}
-\title{Add title here.}
+\title{Read DSC Module Outputs}
 \usage{
 dscread(outdir, outfile)
 }
 \arguments{
 \item{outdir}{Directory where the DSC output is stored.}
 
-\item{outfile}{Describe argument "outfile" here.}
+\item{outfile}{File specifying the file path relative to the DSC
+directory. You can use \code{\link{dscquery}} with the
+\code{module.output.file} to obtain a correct file path. Note that
+the file path should not contain the file extension (".rds" or
+".pkl").}
 }
 \value{
-Describe return value here.
+The return file is a list containing the DSC module
+outputs. This list always includes a "DSC_DEBUG" list element
+containing additional information recorded by DSC, such as the
+replicate id.
 }
 \description{
-Add description here.
+Reads in DSC module outputs generated from a single
+run of a module instance.
+}
+\details{
+DSC module outputs are either stored in RDS files (see
+\code{\link{readRDS}}) or a Python "pickle" file. For DSC module
+outputs stored as Python pickle files, the reticulate package is
+used to import the data into R.
 }
 \examples{
 
-# Add one or more examples building on 
+dsc.dir <- system.file("datafiles","one_sample_location",
+                       "dsc_result",package = "dscrutils")
+dat <- dscquery(dsc.dir,targets = "simulate",
+                module.output.file = "simulate")
+out <- dscread(dsc.dir,dat$simulate.output.file[1])
 
 }
 \seealso{
