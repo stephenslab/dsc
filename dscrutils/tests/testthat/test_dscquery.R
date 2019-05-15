@@ -110,8 +110,7 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
                     sim_params.params_store = c(NA,NA,5,5),
                     cause.z                 = c(0.25,0.25,NA,NA))
   dsc.dir <- system.file("datafiles","misc","results1",package = "dscrutils")
-  out <- dscquery(dsc.dir,
-                  targets.notreq = c("sim_params.params_store","cause.z"),
+  out <- dscquery(dsc.dir,targets = c("sim_params.params_store","cause.z"),
                   verbose = FALSE)
   expect_equal(dat,out)
   expect_equal(is.na(dat),is.na(out))
@@ -123,8 +122,7 @@ test_that(paste("dscquery appropriately handles unassigned targets when",
               sim_params.params_store = list(NA,NA,1:20,1:20),
               cause.z                 = c(0.25,0.25,NA,NA))
   dsc.dir <- system.file("datafiles","misc","results2",package = "dscrutils")
-  out <- dscquery(dsc.dir,
-                  targets.notreq = c("sim_params.params_store","cause.z"),
+  out <- dscquery(dsc.dir,targets = c("sim_params.params_store","cause.z"),
                   verbose = FALSE)
   expect_equal(dat,out)
 })
@@ -137,18 +135,6 @@ test_that(paste("dscquery throws an error when targets mentioned in",
   expect_error(dscquery(dsc.dir,targets = c("simulate.true_mean"),
                         conditions = "$(score.error) < 1",verbose = FALSE))
 })
-
-test_that("dscquery conditions correctly filter out rows when result is NA",{
-  dsc.dir <- system.file("datafiles","misc","results2",package = "dscrutils")
-  dat <- data.frame(DSC                     = 1:2,
-                    sim_params.params_store = c(NA,NA),
-                    cause.z                 = c(0.25,0.25))
-  out <- dscquery(dsc.dir,
-                  targets.notreq = c("sim_params.params_store","cause.z"),
-                  conditions = "$(cause.z) == 0.25",
-                  verbose = FALSE)
-  expect_equal(dat,out)
-})    
 
 test_that(paste("dscquery filtering by condition works when return value is",
                 "a list, and some columns are complex, while others are not"),{
@@ -165,22 +151,28 @@ test_that(paste("dscquery returns a data frame with the correct column names",
   dsc.dir <- system.file("datafiles","misc","results1",package = "dscrutils")
   dat        <- as.data.frame(matrix(0,0,3))
   names(dat) <- c("DSC","sim_params.params_store","cause.z")
-  out <- dscquery(dsc.dir,
-                  targets    = c("sim_params.params_store","cause.z"),
-                  conditions = paste("!is.na($(sim_params.params_store))",
-                                     "!is.na($(cause.z))",sep = " & "),
-                  verbose = FALSE)
+  cdn <- "!is.na($(sim_params.params_store)) & !is.na($(cause.z))"
+  out <- dscquery(dsc.dir,targets = c("sim_params.params_store","cause.z"),
+                  conditions = cdn,verbose = FALSE)
   expect_equal(dat,out)
 })
 
 test_that(paste("dscquery adds output.file column when a module group is",
-                "included in \"targets\" and \"module.output.file\"",
-                "arguments"),{
+                "included in 'targets' and 'module.output.file' arguments"),{
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
   dat     <- dscquery(dsc.dir,targets = "analyze",
                       module.output.file = "analyze",verbose = FALSE)
   expect_equal(names(dat),c("DSC","analyze","analyze.output.file"))
+})
+
+test_that(paste("dscquery generates error when module is included in",
+                "'module.output.file' input argument but not 'targets'"),{
+  dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
+                         package = "dscrutils")
+  expect_error(dscquery(dsc.dir,targets = "score",
+                        module.output.file = "analyze",
+                        verbose = FALSE))
 })
 
 test_that(paste("dscquery adds corresponding module group name",
