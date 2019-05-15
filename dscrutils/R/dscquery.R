@@ -437,9 +437,13 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
 
   # REMOVE NON-REQUESTED OUTPUTS
   # ----------------------------
-  # Remove any outputs ending with "output.file" that were not
-  # requested by the "module.output.files" argument.
-  dat <- remove.output.files(dat,module.output.files)
+  # Remove any outputs that were not requested by the user.
+  cols <- intersect(names(dat),
+                    c("DSC",
+                      targets,
+                      paste(module.output.files,"output.file",sep = "."),
+                      paste(module.output.all,"output.all",sep = ".")))
+  dat <- dat[cols]
   rownames(dat) <- NULL
 
   return(dat)
@@ -649,25 +653,6 @@ remove.output.suffix <- function (dat) {
     }
   names(dat) <- x
   return(dat)
-}
-
-# For any column (or list element) with name "x.output.file", where
-# "x" is a module name or module group name, remove the column or list
-# element unless "x" is specified in "module.output.files".
-remove.output.files <- function (dat, module.output.files) {
-  output.file.suffix  <- ".output.file"
-  module.output.files <- paste0(module.output.files,output.file.suffix)
-  i <- which(sapply(as.list(names(dat)),
-                    function (x) {
-                      n <- nchar(x)
-                      if (n < 12)
-                        return(TRUE)
-                      else if (substr(x,n - 11,n) != output.file.suffix)
-                        return(TRUE)
-                      else 
-                        return(is.element(x,module.output.files))
-                    }))
-  return(dat[i])
 }
 
 # Return TRUE if and only if "dat" is a data frame or list containing
