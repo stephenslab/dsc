@@ -19,14 +19,14 @@
 #' This input argument specifies the \code{--target} option in the
 #' \code{dsc-query} call.
 #'
-#' @param module.outputs.all Character vector specifying names of
+#' @param module.output.all Character vector specifying names of
 #' modules or module groups in the DSC. For each specified module or
 #' module group, an additional list element is provided containing the
 #' full module outputs, as well as information recorded by DSC such as
 #' the runtime and the replicate number (see the \code{"DSC_DEBUG"}
-#' element). This option can be useful for testing or debugging. Any
-#' module or module group included in \code{module.outputs.all} must
-#' also be included in \code{targets}.
+#' element). This option can be useful for testing or debugging. Note
+#' that any module or module group included in
+#' \code{module.output.all} must also be included in \code{targets}.
 #'
 #' @param module.output.files Character vector specifying names of
 #' modules or module groups in the DSC. For each specified module or
@@ -192,7 +192,7 @@
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets = NULL, module.outputs.all = NULL,
+dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
                       module.output.files = NULL, conditions = NULL,
                       groups = NULL,
                       return.type = c("auto", "data.frame", "list"),
@@ -211,16 +211,16 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs.all = NULL,
                "at least one element"))
   all_targets <- c(targets,get.module.names(targets))
 
-  # Check input argument "module.outputs.all".
-  if (!is.null(module.outputs.all)) {
-    if (!(is.character(module.outputs.all) &
-          is.vector(module.outputs.all) &
-          length(module.outputs.all) > 0))
-      stop(paste("Argument \"module.outputs.all\" should be \"NULL\", or a",
+  # Check input argument "module.output.all".
+  if (!is.null(module.output.all)) {
+    if (!(is.character(module.output.all) &
+          is.vector(module.output.all) &
+          length(module.output.all) > 0))
+      stop(paste("Argument \"module.output.all\" should be \"NULL\", or a",
                  "character vector with at least one element"))
-    if (length(setdiff(module.outputs.all,all_targets)) > 0)
+    if (length(setdiff(module.output.all,targets)) > 0)
       stop(paste("All modules and module groups included in",
-                 "\"module.outputs.all\" must also be mentioned in",
+                 "\"module.output.all\" must also be included in",
                  "\"targets\""))
   }
 
@@ -251,8 +251,8 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs.all = NULL,
   
   # Check and process input argument "return.type".
   return.type <- match.arg(return.type)
-  if (return.type == "data.frame" & length(module.outputs.all) > 1)
-    stop(paste("Complete module outputs requested with \"module.outputs.all\"",
+  if (return.type == "data.frame" & length(module.output.all) > 1)
+    stop(paste("Complete module outputs requested with \"module.output.all\"",
                "cannot be returned in a data frame; select return.type =",
                "\"list\" or return.type = \"auto\" instead"))
 
@@ -338,6 +338,38 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs.all = NULL,
     dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
   dat <- remove.output.suffix(dat)
 
+  # EXTRACT FULL MODULE OUTPUTS
+  # ---------------------------
+  n <- length(module.output.all)
+  if (n > 0) {
+    full.outputs        <- vector("list",n)
+    names(full.outputs) <- module.output.all
+
+    # Extract the full module outputs for each selected module or
+    # module group.
+    for (i in module.output.all) {
+      x <- dat[[paste(i,"output.file",sep = ".")]]
+      m <- length(x)
+      if (m > 0)
+        for (j in 1:m)
+          x[j] <- list(import.dsc.output(x[[j]],dsc.dir,ignore.missing.files))
+      full.outputs[[i]] <- x
+    }
+
+    # Combine everything into a single list or data frame, and
+    # re-order the columns (or list elements).
+    names(full.outputs) <- paste(names(full.outputs),"output.all",sep = ".")
+    cols <- names(dat)
+    for (i in module.output.all) {
+      j    <- which(cols == paste(i,"output.file",sep = "."))
+      m    <- length(cols)
+      cols <- c(cols[1:j],paste(i,"output.all",sep = "."),cols[(j+1):m])
+    }
+    dat <- c(dat,full.outputs)
+    dat <- dat[cols]
+  }
+  rm(full.outputs)
+
   # OPTIONALLY FLATTEN RETURN VALUE
   # -------------------------------
   # Handle the edge case when there are no results to return (i.e.,
@@ -387,6 +419,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs.all = NULL,
                     "\"data.frame\" or return.type = \"auto\"; a data frame",
                     "may be more convenient for analyzing these results"))
   }
+  rm(dat.unextracted)
   
   # POST-FILTER BY CONDITIONS 
   # -------------------------
@@ -399,10 +432,6 @@ dscquery <- function (dsc.outdir, targets = NULL, module.outputs.all = NULL,
       if (!is.empty.result(dat))
         dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
   }
-
-  # EXTRACT FULL MODULE OUTPUTS
-  # ---------------------------
-  # TO DO.
 
   # REMOVE NON-REQUESTED OUTPUTS
   # ----------------------------
