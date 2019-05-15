@@ -281,10 +281,12 @@ def main():
                    dest = '__construct__', default = "default",
                    help = '''Behavior of how DSC is executed in the presence of existing results.
                    "default": skips modules whose status have not been changed since previous execution.
-                   "sloppy": skips modules whose timestamp are newer than their upstream modules.
+                   "sloppy": skips modules whose output timestamp are newer than their upstream modules output.
                    "none": executes DSC from scratch.
                    "all": skips all execution yet build DSC database of what the specified benchmark is
-                   supposed to look like, thus making it possible to explore partial benchmark results.''')
+                   supposed to look like, thus making it possible to explore partial benchmark results.
+                   "sloppy" mode performs faster check. It is also useful to avoild rerun when module scripts are changed but 
+                   the module outputs are supposed to remain the same. "all" is useful to recover meta-databases without running anything.''')
     mt.add_argument('--touch', action='store_true', dest='__recover__',
                    help = '''"Touch" output files if exist, to mark them "up-to-date".
                    It will override "--skip" option. Note that time stamp is irrelevant to whether or not a file is up-to-date.
