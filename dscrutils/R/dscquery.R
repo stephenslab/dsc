@@ -188,6 +188,8 @@
 #'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
 #'            return.type = "data.frame")
 #'
+#' # See also example("dscread").
+#' 
 #' @importFrom utils read.csv
 #'
 #' @export
@@ -367,8 +369,8 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
     }
     dat <- c(dat,full.outputs)
     dat <- dat[cols]
+    rm(full.outputs)
   }
-  rm(full.outputs)
 
   # OPTIONALLY FLATTEN RETURN VALUE
   # -------------------------------

@@ -9,8 +9,7 @@ test_that(paste("First one_sample_location DSC query examples returns a",
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
   dat <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
-                  conditions = "$(simulate.n) > 10",omit.filenames = TRUE,
-                  verbose = FALSE)
+                  conditions = "$(simulate.n) > 10",verbose = FALSE)
   expect_equal(dim(dat),c(8,6))
 })
 
@@ -157,7 +156,7 @@ test_that(paste("dscquery filtering by condition works when return value is",
                          package = "dscrutils")
   out <- dscquery(dsc.dir,targets = c("analyze","simulate.data","score.error"),
                   conditions=c("$(analyze) == 'mean'","$(score.error) < 0.2"),
-                  omit.filenames = TRUE,verbose = FALSE)
+                  verbose = FALSE)
   expect_equivalent(sapply(out,length),rep(2,6))
 })
 
@@ -166,18 +165,21 @@ test_that(paste("dscquery returns a data frame with the correct column names",
   dsc.dir <- system.file("datafiles","misc","results1",package = "dscrutils")
   dat        <- as.data.frame(matrix(0,0,3))
   names(dat) <- c("DSC","sim_params.params_store","cause.z")
-  out        <- dscquery(dsc.dir,
-                         targets = c("sim_params.params_store","cause.z"),
-                         verbose = FALSE)
+  out <- dscquery(dsc.dir,
+                  targets    = c("sim_params.params_store","cause.z"),
+                  conditions = paste("!is.na($(sim_params.params_store))",
+                                     "!is.na($(cause.z))",sep = " & "),
+                  verbose = FALSE)
   expect_equal(dat,out)
 })
 
 test_that(paste("dscquery adds output.file column when a module group is",
-                "requested as a target, and omit.filenames = FALSE"),{
+                "included in \"targets\" and \"module.output.file\"",
+                "arguments"),{
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
-  dat     <- dscquery(dsc.dir,targets = "analyze",omit.filenames = FALSE,
-                      verbose = FALSE)
+  dat     <- dscquery(dsc.dir,targets = "analyze",
+                      module.output.file = "analyze",verbose = FALSE)
   expect_equal(names(dat),c("DSC","analyze","analyze.output.file"))
 })
 
