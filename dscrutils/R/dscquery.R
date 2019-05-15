@@ -354,7 +354,8 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
       m <- length(x)
       if (m > 0)
         for (j in 1:m)
-          x[j] <- list(import.dsc.output(x[[j]],dsc.dir,ignore.missing.files))
+          x[j] <-
+            list(import.dsc.output(x[[j]],dsc.outdir,ignore.missing.files))
       full.outputs[[i]] <- x
     }
 
