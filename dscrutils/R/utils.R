@@ -9,38 +9,6 @@ merge_lists <- function(x, y, ...)
   return(x)
 }
 
-#' @importFrom tools file_ext
-#' @importFrom yaml yaml.load_file
-#' @export
-#'
-read_dsc <- function(infile) {
-  inext = file_ext(infile)
-  if (inext == "") {
-    for (item in c("rds", "pkl", "yml")) {
-      if (file.exists(paste0(infile, ".", item))) {
-        inext = item
-        infile = paste0(infile, ".", item)
-        break
-      }
-    }
-  }
-  if (inext == "") stop(paste("Cannot determine extension for input file", infile))
-  if (inext == 'pkl') {
-    ## Do not use `importFrom` for reticulate because
-    ## this is not always required
-    ## and when it is required the DSC parser code
-    ## will check and install the package.
-    if (!requireNamespace("reticulate",quietly = TRUE))
-      stop("Cannot read Python's `pkl` files due to missing `reticulate` package.")
-    result = reticulate::py_load_object(infile)
-    return(rapply(result, reticulate::py_to_r, classes = "python.builtin.object", how = "replace"))
-  } else if (inext == 'yml') {
-    return(yaml.load_file(infile))
-  } else {
-    return(readRDS(infile))
-  }
-}
-
 #' @export
 load_inputs <- function(files, loader) {
   if (length(files) == 1) {

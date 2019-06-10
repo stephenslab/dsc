@@ -4,39 +4,46 @@
 \alias{dscquery}
 \title{R interface for querying DSC output.}
 \usage{
-dscquery(dsc.outdir, targets = NULL, targets.notreq = NULL,
-  conditions = NULL, groups = NULL, return.type = c("auto",
-  "data.frame", "list"), ignore.missing.files = FALSE,
-  omit.filenames = FALSE, exec = "dsc-query", verbose = TRUE)
+dscquery(dsc.outdir, targets = NULL, module.output.all = NULL,
+  module.output.files = NULL, conditions = NULL, groups = NULL,
+  return.type = c("auto", "data.frame", "list"),
+  ignore.missing.files = FALSE, exec = "dsc-query", verbose = TRUE)
 }
 \arguments{
 \item{dsc.outdir}{Directory where the DSC output is stored.}
 
 \item{targets}{Query targets specified as a character vector; for
-example, \code{targets = c("simulate.n","analyze","score.error")},
-or, a character string separated by space, for example,
-\code{targets = "simulate.n analyze score.error"},
+example, \code{targets = c("simulate.n","analyze","score.error")}.
 A query target may be a module, a module group, a module parameter,
-or a module output. These are \emph{required} targets; that is, DSC
-pipelines (i.e., rows of the returned data frame) in which one of
-more of the targets are unassigned or missing (\code{NA}) will be
-automatically removed. To allow for unassigned or missing values,
-use argument \code{targets.notreq} instead. This input argument,
-together with \code{targets.notreq}, specifies the \code{--target}
-flag in the \code{dsc-query} call. At least one of \code{targets}
-and \code{targets.notreq} must not be \code{NULL} or empty. Note
-that, to easily specify multiple targets from the same module, we
-recommend using \code{\link{paste}}; e.g., \code{paste("simulate",
-c("n","p","df"),sep = ".")}. These targets will be the names of the
-columns in the data frame if a data frame is returned, or the names
-of the list elements if a list is returned.}
+or a module output. Targets that are not assigned are set to
+\code{NA}. This argument specifies the \code{--target} flag in the
+\code{dsc-query} call. At least one target must be chosen;
+\code{targets} cannot be \code{NULL} or empty. These targets will
+be the names of the columns in the data frame if a data frame is
+returned, or the names of the list elements if a list is returned.
+This input argument specifies the \code{--target} option in the
+\code{dsc-query} call.}
 
-\item{targets.notreq}{Non-required query targets; this is the same
-as \code{targets}, except that unassigned or missing values are not
-removed from the return value. This input argument, together with
-\code{targets}, specifies the \code{--target} flag in the
-\code{dsc-query} call. At least one of \code{targets} and
-\code{targets.notreq} must not be \code{NULL} or empty.}
+\item{module.output.all}{Character vector specifying names of
+modules or module groups in the DSC. For each specified module or
+module group, an additional list element is provided containing the
+full module outputs, as well as information recorded by DSC such as
+the runtime and the replicate number (see the \code{"DSC_DEBUG"}
+element). This option can be useful for testing or debugging. Note
+that any module or module group included in
+\code{module.output.all} must also be included in \code{targets}.}
+
+\item{module.output.files}{Character vector specifying names of
+modules or module groups in the DSC. For each specified module or
+module group, an additional data frame column (or list element)
+giving the name of the DSC output file is provided. This can be
+useful if you want to manually load the stored results (e.g., for
+testing or debugging). For more details on DSC output files, how to
+interpret the file paths, and how to import the contents of these
+files into R, see \code{\link{dscread}}. This option can be useful
+for testing or debugging. Note that any module or module group
+included in \code{module.output.files} must also be included in
+\code{targets}.}
 
 \item{conditions}{Conditions used to filter DSC pipeline results;
 rows in which one or more of the conditions evaluate to
@@ -55,8 +62,7 @@ greater than or equal to \code{0.1}, set \code{conditions =
 "$(simulate.sigma) >= 0.1"} (see below for additional
 examples). This input argument specifies the \code{--condition}
 flag in the call to \code{dsc-query}. All targets used in the
-conditions must also be included in \code{targets} or
-\code{targets.notreq}.}
+conditions must also be included in \code{targets}.}
 
 \item{groups}{Defines module groups. This argument specifies the
 \code{--groups} flag in the call to \code{dsc-query}. For example,
@@ -69,21 +75,16 @@ outputs are returned in a data frame; if \code{return.type =
 list or data frame is returned depending on which data structure is
 most appropriate for the DSC outputs. See "Value" for more
 information about the different return types, and the benefits (and
-limitations) of each.}
+limitations) of each. Note that \code{return.type = "data.frame"}
+cannot be used when one or more modules or module groups are named
+in \code{module.output.files}.}
 
 \item{ignore.missing.files}{If \code{ignore.missing.files = TRUE},
-all DSC output files that are not found will have \code{NA} for the
-file name; when extracting target outputs from files, any outputs
-in which files are not found will have their value set to \code{NA}. If
-\code{ignore.missing.files = FALSE}, \code{dscquery} will throw an
-error whenever a missing file is encountered.}
-
-\item{omit.filenames}{When \code{omit.filenames = FALSE}, an
-additional column (or list element) giving the name of the DSC
-output file is provided for each query target that is a module or
-module group. This is useful if you want to directly inspect the
-stored results. Setting \code{omit.filenames = TRUE} suppresses
-these additional outputs.}
+all targets corresponding to DSC output files that cannot be found,
+or cannot be read (e.g., because they are corrupted), will be
+treated as if the targets are not assigned (\code{NA}). If
+\code{ignore.missing.files = FALSE}, \code{dscquery} will generate
+an error whenever a file cannot be found or read.}
 
 \item{exec}{The command or pathname of the \code{dsc-query}
 executable.}
@@ -198,4 +199,9 @@ dat6 <-
            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
            return.type = "data.frame")
 
+# See also example("dscread").
+
+}
+\seealso{
+\code{\link{dscread}}
 }

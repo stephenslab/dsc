@@ -8,31 +8,38 @@
 #' @param dsc.outdir Directory where the DSC output is stored.
 #'
 #' @param targets Query targets specified as a character vector; for
-#' example, \code{targets = c("simulate.n","analyze","score.error")},
-#' or, a character string separated by space, for example,
-#' \code{targets = "simulate.n analyze score.error"},
+#' example, \code{targets = c("simulate.n","analyze","score.error")}.
 #' A query target may be a module, a module group, a module parameter,
-#' or a module output. These are \emph{required} targets; that is, DSC
-#' pipelines (i.e., rows of the returned data frame) in which one of
-#' more of the targets are unassigned or missing (\code{NA}) will be
-#' automatically removed. To allow for unassigned or missing values,
-#' use argument \code{targets.notreq} instead. This input argument,
-#' together with \code{targets.notreq}, specifies the \code{--target}
-#' flag in the \code{dsc-query} call. At least one of \code{targets}
-#' and \code{targets.notreq} must not be \code{NULL} or empty. Note
-#' that, to easily specify multiple targets from the same module, we
-#' recommend using \code{\link{paste}}; e.g., \code{paste("simulate",
-#' c("n","p","df"),sep = ".")}. These targets will be the names of the
-#' columns in the data frame if a data frame is returned, or the names
-#' of the list elements if a list is returned.
+#' or a module output. Targets that are not assigned are set to
+#' \code{NA}. This argument specifies the \code{--target} flag in the
+#' \code{dsc-query} call. At least one target must be chosen;
+#' \code{targets} cannot be \code{NULL} or empty. These targets will
+#' be the names of the columns in the data frame if a data frame is
+#' returned, or the names of the list elements if a list is returned.
+#' This input argument specifies the \code{--target} option in the
+#' \code{dsc-query} call.
 #'
-#' @param targets.notreq Non-required query targets; this is the same
-#' as \code{targets}, except that unassigned or missing values are not
-#' removed from the return value. This input argument, together with
-#' \code{targets}, specifies the \code{--target} flag in the
-#' \code{dsc-query} call. At least one of \code{targets} and
-#' \code{targets.notreq} must not be \code{NULL} or empty.
+#' @param module.output.all Character vector specifying names of
+#' modules or module groups in the DSC. For each specified module or
+#' module group, an additional list element is provided containing the
+#' full module outputs, as well as information recorded by DSC such as
+#' the runtime and the replicate number (see the \code{"DSC_DEBUG"}
+#' element). This option can be useful for testing or debugging. Note
+#' that any module or module group included in
+#' \code{module.output.all} must also be included in \code{targets}.
 #'
+#' @param module.output.files Character vector specifying names of
+#' modules or module groups in the DSC. For each specified module or
+#' module group, an additional data frame column (or list element)
+#' giving the name of the DSC output file is provided. This can be
+#' useful if you want to manually load the stored results (e.g., for
+#' testing or debugging). For more details on DSC output files, how to
+#' interpret the file paths, and how to import the contents of these
+#' files into R, see \code{\link{dscread}}. This option can be useful
+#' for testing or debugging. Note that any module or module group
+#' included in \code{module.output.files} must also be included in
+#' \code{targets}.
+#' 
 #' @param conditions Conditions used to filter DSC pipeline results;
 #' rows in which one or more of the conditions evaluate to
 #' \code{FALSE} or \code{NA} are removed from the output (removing
@@ -50,8 +57,7 @@
 #' "$(simulate.sigma) >= 0.1"} (see below for additional
 #' examples). This input argument specifies the \code{--condition}
 #' flag in the call to \code{dsc-query}. All targets used in the
-#' conditions must also be included in \code{targets} or
-#' \code{targets.notreq}.
+#' conditions must also be included in \code{targets}.
 #'
 #' @param groups Defines module groups. This argument specifies the
 #' \code{--groups} flag in the call to \code{dsc-query}. For example,
@@ -64,21 +70,16 @@
 #' list or data frame is returned depending on which data structure is
 #' most appropriate for the DSC outputs. See "Value" for more
 #' information about the different return types, and the benefits (and
-#' limitations) of each.
-#' 
-#' @param omit.filenames When \code{omit.filenames = FALSE}, an
-#' additional column (or list element) giving the name of the DSC
-#' output file is provided for each query target that is a module or
-#' module group. This is useful if you want to directly inspect the
-#' stored results. Setting \code{omit.filenames = TRUE} suppresses
-#' these additional outputs.
+#' limitations) of each. Note that \code{return.type = "data.frame"}
+#' cannot be used when one or more modules or module groups are named
+#' in \code{module.output.files}.
 #' 
 #' @param ignore.missing.files If \code{ignore.missing.files = TRUE},
-#' all DSC output files that are not found will have \code{NA} for the
-#' file name; when extracting target outputs from files, any outputs
-#' in which files are not found will have their value set to \code{NA}. If
-#' \code{ignore.missing.files = FALSE}, \code{dscquery} will throw an
-#' error whenever a missing file is encountered.
+#' all targets corresponding to DSC output files that cannot be found,
+#' or cannot be read (e.g., because they are corrupted), will be
+#' treated as if the targets are not assigned (\code{NA}). If
+#' \code{ignore.missing.files = FALSE}, \code{dscquery} will generate
+#' an error whenever a file cannot be found or read.
 #'
 #' @param exec The command or pathname of the \code{dsc-query}
 #' executable.
@@ -128,6 +129,8 @@
 #'
 #' This function may not work in Windows.
 #'
+#' @seealso \code{\link{dscread}}
+#' 
 #' @examples
 #'
 #' # Retrieve the number of samples ("simulate.n") and error summary
@@ -185,15 +188,18 @@
 #'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'",
 #'            return.type = "data.frame")
 #'
+#' # See also example("dscread").
+#' 
 #' @importFrom utils read.csv
 #'
 #' @export
 #'
-dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
-                      conditions = NULL, groups = NULL,
+dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
+                      module.output.files = NULL, conditions = NULL,
+                      groups = NULL,
                       return.type = c("auto", "data.frame", "list"),
-                      ignore.missing.files = FALSE, omit.filenames = FALSE,
-                      exec = "dsc-query", verbose = TRUE) {
+                      ignore.missing.files = FALSE, exec = "dsc-query",
+                      verbose = TRUE) {
 
   # CHECK & PROCESS INPUTS
   # ----------------------
@@ -201,24 +207,36 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
     stop("Argument \"dsc.outdir\" should be a character vector of length 1")
 
-  # Check input arguments "targets" and "targets.notreq".
-  if (!is.null(targets))
-    if (!(is.character(targets) & is.vector(targets) & length(targets) > 0))
-      stop(paste("Argument \"targets\" should be \"NULL\", or a character",
-                 "vector with at least one element"))
-    targets = strsplit(paste(targets, collapse=" "), "\\s+")[[1]]
-  if (!is.null(targets.notreq))
-    if (!(is.character(targets.notreq) & is.vector(targets.notreq) &
-          length(targets.notreq) > 0))
-      stop(paste("Argument \"targets.notreq\" should be \"NULL\", or a",
+  # Check and process input argument "targets".
+  if (!(is.character(targets) & is.vector(targets) & length(targets) > 0))
+    stop(paste("Argument \"targets\" should be a character vector with",
+               "at least one element"))
+  all_targets <- c(targets,get.module.names(targets))
+
+  # Check input argument "module.output.all".
+  if (!is.null(module.output.all)) {
+    if (!(is.character(module.output.all) &
+          is.vector(module.output.all) &
+          length(module.output.all) > 0))
+      stop(paste("Argument \"module.output.all\" should be \"NULL\", or a",
                  "character vector with at least one element"))
-    targets.notreq = strsplit(paste(targets.notreq, collapse=" "), "\\s+")[[1]]
-  if (length(c(targets,targets.notreq)) == 0)
-    stop(paste("Arguments \"targets\" and \"targets.notreq\" must specify",
-               "at least one name; they cannot both be \"NULL\""))
-  if (length(intersect(targets,targets.notreq)) > 0)
-    stop(paste("Names cannot be the mentioned in both \"targets\" and",
-               "\"targets.notreq\""))
+    if (length(setdiff(module.output.all,targets)) > 0)
+      stop(paste("All modules and module groups included in",
+                 "\"module.output.all\" must also be included in",
+                 "\"targets\""))
+  }
+
+  # Check input argument "module.output.files".
+  if (!is.null(module.output.files)) {
+    if (!(is.character(module.output.files) & is.vector(module.output.files) &
+          length(module.output.files) > 0))
+      stop(paste("Argument \"module.output.files\" should be \"NULL\", or a",
+                 "character vector with at least one element"))
+    if (length(setdiff(module.output.files,targets)) > 0)
+      stop(paste("All modules and module groups included in",
+                 "\"module.output.files\" must also be included in",
+                 "\"targets\""))
+  }
   
   # Check input argument "conditions".
   if (!is.null(conditions))
@@ -235,14 +253,14 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   
   # Check and process input argument "return.type".
   return.type <- match.arg(return.type)
+  if (return.type == "data.frame" & length(module.output.all) > 1)
+    stop(paste("Complete module outputs requested with \"module.output.all\"",
+               "cannot be returned in a data frame; select return.type =",
+               "\"list\" or return.type = \"auto\" instead"))
 
   # Check input argument "ignore.missing.files".
   if (!(is.logical(ignore.missing.files) & length(ignore.missing.files) == 1))
     stop("Argument \"ignore.missing.files\" should be TRUE or FALSE")
-  
-  # Check input argument "omit.filenames".
-  if (!(is.logical(omit.filenames) & length(omit.filenames) == 1))
-    stop("Argument \"omit.filenames\" should be TRUE or FALSE")
   
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
@@ -259,10 +277,7 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # they can be evaluated as R expressions.
   #
   # Here is where we also check that each of the targets mentioned in
-  # the condition expressions is also included in the "targets" or
-  # "targets.notreq" arguments.
-  all_targets <- c(targets,targets.notreq)
-  all_targets <- c(all_targets,get.module.names(all_targets))
+  # the condition expressions is also included in the "targets" argument.
   if (!is.null(conditions)) {
     n                 <- length(conditions)
     condition_targets <- vector("list",n)
@@ -272,7 +287,7 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
       conditions[i]          <- out$condition
       if (!all(is.element(condition_targets[[i]],all_targets)))
         stop(paste("All targets mentioned in conditions must also be",
-                   "included in \"targets\" or \"targets.notreq\""))
+                   "mentioned in \"targets\""))
     }
   }
 
@@ -284,16 +299,15 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # interface are specified as R expressions.
   if (verbose)
     cat("Calling dsc-query.\n")
-  out     <- build.dscquery.call(c(targets,targets.notreq),groups,
-                                 dsc.outdir,outfile,exec)
+  out     <- build.dscquery.call(targets,groups,dsc.outdir,outfile,exec)
   outfile <- out$outfile
   cmd.str <- out$cmd.str
   run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
-  
+
   # IMPORT DSC QUERY RESULTS
   # ------------------------
-  # As a safeguard, we check for any duplicated column names, and if
-  # there are any, we halt and report an error.
+  # As a safeguard, we check for any duplicated column (or list
+  # element) names, and if there are any, we halt and report an error.
   if (verbose)
     cat("Importing dsc-query output.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
@@ -301,12 +315,6 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
                   na.strings = "NA")
   if (any(duplicated(names(dat))))
     stop("One or more names in dsc-query output are the same")
-  
-  # FILTER BY TARGETS
-  # -----------------
-  # Filter out rows in which one or more of the targets are unassigned
-  # or missing.
-  dat <- filter.by.query.targets(dat,targets)
   
   # PRE-FILTER BY CONDITIONS
   # ------------------------
@@ -322,7 +330,7 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   # EXTRACT DSC OUTPUT
   # ------------------
   # Extract outputs from DSC files for all columns with names of the
-  # form "module.variable:output". After this step, dat will become a
+  # form "module.variable:output". After this step, "dat" will become a
   # nested list, in which each element dat[[i]][j]] is the value of
   # target i in pipeline j.
   if (verbose)
@@ -331,7 +339,40 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
   if (!is.empty.result(dat))
     dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
   dat <- remove.output.suffix(dat)
-    
+
+  # EXTRACT FULL MODULE OUTPUTS
+  # ---------------------------
+  n <- length(module.output.all)
+  if (n > 0) {
+    full.outputs        <- vector("list",n)
+    names(full.outputs) <- module.output.all
+
+    # Extract the full module outputs for each selected module or
+    # module group.
+    for (i in module.output.all) {
+      x <- dat[[paste(i,"output.file",sep = ".")]]
+      m <- length(x)
+      if (m > 0)
+        for (j in 1:m)
+          x[j] <-
+            list(import.dsc.output(x[[j]],dsc.outdir,ignore.missing.files))
+      full.outputs[[i]] <- x
+    }
+
+    # Combine everything into a single list or data frame, and
+    # re-order the columns (or list elements).
+    names(full.outputs) <- paste(names(full.outputs),"output.all",sep = ".")
+    cols <- names(dat)
+    for (i in module.output.all) {
+      j    <- which(cols == paste(i,"output.file",sep = "."))
+      m    <- length(cols)
+      cols <- c(cols[1:j],paste(i,"output.all",sep = "."),cols[(j+1):m])
+    }
+    dat <- c(dat,full.outputs)
+    dat <- dat[cols]
+    rm(full.outputs)
+  }
+
   # OPTIONALLY FLATTEN RETURN VALUE
   # -------------------------------
   # Handle the edge case when there are no results to return (i.e.,
@@ -381,7 +422,8 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
                     "\"data.frame\" or return.type = \"auto\"; a data frame",
                     "may be more convenient for analyzing these results"))
   }
-
+  rm(dat.unextracted)
+  
   # POST-FILTER BY CONDITIONS 
   # -------------------------
   # Filter rows of the data frame (or list) by each condition.
@@ -396,10 +438,15 @@ dscquery <- function (dsc.outdir, targets = NULL, targets.notreq = NULL,
 
   # REMOVE NON-REQUESTED OUTPUTS
   # ----------------------------
-  # Remove any outputs ending with "output.file", if requested.
-  if (omit.filenames)
-    dat <- remove.output.files(dat)
+  # Remove any outputs that were not requested by the user.
+  cols <- intersect(names(dat),
+                    c("DSC",
+                      targets,
+                      paste(module.output.files,"output.file",sep = "."),
+                      paste(module.output.all,"output.all",sep = ".")))
+  dat <- dat[cols]
   rownames(dat) <- NULL
+
   return(dat)
 }
 
@@ -436,16 +483,6 @@ build.dscquery.call <- function (targets, groups, dsc.outdir, outfile, exec) {
   if (!is.null(groups))
     cmd.str <- sprintf("%s -g %s",cmd.str,paste(paste0('"', groups, '"'),collapse = " "))
   return(list(outfile = outfile,cmd.str = cmd.str))
-}
-
-# For data frame "dat" containing the (raw) output of a dsc-query call,
-# filter out rows in which one or more of the targets are unassigned
-# or missing. This is a help function used in dscquery.
-filter.by.query.targets <- function (dat, targets) {
-  col_names <- gsub(":.*|\\.output\\.file","",names(dat))    
-  cols      <- which(is.element(col_names,targets))
-  rows      <- which(!apply(is.na(dat[cols]),1,any))
-  return(dat[rows,])
 }
 
 # Filter rows of the data frame (or nested list) "dat" by the given
@@ -556,23 +593,12 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
 
 # Helper function used by read.dsc.outputs to load the DSC output from
 # either an RDS or "pickle" file.
-import.dsc.output <- function (file, dsc.outdir, ignore.missing.files) {
-  rds <- file.path(dsc.outdir,paste0(file,".rds"))
-  pkl <- file.path(dsc.outdir,paste0(file,".pkl"))
-  if (file.exists(rds) & file.exists(pkl))
-    stop(sprintf(paste("Both %s and %s DSC files exist; DSC output files",
-                       "should be cleaned up using \"dsc --clean\""),rds,pkl))
-  else if (file.exists(rds))
-    out <- read_dsc(rds)
-  else if (file.exists(pkl))
-    out <- read_dsc(pkl)
-  else {
-    out <- NULL
-    if (!ignore.missing.files)
-      stop(sprintf(paste("Unable to read from either %s or %s. You can set",
-                         "ignore.missing.files = TRUE to ignore this issue."),
-                   rds,pkl))
-  }
+import.dsc.output <- function (outfile, outdir, ignore.missing.files) {
+  out <- dscread(outdir,outfile)
+  if (is.null(out) & !ignore.missing.files)
+    stop(sprintf(paste("Unable to read from DSC output file %s. You can set",
+                       "ignore.missing.files = TRUE to ignore this issue."),
+                 outfile))
   return(out)
 }
 
@@ -628,20 +654,6 @@ remove.output.suffix <- function (dat) {
     }
   names(dat) <- x
   return(dat)
-}
-
-# Remove all columns or list elements from "dat" with names ending in
-# ".output.file".
-remove.output.files <- function (dat) {
-  i <- which(!sapply(as.list(names(dat)),
-                     function (x) {
-                       n <- nchar(x)
-                       if (n < 12)
-                         return(FALSE)
-                       else
-                         return(substr(x,n - 11,n) == ".output.file")
-                     }))
-  return(dat[i])
 }
 
 # Return TRUE if and only if "dat" is a data frame or list containing
