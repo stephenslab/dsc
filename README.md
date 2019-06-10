@@ -95,7 +95,10 @@ Goal for 0.4.0
 
 0.3.9
 
+- Issue #179
+- Issue #182
 - Issue #183
+- SoS bumped to version 0.19.11 for additional improvements in cluster job submission.
 
 0.3.8
 
