@@ -138,8 +138,6 @@ def execute(args, unknown_args):
     mode = "default"
     if args.__construct__ == "none":
         mode = "force"
-    if args.__construct__ == "sloppy":
-        mode = "skip"
     content = {'__sig_mode__': mode,
                'script': script_prepare,
                '__bin_dirs__': exec_path,
@@ -192,6 +190,8 @@ def execute(args, unknown_args):
     # Get DSC meta database
     env.logger.info("Building DSC database ...")
     content['workflow'] = "build"
+    if args.__construct__ == "sloppy":
+        content['__sig_mode__'] = "skip"
     with Silencer(env.verbosity if args.debug else 0):
         cmd_run(script.get_sos_options(db, content), [])
     if args.__construct__ == "all":
