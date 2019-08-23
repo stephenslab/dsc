@@ -84,7 +84,6 @@ class ExpandVars(YLine):
     def encodeVar(self, var, slice_idx):
         '''
         Code multi-entry data type to string
-          * For tuple / list will make it into a string like "[item1, item2 ...]"
         '''
         var = self.split(var)
         if slice_idx is not None and not isinstance(var, (list, tuple)):
@@ -92,10 +91,8 @@ class ExpandVars(YLine):
         if isinstance(var, (list, tuple)):
             if slice_idx is not None:
                 var = [var[i] for i in get_slice('slice[' + slice_idx + ']')[1]]
-            if len(var) == 1:
-                    return '{}'.format(var[0])
-            else:
-                return '[{}]'.format(','.join(list(map(str, var))))
+            # FIXME: For tuple / list will need to make it into a string like "[item1, item2 ...]"
+            return ','.join(list(map(str, var)))
         else:
             return var
 
