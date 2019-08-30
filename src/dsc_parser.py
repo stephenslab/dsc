@@ -377,15 +377,16 @@ class DSC_Script:
     def get_sos_options(name, content):
         out = dotdict()
         out.verbosity = env.verbosity
-        out.__wait__ = True
-        out.__no_wait__ = False
         out.__targets__ = []
+        out.trace_existing = False
         out.__queue__ = None
         out.__remote__ = None
+        out.__dag__ = ''
         out.dryrun = False
         # In DSC we will not support `resume` just to keep it simple
         out.__resume__ = False
         out.__config__ = f'{DSC_CACHE}/{name}.conf.yml'
+        out.__worker_procs__ = None
         out.update(content)
         if '__max_running_jobs__' not in content:
             out.__max_running_jobs__ = 1
