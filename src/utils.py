@@ -459,6 +459,7 @@ def sos_group_input(*lsts):
     '''
     https://stackoverflow.com/questions/48346169/fast-zip-list-of-lists-while-completing-shorter-lists-by-cycling
     '''
+    lsts = sorted(lsts, key=len)
     return list(chain(*islice(
         zip(*(cycle(l) for l in lsts)),
         0, len(lsts[-1]))))
