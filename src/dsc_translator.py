@@ -344,7 +344,7 @@ class DSC_Translator:
                 if self.conf is None or (self.step.name in self.conf and self.conf[self.step.name]['queue'] is None) \
                    or (self.step.name not in self.conf and self.conf['default']['queue'] is None):
                     return
-                self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{self.step.name}_{{_output:bn}}'"
+                self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) and k != 'trunk_workers' else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{self.step.name}_{{_output:bn}}'"
                 self.step_option += '\n' if path(self.step.workdir).absolute() == path.cwd() else f', workdir = {repr(self.step.workdir)}\n'
 
 

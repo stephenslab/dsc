@@ -1191,16 +1191,22 @@ def remote_config_parser(host, paths):
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
-    default = dict([('instances_per_job', 2),
+    default = dict([('queue', list(conf['DSC'].keys())[0]),
+                    ('instances_per_job', 2),
                     ('nodes_per_job', 1),
                     ('cpus_per_node', 1),
-                    ('time_per_instance', '5m'),
                     ('cpus_per_instance', 1),
                     ('mem_per_instance', '2G'),
-                    ('queue', list(conf['DSC'].keys())[0])])
+                    ('time_per_instance', '5m')])
     if len(paths):
         default['prepend_path'] = paths
+
+    def check_valid_conf(key):
+        for kk in conf[key]:
+            if kk not in list(default.keys()):
+                raise FormatError(f"Invalid configuration ``{kk}`` in section ``{key}``. Available configuations are:\n``{', '.join(default.keys())}``.")
     if 'default' in conf:
+        check_valid_conf('default')
         default.update(conf['default'])
     conf['default'] = default
     if conf['default']['queue'] not in conf['DSC']:
@@ -1208,9 +1214,7 @@ def remote_config_parser(host, paths):
     for key in list(conf.keys()):
         if key == 'DSC':
             continue
-        for kk in conf[key]:
-            if kk not in default.keys():
-                raise FormatError(f"Invalid configuration ``{kk}`` in ``{conf[key]}``. Available configuations are:\n``{', '.join(default.keys())}``.")
+        check_valid_conf(key)
         tmp = copy.deepcopy(default)
         tmp.update(conf[key])
         tmp['walltime'] = tmp.pop('time_per_instance')
