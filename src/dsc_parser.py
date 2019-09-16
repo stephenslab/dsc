@@ -1191,11 +1191,12 @@ def remote_config_parser(host, paths):
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
-    default = dict([('time_per_instance', '5m'),
-                    ('instances_per_job', 2),
-                    ('n_cpu', 1),
-                    ('mem_per_cpu', '2G'),
-                    ('trunk_workers', 1),
+    default = dict([('instances_per_job', 2),
+                    ('nodes_per_job', 1),
+                    ('cpus_per_node', 1),
+                    ('time_per_instance', '5m'),
+                    ('cpus_per_instance', 1),
+                    ('mem_per_instance', '2G'),
                     ('queue', list(conf['DSC'].keys())[0])])
     if len(paths):
         default['prepend_path'] = paths
@@ -1207,12 +1208,16 @@ def remote_config_parser(host, paths):
     for key in list(conf.keys()):
         if key == 'DSC':
             continue
+        for kk in conf[key]:
+            if kk not in default.keys():
+                raise FormatError(f"Invalid configuration ``{kk}`` in ``{conf[key]}``. Available configuations are:\n``{', '.join(default.keys())}``.")
         tmp = copy.deepcopy(default)
         tmp.update(conf[key])
         tmp['walltime'] = tmp.pop('time_per_instance')
+        tmp['mem'] = tmp.pop('mem_per_instance')
+        tmp['cores'] = tmp.pop('cpus_per_instance')
         tmp['trunk_size'] = tmp.pop('instances_per_job')
-        tmp['mem'] = tmp.pop('mem_per_cpu')
-        tmp['cores'] = tmp.pop('n_cpu')
+        tmp['trunk_workers'] = f'[{tmp.pop(cpus_per_node)}] * {tmp.pop(nodes_per_job)}'
         keys = [k.strip() for k in key.split(',')]
         if len(keys) > 1:
             for k in keys:
