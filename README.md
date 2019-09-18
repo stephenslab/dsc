@@ -93,6 +93,12 @@ Goal for 0.4.0
 
 ### 0.3.x
 
+0.3.10
+
+- Issue #154
+- Add a remote job option `nodes_per_job` and provide such mechanism to run on multiple nodes.
+- SoS bumped to version 0.20.2
+
 0.3.9
 
 - Issue #179
