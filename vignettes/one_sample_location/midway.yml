@@ -45,7 +45,7 @@ default:
   queue: midway2
   instances_per_job: 40
   nodes_per_job: 10
-  cpus_per_node: 4
+  instances_per_node: 4
   cpus_per_instance: 1
   mem_per_instance: 2G
   time_per_instance: 3m

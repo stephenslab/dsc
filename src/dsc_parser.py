@@ -1194,7 +1194,7 @@ def remote_config_parser(host, paths):
     default = dict([('queue', list(conf['DSC'].keys())[0]),
                     ('instances_per_job', 2),
                     ('nodes_per_job', 1),
-                    ('cpus_per_node', 1),
+                    ('instances_per_node', 1),
                     ('cpus_per_instance', 1),
                     ('mem_per_instance', '2G'),
                     ('time_per_instance', '5m')])
@@ -1221,7 +1221,7 @@ def remote_config_parser(host, paths):
         tmp['mem'] = tmp.pop('mem_per_instance')
         tmp['cores'] = tmp.pop('cpus_per_instance')
         tmp['trunk_size'] = tmp.pop('instances_per_job')
-        tmp['trunk_workers'] = f"[{tmp.pop('cpus_per_node')}] * {tmp.pop('nodes_per_job')}"
+        tmp['trunk_workers'] = f"[{tmp.pop('instances_per_node')}] * {tmp.pop('nodes_per_job')}"
         keys = [k.strip() for k in key.split(',')]
         if len(keys) > 1:
             for k in keys:
