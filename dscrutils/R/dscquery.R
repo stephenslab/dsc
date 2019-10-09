@@ -568,7 +568,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
     if (!is.null(x))
       for (j in names(out[[i]]))
         if (j == "DSC_TIME")
-          out[[i]][[j]] <- out$DSC_DEBUG$time$elapsed
+          out[[i]][[j]] <- x$DSC_DEBUG$time$elapsed
         else if (!is.element(j,names(x)))
           stop(sprintf("Variable \"%s\" unavailable in \"%s\"",j,i))
         else
