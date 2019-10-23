@@ -1222,6 +1222,9 @@ def remote_config_parser(host, paths):
         tmp['cores'] = tmp.pop('cpus_per_instance')
         tmp['trunk_size'] = tmp.pop('instances_per_job')
         tmp['trunk_workers'] = f"[{tmp.pop('instances_per_node')}] * {tmp.pop('nodes_per_job')}"
+        if tmp['queue'].endswith('.local'):
+            for item in ['walltime', 'mem', 'cores', 'trunk_size', 'trunk_workers']:
+                tmp.pop(item)
         keys = [k.strip() for k in key.split(',')]
         if len(keys) > 1:
             for k in keys:
