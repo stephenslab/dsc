@@ -38,7 +38,7 @@ thisFile <- function() {
 
 load_script <- function() {
   fileName <- thisFile()
-  return(ifelse(!is.null(fileName), readChar(fileName, file.info(fileName)$size), ""))
+  return(ifelse(!is.null(fileName) && file.exists(fileName), readChar(fileName, file.info(fileName)$size), ""))
 }
 
 #' @importFrom utils capture.output

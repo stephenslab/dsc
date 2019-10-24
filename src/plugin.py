@@ -421,7 +421,7 @@ class PyPlug(BasePlug):
         '''
         depends: [(name, var, ext), ...]
         '''
-        res = 'import sys, os, tempfile, timeit, pickle\n'
+        res = 'import sys, os, tempfile, timeit, pickle, inspect\n'
         depends = OrderedDict()
         for x in depends_other:
             if x[0] not in depends:
@@ -484,7 +484,7 @@ class PyPlug(BasePlug):
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
                            [f"'DSC_DEBUG': dict([('time', timeit.default_timer() - TIC_{self.identifier[4:]}), " \
-                            "('script', open(__file__).read()), ('replicate', DSC_REPLICATE)])"]))
+                            "('script', inspect.getsource(inspect.getmodule(inspect.currentframe()))), ('replicate', DSC_REPLICATE)])"]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 
