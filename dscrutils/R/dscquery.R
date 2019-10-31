@@ -438,13 +438,15 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
 
   # REMOVE NON-REQUESTED OUTPUTS
   # ----------------------------
-  # Remove any outputs that were not requested by the user.
-  cols <- intersect(names(dat),
-                    c("DSC",
-                      targets,
-                      paste(module.output.files,"output.file",sep = "."),
-                      paste(module.output.all,"output.all",sep = ".")))
-  dat <- dat[cols]
+  # Remove any outputs that were not requested by the user, and order
+  # the outputs so that they are in the same order as the user
+  # specified them in the call to dscquery.
+  cols <- c("DSC",
+            targets,
+            paste(module.output.files,"output.file",sep = "."),
+            paste(module.output.all,"output.all",sep = "."))
+  cols <- cols[is.element(cols,names(dat))]
+  dat  <- dat[cols]
   rownames(dat) <- NULL
 
   return(dat)
