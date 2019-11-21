@@ -191,6 +191,7 @@
 #' # See also example("dscread").
 #' 
 #' @importFrom utils read.csv
+#' @importFrom progress progress_bar
 #'
 #' @export
 #'
@@ -308,8 +309,6 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # ------------------------
   # As a safeguard, we check for any duplicated column (or list
   # element) names, and if there are any, we halt and report an error.
-  if (verbose)
-    cat("Importing dsc-query output.\n")
   dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
                   check.names = FALSE,comment.char = "",
                   na.strings = "NA")
@@ -333,11 +332,12 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # form "module.variable:output". After this step, "dat" will become a
   # nested list, in which each element dat[[i]][j]] is the value of
   # target i in pipeline j.
-  if (verbose)
-    cat("Reading DSC outputs.\n")
+
   dat.unextracted <- dat
+  if (verbose)
+    cat(paste0("Load DSC output table of dimension ", nrow(dat), " by ", ncol(dat), ".\n"))
   if (!is.empty.result(dat))
-    dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files)
+    dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files,verbose)
   dat <- remove.output.suffix(dat)
 
   # EXTRACT FULL MODULE OUTPUTS
@@ -346,10 +346,15 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   if (n > 0) {
     full.outputs        <- vector("list",n)
     names(full.outputs) <- module.output.all
-
+    if (verbose) {
+      pb = progress_bar$new(format = "- Loading module outputs [:bar] :percent eta: :eta",  total = n, clear = FALSE, width= 60)
+    } else {
+      pb = null_progress_bar$new()
+    }
     # Extract the full module outputs for each selected module or
     # module group.
     for (i in module.output.all) {
+      pb$tick()
       x <- dat[[paste(i,"output.file",sep = ".")]]
       m <- length(x)
       if (m > 0)
@@ -512,7 +517,7 @@ filter.by.condition <- function (dat, expr, targets) {
 # This function is more complicated than it might seem from the
 # description because it tries to read the targets efficiently by
 # reading from each DSC output file no more than once.
-read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
+read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
 
   # Convert the DSC query result to a nested list. Here we use a
   # "trick", setting all missing values to NA with logical type. This
@@ -563,9 +568,15 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files) {
       if (!is.na(j))
         out[[j]][[x]] <- NA
   }
-
+  
   # Extract the outputs.
+  if (verbose) {
+    pb = progress_bar$new(format = "- Loading targets [:bar] :percent eta: :eta",  total = n, clear = FALSE, width= 60)
+  } else {
+    pb = null_progress_bar$new()
+  }
   for (i in files) {
+    pb$tick()
     x <- import.dsc.output(i,dsc.outdir,ignore.missing.files)
     if (!is.null(x))
       for (j in names(out[[i]]))
