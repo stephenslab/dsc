@@ -197,7 +197,7 @@
 #'
 dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
                       module.output.files = NULL, conditions = NULL,
-                      groups = NULL,
+                      groups = NULL, cache = NULL,
                       return.type = c("auto", "data.frame", "list"),
                       ignore.missing.files = FALSE, exec = "dsc-query",
                       verbose = TRUE) {
@@ -298,13 +298,16 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # although the dsc-query program has the option to pass in
   # conditions, this feature is not used here, as the queries in this
   # interface are specified as R expressions.
-  if (verbose)
-    cat("Calling dsc-query.\n")
-  out     <- build.dscquery.call(targets,groups,dsc.outdir,outfile,exec)
-  outfile <- out$outfile
-  cmd.str <- out$cmd.str
-  run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
-
+  if (is.null(cache)) {
+    if (verbose)
+      cat("Calling dsc-query.\n")
+    out     <- build.dscquery.call(targets,groups,dsc.outdir,outfile,exec)
+    outfile <- out$outfile
+    cmd.str <- out$cmd.str
+    run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
+  } else {
+    outfile <- cache
+  }
   # IMPORT DSC QUERY RESULTS
   # ------------------------
   # As a safeguard, we check for any duplicated column (or list
@@ -455,7 +458,9 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   cols <- cols[is.element(cols,names(dat))]
   dat  <- dat[cols]
   rownames(dat) <- NULL
-  if (verbose) cat(paste0("Elapsed time: ", round(as.double(Sys.time() - start_time),4), ' seconds.\n'))
+  diff_time <- Sys.time() - start_time
+  if (verbose) 
+    cat(paste0("Elapsed time: ", round(as.double(diff_time),4), ' ', attributes(diff_time)$units, '.\n'))
 
   return(dat)
 }
