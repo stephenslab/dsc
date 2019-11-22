@@ -335,9 +335,11 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
 
   dat.unextracted <- dat
   if (verbose)
-    cat(paste0("Load DSC output table of dimension ", nrow(dat), " by ", ncol(dat), ".\n"))
+    cat(paste0("Load DSC output table of dimension ", nrow(dat), "x", ncol(dat), ".\n"))
+
   if (!is.empty.result(dat))
     dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files,verbose)
+  start_time <- Sys.time()
   dat <- remove.output.suffix(dat)
 
   # EXTRACT FULL MODULE OUTPUTS
@@ -453,6 +455,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   cols <- cols[is.element(cols,names(dat))]
   dat  <- dat[cols]
   rownames(dat) <- NULL
+  if (verbose) cat(paste0("Elapsed time: ", round(as.double(Sys.time() - start_time),4), ' seconds.\n'))
 
   return(dat)
 }
