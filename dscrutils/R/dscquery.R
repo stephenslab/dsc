@@ -501,7 +501,11 @@ build.dscquery.call <- function (targets, groups, dsc.outdir, outfile, exec) {
 # unmodified data frame is returned.
 filter.by.condition <- function (dat, expr, targets) {
   if (all(is.element(targets,names(dat)))) {
-    rows <- which(with(dat,eval(parse(text = expr))))
+    tryCatch({
+      rows <- which(with(dat,eval(parse(text = expr))))
+    }, error = function(e) {
+      stop(paste0("Invalid condition statement: ", expr))
+    })
     if (is.data.frame(dat))
       dat <- dat[rows,]
     else
