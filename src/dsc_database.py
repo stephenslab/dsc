@@ -133,9 +133,9 @@ def build_config_db(io_db, map_db, conf_db, vanilla = False, jobs = 4):
                 # ('MSE', '0657f03051e0103670c6299f9608e939')]
                 k_core = tuple([x[0] for x in content])
                 key = ':'.join(k_core)
-                if not key in base_ids:
+                if key not in base_ids:
                     base_ids[key] = dict([(x, 0) for x in k_core])
-                if not key in lookup:
+                if key not in lookup:
                     lookup[key] = dict()
                 if kk in map_data:
                     # same module signature already exist
@@ -245,7 +245,7 @@ class ResultDB:
         KWS = ['__pipeline_id__', '__pipeline_name__', '__module__', '__out_vars__']
         seen = set()
         for workflow in self.metadata.values():
-            for m_id, module in enumerate(workflow.keys()):
+            for module in list(workflow.keys()):
                 pipeline_module = f"{workflow[module][0]}:{workflow[module][1]}"
                 if pipeline_module in seen:
                     continue

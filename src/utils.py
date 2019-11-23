@@ -369,7 +369,7 @@ def strip_dict(data, mapping = dict, into_list = False, skip_keys = None):
             v = strip_dict(v, mapping, into_list)
         if isinstance(v, list) and into_list:
             v = [strip_dict(x, mapping, into_list) for x in v]
-        if not is_null(v) and not v in mapping_null:
+        if not is_null(v) and v not in mapping_null:
             new_data[k] = v
     return new_data
 

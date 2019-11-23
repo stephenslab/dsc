@@ -203,7 +203,8 @@ class Shell(BasePlug):
         # FIXME: need to make it work for loading at least "meta" yaml file
         # Now just list all the names here
         # including meta file
-        res += '\n'.join(['\n{}={}'.format(f"{self.identifier}_{item[1]}", "$[_output]") if item[2] is None else (item[1], "$[_output:n].%s" % item[2]) for item in depends_other])
+        res += '\n'.join(['\n{}={}'.format(f"{self.identifier}_{item[1]}", "$[_output]") if item[2] is None else (item[1], "$[_output:n].%s" % item[2]) \
+                        for item in depends_other])
         if len(depends_other):
             res += '\nDSC_REPLICATE=0'
         if self.module_input:
@@ -308,7 +309,7 @@ class RPlug(BasePlug):
     def get_input(self, params, lib):
         res = 'dscrutils:::source_dirs(c({}))\n'.format(','.join([repr(x) for x in lib])) if len(lib) else ''
         # load parameters
-        keys = [x for x in params if not x in self.container_vars]
+        keys = [x for x in params if x not in self.container_vars]
         res += '\n' + '\n'.join(self.container)
         for k in keys:
             res += '\n%s <- ${_%s}' % (self.get_var(k), k)
@@ -323,8 +324,6 @@ class RPlug(BasePlug):
         res['DSC_OUTPUT'] = dict([(k,  f'${{_output:n}}.{params[k]}') for k in params])
         return '\n'.join([f'{k} <- paste0(${{_output:nr}}, ".{params[k]}")' for k in params]) + \
             f"\nwrite({repr(dict2yaml(res))}, paste0(${{_output:nr}}, '.yml'))"
-
-        return '\n'.join(res)
 
     def get_return(self, output_vars):
         if output_vars is None:

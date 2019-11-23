@@ -72,7 +72,7 @@ class DSC_Translator:
                         exe_signatures[step.name] = job_translator.exe_signature
                         self.exe_check.extend(job_translator.exe_check)
                     processed_steps[(step.name, flow, depend)] = name
-                    if not step.name in self.depends:
+                    if step.name not in self.depends:
                         self.depends[step.name] = []
                     if len(step.depends) and step.depends not in self.depends[step.name]:
                         self.depends[step.name].append(step.depends)

@@ -3,7 +3,6 @@
 # Copyright (c) Gao Wang, Stephens Lab at The Univeristy of Chicago
 # Distributed under the terms of the MIT License.
 
-import os
 import subprocess
 import unittest
 

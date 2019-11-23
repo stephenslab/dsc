@@ -95,7 +95,7 @@ class DSC_Script:
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
             self.runtime.output = script_name
-        self.runtime.output = remove_quotes(self.runtime.output) 
+        self.runtime.output = remove_quotes(self.runtime.output)
         def get_missing_module_message(k):
             if k in self.base_modules:
                 return f"Module ``{k}`` cannot be used directly due to lack of executable specifications."
@@ -189,9 +189,9 @@ class DSC_Script:
         '''
         input looks like: ['--data_file', '1.txt', '2.txt', ...]
         '''
-        if len(gparams) == 0: 
+        if len(gparams) == 0:
             return
-        if not 'global' in self.content['DSC'] and len(gparams) > 0:
+        if 'global' not in self.content['DSC'] and len(gparams) > 0:
             raise ValueError(f"Invalid option ``{' '.join(gparams)}``")
         global_vars = OrderedDict()
         curr_key = None
@@ -200,7 +200,7 @@ class DSC_Script:
                 curr_key = v[2:]
             if curr_key is None:
                 raise ValueError(f"Invalid argument ``{v}``.")
-            if not curr_key in global_vars:
+            if curr_key not in global_vars:
                 global_vars[curr_key] = []
             else:
                 global_vars[curr_key].append(v)
@@ -448,7 +448,7 @@ class DSC_Script:
                     t_group.del_row(i)
                 print(t_group.get_string(title = f"Group [{group}]"))
                 print('')
-                reported_rows.extend([i for i in range(len(res['modules'][' '])) if not i in rm])
+                reported_rows.extend([i for i in range(len(res['modules'][' '])) if i not in rm])
         rm_rows = [i for i in range(len(res['modules'][' '])) if i in reported_rows]
         if len(rm_rows) < len(res['modules'][' ']):
             for i in reversed(rm_rows):
@@ -994,7 +994,7 @@ class DSC_Section:
         if not isinstance(self.content['define'], Mapping):
             raise FormatError("Invalid format for ``DSC::define``!")
         for lhs, rhs in self.content["define"].items():
-            if not '*' in rhs:
+            if '*' not in rhs:
                 # is a valid group
                 # that is, only exists alternating modules not concatenate modules
                 self.groups[lhs] = [x.strip() for x in rhs.replace(')','').replace('(','').split(',')]

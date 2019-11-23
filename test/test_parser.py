@@ -3,7 +3,6 @@
 # Copyright (c) Gao Wang, Stephens Lab at The Univeristy of Chicago
 # Distributed under the terms of the MIT License.
 
-import os
 import subprocess
 import unittest
 
@@ -135,7 +134,7 @@ class TestParser(unittest.TestCase):
         '''basic syntax parser success'''
         # exec decoration
         res = DSC_Script(text3)
-        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('x', [1]), ('y', [2])])        
+        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('x', [1]), ('y', [2])])
         # alias for specific module, both syntax supported
         res = DSC_Script(text6)
         self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('x', [1]), ('y', [2])])
@@ -331,7 +330,7 @@ simulate: R()
     $x: x
 '''
         res = DSC_Script(text)
-        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('n', [1, 5]), ('p', [2, 6]), ('a', [3]), ('b', [4]), ('t', [5])]) 
+        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('n', [1, 5]), ('p', [2, 6]), ('a', [3]), ('b', [4]), ('t', [5])])
 
     def testParenthesisOperatorPass(self):
         # () operator

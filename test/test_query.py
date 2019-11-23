@@ -3,13 +3,11 @@
 # Copyright (c) Gao Wang, Stephens Lab at The Univeristy of Chicago
 # Distributed under the terms of the MIT License.
 
-import os
-import subprocess
 import unittest
 
 from dsc.query_engine import Query_Processor
 import pandas as pd
-from dsc.utils import FormatError, DBError
+from dsc.utils import DBError
 from sos.targets import file_target
 from sos.utils import get_output
 

@@ -177,7 +177,7 @@ def load_dsc(infiles):
         elif infile.endswith('.rds'):
             data = load_rds(infile)
         elif infile.endswith('.yml'):
-            data = yaml.load(open(infile).read())
+            data = yaml.safe_load(open(infile).read())
         else:
             raise ValueError(f'``{infile}`` is not supported DSC data format')
         try:
@@ -255,7 +255,7 @@ def main():
     if '-f' in sys.argv:
         try:
             os.remove(outfile)
-        except:
+        except Exception:
             pass
     if not os.path.isfile(outfile):
         if infile.endswith('.pkl') and outfile.endswith('.rds'):

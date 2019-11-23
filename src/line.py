@@ -157,7 +157,7 @@ class ExpandActions(YLine):
                     except IndexError:
                         raise FormatError(f"Invalid parentheses pattern in ``{value}``")
                     replacements.append((f'{name}{value[p:p_end+p+1]}',
-                                         ('(' if shatter == False else '') + self.method[name](value[p:p_end+p+1]) + (')' if shatter == False else '')))
+                                         ('(' if not shatter else '') + self.method[name](value[p:p_end+p+1]) + (')' if not shatter else '')))
                 for r in replacements:
                     value = value.replace(r[0], r[1], 1)
         return value
@@ -300,7 +300,7 @@ class OperationParser(YLine):
         # reconstruct slice wrongfully splitted e.g., sth[2,3,4]
         start_idx = 0
         for idx, item in enumerate(seq):
-            if '[' in item and not ']' in item:
+            if '[' in item and ']' not in item:
                 # bad slice found
                 new_seq.extend(seq[start_idx:idx])
                 tmp = [seq[idx]]
@@ -319,7 +319,7 @@ class OperationParser(YLine):
         new_seq.extend(seq[start_idx:len(seq)])
         # cache all symbols
         for idx, item in enumerate(new_seq):
-            if item and not item in self.operators:
+            if item and item not in self.operators:
                 new_seq[idx] = self.__string_cache(item)
         return ''.join(new_seq)
 
@@ -328,7 +328,7 @@ class OperationParser(YLine):
             * ensure '+' is not connecting between parenthesis
         '''
         for x in value:
-            if not x in self.operators and not x.isalnum() and x != '_':
+            if x not in self.operators and not x.isalnum() and x != '_':
                 raise FormatError('Invalid symbol ``{}`` in sequence ``{}``'.format(x, self.sequence))
         if ')+' in value or '+(' in value:
             raise FormatError('Pairs operator ``+`` cannot be used to connect multiple variables ')
@@ -526,15 +526,15 @@ def expand_logic(string):
     string = string.replace(' NOT ', '~')
     quote_dict = dict()
     for idx, m in enumerate(re.findall(r"\"[^\"]+\"|'[^']+'", string)):
-     # - Match either of the following options
-     #     - `"[^"]+"`
-     #         - `"` Match this literally
-     #         - `[^"]+` Match any character except `"` one or more times
-     #         - `"` Match this literally
-     #     - `'[^']+'`
-     #         - `'` Match this literally
-     #         - `[^']+` Match any character except `'` one or more times
-     #         - `'` Match this literally
+    # - Match either of the following options
+    #     - `"[^"]+"`
+    #         - `"` Match this literally
+    #         - `[^"]+` Match any character except `"` one or more times
+    #         - `"` Match this literally
+    #     - `'[^']+'`
+    #         - `'` Match this literally
+    #         - `[^']+` Match any character except `'` one or more times
+    #         - `'` Match this literally
         key = f'__DSC_QT_{idx+1}__'
         quote_dict[key] = m
         string = string.replace(m, key, 1)

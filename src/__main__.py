@@ -4,10 +4,9 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, glob, time, yaml, shutil
+import os, sys, glob, time
 from sos.utils import env, get_traceback
 from .version import __version__
-from .syntax import DSC_CACHE
 
 class Timer(object):
     def __init__(self, verbose=False):
@@ -56,6 +55,7 @@ def remove(workflows, groups, modules, db, purge = False):
         remove_unwanted_output(workflows, groups, modules, db, zap = True)
 
 def plain_remove(outdir):
+    import shutil
     shutil.rmtree(outdir, ignore_errors=True)
     shutil.rmtree(".sos", ignore_errors=True)
     to_remove = [outdir + '.html', outdir + '.scripts.html']
@@ -79,8 +79,8 @@ def execute(args, unknown_args):
     from .dsc_parser import DSC_Script, DSC_Pipeline, remote_config_parser
     from .dsc_translator import DSC_Translator
     # Parse DSC script
-    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, 
-                        global_params = unknown_args, truncate = args.truncate, 
+    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target,
+                        global_params = unknown_args, truncate = args.truncate,
                         replicate = 1 if args.truncate else args.replicate)
     script.init_dsc(env)
     pipeline_obj = DSC_Pipeline(script).pipelines
@@ -89,6 +89,7 @@ def execute(args, unknown_args):
         if args.to_remove == 'all':
             plain_remove(script.runtime.output)
         else:
+            print({**script.runtime.concats, **script.runtime.groups})
             remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
                rm_objects, script.runtime.output,
                args.to_remove == 'obsolete')
@@ -115,13 +116,13 @@ def execute(args, unknown_args):
         args.host = conf['default']['queue']
         if args.host == 'localhost':
             args.to_host = []
-        conf_tpl = {'localhost': 'localhost', 
+        conf_tpl = {'localhost': 'localhost',
                     'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}}
         if args.host != 'localhost':
             # FIXME: to_host mode needs to be re-written
-            raise ValueError("Not implemented")
             args.to_host.extend([f'{script.runtime.output}/{db}.db',
                                  f'{script.runtime.output}/{db}.conf.mpk'])
+            raise ValueError("Not implemented")
     else:
         if args.to_host:
             raise ValueError('Cannot set option ``--to-host`` without specifying ``--host``!')
@@ -172,6 +173,7 @@ def execute(args, unknown_args):
             raise RuntimeError(e)
     if args.debug:
         if conf_tpl:
+            import yaml
             yaml.safe_dump(conf_tpl, open(f'{db}.remote_config.yml', 'w'), default_flow_style=False)
         return
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
@@ -247,7 +249,8 @@ def main():
                    dest = 'to_remove',
                    help = '''Behavior of how DSC cleans up output folder to save disk space.
                    Use option "all" to remove all output from the current benchmark. 
-                   "obsolete", when used without "--target", cleans up everything in folder "DSC::output" irrelevant to the most recent successful execution of the benchmark.
+                   "obsolete", when used without "--target", cleans up everything in folder "DSC::output" 
+                   irrelevant to the most recent successful execution of the benchmark.
                    When used with "--target" it deletes specified files, or files from specified modules or module groups.
                    "replace", when used with "--target", deletes files as option "all" does, but additionally puts in placeholder files 
                    with "*.zapped" extension. When re-running pipelines these "zapped" files will not trigger

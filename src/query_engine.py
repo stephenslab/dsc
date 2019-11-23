@@ -11,13 +11,13 @@ from .line import parse_filter
 
 # keywords for SQLite
 # https://www.sqlite.org/lang_keywords.html
-SQLITE_KEYWORDS = set(['ABORT', 'ACTION', 'ADD', 'AFTER', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ATTACH', 'AUTOINCREMENT', 'BEFORE', 'BEGIN', 
-    'BETWEEN', 'BY', 'CASCADE', 'CASE', 'CAST', 'CHECK', 'COLLATE', 'COLUMN', 'COMMIT', 'CONFLICT', 'CONSTRAINT', 'CREATE', 'CROSS', 'CURRENT', 'CURRENT_DATE', 
-    'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'DATABASE', 'DEFAULT', 'DEFERRABLE', 'DEFERRED', 'DELETE', 'DESC', 'DETACH', 'DISTINCT', 'DO', 'DROP', 'EACH', 'ELSE', 'END', 
-    'ESCAPE', 'EXCEPT', 'EXCLUSIVE', 'EXISTS', 'EXPLAIN', 'FAIL', 'FILTER', 'FOLLOWING', 'FOR', 'FOREIGN', 'FROM', 'FULL', 'GLOB', 'GROUP', 'HAVING', 'IF', 'IGNORE', 'IMMEDIATE', 
-    'IN', 'INDEX', 'INDEXED', 'INITIALLY', 'INNER', 'INSERT', 'INSTEAD', 'INTERSECT', 'INTO', 'IS', 'ISNULL', 'JOIN', 'KEY', 'LEFT', 'LIKE', 'LIMIT', 'MATCH', 'NATURAL', 'NO', 'NOT', 
-    'NOTHING', 'NOTNULL', 'NULL', 'OF', 'OFFSET', 'ON', 'OR', 'ORDER', 'OUTER', 'OVER', 'PARTITION', 'PLAN', 'PRAGMA', 'PRECEDING', 'PRIMARY', 'QUERY', 'RAISE', 'RANGE', 'RECURSIVE', 
-    'REFERENCES', 'REGEXP', 'REINDEX', 'RELEASE', 'RENAME', 'REPLACE', 'RESTRICT', 'RIGHT', 'ROLLBACK', 'ROW', 'ROWS', 'SAVEPOINT', 'SELECT', 'SET', 'TABLE', 'TEMP', 'TEMPORARY', 'THEN', 
+SQLITE_KEYWORDS = set(['ABORT', 'ACTION', 'ADD', 'AFTER', 'ALL', 'ALTER', 'ANALYZE', 'AND', 'AS', 'ASC', 'ATTACH', 'AUTOINCREMENT', 'BEFORE', 'BEGIN',
+    'BETWEEN', 'BY', 'CASCADE', 'CASE', 'CAST', 'CHECK', 'COLLATE', 'COLUMN', 'COMMIT', 'CONFLICT', 'CONSTRAINT', 'CREATE', 'CROSS', 'CURRENT', 'CURRENT_DATE',
+    'CURRENT_TIME', 'CURRENT_TIMESTAMP', 'DATABASE', 'DEFAULT', 'DEFERRABLE', 'DEFERRED', 'DELETE', 'DESC', 'DETACH', 'DISTINCT', 'DO', 'DROP', 'EACH', 'ELSE', 'END',
+    'ESCAPE', 'EXCEPT', 'EXCLUSIVE', 'EXISTS', 'EXPLAIN', 'FAIL', 'FILTER', 'FOLLOWING', 'FOR', 'FOREIGN', 'FROM', 'FULL', 'GLOB', 'GROUP', 'HAVING', 'IF', 'IGNORE', 'IMMEDIATE',
+    'IN', 'INDEX', 'INDEXED', 'INITIALLY', 'INNER', 'INSERT', 'INSTEAD', 'INTERSECT', 'INTO', 'IS', 'ISNULL', 'JOIN', 'KEY', 'LEFT', 'LIKE', 'LIMIT', 'MATCH', 'NATURAL', 'NO', 'NOT',
+    'NOTHING', 'NOTNULL', 'NULL', 'OF', 'OFFSET', 'ON', 'OR', 'ORDER', 'OUTER', 'OVER', 'PARTITION', 'PLAN', 'PRAGMA', 'PRECEDING', 'PRIMARY', 'QUERY', 'RAISE', 'RANGE', 'RECURSIVE',
+    'REFERENCES', 'REGEXP', 'REINDEX', 'RELEASE', 'RENAME', 'REPLACE', 'RESTRICT', 'RIGHT', 'ROLLBACK', 'ROW', 'ROWS', 'SAVEPOINT', 'SELECT', 'SET', 'TABLE', 'TEMP', 'TEMPORARY', 'THEN',
     'TO', 'TRANSACTION', 'TRIGGER', 'UNBOUNDED', 'UNION', 'UNIQUE', 'UPDATE', 'USING', 'VACUUM', 'VALUES', 'VIEW', 'VIRTUAL', 'WHEN', 'WHERE', 'WINDOW', 'WITH', 'WITHOUT'])
 
 NA = None
@@ -116,7 +116,7 @@ class Query_Processor:
             raise DBError(f"Cannot find column ``{y}`` in table ``{k}``")
         if y_low.startswith('output.'):
             y_low = y_low[7:]
-        if not y_low in [i.lower() for i in self.data[k]] and not y_low in [i.lower() for i in self.data['.output'][k]] and check_field == 1:
+        if y_low not in [i.lower() for i in self.data[k]] and y_low not in [i.lower() for i in self.data['.output'][k]] and check_field == 1:
             raise DBError(f"Cannot find variable ``{y}`` in module ``{k}``")
         return
 
@@ -172,7 +172,7 @@ class Query_Processor:
                 # group is not used
                 del self.groups[group]
                 continue
-            params = [x for x in params if not x in ['__id__', '__parent__', '__output__', 'DSC_REPLICATE']]
+            params = [x for x in params if x not in ['__id__', '__parent__', '__output__', 'DSC_REPLICATE']]
             for param in params:
                 for module in self.groups[group]:
                     if module not in self.data:
@@ -240,7 +240,7 @@ class Query_Processor:
                             primary.append(depend_step)
                 primary = sorted(case_insensitive_uniq_list(primary), key = lambda x: reference.index(x))
                 if primary == previous_primary:
-                    break 
+                    break
             # a sequence can lose dependency half-way
             # in which case an warning message will be given
             idx = 0
@@ -384,7 +384,7 @@ class Query_Processor:
             if org != x:
                 rename[org] = x
         if ordering is None:
-            table = table[sorted([x for x in table if not "_DSC_VAR_" in x]) + \
+            table = table[sorted([x for x in table if "_DSC_VAR_" not in x]) + \
                           sorted([x for x in table if "_DSC_VAR_" in x])].rename(columns = rename)
         else:
             table = table[sorted(table.columns, key = lambda x: find_partial_index(x, ordering))].rename(columns = rename)
@@ -408,10 +408,10 @@ class Query_Processor:
                 for k in self.groups[g]:
                     if not col.startswith(k + '.'):
                         continue
-                    if not k in ordered_group:
+                    if k not in ordered_group:
                         ordered_group.append(k)
                     k = col[len(k):]
-                    if not k in to_merge:
+                    if k not in to_merge:
                         to_merge[k] = []
                     to_merge[k].append(col)
                     break
@@ -425,7 +425,7 @@ class Query_Processor:
                     if not all([len(x) <= 1 for x in non_na_idx]):
                         raise DBError(f'Modules ``{to_merge[k]}`` cannot be grouped into ``{g}{k}`` due to collating entries.')
                     table[f'{g}{k}'] = table[f'{g}{k}'].apply(lambda x: [y for y in x if y == y][0] if len([y for y in x if y == y]) else NA)
-                    if not g in table:
+                    if g not in table:
                         table[g] = [self.groups[g][kk[0]] if len(kk) else NA for kk in non_na_idx]
                 else:
                     # it is a trivial group
