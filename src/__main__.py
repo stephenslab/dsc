@@ -9,17 +9,6 @@ from sos.utils import env, get_traceback
 from .version import __version__
 from .syntax import DSC_CACHE
 
-class Silencer:
-    def __init__(self, verbosity):
-        self.verbosity = verbosity
-        self.env_verbosity = env.verbosity
-
-    def __enter__(self):
-        env.verbosity = self.verbosity
-
-    def __exit__(self, etype, value, traceback):
-        env.verbosity = self.env_verbosity
-
 class Timer(object):
     def __init__(self, verbose=False):
         self.verbose = verbose
@@ -49,7 +38,7 @@ def remove(workflows, groups, modules, db, purge = False):
         from sos.__main__ import cmd_purge
         from .addict import Dict as dotdict
         # purge current completed tasks
-        content = {'tasks': None,
+        settings = {'tasks': None,
                    'all': False,
                    'age': None,
                    'status': ['completed'],
@@ -57,12 +46,12 @@ def remove(workflows, groups, modules, db, purge = False):
                    'queue': None,
                    'config': None,
                    'verbosity': 0}
-        cmd_purge(dotdict(content), [])
+        cmd_purge(dotdict(settings), [])
         # purge all tasks of more than 3 days old
-        content['all'] = True
-        content['age'] = '3d'
-        content['status'] = None
-        cmd_purge(dotdict(content), [])
+        settings['all'] = True
+        settings['age'] = '3d'
+        settings['status'] = None
+        cmd_purge(dotdict(settings), [])
     else:
         remove_unwanted_output(workflows, groups, modules, db, zap = True)
 
@@ -75,42 +64,26 @@ def plain_remove(outdir):
             os.remove(item)
 
 def execute(args, unknown_args):
-    from .utils import workflow2html, dsc2html, transcript2html
     if args.to_remove:
-        if args.target is None and args.to_remove not in ('purge', 'all'):
+        if args.target is None and args.to_remove not in ('obsolete', 'all'):
             raise ValueError("``--clean`` must be specified with ``--target``.")
         rm_objects = args.target
         args.target = None
     if args.target:
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.target).split())))
-    from .dsc_parser import DSC_Script, DSC_Pipeline
-    from .dsc_translator import DSC_Translator
-    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, global_params = unknown_args, truncate = args.truncate, replicate = 1 if args.truncate else args.replicate)
-    script.init_dsc(env)
-    db = os.path.basename(script.runtime.output)
-    pipeline_obj = DSC_Pipeline(script).pipelines
-    #
+    # Import packages
     import platform
-    # FIXME: always assume args.host is a Linux machine; thus not checking it
-    exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' and args.host is None else 'linux')
-                 for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
-    exec_path = [x for x in exec_path if os.path.isdir(x)]
-    conf = None
-    if args.host:
-        from .dsc_parser import remote_config_parser
-        conf = remote_config_parser(args.host, exec_path)
-        args.host = conf['default']['queue']
-    else:
-        if args.to_host:
-            raise ValueError('Cannot set option ``--to-host`` without specifying ``--host``!')
-    #
-    if args.debug:
-        workflow2html(f'{DSC_CACHE}/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
-    pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
-                              args.__max_jobs__, False,
-                              conf if conf is None else {k:v for k, v in conf.items() if k != 'DSC'},
-                              args.debug)
+    from .utils import workflow2html, dsc2html, transcript2html
+    from sos import execute_workflow
+    from .dsc_parser import DSC_Script, DSC_Pipeline, remote_config_parser
+    from .dsc_translator import DSC_Translator
+    # Parse DSC script
+    script = DSC_Script(args.dsc_file, output = args.output, sequence = args.target, 
+                        global_params = unknown_args, truncate = args.truncate, 
+                        replicate = 1 if args.truncate else args.replicate)
+    script.init_dsc(env)
+    pipeline_obj = DSC_Pipeline(script).pipelines
     # Apply clean-up
     if args.to_remove:
         if args.to_remove == 'all':
@@ -118,8 +91,9 @@ def execute(args, unknown_args):
         else:
             remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
                rm_objects, script.runtime.output,
-               args.to_remove == 'purge')
+               args.to_remove == 'obsolete')
         return
+    db = os.path.basename(script.runtime.output)
     # Archive scripts
     lib_content = [(f"From <code>{k}</code>", sorted(glob.glob(f"{k}/*.*")))
                    for k in script.runtime.options['lib_path'] or []]
@@ -128,109 +102,85 @@ def execute(args, unknown_args):
     dsc2html('\n'.join(script.transcript), script.runtime.output,
              script.runtime.sequence, exec_content, lib_content)
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
-    # Setup
-    from sos.__main__ import cmd_run
-    from sos.converter import script_to_html
-    env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
-    script_prepare = pipeline.write_pipeline(1)
     if args.debug:
-        script_to_html(os.path.abspath(script_prepare), f'{DSC_CACHE}/{db}.prepare.html')
+        workflow2html(f'{db}.workflow.html', pipeline_obj, list(script.dump().values()))
+    # Resolve executable paths
+    # FIXME: always assume args.host is a Linux machine and not checking it
+    exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' and args.host is None else 'linux')
+                 for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
+    exec_path = [x for x in exec_path if os.path.isdir(x)]
+    # Configure remote jobs
+    if args.host:
+        conf = remote_config_parser(args.host, exec_path)
+        args.host = conf['default']['queue']
+        if args.host == 'localhost':
+            args.to_host = []
+        conf_tpl = {'localhost': 'localhost', 
+                    'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}}
+        if args.host != 'localhost':
+            # FIXME: to_host mode needs to be re-written
+            raise ValueError("Not implemented")
+            args.to_host.extend([f'{script.runtime.output}/{db}.db',
+                                 f'{script.runtime.output}/{db}.conf.mpk'])
+    else:
+        if args.to_host:
+            raise ValueError('Cannot set option ``--to-host`` without specifying ``--host``!')
+        conf = conf_tpl = dict()
+    # Obtain pipeline scripts
+    pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
+                              args.__max_jobs__, False,
+                              None if len(conf) == 0 else {k:v for k, v in conf.items() if k != 'DSC'},
+                              args.debug)
+    # Generate DSC meta databases
+    env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
+    script_prepare = pipeline.get_pipeline(1, f"{db}_prepare" if args.debug else '')
     mode = "default"
     if args.__construct__ == "none":
         mode = "force"
-    content = {'__sig_mode__': mode,
-               'script': script_prepare,
-               '__bin_dirs__': exec_path,
-               'workflow': "deploy"}
     if args.__recover__:
         if not (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')):
             env.logger.warning(f'Cannot use ``--touch`` option because project meta-data is missing.')
         else:
             mode = "build"
+    settings = {'sig_mode': mode,
+                'workflow_vars': {'__bin_dirs__': exec_path},
+                'max_running_jobs': args.__max_jobs__ if not args.host else None,
+                'worker_procs': args.__max_jobs__,
+               }
     # Get mapped IO database
-    with Silencer(env.verbosity if args.debug else 0):
-        cmd_run(script.get_sos_options(db, content), [])
-    if os.path.isfile('.sos/transcript.txt'):
-        os.remove('.sos/transcript.txt')
-    # Get the executed pipeline
-    pipeline.filter_execution()
-    script_run = pipeline.write_pipeline(2)
-    # Configure job templates
-    if args.host:
-        # write default config
-        yaml.safe_dump({'localhost': 'localhost', 'hosts': conf['DSC']}, open(script_run[:-3] + 'localhost.yml', 'w'),
-                  default_flow_style=False)
-        if  conf['DSC'][args.host]['address'] == 'localhost':
-            # the only version of config file to use
-            # make a copy of it to output directory for maintenance purpose
-            yaml.safe_dump({'localhost': 'localhost',
-                       'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}},
-                      open(f'{script.runtime.output}/{db}.queue', 'w'),
-                      default_flow_style=False)
-            # set to_host to empty because there is no need for it
-            args.to_host = []
-        else:
-            # need 2 versions, local and remote
-            # write local config
-            conf['DSC'][args.host]['execute_cmd'] = 'ssh -q {host} -p {port} "bash --login -c \'[ -d {cur_dir} ] || mkdir -p {cur_dir}; cd {cur_dir} && sos run %s DSC -c %s -j %s -v %s\'"' % (script_run, script_run[:-3] + 'remote.yml', args.__max_jobs__, args.verbosity)
-            yaml.safe_dump({'localhost':'localhost', 'hosts': conf['DSC']},
-                      open(script_run[:-3] + 'local.yml', 'w'),
-                      default_flow_style=False)
-            # write remote config
-            del conf['DSC'][args.host]['execute_cmd']
-            conf['DSC'][args.host]['address'] = 'localhost'
-            yaml.safe_dump({'localhost':'localhost',
-                       'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}},
-                      open(script_run[:-3] + 'remote.yml', 'w'),
-                      default_flow_style=False)
-            args.to_host.extend([script_run,
-                                 script_run[:-3] + 'remote.yml',
-                                 f'{script.runtime.output}/{db}.db',
-                                 f'{script.runtime.output}/{db}.conf.mpk'])
+    settings['verbosity'] = args.verbosity if args.debug else 0
+    status = execute_workflow(script_prepare, workflow = 'deploy', config = settings)
     # Get DSC meta database
     env.logger.info("Building DSC database ...")
-    content['workflow'] = "build"
-    if args.__construct__ == "sloppy":
-        content['__sig_mode__'] = "skip"
-    with Silencer(env.verbosity if args.debug else 0):
-        cmd_run(script.get_sos_options(db, content), [])
+    status = execute_workflow(script_prepare, workflow = 'build', config = settings)
     if args.__construct__ == "all":
         return
-    # Run
+    # Get the executed pipeline
+    pipeline.filter_execution()
+    script_run = pipeline.get_pipeline(2, f"{db}_run" if args.debug else '')
+    # Send files to host for to-host remote execution method
     if len(args.to_host):
-        # send files to remote
         env.logger.info(f"Syncing & installing resources on ``{args.host}`` (may take a while) ...")
-        content = {'__sig_mode__': mode,
-                   '__queue__': f'{args.host}.local',
-                   '__config__': script_run[:-3] + 'localhost.yml',
-                   '__dag__': (script_run[:-3] + ".dot") if args.__dag__ else '',
-                   'script': pipeline.write_pipeline(args.to_host)}
+        script_copy = pipeline.get_pipeline(args.to_host)
         try:
-            with Silencer(max(0, args.verbosity - 2)):
-                cmd_run(script.get_sos_options(db, content), [])
+            settings['verbosity'] = args.verbosity if args.debug else max(0, args.verbosity - 2)
+            settings.update(conf_tpl)
+            status = execute_workflow(script_copy, workflow = 'default', config = settings)
         except Exception as e:
             env.logger.error(f"Failed to communicate with ``{args.host}``")
             env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"dsc\" on ``{args.host}``.")
             raise RuntimeError(e)
     if args.debug:
-        script_to_html(os.path.abspath(script_run), f'{DSC_CACHE}/{db}.run.html')
+        if conf_tpl:
+            yaml.safe_dump(conf_tpl, open(f'{db}.remote_config.yml', 'w'), default_flow_style=False)
         return
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
-    cfg_file = (script_run[:-3] + ('local.yml' if len(args.to_host) else 'localhost.yml')) if args.host else f'{DSC_CACHE}/{db}.conf.yml'
-    content = {'__max_running_jobs__': args.__max_jobs__ if not args.host else None,
-               '__max_procs__': args.__max_jobs__,
-               '__sig_mode__': mode,
-               'keep_going': args.keep_going,
-               '__bin_dirs__': exec_path,
-               '__remote__': args.host if len(args.to_host) else None,
-               '__config__': cfg_file,
-               '__dag__': (script_run[:-3] + ".dot") if args.__dag__ else '',
-               'script': script_run,
-               'workflow': "DSC"}
     try:
-        with Silencer(args.verbosity if args.host else max(0, args.verbosity - 1)):
-            cmd_run(script.get_sos_options(db, content), [])
+        settings['verbosity'] = args.verbosity if args.host else max(0, args.verbosity - 1)
+        print(settings['verbosity'])
+        settings['output_dag'] = f'{db}.dot' if args.__dag__ else None
+        status = execute_workflow(script_run, workflow = 'DSC', config = settings)
     except SystemExit:
         if args.host is None:
             transcript2html('.sos/transcript.txt', f'{db}.scripts.html', title = db)
@@ -243,12 +193,12 @@ def execute(args, unknown_args):
         from sos.utils import dot_to_gif
         try:
             env.logger.info("Generating animation of benchmark execution (may take a while; can be disrupted if no longer wanted) ...")
-            dag = dot_to_gif(script_run[:-3] + ".dot")
+            dag = dot_to_gif(f"{db}.dot")
             with open(f'{db}.DAG.html', 'w') as f:
                 f.write(f'<img class="dag-image" src="data:image/png;base64,{dag}">')
             env.logger.info(f"Execution graph saved to ``{db}.DAG.html``")
         except Exception as e:
-            env.logger.warning(f'Failed to execution graph ``{db}.DAG.html``: {e}')
+            env.logger.warning(f'Failed to generate execution graph ``{db}.DAG.html``: {e}')
     env.logger.info("DSC complete!")
 
 def main():
@@ -293,13 +243,13 @@ def main():
                    Files will be considered to "exist" as long as module name, module parameters and variables,
                    module script name and command arguments remain the same. Module script content do not matter.
                    The output files will be "touched" to match with the current status of module code.''')
-    mt.add_argument('--clean', metavar = "option", choices = ["purge", "replace", "all"],
+    mt.add_argument('--clean', metavar = "option", choices = ["obsolete", "replace", "all"],
                    dest = 'to_remove',
                    help = '''Behavior of how DSC cleans up output folder to save disk space.
                    Use option "all" to remove all output from the current benchmark. 
-                   "purge", when used without "--target", cleans up everything in folder "DSC::output" irrelevant to the most recent successful execution of the benchmark.
+                   "obsolete", when used without "--target", cleans up everything in folder "DSC::output" irrelevant to the most recent successful execution of the benchmark.
                    When used with "--target" it deletes specified files, or files from specified modules or module groups.
-                   "replace", when used with "--target", deletes files as "purge" does, but additionally puts in placeholder files 
+                   "replace", when used with "--target", deletes files as option "all" does, but additionally puts in placeholder files 
                    with "*.zapped" extension. When re-running pipelines these "zapped" files will not trigger
                    rerun of their module unless they are directly required by a downstream module that needs re-execution.
                    In other words this is useful to remove large yet unused intermediate module output.''')
@@ -344,7 +294,7 @@ def main():
         sys.exit(1)
     #
     env.verbosity = args.verbosity
-    with Timer(verbose = True if (env.verbosity > 0) else False) as t:
+    with Timer(verbose = True if (args.verbosity > 0) else False) as t:
         try:
             args.func(args, unknown_args)
         except KeyboardInterrupt:
@@ -353,7 +303,7 @@ def main():
         except Exception as e:
             if args.debug:
                 raise
-            if env.verbosity > 2:
+            if args.verbosity > 2:
                 sys.stderr.write(get_traceback())
             t.disable()
             if type(e).__name__ == 'RuntimeError':
@@ -362,7 +312,6 @@ def main():
             else:
                 env.logger.error(e)
                 sys.exit(1)
-
 
 if __name__ == '__main__':
     main()

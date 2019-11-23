@@ -25,4 +25,4 @@ DSC_RLIB = LazyRegex(r'^\s*(library|require)\((.*?)\)', re.VERBOSE)
 DSC_PYMODULE = LazyRegex(r'(^from|^import)(.*?)', re.VERBOSE)
 DSC_RESERVED_MODULE = LazyRegex(r'^default$|_\d+$|^pipeline_|_$', re.VERBOSE)
 
-DSC_CACHE = '.sos/.cache'
+DSC_CACHE = '.sos'

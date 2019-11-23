@@ -18,7 +18,6 @@ from sos.targets import fileMD5, executable
 from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, \
      parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf, install_package_interactive
-from .addict import Dict as dotdict
 from .syntax import *
 from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
 from .plugin import Plugin
@@ -372,31 +371,6 @@ class DSC_Script:
             if len(conflict):
                 raise FormatError(f"Name ``{conflict[0]}`` cannot be used for both parameter and output for module ``{module}``")
         self.content.update(res)
-
-    @staticmethod
-    def get_sos_options(name, content):
-        out = dotdict()
-        out.verbosity = env.verbosity
-        out.__targets__ = []
-        out.trace_existing = False
-        out.__queue__ = None
-        out.__remote__ = None
-        out.__dag__ = ''
-        out.dryrun = False
-        # In DSC we will not support `resume` just to keep it simple
-        out.__resume__ = False
-        out.__config__ = f'{DSC_CACHE}/{name}.conf.yml'
-        out.__worker_procs__ = None
-        out.update(content)
-        if '__max_running_jobs__' not in content:
-            out.__max_running_jobs__ = 1
-        if '__max_procs__' not in content:
-            out.__max_procs__ = 1
-        if '__bin_dirs__' not in content:
-            out.__bin_dirs__ = []
-        if 'workflow' not in content:
-            out.workflow = 'default'
-        return out
 
     def init_dsc(self, env):
         os.makedirs(DSC_CACHE, exist_ok = True)
