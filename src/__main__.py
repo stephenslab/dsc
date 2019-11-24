@@ -136,23 +136,19 @@ def execute(args, unknown_args):
     # Generate DSC meta databases
     env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
     script_prepare = pipeline.get_pipeline(1, f"{db}_prepare" if args.debug else '')
-    mode = "default"
-    if args.__construct__ == "none":
-        mode = "force"
-    if args.__recover__:
-        if not (os.path.isfile(f'{script.runtime.output}/{db}.map.mpk')):
-            env.logger.warning(f'Cannot use ``--touch`` option because project meta-data is missing.')
-        else:
-            mode = "build"
-    settings = {'sig_mode': mode,
+    settings = {'sig_mode': 'default',
                 'workflow_vars': {'__bin_dirs__': exec_path},
                 'max_running_jobs': args.__max_jobs__ if not args.host else None,
                 'worker_procs': args.__max_jobs__,
                }
+    if args.__construct__ == "none":
+        settings['sig_mode'] = "force"
     # Get mapped IO database
     settings['verbosity'] = args.verbosity if args.debug else 0
     status = execute_workflow(script_prepare, workflow = 'deploy', options = settings)
     env.verbosity = args.verbosity
+    if args.__recover__:
+        settings['sig_mode'] = "build"
     # Get DSC meta database
     env.logger.info("Building DSC database ...")
     status = execute_workflow(script_prepare, workflow = 'build', options = settings)
