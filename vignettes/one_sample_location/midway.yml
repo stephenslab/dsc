@@ -1,16 +1,13 @@
 DSC:
   midway2:
     description: UChicago RCC cluster Midway 2
-    address: localhost
-    paths:
-      home: /home/gaow
     queue_type: pbs
     status_check_interval: 30
     max_running_jobs: 30
     max_cores: 40
     max_walltime: "36:00:00"
     max_mem: 64G
-    job_template: |
+    task_template: |
       #!/bin/bash
       #{partition}
       #{account}
@@ -29,10 +26,6 @@ DSC:
     submit_cmd_output: "Submitted batch job {job_id}"
     status_cmd: squeue --job {job_id}
     kill_cmd: scancel {job_id}
-  faraway2:
-    based_on: midway2
-    description: Submit and manage jobs to `midway2` from a local computer.
-    address: gaow@midway2.rcc.uchicago.edu
   stephenslab:
     based_on: midway2
     max_cores: 28

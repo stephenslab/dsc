@@ -90,7 +90,6 @@ def execute(args, unknown_args):
         if args.to_remove == 'all':
             plain_remove(script.runtime.output)
         else:
-            print({**script.runtime.concats, **script.runtime.groups})
             remove(pipeline_obj, {**script.runtime.concats, **script.runtime.groups},
                rm_objects, script.runtime.output,
                args.to_remove == 'obsolete')
@@ -111,22 +110,11 @@ def execute(args, unknown_args):
     exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' and args.host is None else 'linux')
                  for k in (script.runtime.options['exec_path'] or [])] + (script.runtime.options['exec_path'] or [])
     exec_path = [x for x in exec_path if os.path.isdir(x)]
-    # Configure remote jobs
+    # Generate remote job configuration settings
     if args.host:
         conf = remote_config_parser(args.host, exec_path)
-        args.host = conf['default']['queue']
-        if args.host == 'localhost':
-            args.to_host = []
-        conf_tpl = {'localhost': 'localhost',
-                    'hosts': {k:v for k,v in conf['DSC'].items() if k in [args.host, 'localhost']}}
-        if args.host != 'localhost':
-            # FIXME: to_host mode needs to be re-written
-            args.to_host.extend([f'{script.runtime.output}/{db}.db',
-                                 f'{script.runtime.output}/{db}.conf.mpk'])
-            raise ValueError("Not implemented")
+        conf_tpl = {'localhost': 'localhost', 'hosts': conf['DSC']}
     else:
-        if args.to_host:
-            raise ValueError('Cannot set option ``--to-host`` without specifying ``--host``!')
         conf = conf_tpl = dict()
     # Obtain pipeline scripts
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
@@ -138,7 +126,7 @@ def execute(args, unknown_args):
     script_prepare = pipeline.get_pipeline(1, f"{db}_prepare" if args.debug else '')
     settings = {'sig_mode': 'default',
                 'workflow_vars': {'__bin_dirs__': exec_path},
-                'max_running_jobs': args.__max_jobs__ if not args.host else None,
+                'max_running_jobs': None if args.host else args.__max_jobs__,
                 'worker_procs': args.__max_jobs__,
                }
     if args.__construct__ == "none":
@@ -157,26 +145,13 @@ def execute(args, unknown_args):
     # Get the executed pipeline
     pipeline.filter_execution()
     script_run = pipeline.get_pipeline(2, f"{db}_run" if args.debug else '')
-    # Send files to host for to-host remote execution method
-    if len(args.to_host):
-        env.logger.info(f"Syncing & installing resources on ``{args.host}`` (may take a while) ...")
-        script_copy = pipeline.get_pipeline(args.to_host)
-        try:
-            settings['verbosity'] = args.verbosity if args.debug else max(0, args.verbosity - 2)
-            settings.update(conf_tpl)
-            status = execute_workflow(script_copy, workflow = 'default', options = settings)
-            env.verbosity = args.verbosity
-        except Exception as e:
-            env.logger.error(f"Failed to communicate with ``{args.host}``")
-            env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"dsc\" on ``{args.host}``.")
-            raise Exception(e)
     if args.debug:
-        if conf_tpl:
+        if args.host:
             import yaml
             yaml.safe_dump(conf_tpl, open(f'{db}.remote_config.yml', 'w'), default_flow_style=False)
         return
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
-    env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
+    env.logger.info(f"Building execution graph & running DSC ...")
     try:
         settings['verbosity'] = args.verbosity if args.host else max(0, args.verbosity - 1)
         settings['output_dag'] = f'{db}.dot' if args.__dag__ else None
@@ -266,10 +241,8 @@ def main():
                    information.''')
     ro.add_argument('-d', dest = '__dag__', action='store_true',
                     help='''Output benchmark execution graph animation in HTML format.''')
-    rt = p.add_argument_group('Remote execution')
-    rt.add_argument('--host', metavar='file', help = '''Configuration file for remote computer.''')
-    rt.add_argument('--to-host', metavar='dir', dest = 'to_host', nargs = '+', default = [],
-                   help = '''Files and directories to be sent to remote host for use in benchmark.''')
+    rt = p.add_argument_group('HPC settings')
+    rt.add_argument('--host', metavar='file', help = '''Configuration file for DSC computational environments.''')
     ot = p.add_argument_group('Other options')
     ot.add_argument('--version', action = 'version', version = __version__)
     ot.add_argument("-h", "--help", action="help", help="show this help message and exit")

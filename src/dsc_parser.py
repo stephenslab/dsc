@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-import os, re, itertools, copy, platform, glob, yaml, warnings
+import os, re, itertools, copy, glob, yaml, warnings
 from collections import Mapping, OrderedDict, Counter
 try:
     from xxhash import xxh32 as xxh
@@ -1164,6 +1164,11 @@ def remote_config_parser(host, paths):
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:
         raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
+    conf['DSC']['localhost'] = {}
+    for k, v in conf['DSC'].items():
+        if isinstance(v, dict):
+            process_based_on(conf['DSC'], v)
+        conf['DSC'][k]['address'] = 'localhost'
     default = dict([('queue', list(conf['DSC'].keys())[0]),
                     ('instances_per_job', 2),
                     ('nodes_per_job', 1),
@@ -1182,8 +1187,8 @@ def remote_config_parser(host, paths):
         check_valid_conf('default')
         default.update(conf['default'])
     conf['default'] = default
-    if conf['default']['queue'] not in conf['DSC']:
-        raise FormatError(f"Cannot find configuration for queue ``{conf['default']['queue']}`` in ``DSC`` section of file ``{host}``.")
+    queues = set()
+    local_queues = set()
     for key in list(conf.keys()):
         if key == 'DSC':
             continue
@@ -1198,6 +1203,9 @@ def remote_config_parser(host, paths):
         if tmp['queue'].endswith('.local'):
             for item in ['walltime', 'mem', 'cores', 'trunk_size', 'trunk_workers']:
                 tmp.pop(item)
+            local_queues.add(tmp['queue'][:-6])
+        else:
+            queues.add(tmp['queue'])
         keys = [k.strip() for k in key.split(',')]
         if len(keys) > 1:
             for k in keys:
@@ -1205,25 +1213,23 @@ def remote_config_parser(host, paths):
             del conf[key]
         else:
             conf[key] = tmp
-    #
-    for k, v in conf['DSC'].items():
-        if isinstance(v, dict):
-            process_based_on(conf['DSC'], v)
-    #
-    conf['DSC']['localhost'] = {'paths':
-                                {'home': '/Users/{user_name}' if platform.system() == 'Darwin' else '/home/{user_name}'},
-                                'address': 'localhost'}
+    undefined_queue = [x for x in queues | local_queues if x not in conf['DSC']]
+    if len(undefined_queue):
+        raise FormatError(f"Cannot find configuration for queue ``{', '.join(undefined_queue)}`` in ``DSC`` section of file ``{host}``.")
     for k in list(conf['DSC'].keys()):
-        if 'job_template' in conf['DSC'][k]:
+        if k not in queues | local_queues:
+            del conf['DSC'][k]
+            continue
+        if 'task_template' in conf['DSC'][k]:
             # SBATCH template has to start from non-space
-            tpl = [x.strip() for x in conf['DSC'][k]['job_template'].split('\n') if x.strip()] + ['sos execute {task} -v {verbosity} -s {sig_mode}']
-            conf['DSC'][k]['job_template'] = '\n'.join(tpl)
+            tpl = [x.strip() for x in conf['DSC'][k]['task_template'].split('\n') if x.strip()] + ['sos execute {task} -v {verbosity} -s {sig_mode}']
+            conf['DSC'][k]['task_template'] = '\n'.join(tpl)
         else:
             tpl = None
-        if 'queue_type' in conf['DSC'][k] and conf['DSC'][k]['queue_type'] != 'process':
+        if k in local_queues and 'queue_type' in conf['DSC'][k] and conf['DSC'][k]['queue_type'] != 'process':
             conf['DSC'][f'{k}.local'] = {'based_on': f'hosts.{k}',
                                            'queue_type': 'process',
                                            'status_check_interval': 3}
             if tpl is not None:
-                conf['DSC'][f'{k}.local']['job_template'] = '\n'.join([x for x in tpl if not x.startswith('#')])
+                conf['DSC'][f'{k}.local']['task_template'] = '\n'.join([x for x in tpl if not x.startswith('#')])
     return conf
