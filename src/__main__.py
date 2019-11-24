@@ -7,6 +7,7 @@ __license__ = "MIT"
 import os, sys, glob, time
 from sos.utils import env, get_traceback
 from .version import __version__
+from .syntax import DSC_CACHE
 
 class Timer(object):
     def __init__(self, verbose=False):
@@ -104,7 +105,7 @@ def execute(args, unknown_args):
              script.runtime.sequence, exec_content, lib_content)
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
     if args.debug:
-        workflow2html(f'{db}.workflow.html', pipeline_obj, list(script.dump().values()))
+        workflow2html(f'{DSC_CACHE}/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
     # Resolve executable paths
     # FIXME: always assume args.host is a Linux machine and not checking it
     exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' and args.host is None else 'linux')
@@ -131,7 +132,7 @@ def execute(args, unknown_args):
     pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
                               args.__max_jobs__, False,
                               None if len(conf) == 0 else {k:v for k, v in conf.items() if k != 'DSC'},
-                              args.debug)
+                              args.debug and args.verbosity == 0)
     # Generate DSC meta databases
     env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
     script_prepare = pipeline.get_pipeline(1, f"{db}_prepare" if args.debug else '')
@@ -150,10 +151,11 @@ def execute(args, unknown_args):
                }
     # Get mapped IO database
     settings['verbosity'] = args.verbosity if args.debug else 0
-    status = execute_workflow(script_prepare, workflow = 'deploy', config = settings)
+    status = execute_workflow(script_prepare, workflow = 'deploy', options = settings)
+    env.verbosity = args.verbosity
     # Get DSC meta database
     env.logger.info("Building DSC database ...")
-    status = execute_workflow(script_prepare, workflow = 'build', config = settings)
+    status = execute_workflow(script_prepare, workflow = 'build', options = settings)
     if args.__construct__ == "all":
         return
     # Get the executed pipeline
@@ -166,11 +168,12 @@ def execute(args, unknown_args):
         try:
             settings['verbosity'] = args.verbosity if args.debug else max(0, args.verbosity - 2)
             settings.update(conf_tpl)
-            status = execute_workflow(script_copy, workflow = 'default', config = settings)
+            status = execute_workflow(script_copy, workflow = 'default', options = settings)
+            env.verbosity = args.verbosity
         except Exception as e:
             env.logger.error(f"Failed to communicate with ``{args.host}``")
             env.logger.warning(f"Please ensure 1) you have properly configured ``{args.host}`` via file to ``--host`` option, and 2) you have installed \"scp\", \"ssh\" and \"rsync\" on your computer, and \"dsc\" on ``{args.host}``.")
-            raise RuntimeError(e)
+            raise Exception(e)
     if args.debug:
         if conf_tpl:
             import yaml
@@ -180,16 +183,16 @@ def execute(args, unknown_args):
     env.logger.info(f"Building execution graph & {'running DSC' if args.host is None else 'connecting to ``' + args.host + '`` (may take a while)'} ...")
     try:
         settings['verbosity'] = args.verbosity if args.host else max(0, args.verbosity - 1)
-        print(settings['verbosity'])
         settings['output_dag'] = f'{db}.dot' if args.__dag__ else None
-        status = execute_workflow(script_run, workflow = 'DSC', config = settings)
-    except SystemExit:
+        status = execute_workflow(script_run, workflow = 'DSC', options = settings, config = conf_tpl)
+        env.verbosity = args.verbosity
+    except Exception as e:
         if args.host is None:
             transcript2html('.sos/transcript.txt', f'{db}.scripts.html', title = db)
-            env.logger.warning(f"Files ``in green`` in the error prompt above contains codes and " \
-                               "error info to help debug.\nScripts upstream of the error can be found in " \
-                               f"``{db}.scripts.html``.")
-        sys.exit(1)
+            env.logger.warning(f"Please examine ``stderr`` files below and/or run commands ``in green`` to reproduce" \
+                               "the errors;\nadditional scripts upstream of the error can be found in " \
+                               f"``{db}.scripts.html``.\n" + '=' * 75)
+            raise Exception(e)
     # Plot DAG
     if args.__dag__:
         from sos.utils import dot_to_gif
@@ -309,12 +312,8 @@ def main():
             if args.verbosity > 2:
                 sys.stderr.write(get_traceback())
             t.disable()
-            if type(e).__name__ == 'RuntimeError':
-                env.logger.error("Detailed message:")
-                sys.exit(e)
-            else:
-                env.logger.error(e)
-                sys.exit(1)
+            env.logger.error(e)
+            sys.exit(1)
 
 if __name__ == '__main__':
     main()

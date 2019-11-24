@@ -526,15 +526,15 @@ def expand_logic(string):
     string = string.replace(' NOT ', '~')
     quote_dict = dict()
     for idx, m in enumerate(re.findall(r"\"[^\"]+\"|'[^']+'", string)):
-    # - Match either of the following options
-    #     - `"[^"]+"`
-    #         - `"` Match this literally
-    #         - `[^"]+` Match any character except `"` one or more times
-    #         - `"` Match this literally
-    #     - `'[^']+'`
-    #         - `'` Match this literally
-    #         - `[^']+` Match any character except `'` one or more times
-    #         - `'` Match this literally
+        # - Match either of the following options
+        #     - `"[^"]+"`
+        #         - `"` Match this literally
+        #         - `[^"]+` Match any character except `"` one or more times
+        #         - `"` Match this literally
+        #     - `'[^']+'`
+        #         - `'` Match this literally
+        #         - `[^']+` Match any character except `'` one or more times
+        #         - `'` Match this literally
         key = f'__DSC_QT_{idx+1}__'
         quote_dict[key] = m
         string = string.replace(m, key, 1)

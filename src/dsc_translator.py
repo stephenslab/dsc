@@ -164,7 +164,7 @@ class DSC_Translator:
         # clean up previous runs
         if os.path.isfile('.sos/transcript.txt'):
            os.remove('.sos/transcript.txt')
-        # write debug script if desired
+        # write explicit SoS script if desired
         if output_prefix:
             output = os.path.abspath(f'{DSC_CACHE}/{output_prefix}.sos')
             with open(output, 'w') as f:

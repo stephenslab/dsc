@@ -92,6 +92,8 @@ class DSC_Script:
                 continue
             self.extract_modules(block, derived[block] if block in derived else None)
         self.content = dict([(k,v) for k,v in self.content.items() if k not in self.base_modules])
+        if len(self.content) == 1:
+            raise FormatError("Cannot find any module definition in current DSC configuration.")
         self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
         if self.runtime.output is None:
             self.runtime.output = script_name
@@ -376,15 +378,12 @@ class DSC_Script:
         os.makedirs(DSC_CACHE, exist_ok = True)
         if os.path.dirname(self.runtime.output):
             os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)
-        conf = f'{DSC_CACHE}/{os.path.basename(self.runtime.output)}.conf.yml'
-        with open(conf, 'w') as f:
-            f.write('localhost: localhost\nhosts:\n  localhost:\n    address: localhost')
         if env.verbosity > 2:
             env.logfile = os.path.basename(self.runtime.output) + '.log'
             if os.path.isfile(env.logfile):
                 os.remove(env.logfile)
-        if os.path.isfile(os.path.basename(self.runtime.output) + 'scripts.html'):
-            os.remove(os.path.basename(self.runtime.output) + 'scripts.html')
+        if os.path.isfile(os.path.basename(self.runtime.output) + '.scripts.html'):
+            os.remove(os.path.basename(self.runtime.output) + '.scripts.html')
         update_gitconf()
 
     def dump(self):
