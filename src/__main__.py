@@ -163,7 +163,7 @@ def execute(args, unknown_args):
             env.logger.warning(f"Please examine ``stderr`` files below and/or run commands ``in green`` to reproduce" \
                                "the errors;\nadditional scripts upstream of the error can be found in " \
                                f"``{db}.scripts.html``.\n" + '=' * 75)
-            raise Exception(e)
+        raise Exception(e)
     # Plot DAG
     if args.__dag__:
         from sos.utils import dot_to_gif
