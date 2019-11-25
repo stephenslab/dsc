@@ -67,7 +67,7 @@ def plain_remove(outdir):
 def execute(args, unknown_args):
     if args.to_remove:
         if args.target is None and args.to_remove not in ('obsolete', 'all'):
-            raise ValueError("``--clean`` must be specified with ``--target``.")
+            raise ValueError("``-d`` must be specified with ``--target``.")
         rm_objects = args.target
         args.target = None
     if args.target:
@@ -117,7 +117,7 @@ def execute(args, unknown_args):
     else:
         conf = conf_tpl = dict()
     # Obtain pipeline scripts
-    pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none" and not args.__recover__,
+    pipeline = DSC_Translator(pipeline_obj, script.runtime, args.__construct__ == "none",
                               args.__max_jobs__, False,
                               None if len(conf) == 0 else {k:v for k, v in conf.items() if k != 'DSC'},
                               args.debug and args.verbosity == 0)
@@ -135,8 +135,10 @@ def execute(args, unknown_args):
     settings['verbosity'] = args.verbosity if args.debug else 0
     status = execute_workflow(script_prepare, workflow = 'deploy', options = settings)
     env.verbosity = args.verbosity
-    if args.__recover__:
+    if args.__construct__ == "existing":
         settings['sig_mode'] = "build"
+    if args.__construct__ == "lenient":
+        settings['sig_mode'] = "skip"
     # Get DSC meta database
     env.logger.info("Building DSC database ...")
     status = execute_workflow(script_prepare, workflow = 'build', options = settings)
@@ -186,60 +188,55 @@ def main():
     #
     p = MyArgParser(description = __doc__, formatter_class = ArgumentDefaultsHelpFormatter, add_help = False)
     p.add_argument('dsc_file', metavar = "DSC script", help = 'DSC script to execute.')
-    ce = p.add_argument_group('Customized execution')
+    ce = p.add_argument_group('Benchmark options')
     ce.add_argument('--target', metavar = "str", nargs = '+',
                    help = '''This argument can be used in two contexts:
-                   1) When used without "--clean" it overrides "DSC::run" in DSC file.
+                   1) When used without "-d" it overrides "DSC::run" in DSC file.
                    Input should be quoted string(s) defining one or multiple valid DSC pipelines
                    (multiple pipelines should be separated by space).
-                   2) When used along with "--clean" it specifies one or more computational modules,
+                   2) When used along with "-d" it specifies one or more computational modules,
                    separated by space, whose output are to be removed or replaced by a (smaller) placeholder file.''')
     ce.add_argument('--truncate', action='store_true',
                    help = '''When applied, DSC will only run one value per parameter.
-                   For example with "--truncate", "n: R{1:50}" will be truncated to "n: 1".
-                   This is useful in exploratory analysis and diagnostics, particularly when used in combination with "--target".''')
+                   For example with "--truncate", "n: 1,2,3,4,5" will be truncated to "n: 1".
+                   This can be used in exploratory analysis and diagnostics, particularly when used in combination with "--target".''')
     ce.add_argument('--replicate', metavar = 'N', type = int,
                    help = '''Overrides "DSC::replicate" to set number of replicates. Will be set to 1 when "--truncate" is in action.''')
     ce.add_argument('-o', metavar = "str", dest = 'output',
                    help = '''Benchmark output. It overrides "DSC::output" defined in DSC file.''')
-    mt = p.add_argument_group('Maintenance')
-    mt.add_argument('-s', '--skip', metavar = "option", choices = ["default", "sloppy", "none", "all"],
-                   dest = '__construct__', default = "default",
-                   help = '''Behavior of how DSC is executed in the presence of existing results.
-                   "default": skips modules whose status have not been changed since previous execution.
-                   "sloppy": skips modules whose output timestamp are newer than their upstream modules output.
-                   "none": executes DSC from scratch.
-                   "all": skips all execution yet build DSC database of what the specified benchmark is
-                   supposed to look like, thus making it possible to explore partial benchmark results.
-                   "sloppy" mode performs faster check. It is also useful to avoild rerun when module scripts are changed but 
-                   the module outputs are supposed to remain the same. "all" is useful to recover meta-databases without running anything.''')
-    mt.add_argument('--touch', action='store_true', dest='__recover__',
-                   help = '''"Touch" output files if exist, to mark them "up-to-date".
-                   It will override "--skip" option. Note that time stamp is irrelevant to whether or not a file is up-to-date.
-                   Files will be considered to "exist" as long as module name, module parameters and variables,
-                   module script name and command arguments remain the same. Module script content do not matter.
-                   The output files will be "touched" to match with the current status of module code.''')
-    mt.add_argument('--clean', metavar = "option", choices = ["obsolete", "replace", "all"],
+    mt = p.add_argument_group('Execution modes')
+    mt.add_argument('-s', metavar = "option", choices = ["strict", "lenient", "existing", "all", "none"],
+                   dest = '__construct__', default = "strict",
+                   help = '''How DSC skips or overwrites existing results.
+                   "strict": skips jobs whose input, output and code have not been changed since previous execution.
+                   "lenient": skips jobs whose output timestamp are newer than their input.
+                   It can be used to avoid re-run when nuisent changes are made to module scripts that should not impact results.
+                   "existing": skips jobs whose output exists, and mark existing output as "up-to-date" for future re-runs. 
+                   It can be used to avoid re-run completely even after file status cache have been deleted (as a result of "-d all" option).
+                   "all": skips all modules and only build meta-database required to run `dsc-query` command.
+                   It can be used for salvaging a partially completed benchmark making it possible to query from it.
+                   "none": force executes DSC from scratch.''')
+    mt.add_argument('--touch', action='store_true', dest='__recover__', help=SUPPRESS)
+    mt.add_argument('-e', metavar='option', choices = ['stop', 'ignore', 'kill'], dest = 'error_option', help = SUPPRESS)
+    mt.add_argument('-d', metavar = "option", choices = ["obsolete", "replace", "all"],
                    dest = 'to_remove',
-                   help = '''Behavior of how DSC cleans up output folder to save disk space.
+                   help = '''How DSC deletes benchmark files.
                    Use option "all" to remove all output from the current benchmark. 
-                   "obsolete", when used without "--target", cleans up everything in folder "DSC::output" 
-                   irrelevant to the most recent successful execution of the benchmark.
+                   "obsolete", when used without "--target", removes from output folder anything irrelevant 
+                   to the most recent successful execution of the benchmark.
                    When used with "--target" it deletes specified files, or files from specified modules or module groups.
-                   "replace", when used with "--target", deletes files as option "all" does, but additionally puts in placeholder files 
-                   with "*.zapped" extension. When re-running pipelines these "zapped" files will not trigger
-                   rerun of their module unless they are directly required by a downstream module that needs re-execution.
-                   In other words this is useful to remove large yet unused intermediate module output.''')
-    ro = p.add_argument_group('Runtime behavior')
-    ro.add_argument('--keep-going', action='store_true', dest='keep_going',
-                   help = '''Try to finish as much as possible the entire benchmark in the presence of error in some modules.''')
+                   "replace", when used with "--target", deletes files as option "obsolete" does with "--target",
+                   but additionally puts in placeholder files with "*.zapped" extension to prevent the module from being executed
+                   until they are needed for re-running a downstream module.
+                   It can be used to remove large yet unused intermediate module output without triggering re-runs when possible.''')
+    ro = p.add_argument_group('Computing options')
     ro.add_argument('-c', type = int, metavar = 'N', default = max(min(int(os.cpu_count() / 2), 8), 1),
                    dest='__max_jobs__',
                    help = '''Maximum number of CPU threads for local runs, or job managing sockets for remote execution.''')
     ro.add_argument('-v', '--verbosity', type = int, choices = list(range(5)), default = 2,
                    help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
                    information.''')
-    ro.add_argument('-d', dest = '__dag__', action='store_true',
+    ro.add_argument('-g', dest = '__dag__', action='store_true',
                     help='''Output benchmark execution graph animation in HTML format.''')
     rt = p.add_argument_group('HPC settings')
     rt.add_argument('--host', metavar='file', help = '''Configuration file for DSC computational environments.''')
@@ -269,6 +266,9 @@ def main():
         sys.exit(1)
     #
     env.verbosity = args.verbosity
+    # keep `args.__recover__` to maintain backwards compatibility for `--touch` option.
+    if args.__recover__:
+        args.__construct__ = 'existing'
     with Timer(verbose = True if (args.verbosity > 0) else False) as t:
         try:
             args.func(args, unknown_args)
