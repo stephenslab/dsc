@@ -149,24 +149,18 @@ class DSC_Translator:
         self.install_libs(runtime.rlib, "R_library")
         self.install_libs([x for x in runtime.pymodule if x != 'dsc'], "Python_Module")
 
-    def get_pipeline(self, arg, output_prefix=''):
-        if arg == 1:
+    def get_pipeline(self, task, save=False):
+        if task == 'prepare':
             res = self.conf_str_sos
             open(f'{DSC_CACHE}/{self.db}.io.meta.mpk', 'wb').write(msgpack.packb(self.step_map))
-        elif arg == 2:
-            res = self.job_str
         else:
-            # args is a list of files to send to host
-            chk = (', ' + ', '.join(uniq_list(self.exe_check))) if len(self.exe_check) else ''
-            res = '\n'.join([f'[default]\ndepends: executable("rsync"), executable("scp"), executable("ssh"){chk}',
-                             f'task: to_host = {repr(arg)}' if len(arg) else '',
-                             f'run:\n echo "checking required shell utilities ..."'])
+            res = self.job_str
         # clean up previous runs
         if os.path.isfile('.sos/transcript.txt'):
            os.remove('.sos/transcript.txt')
         # write explicit SoS script if desired
-        if output_prefix:
-            output = os.path.abspath(f'{DSC_CACHE}/{output_prefix}.sos')
+        if save:
+            output = os.path.abspath(f'{DSC_CACHE}/{self.db}_{task}.sos')
             with open(output, 'w') as f:
                 f.write(res)
         return res

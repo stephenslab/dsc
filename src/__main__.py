@@ -123,7 +123,7 @@ def execute(args, unknown_args):
                               args.debug and args.verbosity == 0)
     # Generate DSC meta databases
     env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
-    script_prepare = pipeline.get_pipeline(1, f"{db}_prepare" if args.debug else '')
+    script_prepare = pipeline.get_pipeline("prepare", args.debug)
     settings = {'sig_mode': 'default',
                 'workflow_vars': {'__bin_dirs__': exec_path},
                 'max_running_jobs': None if args.host else args.__max_jobs__,
@@ -144,11 +144,11 @@ def execute(args, unknown_args):
         return
     # Get the executed pipeline
     pipeline.filter_execution()
-    script_run = pipeline.get_pipeline(2, f"{db}_run" if args.debug else '')
+    script_run = pipeline.get_pipeline("run", args.debug)
     if args.debug:
         if args.host:
             import yaml
-            yaml.safe_dump(conf_tpl, open(f'{DSC_CACHE}/{db}.remote_config.yml', 'w'), default_flow_style=False)
+            yaml.safe_dump(conf_tpl, open(f'{DSC_CACHE}/{db}_remote_config.yml', 'w'), default_flow_style=False)
         return
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & running DSC ...")
