@@ -148,7 +148,7 @@ def execute(args, unknown_args):
     if args.debug:
         if args.host:
             import yaml
-            yaml.safe_dump(conf_tpl, open(f'{db}.remote_config.yml', 'w'), default_flow_style=False)
+            yaml.safe_dump(conf_tpl, open(f'{DSC_CACHE}/{db}.remote_config.yml', 'w'), default_flow_style=False)
         return
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & running DSC ...")

@@ -1217,7 +1217,7 @@ def remote_config_parser(host, paths):
     if len(undefined_queue):
         raise FormatError(f"Cannot find configuration for queue ``{', '.join(undefined_queue)}`` in ``DSC`` section of file ``{host}``.")
     for k in list(conf['DSC'].keys()):
-        if k not in queues | local_queues:
+        if k not in (queues | local_queues) and k != 'localhost':
             del conf['DSC'][k]
             continue
         if 'task_template' in conf['DSC'][k]:
