@@ -170,13 +170,13 @@ def execute(args, unknown_args):
     if args.__dag__:
         from sos.utils import dot_to_gif
         try:
-            env.logger.info("Generating animation of benchmark execution (may take a while; can be disrupted if no longer wanted) ...")
+            env.logger.info("Generating DAG animation for benchmark (may take a while; can be disrupted if no longer wanted) ...")
             dag = dot_to_gif(f"{db}.dot")
-            with open(f'{db}.DAG.html', 'w') as f:
+            with open(f'{db}_DAG.html', 'w') as f:
                 f.write(f'<img class="dag-image" src="data:image/png;base64,{dag}">')
-            env.logger.info(f"Execution graph saved to ``{db}.DAG.html``")
+            env.logger.info(f"Execution graph saved to ``{db}_DAG.html``")
         except Exception as e:
-            env.logger.warning(f'Failed to generate execution graph ``{db}.DAG.html``: {e}')
+            env.logger.warning(f'Failed to generate execution graph: {e}')
     env.logger.info("DSC complete!")
 
 def main():
