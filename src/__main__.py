@@ -104,7 +104,7 @@ def execute(args, unknown_args):
              script.runtime.sequence, exec_content, lib_content)
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
     if args.debug:
-        workflow2html(f'{DSC_CACHE}/{db}.workflow.html', pipeline_obj, list(script.dump().values()))
+        workflow2html(f'{DSC_CACHE}/{db}_workflow.html', pipeline_obj, list(script.dump().values()))
     # Resolve executable paths
     # FIXME: always assume args.host is a Linux machine and not checking it
     exec_path = [os.path.join(k, 'mac' if platform.system() == 'Darwin' and args.host is None else 'linux')
