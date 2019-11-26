@@ -157,7 +157,7 @@ def execute(args, unknown_args):
     try:
         settings['verbosity'] = args.verbosity if args.host else max(0, args.verbosity - 1)
         settings['output_dag'] = f'{db}.dot' if args.__dag__ else None
-        status = execute_workflow(script_run, workflow = 'default', options = settings, config = conf_tpl)
+        status = execute_workflow(script_run, workflow = 'DSC', options = settings, config = conf_tpl)
         env.verbosity = args.verbosity
     except Exception as e:
         if args.host is None:
