@@ -433,7 +433,8 @@ class DSC_Script:
         # the master table
         for key, value in res['modules'].items():
             t.add_column(f'- {key} -' if key.strip() and not to_html else key, value)
-        env.logger.info("``MODULES``")
+        if not to_html:
+            env.logger.info("``MODULES``")
         # sub-tables
         groups = copy.deepcopy(self.runtime.groups)
         groups.update(self.runtime.concats)
