@@ -145,7 +145,7 @@ def execute(args, unknown_args):
     if args.__construct__ == "all":
         return
     # Get the executed pipeline
-    pipeline.filter_execution()
+    pipeline.filter_execution(args.debug)
     script_run = pipeline.get_pipeline("run", args.debug)
     if args.debug:
         if args.host:

@@ -13,7 +13,7 @@ except ImportError:
     from hashlib import md5 as xxh
 from collections import OrderedDict
 from sos.targets import path
-from .utils import uniq_list, dict2str, n2a, empty_log, remove_log, load_io_db, install_package
+from .utils import uniq_list, dict2str, n2a, remove_log, load_io_db, install_package
 from .syntax import DSC_CACHE
 __all__ = ['DSC_Translator']
 
@@ -38,7 +38,7 @@ class DSC_Translator:
         job_header = f"[global]\nimport os\n\nIO_DB = '{self.output}/{self.db}.conf.mpk'\n\n"\
                      f"{inspect.getsource(load_io_db)}"
         if not debug:
-            job_header += f"\n{inspect.getsource(empty_log)}\n{inspect.getsource(remove_log)}"
+            job_header += f"\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
         self.depends = dict()
         conf_dict = dict()
@@ -165,7 +165,7 @@ class DSC_Translator:
                 f.write(res)
         return res
 
-    def filter_execution(self):
+    def filter_execution(self, debug=False):
         '''Filter steps removing the ones having common input and output'''
         io_db = load_io_db(f'{self.output}/{self.db}.conf.mpk')
         included_steps = []
@@ -178,8 +178,9 @@ class DSC_Translator:
                 included_steps.append(x)
         #
         self.last_steps = [x for x in self.last_steps if x in included_steps]
-        self.job_str += "\n\n[DSC (output validation)]\ndata_io = load_io_db(IO_DB)\ndepends: {}\noutput: {}".\
-                        format(', '.join([f"sos_step('{n2a(x[1]).lower()}_{x[0]}')" for x in self.last_steps]),
+        self.job_str += "\n\n[{}]\ndata_io = load_io_db(IO_DB)\ndepends: {}\noutput: {}".\
+                        format('default' if debug else 'DSC (output validation)',
+                               ', '.join([f"sos_step('{n2a(x[1]).lower()}_{x[0]}')" for x in self.last_steps]),
                                ', '.join([f"data_io['{x[1]}']['{x[0]}']['output']" for x in self.last_steps]))
 
     def install_libs(self, libs, lib_type):
@@ -338,8 +339,6 @@ class DSC_Translator:
 
         def get_step_option(self):
             if not self.prepare:
-                if not self.debug:
-                    self.step_option += "empty_log(_output)\n"
                 if self.conf is None or (self.step.name in self.conf and self.conf[self.step.name]['queue'] is None) \
                    or (self.step.name not in self.conf and self.conf['default']['queue'] is None):
                     return
