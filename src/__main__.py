@@ -101,7 +101,7 @@ def execute(args, unknown_args):
     exec_content = [(k, script.modules[k].exe)
                     for k in script.runtime.sequence_ordering]
     dsc2html('\n'.join(script.transcript), script.runtime.output,
-             script.runtime.sequence, exec_content, lib_content)
+             script.runtime.sequence, exec_content, lib_content, script.print_help(to_html=True))
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
     if args.debug:
         workflow2html(f'{DSC_CACHE}/{db}_workflow.html', pipeline_obj, list(script.dump().values()))

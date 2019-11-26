@@ -578,7 +578,7 @@ def md2html(content, to_file):
     with open(to_file, 'w') as f:
         f.write(output)
 
-def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann = None):
+def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, summary_table = None):
     '''
     section_content: ordered dictionary of lists,
     {'section 1': ['exec1.R', 'exec2.py']}
@@ -598,19 +598,15 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, dsc_ann =
         f.write('\n</style>\n<script type="text/javascript">\n')
         f.write(HTML_JS)
         # DSC script file
-        f.write('</script></head><body><h3>DSC <a class="various" href="#dsc_conf">configuration script</a>{}</h3>\n'.\
-                format('' if dsc_ann is None else ' and <a class="various" href="#dsc_ann">annotation</a>'))
+        f.write('</script></head><body><h2>DSC <a class="various" href="#dsc_conf">configuration script</a>{}</h2>\n'.\
+                format('' if summary_table is None else ' and module summary'))
         f.write('<div style="display:none"><div id="dsc_conf"><pre><code class="language-yaml; '
                 'line-numbers; left-trim; right-trim;">\n')
         f.write(dsc_conf)
-        f.write('\n</code></pre></div></div><div class="accordion">\n')
-        if dsc_ann is not None:
-          if os.path.isfile(dsc_ann):
-               dsc_ann = open(dsc_ann).read()
-          f.write('<div style="display:none"><div id="dsc_ann"><pre><code class="language-yaml; '
-                  'line-numbers; left-trim; right-trim;">\n')
-          f.write(dsc_ann)
-          f.write('\n</code></pre></div></div><div class="accordion">\n')
+        f.write('\n</code></pre></div></div>\n')
+        if summary_table is not None:
+            f.write('<hr>'.join(summary_table))
+        f.write('<h2>DSC pipelines</h2>\n<div class="accordion">\n')
         # DSC sections with executable scripts
         for name, commands in section_content.items():
             # get section scripts

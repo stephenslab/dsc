@@ -397,7 +397,7 @@ class DSC_Script:
               + f'\n# DSC\n```yaml\n{self.runtime}```'
         return res
 
-    def print_help(self, print_version):
+    def print_help(self, print_version=False, to_html=False):
         res = {'modules': OrderedDict([(' ', []), ('parameters', []),
                                        ('input', []), ('output', []), ('type', [])])}
         modules = list(self.runtime.sequence_ordering.keys())
@@ -427,11 +427,12 @@ class DSC_Script:
                 res['modules']['type'].append(self.modules[k].exe['type'] if k in self.modules else 'unused')
         from prettytable import PrettyTable
         from prettytable import MSWORD_FRIENDLY
+        output_string = []
         t = PrettyTable()
         t.set_style(MSWORD_FRIENDLY)
         # the master table
         for key, value in res['modules'].items():
-            t.add_column(f'- {key} -' if key.strip() else key, value)
+            t.add_column(f'- {key} -' if key.strip() and not to_html else key, value)
         env.logger.info("``MODULES``")
         # sub-tables
         groups = copy.deepcopy(self.runtime.groups)
@@ -445,38 +446,52 @@ class DSC_Script:
                 t_group = copy.deepcopy(t)
                 for i in reversed(rm):
                     t_group.del_row(i)
-                print(t_group.get_string(title = f"Group [{group}]"))
-                print('')
+                if to_html:
+                    output_string.append(t_group.get_html_string(title = f"<b>Group [{group}]</b>"))
+                else:
+                    print(t_group.get_string(title = f"Group [{group}]"))
+                    print('')
                 reported_rows.extend([i for i in range(len(res['modules'][' '])) if i not in rm])
         rm_rows = [i for i in range(len(res['modules'][' '])) if i in reported_rows]
         if len(rm_rows) < len(res['modules'][' ']):
             for i in reversed(rm_rows):
                 t.del_row(i)
-            print(t.get_string(title = 'Ungrouped' if len(rm_rows) else 'All modules'))
-            print('')
-        env.logger.info("``PIPELINES``")
-        print(res['pipelines'] + '\n')
-        env.logger.info("``PIPELINES EXPANDED``")
-        print('\n'.join([f'{i+1}: ' + ' * '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
+            if to_html:
+                output_string.append(t.get_html_string(title = '<b>Ungrouped</b>' if len(rm_rows) else '<b>All modules</b>'))
+            else:
+                print(t.get_string(title = 'Ungrouped' if len(rm_rows) else 'All modules'))
+                print('')
+        if not to_html:
+            env.logger.info("``PIPELINES``")
+            print(res['pipelines'] + '\n')
+            env.logger.info("``PIPELINES EXPANDED``")
+            print('\n'.join([f'{i+1}: ' + ' * '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
         if print_version and len([x for x in self.runtime.rlib if not x.startswith('dscrutils')]):
-            from .utils import get_rlib_versions
-            env.logger.info("``R LIBRARIES``")
             env.logger.info("Scanning package versions ...")
+            from .utils import get_rlib_versions
             libs, versions = get_rlib_versions(self.runtime.rlib)
             t = PrettyTable()
             t.add_column('name', libs)
             t.add_column('version', versions)
-            print(t)
-            print('')
+            if to_html:
+                output_string.append(t.get_html_string(title = 'R libraries'))
+            else:
+                env.logger.info("``R LIBRARIES``")
+                print(t)
+                print('')
         if print_version and len(self.runtime.pymodule):
             from .utils import get_pymodule_versions
-            env.logger.info("``PYTHON MODULES``")
             libs, versions = get_pymodule_versions(self.runtime.pymodule)
             t = PrettyTable()
             t.add_column('name', libs)
             t.add_column('version', versions)
-            print(t)
-            print('')
+            if to_html:
+                output_string.append(t.get_html_string(title = 'Python modules'))
+            else:
+                env.logger.info("``PYTHON MODULES``")
+                print(t)
+                print('')
+        return output_string
 
 
 class DSC_Module:
