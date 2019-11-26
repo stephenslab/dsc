@@ -157,7 +157,7 @@ def execute(args, unknown_args):
     try:
         settings['verbosity'] = args.verbosity if args.host else max(0, args.verbosity - 1)
         settings['output_dag'] = f'{db}.dot' if args.__dag__ else None
-        status = execute_workflow(script_run, workflow = 'DSC', options = settings, config = conf_tpl)
+        status = execute_workflow(script_run, workflow = 'default', options = settings, config = conf_tpl)
         env.verbosity = args.verbosity
     except Exception as e:
         if args.host is None:
@@ -268,6 +268,7 @@ def main():
     env.verbosity = args.verbosity
     # keep `args.__recover__` to maintain backwards compatibility for `--touch` option.
     if args.__recover__:
+        env.logger.warning(f'Option ``--touch`` is deprecated. Please use ``-s existing`` next time.')
         args.__construct__ = 'existing'
     with Timer(verbose = True if (args.verbosity > 0) else False) as t:
         try:

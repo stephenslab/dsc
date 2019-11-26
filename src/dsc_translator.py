@@ -178,7 +178,7 @@ class DSC_Translator:
                 included_steps.append(x)
         #
         self.last_steps = [x for x in self.last_steps if x in included_steps]
-        self.job_str += "\n\n[DSC]\ndata_io = load_io_db(IO_DB)\ndepends: {}\noutput: {}".\
+        self.job_str += "\n\n[default (output validation)]\ndata_io = load_io_db(IO_DB)\ndepends: {}\noutput: {}".\
                         format(', '.join([f"sos_step('{n2a(x[1]).lower()}_{x[0]}')" for x in self.last_steps]),
                                ', '.join([f"data_io['{x[1]}']['{x[0]}']['output']" for x in self.last_steps]))
 
