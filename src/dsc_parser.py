@@ -146,7 +146,7 @@ class DSC_Script:
                     raise FormatError(f'Invalid statement ``{line[0]}``. Perhaps you meant to use ``%include``?')
                 if len(line) != 2:
                     raise FormatError(f'Invalid %include statement ``{" ".join(line)}``. Should be ``%include filename.dsc``')
-                for f in glob.glob(line[1]):
+                for f in glob.glob(line[1]) if '*' in line[1] else [line[1]]:
                     if not os.path.isfile(f) and os.path.isfile(f + '.dsc'):
                         new_content.extend(DSC_Script.load_dsc(f + '.dsc'))
                     elif os.path.isfile(f):

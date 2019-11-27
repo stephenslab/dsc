@@ -585,7 +585,7 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, summary_t
     '''
     lib_content = lib_content or []
     modules = dict(modules)
-    section_content = [('->'.join(x), flatten_list([modules[i] for i in x])) for x in sequences]
+    section_content = [('->'.join(x), [(i, modules[i]) for i in x]) for x in sequences]
     section_content = dict(lib_content + section_content)
     languages = {'py': 'python', 'sh': 'bash', 'rb': 'ruby', 'r': 'r', 'm': 'matlab', 'pl': 'perl'}
     if not os.path.splitext(output)[1] == '.html':
@@ -608,11 +608,12 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, summary_t
             f.write('<hr>'.join(summary_table))
         f.write('<h2>DSC pipelines</h2>\n<div class="accordion">\n')
         # DSC sections with executable scripts
-        for name, commands in section_content.items():
+        for name, contents in section_content.items():
             # get section scripts
             scripts = []
             seen = []
-            for command in commands:
+            for content in contents:
+                module, command = content
                 if isinstance(command, str):
                     # for libs
                     if command in seen:
@@ -623,7 +624,7 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, summary_t
                         text = open(command).read()
                     except Exception:
                         continue
-                    scripts.append((os.path.basename(command), os.path.splitext(command)[1][1:].lower(), text))
+                    scripts.append((module + ' (' + os.path.basename(command) + ')', os.path.splitext(command)[1][1:].lower(), text))
                 else:
                     # for exec is dict
                     text = (command['header'] + '\n' + command['content']) \
@@ -631,8 +632,7 @@ def dsc2html(dsc_conf, output, sequences, modules, lib_content = None, summary_t
                     if command['args']:
                         text = f"# Command arguments: {command['args']}\n" + text
                     cmd_files = '+'.join(command['file'])
-                    scripts.append((((cmd_files or languages[command['type'].lower()].capitalize()) + \
-                                     f' ({command["signature"]})').strip(),
+                    scripts.append((module + ' (' + (cmd_files or languages[command['type'].lower()].capitalize()) + ' ' + command['signature'] + ')',
                                     command['type'].lower(), text))
             if len(scripts) == 0:
                 continue
