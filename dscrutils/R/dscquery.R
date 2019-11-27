@@ -299,12 +299,12 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # conditions, this feature is not used here, as the queries in this
   # interface are specified as R expressions.
   if (is.null(cache)) {
-    if (verbose)
-      cat("Calling dsc-query.\n")
     out     <- build.dscquery.call(targets,groups,dsc.outdir,outfile,exec)
     outfile <- out$outfile
-    cmd.str <- out$cmd.str
-    run_cmd(cmd.str,ferr = ifelse(verbose,"",FALSE))
+    cmd.str <- paste(out$cmd.str, '-o', outfile)
+    if (verbose)
+      cat(paste("Calling:", out$cmd.str), '\n')
+    run_cmd(cmd.str,ferr = FALSE)
   } else {
     outfile <- cache
   }
@@ -493,8 +493,8 @@ process.query.condition <- function (condition) {
 # command-line program, "dsc-query".
 build.dscquery.call <- function (targets, groups, dsc.outdir, outfile, exec) {
   outfile <- tempfile(fileext = ".csv")
-  cmd.str <- sprintf("%s %s -o %s --target \"%s\" --force",exec,dsc.outdir,
-                     outfile,paste(targets,collapse = " "))
+  cmd.str <- sprintf("%s %s --target \"%s\" --force",exec,dsc.outdir,
+                     paste(targets,collapse = " "))
   if (!is.null(groups))
     cmd.str <- sprintf("%s -g %s",cmd.str,paste(paste0('"', groups, '"'),collapse = " "))
   return(list(outfile = outfile,cmd.str = cmd.str))
