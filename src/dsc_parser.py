@@ -146,12 +146,13 @@ class DSC_Script:
                     raise FormatError(f'Invalid statement ``{line[0]}``. Perhaps you meant to use ``%include``?')
                 if len(line) != 2:
                     raise FormatError(f'Invalid %include statement ``{" ".join(line)}``. Should be ``%include filename.dsc``')
-                if not os.path.isfile(line[1]) and os.path.isfile(line[1] + '.dsc'):
-                    new_content.extend(DSC_Script.load_dsc(line[1] + '.dsc'))
-                elif os.path.isfile(line[1]):
-                    new_content.extend(DSC_Script.load_dsc(line[1]))
-                else:
-                    raise FormatError(f'Cannot find file ``{line[1]}`` to include.')
+                for f in glob.glob(line[1]):
+                    if not os.path.isfile(f) and os.path.isfile(f + '.dsc'):
+                        new_content.extend(DSC_Script.load_dsc(f + '.dsc'))
+                    elif os.path.isfile(f):
+                        new_content.extend(DSC_Script.load_dsc(f))
+                    else:
+                        raise FormatError(f'Cannot find file ``{f}`` to include.')
         return new_content + [x for x in content if not x.startswith('%') and not x.startswith('#!')]
 
     def update(self, text, exe):
