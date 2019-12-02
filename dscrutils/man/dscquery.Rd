@@ -6,7 +6,7 @@
 \usage{
 dscquery(dsc.outdir, targets = NULL, module.output.all = NULL,
   module.output.files = NULL, conditions = NULL, groups = NULL,
-  return.type = c("auto", "data.frame", "list"),
+  dsc.outfile = NULL, return.type = c("auto", "data.frame", "list"),
   ignore.missing.files = FALSE, exec = "dsc-query", verbose = TRUE)
 }
 \arguments{
@@ -68,6 +68,8 @@ conditions must also be included in \code{targets}.}
 \code{--groups} flag in the call to \code{dsc-query}. For example,
 \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 will define two module groups, \code{method} and \code{score}.}
+
+\item{dsc.outfile}{Add description of argument here.}
 
 \item{return.type}{If \code{return.type = "data.frame"}, the DSC
 outputs are returned in a data frame; if \code{return.type =

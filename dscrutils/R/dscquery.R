@@ -64,6 +64,8 @@
 #' \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 #' will define two module groups, \code{method} and \code{score}.
 #'
+#' @param dsc.outfile Add description of argument here.
+#' 
 #' @param return.type If \code{return.type = "data.frame"}, the DSC
 #' outputs are returned in a data frame; if \code{return.type =
 #' "list"}, the DSC output a list. If \code{return.type = "auto"}, a
@@ -197,17 +199,17 @@
 #'
 dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
                       module.output.files = NULL, conditions = NULL,
-                      groups = NULL, cache = NULL,
+                      groups = NULL, dsc.outfile = NULL,
                       return.type = c("auto", "data.frame", "list"),
                       ignore.missing.files = FALSE, exec = "dsc-query",
                       verbose = TRUE) {
 
   # CHECK & PROCESS INPUTS
   # ----------------------
-  # Check input argument "dsc.outdir".
+  # Check input arguments "dsc.outdir" and "dsc.outfile".
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
     stop("Argument \"dsc.outdir\" should be a character vector of length 1")
-
+  
   # Check and process input argument "targets".
   if (!(is.character(targets) & is.vector(targets) & length(targets) > 0))
     stop(paste("Argument \"targets\" should be a character vector with",
@@ -305,9 +307,9 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
     if (verbose)
       cat(paste("Calling:", out$cmd.str), '\n')
     run_cmd(cmd.str,ferr = FALSE)
-  } else {
+  } else
     outfile <- cache
-  }
+  
   # IMPORT DSC QUERY RESULTS
   # ------------------------
   # As a safeguard, we check for any duplicated column (or list
@@ -328,6 +330,9 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
       if (!is.empty.result(dat))
         dat <- filter.by.condition(dat,conditions[i],condition_targets[[i]])
   }
+  if (verbose)
+    cat(sprintf("Loaded dscquery output table with %d rows and %d columns.\n",
+                nrow(dat),ncol(dat)))
 
   # EXTRACT DSC OUTPUT
   # ------------------
@@ -335,14 +340,9 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # form "module.variable:output". After this step, "dat" will become a
   # nested list, in which each element dat[[i]][j]] is the value of
   # target i in pipeline j.
-
   dat.unextracted <- dat
-  if (verbose)
-    cat(paste0("Load DSC output table of dimension ", nrow(dat), "x", ncol(dat), ".\n"))
-
   if (!is.empty.result(dat))
     dat <- read.dsc.outputs(dat,dsc.outdir,ignore.missing.files,verbose)
-  start_time <- Sys.time()
   dat <- remove.output.suffix(dat)
 
   # EXTRACT FULL MODULE OUTPUTS
@@ -351,11 +351,13 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   if (n > 0) {
     full.outputs        <- vector("list",n)
     names(full.outputs) <- module.output.all
-    if (verbose) {
-      pb = progress_bar$new(format = "- Loading module outputs [:bar] :percent eta: :eta",  total = n, clear = FALSE, width= 60)
-    } else {
-      pb = null_progress_bar$new()
-    }
+    if (verbose)
+      pb <- progress_bar$new(format = paste("- Loading module outputs [:bar]",
+                                            ":percent eta: :eta"),
+                             total = n,clear = FALSE,width = 60)
+    else
+      pb <- null_progress_bar$new()
+    
     # Extract the full module outputs for each selected module or
     # module group.
     for (i in module.output.all) {
@@ -458,9 +460,6 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   cols <- cols[is.element(cols,names(dat))]
   dat  <- dat[cols]
   rownames(dat) <- NULL
-  diff_time <- Sys.time() - start_time
-  if (verbose) 
-    cat(paste0("Elapsed time: ", round(as.double(diff_time),4), ' ', attributes(diff_time)$units, '.\n'))
 
   return(dat)
 }
@@ -508,9 +507,7 @@ filter.by.condition <- function (dat, expr, targets) {
   if (all(is.element(targets,names(dat)))) {
     tryCatch({
       rows <- which(with(dat,eval(parse(text = expr))))
-    }, error = function(e) {
-      stop(paste0("Invalid condition statement: ", expr))
-    })
+    }, error = function (e) stop(paste("Unable to evaluate expression:",expr)))
     if (is.data.frame(dat))
       dat <- dat[rows,]
     else
@@ -582,11 +579,11 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
   }
   
   # Extract the outputs.
-  if (verbose) {
-    pb = progress_bar$new(format = "- Loading targets [:bar] :percent eta: :eta",  total = n, clear = FALSE, width= 60)
-  } else {
-    pb = null_progress_bar$new()
-  }
+  if (verbose)
+    pb <- progress_bar$new(format = "- Loading targets [:bar] :percent eta: :eta",
+                             total = n,clear = FALSE,width = 60)
+  else
+    pb <- null_progress_bar$new()
   for (i in files) {
     pb$tick()
     x <- import.dsc.output(i,dsc.outdir,ignore.missing.files)
