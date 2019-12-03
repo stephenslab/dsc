@@ -317,8 +317,15 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
     dsc.outfile <- out$outfile
     cmd.str     <- paste(out$cmd.str, '-o', dsc.outfile)
     if (verbose)
-      cat(paste("Calling:", out$cmd.str), '\n')
-    run_cmd(cmd.str)
+        cat(paste("Calling:", out$cmd.str), '\n')
+    out <- suppressWarnings(system2("sh",args = c("-c",shQuote(cmd.str)),
+                                    stdout = TRUE,stderr = TRUE))
+    if (!is.null(attr(out,"status")))
+      if (attr(out,"status") != 0) {
+        message(paste(out,collapse = "\n"))
+        stop(paste(unlist(strsplit(cmd.str, " +"))[1],
+                   "command failed (returned a non-zero exit status)"))
+    }
   }
   
   # IMPORT DSC QUERY RESULTS

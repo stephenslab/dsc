@@ -4,14 +4,14 @@ merge_lists <- function(x, y, ...) {
   if (length(y) == 0)
     return(x)
   for (i in 1:length(names(y)))
-    x[names(y)[i]] = y[i]
+    x[names(y)[i]] <- y[i]
   return(x)
 }
 
 # This function is currently only used by the dsc Python module.
 load_inputs <- function (files, loader) {
   if (length(files) == 1)
-    return(loader(files[1]))
+      return(loader(files[1]))
   out <- list()
   for (i in 1:length(files))
     out <- merge_lists(out,loader(files[i]))
@@ -50,15 +50,16 @@ save_session <- function (start_time, id) {
   return(list(time = time,script = script,replicate = id,session = session))
 }
 
-run_cmd <- function (cmd_str, shell_exec = "/bin/bash") {
-  out <- suppressWarnings(system2(shell_exec,args = c("-c",shQuote(cmd_str)),
-                                  stdout = TRUE,stderr = TRUE))
-  if (!is.null(attr(out,"status")))
-    if (attr(out,"status") != 0) {
-      message(paste(out,collapse = "\n"))
-      stop(paste(unlist(strsplit(cmd_str, " +"))[1],
-                 "command failed (returned a non-zero exit status)"))
-    }
+#' @export
+run_cmd <- function (cmd_str, shell_exec = "/bin/bash", fout = '', ferr = '',
+                     quit_on_error = TRUE, ...) {
+  if (ferr!=FALSE) {
+    write("Running shell command:", stderr())
+    write(cmd_str, stderr())
+  }
+  out <- system2("",args = c("-c",shQuote(cmd_str)),stdout = fout, stderr=ferr, ...)
+  if (out != 0 && quit_on_error && fout != TRUE && ferr != TRUE)
+    stop(paste(strsplit(cmd_str, " +")[[1]][1], "command failed (returned a non-zero exit status)"))
   return(out)
 }
 
