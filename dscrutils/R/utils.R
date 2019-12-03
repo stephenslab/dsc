@@ -1,30 +1,27 @@
-merge_lists <- function(x, y, ...)
-{
-  if(length(x) == 0)
+merge_lists <- function(x, y, ...) {
+  if (length(x) == 0)
     return(y)
-  if(length(y) == 0)
+  if (length(y) == 0)
     return(x)
   for (i in 1:length(names(y)))
     x[names(y)[i]] = y[i]
   return(x)
 }
 
-#' @export
-load_inputs <- function(files, loader) {
-  if (length(files) == 1) {
+# This function is currently only used by the dsc Python module.
+load_inputs <- function (files, loader) {
+  if (length(files) == 1)
     return(loader(files[1]))
-  }
   out <- list()
-  for (i in 1:length(files)) {
-    out <- merge_lists(out, loader(files[i]))
-  }
+  for (i in 1:length(files))
+    out <- merge_lists(out,loader(files[i]))
   return(out)
 }
 
 thisFile <- function() {
   cmdArgs <- commandArgs(trailingOnly = FALSE)
-  needle <- "--file="
-  match <- grep(needle, cmdArgs)
+  needle  <- "--file="
+  match   <- grep(needle,cmdArgs)
   if (length(match) > 0) {
     ## Rscript
     path <- cmdArgs[match]
@@ -38,27 +35,30 @@ thisFile <- function() {
 
 load_script <- function() {
   fileName <- thisFile()
-  return(ifelse(!is.null(fileName) && file.exists(fileName), readChar(fileName, file.info(fileName)$size), ""))
+  return(ifelse(!is.null(fileName) && file.exists(fileName),
+                readChar(fileName,file.info(fileName)$size),""))
 }
 
+# This function is currently only used in the dsc Python module.
+#
 #' @importFrom utils capture.output
 #' @importFrom utils sessionInfo
-#' @export
-save_session <- function(start_time, id) {
-
-  time <- as.list(proc.time() - start_time)
-  script <- load_script()
+save_session <- function (start_time, id) {
+  time    <- as.list(proc.time() - start_time)
+  script  <- load_script()
   session <- capture.output(print(sessionInfo()))
-  return(list(time=time, script=script, replicate=id, session=session))
+  return(list(time = time,script = script,replicate = id,session = session))
 }
 
-#' @export
-run_cmd <- function(cmd_str, shell_exec = "/bin/bash") {
-  out <- system2(shell_exec,args = c("-c",shQuote(cmd_str)))
-  if (out != 0) {
-    stop(paste(strsplit(cmd_str, " +")[[1]][1],
-               "command failed (returned a non-zero exit status)"))
-  }
+run_cmd <- function (cmd_str, shell_exec = "/bin/bash") {
+  out <- suppressWarnings(system2(shell_exec,args = c("-c",shQuote(cmd_str)),
+                                  stdout = TRUE,stderr = TRUE))
+  if (!is.null(attr(out,"status")))
+    if (attr(out,"status") != 0) {
+      message(paste(out,collapse = "\n"))
+      stop(paste(unlist(strsplit(cmd_str, " +"))[1],
+                 "command failed (returned a non-zero exit status)"))
+    }
   return(out)
 }
 
@@ -70,14 +70,16 @@ source_dir <- function (folder, recursive = TRUE, ...) {
     src <- invisible(lapply(files, source, ...))
 }
 
+# This function is currently only used by the dsc Python module.
 source_dirs <- function(folders, ...)
   for (folder in folders)
     source_dir(folder,...)
 
+# This function is currently only used by the dsc Python module.
+#
 #' @importFrom tools file_ext
 #' @importFrom yaml yaml.load_file
-#' @export
-read_dsc <- function(infile) {
+read_dsc <- function (infile) {
   inext = file_ext(infile)
   if (inext == "") {
     for (item in c("rds", "pkl", "yml")) {
@@ -88,8 +90,9 @@ read_dsc <- function(infile) {
       }
     }
   }
-  if (inext == "") stop(paste("Cannot determine extension for input file", infile))
-  if (inext == 'pkl') {
+  if (inext == "")
+    stop(paste("Cannot determine extension for input file", infile))
+  else if (inext == 'pkl') {
     ## Do not use `importFrom` for reticulate because
     ## this is not always required
     ## and when it is required the DSC parser code
@@ -98,11 +101,10 @@ read_dsc <- function(infile) {
       stop("Cannot read Python's `pkl` files due to missing `reticulate` package.")
     result = reticulate::py_load_object(infile)
     return(rapply(result, reticulate::py_to_r, classes = "python.builtin.object", how = "replace"))
-  } else if (inext == 'yml') {
+  } else if (inext == 'yml')
     return(yaml.load_file(infile))
-  } else {
+  else
     return(readRDS(infile))
-  }
 }
 
 # This implements a "null" progressbar; currently, the

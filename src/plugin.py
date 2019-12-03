@@ -279,9 +279,9 @@ class RPlug(BasePlug):
         res = f'{self.identifier} <- list()' if len(depends) else ''
         load_idx = [i for i, k in enumerate(depends.keys()) if any([x[1] is None for x in depends[k]])]
         assign_idx = [(i, k) for i, k in enumerate(depends.keys()) if any([x[1].split('.')[-1] in ['rds', 'pkl', 'yml'] for x in depends[k] if x[1] is not None])]
-        loader = 'dscrutils::read_dsc'
+        loader = 'dscrutils:::read_dsc'
         # load files
-        load_in = f'\n{self.identifier} <- dscrutils::load_inputs(c(${{paths([_input[i] for i in {load_idx}]):r,}}), {loader})'
+        load_in = f'\n{self.identifier} <- dscrutils:::load_inputs(c(${{paths([_input[i] for i in {load_idx}]):r,}}), {loader})'
         assign_in = ['\n']
         for i, k in assign_idx:
             for j in depends[k]:
@@ -332,7 +332,7 @@ class RPlug(BasePlug):
             return ''
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
-                           [f"DSC_DEBUG=dscrutils::save_session(TIC_{self.identifier[4:]}, DSC_REPLICATE)"]))
+                           [f"DSC_DEBUG=dscrutils:::save_session(TIC_{self.identifier[4:]}, DSC_REPLICATE)"]))
         return res.strip()
 
     def set_container(self, name, value, params):
