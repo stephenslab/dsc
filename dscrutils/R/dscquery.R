@@ -64,7 +64,13 @@
 #' \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 #' will define two module groups, \code{method} and \code{score}.
 #'
-#' @param dsc.outfile Add description of argument here.
+#' @param dsc.outfile This optional input argument can be used to
+#' provide a previously generated output from the \code{dsc-query}
+#' program, in which case it must be the pathname of the output
+#' file. This input is mainly intended to be used by developers and
+#' expert users for testing or to reproduce previous queries since the
+#' \code{dsc-query} output file must exactly agree in the query
+#' arguments, otherwise unexpected errors could occur.
 #' 
 #' @param return.type If \code{return.type = "data.frame"}, the DSC
 #' outputs are returned in a data frame; if \code{return.type =
@@ -206,7 +212,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
 
   # CHECK & PROCESS INPUTS
   # ----------------------
-  # Check input arguments "dsc.outdir" and "dsc.outfile".
+  # Check input argument "dsc.outdir".
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
     stop("Argument \"dsc.outdir\" should be a character vector of length 1")
   
@@ -254,6 +260,12 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
       stop(paste("Argument \"groups\" should be \"NULL\", or a character",
                  "vector with at least one element"))
   
+  # Check input argument "dsc.outfile".
+  if (!is.null(dsc.outfile))
+    if (!(is.character(dsc.outfile) & length(dsc.outfile) == 1))
+      stop(paste("Argument \"dsc.outfile\" should either be \"NULL\" or a",
+                 "character vector of length 1"))
+  
   # Check and process input argument "return.type".
   return.type <- match.arg(return.type)
   if (return.type == "data.frame" & length(module.output.all) > 1)
@@ -300,21 +312,20 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # although the dsc-query program has the option to pass in
   # conditions, this feature is not used here, as the queries in this
   # interface are specified as R expressions.
-  if (is.null(cache)) {
-    out     <- build.dscquery.call(targets,groups,dsc.outdir,outfile,exec)
-    outfile <- out$outfile
-    cmd.str <- paste(out$cmd.str, '-o', outfile)
+  if (is.null(dsc.outfile)) {
+    out         <- build.dscquery.call(targets,groups,dsc.outdir,exec)
+    dsc.outfile <- out$outfile
+    cmd.str     <- paste(out$cmd.str, '-o', dsc.outfile)
     if (verbose)
       cat(paste("Calling:", out$cmd.str), '\n')
-    run_cmd(cmd.str,ferr = FALSE)
-  } else
-    outfile <- cache
+    run_cmd(cmd.str)
+  }
   
   # IMPORT DSC QUERY RESULTS
   # ------------------------
   # As a safeguard, we check for any duplicated column (or list
   # element) names, and if there are any, we halt and report an error.
-  dat <- read.csv(outfile,header = TRUE,stringsAsFactors = FALSE,
+  dat <- read.csv(dsc.outfile,header = TRUE,stringsAsFactors = FALSE,
                   check.names = FALSE,comment.char = "",
                   na.strings = "NA")
   if (any(duplicated(names(dat))))
@@ -354,15 +365,21 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
     if (verbose)
       pb <- progress_bar$new(format = paste("- Loading module outputs [:bar]",
                                             ":percent eta: :eta"),
-                             total = n,clear = FALSE,width = 60)
+                             total = n,clear = FALSE,width = 60,
+                             show_after = 0,force = TRUE)
     else
       pb <- null_progress_bar$new()
-    
+    pb$tick(0)
+
     # Extract the full module outputs for each selected module or
     # module group.
     for (i in module.output.all) {
       pb$tick()
-      x <- dat[[paste(i,"output.file",sep = ".")]]
+      j <- paste(i,"output.file",sep = ".")
+      if (!is.element(j,names(dat)))
+        stop(paste("One or more entries in \"module.output.all\" do not",
+                   "specify a valid module or module group"))
+      x <- dat[[j]]
       m <- length(x)
       if (m > 0)
         for (j in 1:m)
@@ -490,12 +507,13 @@ process.query.condition <- function (condition) {
 
 # This is a helper function used in dscquery to build the call to the
 # command-line program, "dsc-query".
-build.dscquery.call <- function (targets, groups, dsc.outdir, outfile, exec) {
+build.dscquery.call <- function (targets, groups, dsc.outdir, exec) {
   outfile <- tempfile(fileext = ".csv")
-  cmd.str <- sprintf("%s %s --target \"%s\" --force",exec,dsc.outdir,
-                     paste(targets,collapse = " "))
+  cmd.str <- sprintf("%s %s -o %s --target \"%s\" --force",exec,dsc.outdir,
+                     outfile,paste(targets,collapse = " "))
   if (!is.null(groups))
-    cmd.str <- sprintf("%s -g %s",cmd.str,paste(paste0('"', groups, '"'),collapse = " "))
+    cmd.str <- sprintf("%s -g %s",cmd.str,paste(paste0('"', groups, '"'),
+                                                collapse = " "))
   return(list(outfile = outfile,cmd.str = cmd.str))
 }
 
@@ -580,10 +598,12 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
   
   # Extract the outputs.
   if (verbose)
-    pb <- progress_bar$new(format = "- Loading targets [:bar] :percent eta: :eta",
-                             total = n,clear = FALSE,width = 60)
+    pb <-
+      progress_bar$new(format = "- Loading targets [:bar] :percent eta: :eta",
+                       total = n,clear = FALSE,width = 60,show_after = 0)
   else
     pb <- null_progress_bar$new()
+  pb$tick(0)
   for (i in files) {
     pb$tick()
     x <- import.dsc.output(i,dsc.outdir,ignore.missing.files)

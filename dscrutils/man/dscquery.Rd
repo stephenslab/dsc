@@ -69,7 +69,13 @@ conditions must also be included in \code{targets}.}
 \code{groups = c("method: mean median", "score: abs_err sqrt_err")}
 will define two module groups, \code{method} and \code{score}.}
 
-\item{dsc.outfile}{Add description of argument here.}
+\item{dsc.outfile}{This optional input argument can be used to
+provide a previously generated output from the \code{dsc-query}
+program, in which case it must be the pathname of the output
+file. This input is mainly intended to be used by developers and
+expert users for testing or to reproduce previous queries since the
+\code{dsc-query} output file must exactly agree in the query
+arguments, otherwise unexpected errors could occur.}
 
 \item{return.type}{If \code{return.type = "data.frame"}, the DSC
 outputs are returned in a data frame; if \code{return.type =

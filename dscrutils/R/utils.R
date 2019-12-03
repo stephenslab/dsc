@@ -53,29 +53,26 @@ save_session <- function(start_time, id) {
 }
 
 #' @export
-run_cmd <- function(cmd_str, shell_exec="/bin/bash", fout='', ferr='', quit_on_error=TRUE, ...) {
-  if (ferr!=FALSE) {
-    write("Running shell command:", stderr())
-    write(cmd_str, stderr())
+run_cmd <- function(cmd_str, shell_exec = "/bin/bash") {
+  out <- system2(shell_exec,args = c("-c",shQuote(cmd_str)))
+  if (out != 0) {
+    stop(paste(strsplit(cmd_str, " +")[[1]][1],
+               "command failed (returned a non-zero exit status)"))
   }
-  out <- system2(shell_exec, args = c("-c", shQuote(cmd_str)), stdout = fout, stderr=ferr, ...)
-  if (out != 0 && quit_on_error && fout != TRUE && ferr != TRUE)
-    stop(paste(strsplit(cmd_str, " +")[[1]][1], "command failed (returned a non-zero exit status)"))
   return(out)
 }
 
-# finds all .R and .r files within a folder and sources them
-source_dir <- function(folder, recursive = TRUE, ...) 
-{ 
-    files <- list.files(folder, pattern = "[.][rR]$", 
-                        full.names = TRUE, recursive = recursive)
-    if (length(files))
-      src <- invisible(lapply(files, source, ...))
+# Finds all .R and .r files within a folder and sources them.
+source_dir <- function (folder, recursive = TRUE, ...) { 
+  files <- list.files(folder, pattern = "[.][rR]$",full.names = TRUE,
+                      recursive = recursive)
+  if (length(files))
+    src <- invisible(lapply(files, source, ...))
 }
 
-source_dirs <- function(folders, ...) {
-  for (folder in folders) source_dir(folder, ...)
-}
+source_dirs <- function(folders, ...)
+  for (folder in folders)
+    source_dir(folder,...)
 
 #' @importFrom tools file_ext
 #' @importFrom yaml yaml.load_file
