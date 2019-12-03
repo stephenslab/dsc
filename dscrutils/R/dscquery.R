@@ -317,7 +317,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
     dsc.outfile <- out$outfile
     cmd.str     <- paste(out$cmd.str, '-o', dsc.outfile)
     if (verbose)
-        cat(paste("Calling:", out$cmd.str), '\n')
+      cat(paste("Calling:",out$cmd.str),"\n")
     out <- suppressWarnings(system2("sh",args = c("-c",shQuote(cmd.str)),
                                     stdout = TRUE,stderr = TRUE))
     if (!is.null(attr(out,"status")))
