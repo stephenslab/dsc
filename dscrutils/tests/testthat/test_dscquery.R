@@ -4,10 +4,18 @@ test_that(paste("First one_sample_location DSC query examples returns a",
                 "8 x 4 data frame"),{
   dsc.dir <- system.file("datafiles","one_sample_location","dsc_result",
                          package = "dscrutils")
+  outfile <- system.file("datafiles","one_sample_location","dsc-query-output.csv",
+                         package = "dscrutils")
   capture.output(
-    dat <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
+    out1 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
                     conditions = "$(simulate.n) > 10"))
-  expect_equal(dim(dat),c(8,4))
+  capture.output(
+    out2 <- dscquery(dsc.dir,targets = c("simulate.n","analyze","score.error"),
+                     conditions = "$(simulate.n) > 10",
+                     dsc.outfile = outfile))
+  expect_equal(dim(out1),c(8,4))
+  expect_equal(dim(out2),c(8,4))
+  expect_equal(out1,out2)
 })
 
 test_that(paste("Filtering by conditions argument for one_sample_location",

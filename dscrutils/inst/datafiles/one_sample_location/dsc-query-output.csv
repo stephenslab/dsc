@@ -1,0 +1,9 @@
+DSC,simulate,simulate.n,analyze,analyze.output.file,score,score.error:output
+1,normal,100.0,mean,mean/normal_1_mean_1,abs_err,abs_err/normal_1_mean_1_abs_err_1
+1,normal,100.0,mean,mean/normal_1_mean_1,sq_err,sq_err/normal_1_mean_1_sq_err_1
+1,normal,100.0,median,median/normal_1_median_1,abs_err,abs_err/normal_1_median_1_abs_err_1
+1,normal,100.0,median,median/normal_1_median_1,sq_err,sq_err/normal_1_median_1_sq_err_1
+1,t,100.0,mean,mean/t_1_mean_1,abs_err,abs_err/t_1_mean_1_abs_err_1
+1,t,100.0,mean,mean/t_1_mean_1,sq_err,sq_err/t_1_mean_1_sq_err_1
+1,t,100.0,median,median/t_1_median_1,abs_err,abs_err/t_1_median_1_abs_err_1
+1,t,100.0,median,median/t_1_median_1,sq_err,sq_err/t_1_median_1_sq_err_1
