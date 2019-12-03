@@ -16,6 +16,7 @@ Imports:
     utils,
     tools,
     yaml,
+    data.table,
     progress,
     R6   
 Suggests:

@@ -198,7 +198,7 @@
 #'
 #' # See also example("dscread").
 #' 
-#' @importFrom utils read.csv
+#' @importFrom data.table fread
 #' @importFrom progress progress_bar
 #'
 #' @export
@@ -332,9 +332,8 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # ------------------------
   # As a safeguard, we check for any duplicated column (or list
   # element) names, and if there are any, we halt and report an error.
-  dat <- read.csv(dsc.outfile,header = TRUE,stringsAsFactors = FALSE,
-                  check.names = FALSE,comment.char = "",
-                  na.strings = "NA")
+  dat <- fread(dsc.outfile,header = TRUE,na.strings = "NA")
+  class(dat) <- "data.frame"
   if (any(duplicated(names(dat))))
     stop("One or more names in dsc-query output are the same")
   
@@ -568,7 +567,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
     x[is.na(x)] <- as.logical(NA)
     dat[[i]]    <- x
   }
-  
+
   # Determine which columns contain names of files that should be
   # read; these are columns of the form "module.variable:output". If
   # there are no such columns, there is nothing to do here. 
