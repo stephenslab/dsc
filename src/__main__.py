@@ -125,6 +125,7 @@ def execute(args, unknown_args):
     env.logger.info(f"Constructing DSC from ``{args.dsc_file}`` ...")
     script_prepare = pipeline.get_pipeline("prepare", args.debug)
     settings = {'sig_mode': 'default',
+                'error_mode': 'default',
                 'workflow_vars': {'__bin_dirs__': exec_path},
                 'max_running_jobs': None if args.host else args.__max_jobs__,
                 'worker_procs': args.__max_jobs__,
@@ -155,6 +156,7 @@ def execute(args, unknown_args):
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & running DSC ...")
     try:
+        settings['error_mode'] = args.error_mode
         settings['verbosity'] = args.verbosity if args.host else max(0, args.verbosity - 1)
         settings['output_dag'] = f'{db}.dot' if args.__dag__ else None
         status = execute_workflow(script_run, workflow = 'DSC', options = settings, config = conf_tpl)
@@ -162,7 +164,7 @@ def execute(args, unknown_args):
     except Exception as e:
         if args.host is None:
             transcript2html('.sos/transcript.txt', f'{db}.scripts.html', title = db)
-            env.logger.warning(f"Please examine ``stderr`` files below and/or run commands ``in green`` to reproduce" \
+            env.logger.warning(f"Please examine ``stderr`` files below and/or run commands ``in green`` to reproduce " \
                                "the errors;\nadditional scripts upstream of the error can be found in " \
                                f"``{db}.scripts.html``.\n" + '=' * 75)
         raise Exception(e)
@@ -217,7 +219,12 @@ def main():
                    It can be used for salvaging a partially completed benchmark making it possible to query from it.
                    "none": force executes DSC from scratch.''')
     mt.add_argument('--touch', action='store_true', dest='__recover__', help=SUPPRESS)
-    mt.add_argument('-e', metavar='option', choices = ['stop', 'ignore', 'kill'], dest = 'error_option', help = SUPPRESS)
+    mt.add_argument('-e', metavar='option', choices = ['default', 'ignore', 'abort'], dest = 'error_mode', default="default",
+                    help = '''How DSC responds to errors.
+                    "abort": stop all modules immediately after an error occurs.
+                    "ignore": ignore errors and try to complete the benchmark.
+                    "default": stop modules with errors or has errors in their upstream modules.
+                    ''')
     mt.add_argument('-d', metavar = "option", choices = ["obsolete", "replace", "all"],
                    dest = 'to_remove',
                    help = '''How DSC deletes benchmark files.
