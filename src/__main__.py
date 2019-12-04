@@ -214,7 +214,8 @@ def main():
                    "lenient": skips jobs whose output timestamp are newer than their input.
                    It can be used to avoid re-run when nuisent changes are made to module scripts that should not impact results.
                    "existing": skips jobs whose output exists, and mark existing output as "up-to-date" for future re-runs. 
-                   It can be used to avoid re-run completely even after file status cache have been deleted (as a result of "-d all" option).
+                   It can be used to avoid re-run completely even after file status cache have been deleted
+                   (eg, after partially transferring output data from one location to another).
                    "all": skips all modules and only build meta-database required to run `dsc-query` command.
                    It can be used for salvaging a partially completed benchmark making it possible to query from it.
                    "none": force executes DSC from scratch.''')
