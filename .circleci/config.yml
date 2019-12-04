@@ -31,7 +31,16 @@ jobs:
             apt-get update
             DEBIAN_FRONTEND=noninteractive apt-get install -y r-base \
                                                               r-base-dev \
+                                                              r-cran-data.table \
                                                               r-cran-devtools \
+                                                              r-cran-dplyr \
+                                                              r-cran-ggplot2 \
+                                                              r-cran-progress \
+                                                              r-cran-r6 \
+                                                              r-cran-rlang \
+                                                              r-cran-shiny \
+                                                              r-cran-testthat \
+                                                              r-cran-tibble \
                                                               r-cran-yaml
       - run:
           name: Install R dependencies
