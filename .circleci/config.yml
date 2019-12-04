@@ -44,7 +44,9 @@ jobs:
                                                               r-cran-yaml
       - run:
           name: Install R dependencies
-          command: Rscript -e 'devtools::install_deps("dscrutils", dependencies = TRUE)'
+          command: |
+            Rscript -e 'devtools::install_deps("dscrutils", dependencies = TRUE)'
+            Rscript -e 'install.packages("remotes")'
       - run:
           name: Install dscrutils
           command: |
