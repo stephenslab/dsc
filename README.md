@@ -77,19 +77,21 @@ existing benchmark even if they have not been changed. When this
 happens we will indicate in bold in our release note below that "a
 file signature clean up is recommended" (see release note 0.2.7.7 for
 example). That means after such DSC upgrades you should rerun your
-benchmark with `--touch` option to update file signatures. If
+benchmark with `-s existing` (or, `--touch`) option to update file signatures. If
 possible, it is recommended that you rerun your benchmark from scratch
-(if resources can afford) with `-s none` instead of `--touch` to skip
+(if resources can afford) with `-s none` instead of `-s existing` to skip
 all existing files. We apologize for the inconveniences it incurs.
 
 ## Change Log
 
-### Upcoming release
+### 0.4.x
 
-Goal for 0.4.0
-
-- Support for multiple output per modules.
+- Issue #194
+- Issue #202
+- [minor] #209, #196
 - Improve scripts command options.
+
+**A file signature clean up is required after this upgrade.**
 
 ### 0.3.x
 
