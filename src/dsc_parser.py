@@ -26,11 +26,18 @@ from .parser import parse_dsc_string
 
 __all__ = ['DSC_Script', 'DSC_Pipeline', 'remote_config_parser']
 
+
 class DSC_Script:
     '''Parse a DSC script
      * provides self.steps, self.runtime that contain all DSC information needed for a run
     '''
-    def __init__(self, content, output = None, sequence = None, global_params = [], truncate = False, replicate = None):
+    def __init__(self,
+                 content,
+                 output=None,
+                 sequence=None,
+                 global_params=[],
+                 truncate=False,
+                 replicate=None):
         self.content = dict()
         if os.path.isfile(content):
             script_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -54,7 +61,9 @@ class DSC_Script:
                     self.update(res, exe)
                     res = []
                     exe = ''
-                if len(text) != 2 or (len(text[1].strip()) == 0 and text[0].strip() != 'DSC' and not DSC_DERIVED_BLOCK.search(text[0].strip())):
+                if len(text) != 2 or (
+                        len(text[1].strip()) == 0 and text[0].strip() != 'DSC'
+                        and not DSC_DERIVED_BLOCK.search(text[0].strip())):
                     # a line only with module names not module executable
                     # eg. "module: " not "module: R(...)"
                     # then this module is a base module
@@ -79,7 +88,9 @@ class DSC_Script:
         self.update(res, exe)
         if 'DSC' not in self.content:
             if sequence is None:
-                raise FormatError('Cannot find section ``DSC`` or command input ``--target`` that defines benchmarks to execute!')
+                raise FormatError(
+                    'Cannot find section ``DSC`` or command input ``--target`` that defines benchmarks to execute!'
+                )
             else:
                 self.content['DSC'] = dict()
         self.get_global_params(global_params)
@@ -90,14 +101,20 @@ class DSC_Script:
         for block in sorted_blocks:
             if block == 'DSC':
                 continue
-            self.extract_modules(block, derived[block] if block in derived else None)
-        self.content = dict([(k,v) for k,v in self.content.items() if k not in self.base_modules])
+            self.extract_modules(block,
+                                 derived[block] if block in derived else None)
+        self.content = dict([(k, v) for k, v in self.content.items()
+                             if k not in self.base_modules])
         if len(self.content) == 1:
-            raise FormatError("Cannot find any module definition in current DSC configuration.")
-        self.runtime = DSC_Section(self.content['DSC'], sequence, output, replicate)
+            raise FormatError(
+                "Cannot find any module definition in current DSC configuration."
+            )
+        self.runtime = DSC_Section(self.content['DSC'], sequence, output,
+                                   replicate)
         if self.runtime.output is None:
             self.runtime.output = script_name
         self.runtime.output = remove_quotes(self.runtime.output)
+
         def get_missing_module_message(k):
             if k in self.base_modules:
                 return f"Module ``{k}`` cannot be used directly due to lack of executable specifications."
@@ -106,25 +123,37 @@ class DSC_Script:
                                    (f"\nAvailable groups are ``{', '.join(try_get_value(self.content, ('DSC', 'define')).keys())}``"
                                    if try_get_value(self.content, ('DSC', 'define')) else '')
                 return f"Module or group name ``{k}`` is not defined!\n" + msg_avail_module
-        for k,v in list(self.runtime.groups.items()) + list(self.runtime.concats.items()):
+
+        for k, v in list(self.runtime.groups.items()) + list(
+                self.runtime.concats.items()):
             if k in self.content or k in ['default', 'DSC']:
-                raise FormatError(f"Group name ``{k}`` conflicts with existing module name or DSC keywords!")
+                raise FormatError(
+                    f"Group name ``{k}`` conflicts with existing module name or DSC keywords!"
+                )
             for vv in v:
                 if vv not in self.content:
                     raise FormatError(get_missing_module_message(vv))
         for k in self.runtime.sequence_ordering:
             if k not in self.content:
                 raise FormatError(get_missing_module_message(k))
-        self.modules = dict([(x, DSC_Module(x, self.content[x], self.runtime.options, script_path, truncate))
+        self.modules = dict([(x,
+                              DSC_Module(x, self.content[x],
+                                         self.runtime.options, script_path,
+                                         truncate))
                              for x in self.runtime.sequence_ordering.keys()])
-        script_types =  [m.exe['type'] for m in self.modules.values()]
+        script_types = [m.exe['type'] for m in self.modules.values()]
         if 'R' in script_types:
-            install_package_interactive(f'dscrutils@stephenslab/dsc/dscrutils>={__version__}', 'R_library')
+            install_package_interactive(
+                f'dscrutils@stephenslab/dsc/dscrutils>={__version__}',
+                'R_library')
         if 'R' in script_types and 'PY' in script_types:
             install_package_interactive('reticulate', 'R_library')
             install_package_interactive('rpy2>=3.0.1', 'Python_Module')
-        self.runtime.rlib.extend(flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
-        self.runtime.pymodule.extend(flatten_list([x.pymodule for x in self.modules.values() if x.pymodule]))
+        self.runtime.rlib.extend(
+            flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
+        self.runtime.pymodule.extend(
+            flatten_list(
+                [x.pymodule for x in self.modules.values() if x.pymodule]))
         # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
@@ -143,17 +172,25 @@ class DSC_Script:
             if line.startswith('%'):
                 line = line.split()
                 if not line[0] == '%include':
-                    raise FormatError(f'Invalid statement ``{line[0]}``. Perhaps you meant to use ``%include``?')
+                    raise FormatError(
+                        f'Invalid statement ``{line[0]}``. Perhaps you meant to use ``%include``?'
+                    )
                 if len(line) != 2:
-                    raise FormatError(f'Invalid %include statement ``{" ".join(line)}``. Should be ``%include filename.dsc``')
+                    raise FormatError(
+                        f'Invalid %include statement ``{" ".join(line)}``. Should be ``%include filename.dsc``'
+                    )
                 for f in glob.glob(line[1]) if '*' in line[1] else [line[1]]:
                     if not os.path.isfile(f) and os.path.isfile(f + '.dsc'):
                         new_content.extend(DSC_Script.load_dsc(f + '.dsc'))
                     elif os.path.isfile(f):
                         new_content.extend(DSC_Script.load_dsc(f))
                     else:
-                        raise FormatError(f'Cannot find file ``{f}`` to include.')
-        return new_content + [x for x in content if not x.startswith('%') and not x.startswith('#!')]
+                        raise FormatError(
+                            f'Cannot find file ``{f}`` to include.')
+        return new_content + [
+            x for x in content
+            if not x.startswith('%') and not x.startswith('#!')
+        ]
 
     def update(self, text, exe):
         if len(text) == 1 and text[0].strip().endswith(':'):
@@ -163,29 +200,40 @@ class DSC_Script:
                 block = parse_dsc_string('\n'.join(text))
             except Exception as e:
                 if 'Duplicate key is not allowed' in str(e):
-                    raise FormatError("{}, in DSC configuration:\n``{}``".format(str(e), '\n'.join(text)))
+                    raise FormatError(
+                        "{}, in DSC configuration:\n``{}``".format(
+                            str(e), '\n'.join(text)))
                 else:
-                    env.logger.warning('Invalid format (see error message at the end)\n' + '\n'.join(text))
-                    raise FormatError(f"Input text has caused DSC parser error ``{e}``")
+                    env.logger.warning(
+                        'Invalid format (see error message at the end)\n' +
+                        '\n'.join(text))
+                    raise FormatError(
+                        f"Input text has caused DSC parser error ``{e}``")
         if len(block) > 1:
             # An error usually caused by ill-formatted config file format
-            raise FormatError(f"Invalid block \"``{list(block.keys())[1]}``\" detected.")
+            raise FormatError(
+                f"Invalid block \"``{list(block.keys())[1]}``\" detected.")
         for idx, k in enumerate([x[0] for x in recursive_items(block)]):
             self.validate_var_name(str(k), idx)
         name = re.sub(re.compile(r'\s+'), '', list(block.keys())[0])
         block[name] = block.pop(list(block.keys())[0])
         if not isinstance(block[name], Mapping):
-            raise FormatError(f"Code block ``{name}`` has format issues! Please make sure variables follow from ``key:(space)item`` format.")
+            raise FormatError(
+                f"Code block ``{name}`` has format issues! Please make sure variables follow from ``key:(space)item`` format."
+            )
         if exe:
             exe = parse_exe(exe)
             block[name]['@EXEC'] = exe[0]
             for k, v in exe[1].items():
                 if k in block[name] and block[name][k] != v:
-                    raise FormatError(f"Block ``{name}`` has property conflicts for ``{k}``: ``{block[name][k]}`` or ``{v}``?")
+                    raise FormatError(
+                        f"Block ``{name}`` has property conflicts for ``{k}``: ``{block[name][k]}`` or ``{v}``?"
+                    )
                 block[name][k] = v
         if name in self.content:
             if name != 'DSC':
-                warnings.warn(f'Overwriting existing module definition ``{name}``...')
+                warnings.warn(
+                    f'Overwriting existing module definition ``{name}``...')
         self.content.update(block)
 
     def get_global_params(self, gparams):
@@ -211,7 +259,9 @@ class DSC_Script:
             if k in self.content['DSC']['global']:
                 self.content['DSC']['global'][k] = ', '.join(global_vars[k])
             else:
-                env.logger.warning(f'Parameter ``--{k}`` is ignored because it is not found in ``DSC::global`` section.')
+                env.logger.warning(
+                    f'Parameter ``--{k}`` is ignored because it is not found in ``DSC::global`` section.'
+                )
 
     def set_global_vars(self, gvars):
         if gvars is None:
@@ -230,26 +280,38 @@ class DSC_Script:
         if groups:
             val = (groups.group(1).strip(), groups.group(2).strip())
         else:
-            val = (val,)
-        val = flatten_list([[vv.strip() for vv in v.split(',') if vv.strip()] for v in val])
+            val = (val, )
+        val = flatten_list([[vv.strip() for vv in v.split(',') if vv.strip()]
+                            for v in val])
         for vv in val:
-            if is_parameter == 0 and (not vv.isidentifier() or vv.startswith('_') or vv.endswith('_')):
-                raise FormatError(f'Invalid module name ``{vv}``.\n{identifier} ')
+            if is_parameter == 0 and (not vv.isidentifier() or
+                                      vv.startswith('_') or vv.endswith('_')):
+                raise FormatError(
+                    f'Invalid module name ``{vv}``.\n{identifier} ')
             if is_parameter == 0:
                 continue
             if vv.startswith('_') or vv.endswith('_'):
-                raise FormatError(f"Names cannot start or end with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R.\n{tip}")
+                raise FormatError(
+                    f"Names cannot start or end with underscore, in ``{vv}``. Note that such naming convention is not acceptable to R.\n{tip}"
+                )
             if '.' in vv:
-                raise FormatError(f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL.\n{tip}")
+                raise FormatError(
+                    f"Dot is not allowed for module / variable names, in ``{vv}``. Note that dotted names is not acceptable to Python and SQL.\n{tip}"
+                )
             if '$' in vv[1:] or vv == '$':
-                raise FormatError(f"``$`` is not allowed in module / variable names, in ``{vv}``.")
+                raise FormatError(
+                    f"``$`` is not allowed in module / variable names, in ``{vv}``."
+                )
             if '@' in vv[1:]:
                 raise FormatError(f'Invalid variable name ``{vv}``')
             if not (vv == '*' or vv.startswith('@') or vv.startswith('$')):
                 if not vv.isidentifier():
-                    raise FormatError(f'Invalid variable name ``{vv}``.\n{identifier}')
+                    raise FormatError(
+                        f'Invalid variable name ``{vv}``.\n{identifier}')
             if vv in SOS_KW:
-                raise FormatError(f'Variable name ``{vv}`` conflicts with DSC reserved keywords.')
+                raise FormatError(
+                    f'Variable name ``{vv}`` conflicts with DSC reserved keywords.'
+                )
 
     def get_derived_blocks(self):
         '''
@@ -267,7 +329,9 @@ class DSC_Script:
             if groups:
                 derived[block] = (groups.group(1), groups.group(2))
                 if ',' in derived[block][1]:
-                    raise FormatError(f"Invalid base module name ``{derived[block][1]}``. Base module has to be single module.")
+                    raise FormatError(
+                        f"Invalid base module name ``{derived[block][1]}``. Base module has to be single module."
+                    )
             else:
                 base.extend(block.split(','))
                 blocks.append(block)
@@ -275,19 +339,27 @@ class DSC_Script:
             return derived, list(self.content.keys())
         # get module level derivation
         # [(derived, base), ()...]
-        tmp = sum([cartesian_list(*[y.split(',') for y in x]) for x in derived.values()], [])
+        tmp = sum([
+            cartesian_list(*[y.split(',') for y in x])
+            for x in derived.values()
+        ], [])
         # Check self-derivation and non-existing base
         for item in tmp:
             if item[0] == item[1]:
-                raise FormatError(f"Looped block inheritance: {item[0]}({item[0]})!")
+                raise FormatError(
+                    f"Looped block inheritance: {item[0]}({item[0]})!")
             if item[1] not in base and item[1] not in [x[0] for x in tmp]:
-                raise FormatError(f"Base block ``{item[1]}`` does not exist for {item[0]}({item[1]})!")
+                raise FormatError(
+                    f"Base block ``{item[1]}`` does not exist for {item[0]}({item[1]})!"
+                )
         # now create duplicates by swapping
         # and looped derivations: x(y) and y(x)
         tmp = [sorted(x) for x in tmp]
         for item in ((i, tmp.count(i)) for i in tmp):
             if item[1] > 1:
-                raise FormatError(f"Looped block inheritance: {item[0][0]}({item[0][1]}) and {item[0][1]}({item[0][0]})!")
+                raise FormatError(
+                    f"Looped block inheritance: {item[0][0]}({item[0][1]}) and {item[0][1]}({item[0][0]})!"
+                )
         #
         derived_cycle = itertools.cycle(derived.values())
         while True:
@@ -308,43 +380,63 @@ class DSC_Script:
         '''
         res = dict()
         # expand module executables
-        modules = block.split(',') if derived is None else derived[0].split(',')
+        modules = block.split(',') if derived is None else derived[0].split(
+            ',')
         if len([x for n, x in enumerate(modules) if x in modules[:n]]):
-            raise FormatError(f"Duplicate module in block ``{','.join(modules)}``.")
+            raise FormatError(
+                f"Duplicate module in block ``{','.join(modules)}``.")
         if derived is not None and '@EXEC' not in self.content[block]:
             try:
-                self.content[block]['@EXEC'] = [self.content[derived[1]]['meta']['exec']]
+                self.content[block]['@EXEC'] = [
+                    self.content[derived[1]]['meta']['exec']
+                ]
             except KeyError:
-                raise FormatError(f"Cannot derive executable for ``{block}`` from its base module ``{derived[1]}``. Please specify it explicitly.")
+                raise FormatError(
+                    f"Cannot derive executable for ``{block}`` from its base module ``{derived[1]}``. Please specify it explicitly."
+                )
         if '@EXEC' in self.content[block]:
-            if len(modules) != len(self.content[block]['@EXEC']) and len(self.content[block]['@EXEC']) > 1:
-                raise FormatError(f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['@EXEC'])}`` executables are provided.")
+            if len(modules) != len(self.content[block]['@EXEC']) and len(
+                    self.content[block]['@EXEC']) > 1:
+                raise FormatError(
+                    f"Block ``{', '.join(modules)}`` specifies ``{len(modules)}`` modules, yet ``{len(self.content[block]['@EXEC'])}`` executables are provided."
+                )
             if len(modules) > 1 and len(self.content[block]['@EXEC']) == 1:
-                self.content[block]['@EXEC'] = self.content[block]['@EXEC'] * len(modules)
+                self.content[block][
+                    '@EXEC'] = self.content[block]['@EXEC'] * len(modules)
         # collection module specific parameters
-        tmp = dict([(module, dict([('global', dict()), ('local', dict())])) for module in modules])
+        tmp = dict([(module, dict([('global', dict()), ('local', dict())]))
+                    for module in modules])
         for key in self.content[block]:
             if key.startswith('@') and key not in DSC_MODP:
                 # then possibly it is executables
                 # we'll update executable specific information
                 for m in key[1:].split(','):
                     if m.strip() not in modules:
-                        raise FormatError(f'Undefined decoration ``@{m.strip()}``.')
+                        raise FormatError(
+                            f'Undefined decoration ``@{m.strip()}``.')
                     else:
                         for kk, ii in self.content[block][key].items():
                             if isinstance(ii, Mapping):
                                 if not kk.startswith('@'):
-                                    raise FormatError(f'Invalid decoration ``{kk}``. Decorations must start with ``@`` symbol.')
+                                    raise FormatError(
+                                        f'Invalid decoration ``{kk}``. Decorations must start with ``@`` symbol.'
+                                    )
                                 if kk not in DSC_MODP:
-                                    raise FormatError(f'Undefined decoration ``@{kk[1:]}``.')
+                                    raise FormatError(
+                                        f'Undefined decoration ``@{kk[1:]}``.')
                                 else:
                                     continue
-                        tmp[m.strip()]['local'].update(self.content[block][key])
+                        tmp[m.strip()]['local'].update(
+                            self.content[block][key])
             elif key == '@EXEC':
                 for idx, module in enumerate(modules):
-                    tmp[module]['global'][key] = list(self.content[block][key][idx])
-            elif key not in DSC_MODP and isinstance(self.content[block][key], Mapping):
-                raise FormatError(f'Invalid decoration ``{key}``. Decorations must start with ``@`` symbol.')
+                    tmp[module]['global'][key] = list(
+                        self.content[block][key][idx])
+            elif key not in DSC_MODP and isinstance(self.content[block][key],
+                                                    Mapping):
+                raise FormatError(
+                    f'Invalid decoration ``{key}``. Decorations must start with ``@`` symbol.'
+                )
             else:
                 for module in modules:
                     tmp[module]['global'][key] = self.content[block][key]
@@ -355,42 +447,57 @@ class DSC_Script:
             if module in self.content:
                 raise FormatError(f'Duplicate module definition ``{module}``')
             if DSC_RESERVED_MODULE.search(module):
-                raise FormatError(f'Invalid module name ``"{module}"``: cannot end with ``_[0-9]`` or conflict with DSC reserved keys.')
+                raise FormatError(
+                    f'Invalid module name ``"{module}"``: cannot end with ``_[0-9]`` or conflict with DSC reserved keys.'
+                )
             if derived is not None:
                 res[module] = copy.deepcopy(self.content[derived[1]])
             else:
-                res[module] = dict([('input', dict()), ('output', dict()), ('meta', dict())])
+                res[module] = dict([('input', dict()), ('output', dict()),
+                                    ('meta', dict())])
             for item in ['global', 'local']:
                 for key in tmp[module][item]:
                     if key.startswith('$'):
                         res[module]['output'][key[1:]] = tmp[module][item][key]
                     elif key.startswith('@'):
-                        res[module]['meta'][key[1:].lower()] = tmp[module][item][key]
+                        res[module]['meta'][
+                            key[1:].lower()] = tmp[module][item][key]
                     else:
                         res[module]['input'][key] = tmp[module][item][key]
         for module in res:
-            conflict = [x for x in res[module]['input']
-                        if x in res[module]['output'] and not (isinstance(res[module]['input'][x][0], str) and res[module]['input'][x][0].startswith('$'))]
+            conflict = [
+                x for x in res[module]['input'] if x in res[module]['output']
+                and not (isinstance(res[module]['input'][x][0], str)
+                         and res[module]['input'][x][0].startswith('$'))
+            ]
             if len(conflict):
-                raise FormatError(f"Name ``{conflict[0]}`` cannot be used for both parameter and output for module ``{module}``")
+                raise FormatError(
+                    f"Name ``{conflict[0]}`` cannot be used for both parameter and output for module ``{module}``"
+                )
         self.content.update(res)
 
     def init_dsc(self, env):
-        os.makedirs(DSC_CACHE, exist_ok = True)
+        os.makedirs(DSC_CACHE, exist_ok=True)
         if os.path.dirname(self.runtime.output):
-            os.makedirs(os.path.dirname(self.runtime.output), exist_ok = True)
+            os.makedirs(os.path.dirname(self.runtime.output), exist_ok=True)
         if env.verbosity > 2:
             env.logfile = os.path.basename(self.runtime.output) + '.log'
             if os.path.isfile(env.logfile):
                 os.remove(env.logfile)
-        if os.path.isfile(os.path.basename(self.runtime.output) + '.scripts.html'):
+        if os.path.isfile(
+                os.path.basename(self.runtime.output) + '.scripts.html'):
             os.remove(os.path.basename(self.runtime.output) + '.scripts.html')
         update_gitconf()
 
     def dump(self):
-        res = dict([('Modules', self.modules),
-                    ('DSC', dict([("Sequence", self.runtime.sequence),
-                                  ("Ordering", [(x, y) for x, y in self.runtime.sequence_ordering.items()])]))])
+        res = dict([
+            ('Modules', self.modules),
+            ('DSC',
+             dict([("Sequence", self.runtime.sequence),
+                   ("Ordering",
+                    [(x, y)
+                     for x, y in self.runtime.sequence_ordering.items()])]))
+        ])
         return res
 
     def __str__(self):
@@ -399,33 +506,46 @@ class DSC_Script:
         return res
 
     def print_help(self, print_version=False, to_html=False):
-        res = {'modules': OrderedDict([(' ', []), ('parameters', []),
-                                       ('input', []), ('output', []), ('type', [])])}
+        res = {
+            'modules':
+            OrderedDict([(' ', []), ('parameters', []), ('input', []),
+                         ('output', []), ('type', [])])
+        }
         modules = list(self.runtime.sequence_ordering.keys())
-        modules = sorted(list(self.content.keys()), key=lambda x: modules.index(x) if x in modules else 10**5)
+        modules = sorted(list(self.content.keys()),
+                         key=lambda x: modules.index(x)
+                         if x in modules else 10**5)
         for k in modules:
             if k == 'DSC':
                 pipelines = self.content[k]['run']
                 if isinstance(pipelines, Mapping):
-                    pipelines = [(k, ', '.join(v)) for k, v in pipelines.items()]
+                    pipelines = [(k, ', '.join(v))
+                                 for k, v in pipelines.items()]
                 else:
-                    pipelines = [(k+1, v) for k, v in enumerate(pipelines)]
-                res['pipelines'] = '\n'.join([f'{x[0]}: ' + re.sub(r"\s\*\s", ' -> ', x[1]) for x in pipelines])
+                    pipelines = [(k + 1, v) for k, v in enumerate(pipelines)]
+                res['pipelines'] = '\n'.join([
+                    f'{x[0]}: ' + re.sub(r"\s\*\s", ' -> ', x[1])
+                    for x in pipelines
+                ])
                 if 'define' in self.content[k]:
                     res['groups'] = self.content[k]['define']
             else:
                 res['modules'][' '].append(k)
-                res['modules']['output'].append(', '.join(sorted(self.content[k]['output'].keys())))
+                res['modules']['output'].append(', '.join(
+                    sorted(self.content[k]['output'].keys())))
                 inputs = []
                 params = []
                 for x in self.content[k]['input']:
-                    if isinstance(self.content[k]['input'][x][0], str) and self.content[k]['input'][x][0].startswith('$'):
+                    if isinstance(
+                            self.content[k]['input'][x][0], str
+                    ) and self.content[k]['input'][x][0].startswith('$'):
                         inputs.append(self.content[k]['input'][x][0][1:])
                     else:
                         params.append(x)
                 res['modules']['input'].append(', '.join(sorted(inputs)))
                 res['modules']['parameters'].append(', '.join(sorted(params)))
-                res['modules']['type'].append(self.modules[k].exe['type'] if k in self.modules else 'unused')
+                res['modules']['type'].append(self.modules[k].exe['type'] if k
+                                              in self.modules else 'unused')
         from prettytable import PrettyTable
         from prettytable import MSWORD_FRIENDLY
         output_string = []
@@ -433,7 +553,8 @@ class DSC_Script:
         t.set_style(MSWORD_FRIENDLY)
         # the master table
         for key, value in res['modules'].items():
-            t.add_column(f'- {key} -' if key.strip() and not to_html else key, value)
+            t.add_column(f'- {key} -' if key.strip() and not to_html else key,
+                         value)
         if not to_html:
             env.logger.info("``MODULES``")
         # sub-tables
@@ -442,33 +563,50 @@ class DSC_Script:
         reported_rows = []
         if self.runtime.groups:
             for group, values in groups.items():
-                rm = [idx for idx, item in enumerate(res['modules'][' ']) if item not in values]
+                rm = [
+                    idx for idx, item in enumerate(res['modules'][' '])
+                    if item not in values
+                ]
                 if len(values) == len(rm):
                     continue
                 t_group = copy.deepcopy(t)
                 for i in reversed(rm):
                     t_group.del_row(i)
                 if to_html:
-                    output_string.append(t_group.get_html_string(title = f"<b>Group [{group}]</b>"))
+                    output_string.append(
+                        t_group.get_html_string(
+                            title=f"<b>Group [{group}]</b>"))
                 else:
-                    print(t_group.get_string(title = f"Group [{group}]"))
+                    print(t_group.get_string(title=f"Group [{group}]"))
                     print('')
-                reported_rows.extend([i for i in range(len(res['modules'][' '])) if i not in rm])
-        rm_rows = [i for i in range(len(res['modules'][' '])) if i in reported_rows]
+                reported_rows.extend([
+                    i for i in range(len(res['modules'][' '])) if i not in rm
+                ])
+        rm_rows = [
+            i for i in range(len(res['modules'][' '])) if i in reported_rows
+        ]
         if len(rm_rows) < len(res['modules'][' ']):
             for i in reversed(rm_rows):
                 t.del_row(i)
             if to_html:
-                output_string.append(t.get_html_string(title = '<b>Ungrouped</b>' if len(rm_rows) else '<b>All modules</b>'))
+                output_string.append(
+                    t.get_html_string(title='<b>Ungrouped</b>' if len(rm_rows)
+                                      else '<b>All modules</b>'))
             else:
-                print(t.get_string(title = 'Ungrouped' if len(rm_rows) else 'All modules'))
+                print(
+                    t.get_string(
+                        title='Ungrouped' if len(rm_rows) else 'All modules'))
                 print('')
         if not to_html:
             env.logger.info("``PIPELINES``")
             print(res['pipelines'] + '\n')
             env.logger.info("``PIPELINES EXPANDED``")
-            print('\n'.join([f'{i+1}: ' + ' * '.join(x) for i, x in enumerate(self.runtime.sequence)]) + '\n')
-        if print_version and len([x for x in self.runtime.rlib if not x.startswith('dscrutils')]):
+            print('\n'.join([
+                f'{i+1}: ' + ' * '.join(x)
+                for i, x in enumerate(self.runtime.sequence)
+            ]) + '\n')
+        if print_version and len(
+            [x for x in self.runtime.rlib if not x.startswith('dscrutils')]):
             env.logger.info("Scanning package versions ...")
             from .utils import get_rlib_versions
             libs, versions = get_rlib_versions(self.runtime.rlib)
@@ -476,7 +614,7 @@ class DSC_Script:
             t.add_column('name', libs)
             t.add_column('version', versions)
             if to_html:
-                output_string.append(t.get_html_string(title = 'R libraries'))
+                output_string.append(t.get_html_string(title='R libraries'))
             else:
                 env.logger.info("``R LIBRARIES``")
                 print(t)
@@ -488,7 +626,7 @@ class DSC_Script:
             t.add_column('name', libs)
             t.add_column('version', versions)
             if to_html:
-                output_string.append(t.get_html_string(title = 'Python modules'))
+                output_string.append(t.get_html_string(title='Python modules'))
             else:
                 env.logger.info("``PYTHON MODULES``")
                 print(t)
@@ -497,7 +635,12 @@ class DSC_Script:
 
 
 class DSC_Module:
-    def __init__(self, name, content, global_options = None, script_path = None, lite = False):
+    def __init__(self,
+                 name,
+                 content,
+                 global_options=None,
+                 script_path=None,
+                 lite=False):
         # module name
         self.name = name
         # params: alias, value
@@ -523,15 +666,18 @@ class DSC_Module:
         self.depends = []
         # check if it runs in shell
         # Now init these values
-        self.set_options(global_options, try_get_value(content, ('meta', 'conf')))
+        self.set_options(global_options,
+                         try_get_value(content, ('meta', 'conf')))
         self.set_exec(content['meta']['exec'])
-        self.set_input(try_get_value(content, 'input'), try_get_value(content, ('meta', 'alias')))
+        self.set_input(try_get_value(content, 'input'),
+                       try_get_value(content, ('meta', 'alias')))
         self.set_output(content['output'])
         self.apply_input_operator()
         if lite:
             self.chop_input()
         # parameter filter:
-        self.ft = self.apply_input_filter(try_get_value(content, ('meta', 'filter')))
+        self.ft = self.apply_input_filter(
+            try_get_value(content, ('meta', 'filter')))
 
     @staticmethod
     def pop_lib(vec, lib):
@@ -551,12 +697,22 @@ class DSC_Module:
         - ['R', ['mse = (mean_est-true_mean)^2']]
         - ('unknown', ['datamaker.py', 'split'])
         '''
-        self.exe = {'path': [], 'content': [], 'args': None, 'signature': None,
-                    'file': [], 'type': 'unknown', 'header': [], 'interpreter': None}
+        self.exe = {
+            'path': [],
+            'content': [],
+            'args': None,
+            'signature': None,
+            'file': [],
+            'type': 'unknown',
+            'header': [],
+            'interpreter': None
+        }
         for etype, item in zip(exe[0], exe[1:]):
             if len(item) > 1:
                 if self.exe['args'] is not None:
-                    raise FormatError(f"Executable arguments conflict near ``{item[0]}``: ``{' '.join(self.exe['args'])}`` or ``{' '.join(item[1:])}``?")
+                    raise FormatError(
+                        f"Executable arguments conflict near ``{item[0]}``: ``{' '.join(self.exe['args'])}`` or ``{' '.join(item[1:])}``?"
+                    )
                 else:
                     self.exe['args'] = item[1:]
             if etype != 'unknown':
@@ -565,7 +721,9 @@ class DSC_Module:
                     if self.exe['type'] == 'unknown':
                         self.exe['type'] = etype
                     else:
-                        raise FormatError(f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item[0]}``.")
+                        raise FormatError(
+                            f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item[0]}``."
+                        )
                 self.exe['content'].append(item[0])
             else:
                 # is executable
@@ -586,10 +744,14 @@ class DSC_Module:
                     # FIXME: need to do it differently if host is involved
                     # ie, to check the remote computer not the current computer
                     if not executable(item[0]).target_exists():
-                        raise FormatError(f"Cannot find executable ``{item[0]}`` in DSC \"exec_path\" or system \"PATH\".")
+                        raise FormatError(
+                            f"Cannot find executable ``{item[0]}`` in DSC \"exec_path\" or system \"PATH\"."
+                        )
                     self.exe['path'].append(item[0])
                     if etype in ['PY', 'R']:
-                        env.logger.warning(f'Cannot find script ``{item[0]}`` in path ``{self.path}``. DSC will treat it a command line executable.')
+                        env.logger.warning(
+                            f'Cannot find script ``{item[0]}`` in path ``{self.path}``. DSC will treat it a command line executable.'
+                        )
                 else:
                     # try determine self.exe['type']
                     if etype == '':
@@ -597,52 +759,86 @@ class DSC_Module:
                     if self.exe['type'] == 'unknown':
                         self.exe['type'] = etype
                     if self.exe['type'] != etype:
-                        raise FormatError(f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item[0]}``.")
+                        raise FormatError(
+                            f"Cannot mix ``{etype}`` and ``{self.exe['type']}`` codes, near ``{item[0]}``."
+                        )
                     # load contents
                     if etype != 'unknown':
-                        self.exe['content'].extend(open(fpath, 'r').readlines() if not is_rmd else rmd_to_r(fpath, chunk_pattern = rmd_chunk_pattern))
+                        self.exe['content'].extend(
+                            open(fpath, 'r').readlines() if not is_rmd else
+                            rmd_to_r(fpath, chunk_pattern=rmd_chunk_pattern))
                     else:
                         self.exe['path'].append(fpath)
                 if is_rmd:
-                    env.logger.warning(f'Source code of ``{self.name}`` is loaded from ``{item[0]}``. This is only recommended for prototyping.')
+                    env.logger.warning(
+                        f'Source code of ``{self.name}`` is loaded from ``{item[0]}``. This is only recommended for prototyping.'
+                    )
         assert len(self.exe['path']) == 0 or len(self.exe['content']) == 0
         if len(self.exe['path']) > 1:
-            raise FormatError(f"Cannot mix multiple executables ``{self.exe['path']}`` in one module ``{self.name}``.")
+            raise FormatError(
+                f"Cannot mix multiple executables ``{self.exe['path']}`` in one module ``{self.name}``."
+            )
         if len(self.exe['path']):
             self.exe['path'] = self.exe['path'][0]
         if len(self.exe['path']) == 0 and len(self.exe['content']) == 0:
             raise FormatError(f"Contents in ``{self.exe['file']}`` is empty!")
         if self.exe['type'] == 'R':
             # check if Rscript command exists
-            if self.exe['interpreter'] is None and not executable('Rscript').target_exists():
-                raise ValueError(f'Executable ``Rscript`` is required to run module ``"{self.name}"`` yet is not available from command-line console.')
+            if self.exe['interpreter'] is None and not executable(
+                    'Rscript').target_exists():
+                raise ValueError(
+                    f'Executable ``Rscript`` is required to run module ``"{self.name}"`` yet is not available from command-line console.'
+                )
             # auto-import R libraries (but not Python!)
-            self.exe['header'], self.exe['content'] = self.pop_lib(self.exe['content'], DSC_RLIB)
+            self.exe['header'], self.exe['content'] = self.pop_lib(
+                self.exe['content'], DSC_RLIB)
             if self.rlib:
-                self.exe['header'] = [f'library({x.split()[0].split("@")[0]})' for x in self.rlib] + self.exe['header']
+                self.exe['header'] = [
+                    f'library({x.split()[0].split("@")[0]})' for x in self.rlib
+                ] + self.exe['header']
         self.exe['header'] = '\n'.join(uniq_list(self.exe['header']))
-        self.exe['content'] = '\n'.join([x.rstrip() for x in self.exe['content']
-                                         if x.strip() and not x.strip().startswith('#')])
+        self.exe['content'] = '\n'.join([
+            x.rstrip() for x in self.exe['content']
+            if x.strip() and not x.strip().startswith('#')
+        ])
         # scan for library signatures
         if self.libpath_tracked is not None:
-            libs = [glob.glob(os.path.join(os.path.expanduser(x), f'*.{self.exe["type"]}')) for x in self.libpath_tracked]
-            libs.extend([glob.glob(os.path.join(os.path.expanduser(x), f'*.{self.exe["type"].lower()}')) for x in self.libpath_tracked])
+            libs = [
+                glob.glob(
+                    os.path.join(os.path.expanduser(x),
+                                 f'*.{self.exe["type"]}'))
+                for x in self.libpath_tracked
+            ]
+            libs.extend([
+                glob.glob(
+                    os.path.join(os.path.expanduser(x),
+                                 f'*.{self.exe["type"].lower()}'))
+                for x in self.libpath_tracked
+            ])
             lib_signature = ' '.join([fileMD5(x) for x in flatten_list(libs)])
         else:
             lib_signature = ''
-        self.exe['signature'] = xxh(((executable(self.exe['path']).target_signature() if executable(self.exe['path']).target_exists() else fileMD5(self.exe['path'], partial = False)) if len(self.exe['path']) else self.exe['content']) + (' '.join(self.exe['args']) if self.exe['args'] else '') + lib_signature).hexdigest()
+        self.exe['signature'] = xxh(
+            ((executable(self.exe['path']).
+              target_signature() if executable(self.exe['path']).target_exists(
+              ) else fileMD5(self.exe['path'], partial=False)
+              ) if len(self.exe['path']) else self.exe['content']) +
+            (' '.join(self.exe['args']) if self.exe['args'] else '') +
+            lib_signature).hexdigest()
         self.plugin = Plugin(self.exe['type'], self.exe['signature'])
-
 
     def set_output(self, return_var):
         '''
         Figure out if output is a variable, file or plugin
         '''
         if len(return_var) == 0:
-            raise FormatError(f"Please specify output variables for module ``{self.name}``.")
+            raise FormatError(
+                f"Please specify output variables for module ``{self.name}``.")
         for key, value in return_var.items():
             if len(value) > 1 or isinstance(value[0], tuple):
-                raise FormatError(f"Module output ``{key}`` cannot contain multiple elements ``{value}``")
+                raise FormatError(
+                    f"Module output ``{key}`` cannot contain multiple elements ``{value}``"
+                )
             value = value[0]
             in_input = try_get_value(self.p, value)
             if in_input:
@@ -655,8 +851,12 @@ class DSC_Module:
                     groups = DSC_FILE_OP.search(p)
                     if groups:
                         if len(groups.group(1).strip('.')) == 0:
-                            raise FormatError(f'Parameter ``{value}``, when used as output file ``{key}``, must have an extension specified!')
-                        self.rf[key] = '{}.{}'.format(value, groups.group(1).strip('.').strip())
+                            raise FormatError(
+                                f'Parameter ``{value}``, when used as output file ``{key}``, must have an extension specified!'
+                            )
+                        self.rf[key] = '{}.{}'.format(
+                            value,
+                            groups.group(1).strip('.').strip())
                         break
             if key in self.rf:
                 continue
@@ -671,7 +871,10 @@ class DSC_Module:
             # For file
             groups = DSC_FILE_OP.search(value)
             if groups:
-                self.rf[key] = '{}.{}'.format(key, groups.group(1).strip('.').strip()) if key != groups.group(1).strip('.').strip() else key
+                self.rf[key] = '{}.{}'.format(
+                    key,
+                    groups.group(1).strip('.').strip()
+                ) if key != groups.group(1).strip('.').strip() else key
             else:
                 self.rv[key] = value
 
@@ -684,12 +887,22 @@ class DSC_Module:
                     valid = True
                     break
             if not valid:
-                raise FormatError(f"Cannot find module ``{self.name}`` in @CONF specification ``{list(spec_option.keys())}``.")
-        spec_option = [tuple(x.strip() for x in item.split('=', 1)) for item in spec_option] if spec_option is not None else []
+                raise FormatError(
+                    f"Cannot find module ``{self.name}`` in @CONF specification ``{list(spec_option.keys())}``."
+                )
+        spec_option = [
+            tuple(x.strip() for x in item.split('=', 1))
+            for item in spec_option
+        ] if spec_option is not None else []
         for x in spec_option:
             if not len(x) == 2:
-                raise FormatError(f'Format error in @CONF ``{"=".join(x)}`` of module ``{self.name}``\nTip: should be "option = value" or "option = (value_1, value_2, ...)"\neg, "R_libs = (package_1 (version), package_2)".')
-        spec_option = dict([(k, [remove_quotes(x) for x in Str2List()(remove_parens(v))]) for k, v in spec_option])
+                raise FormatError(
+                    f'Format error in @CONF ``{"=".join(x)}`` of module ``{self.name}``\nTip: should be "option = value" or "option = (value_1, value_2, ...)"\neg, "R_libs = (package_1 (version), package_2)".'
+                )
+        spec_option = dict([
+            (k, [remove_quotes(x) for x in Str2List()(remove_parens(v))])
+            for k, v in spec_option
+        ])
         # Override global options
         workdir1 = try_get_value(common_option, 'work_dir')
         workdir2 = try_get_value(spec_option, 'work_dir')
@@ -713,19 +926,26 @@ class DSC_Module:
                     self.pg.append(ps)
                     for pp in ps:
                         if pp in self.p:
-                            raise FormatError(f'Cannot add in duplicate parameter ``{pp}`` to module {self.name}')
+                            raise FormatError(
+                                f'Cannot add in duplicate parameter ``{pp}`` to module {self.name}'
+                            )
                         else:
                             self.p[pp] = []
                     for item in params[p]:
-                        if not isinstance(item, tuple) and len(item) == len(ps):
-                            raise FormatError(f'Parameter group ``{p}`` and value ``{item}`` should have same length')
+                        if not isinstance(item,
+                                          tuple) and len(item) == len(ps):
+                            raise FormatError(
+                                f'Parameter group ``{p}`` and value ``{item}`` should have same length'
+                            )
                         for pp, ii in zip(ps, item):
                             self.p[pp].append(ii)
                 else:
                     if p not in self.p:
                         self.p[p] = params[p]
                     else:
-                        raise FormatError(f'Cannot add in duplicate parameter ``{p}`` to module {self.name}')
+                        raise FormatError(
+                            f'Cannot add in duplicate parameter ``{p}`` to module {self.name}'
+                        )
         if isinstance(alias, Mapping):
             valid = False
             for module in alias:
@@ -734,14 +954,24 @@ class DSC_Module:
                     valid = True
                     break
             if not valid:
-                raise FormatError(f"Cannot find module ``{self.name}`` in @ALIAS specification ``{list(alias.keys())}``.")
+                raise FormatError(
+                    f"Cannot find module ``{self.name}`` in @ALIAS specification ``{list(alias.keys())}``."
+                )
         if alias is not None:
-            alias = [tuple(x.strip() for x in item.split('=', 1)) for item in alias]
+            alias = [
+                tuple(x.strip() for x in item.split('=', 1)) for item in alias
+            ]
             if any([len(x) != 2 for x in alias]):
-                raise FormatError(f'Format error in @ALIAS of module ``{self.name}`` (should be @ALIAS: lhs = rhs).')
-            dups = [item for item, count in Counter([x[0] for x in alias]).items() if count > 1]
+                raise FormatError(
+                    f'Format error in @ALIAS of module ``{self.name}`` (should be @ALIAS: lhs = rhs).'
+                )
+            dups = [
+                item for item, count in Counter([x[0] for x in alias]).items()
+                if count > 1
+            ]
             if len(dups):
-                raise FormatError(f"Duplicated @ALIAS ``{dups}`` in module ``{self.name}``")
+                raise FormatError(
+                    f"Duplicated @ALIAS ``{dups}`` in module ``{self.name}``")
             alias = dict(alias)
         else:
             alias = dict()
@@ -757,20 +987,27 @@ class DSC_Module:
                 self.plugin.alias_map[k2] = k1
                 del alias[k1]
         if len(alias):
-            raise FormatError(f'Invalid @ALIAS for module ``{self.name}``:\n``{dict2str(alias)}``')
+            raise FormatError(
+                f'Invalid @ALIAS for module ``{self.name}``:\n``{dict2str(alias)}``'
+            )
 
     @staticmethod
     def make_filter_statement(ft):
-        ft = parse_filter(ft, dotted = False)[0]
+        ft = parse_filter(ft, dotted=False)[0]
         res = []
-        variables = uniq_list(flatten_list([[ii[1][1] for ii in i] for i in ft]))
+        variables = uniq_list(
+            flatten_list([[ii[1][1] for ii in i] for i in ft]))
         for i in ft:
             tmp = []
             for ii in i:
                 if len(ii[0]):
-                    tmp.append(f'{ii[0]} (_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]})'.strip())
+                    tmp.append(
+                        f'{ii[0]} (_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]})'
+                        .strip())
                 else:
-                    tmp.append(f'_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]}'.strip())
+                    tmp.append(
+                        f'_{ii[1][1]} {ii[2]} {ii[3] if not ii[3] in variables else "_" + ii[3]}'
+                        .strip())
             res.append(f"({' and '.join(tmp)})")
         return ' or '.join(res)
 
@@ -785,14 +1022,24 @@ class DSC_Module:
                     valid = True
                     break
             if not valid:
-                raise FormatError(f"Cannot find module ``{self.name}`` in @FILTER specification ``{list(ft.keys())}``.")
+                raise FormatError(
+                    f"Cannot find module ``{self.name}`` in @FILTER specification ``{list(ft.keys())}``."
+                )
         if isinstance(ft, Mapping):
-            raise FormatError(f"Invalid @FILTER format for module ``{self.name}`` (cannot be a key-value mapping).")
+            raise FormatError(
+                f"Invalid @FILTER format for module ``{self.name}`` (cannot be a key-value mapping)."
+            )
         # then generate filter from self.pg
         tmp = []
         for group in self.pg:
             for j in range(len(self.p[group[0]])):
-                tmp.append(" AND ".join(["{} = {}".format(g, repr(self.p[g][j]) if isinstance(self.p[g][j], str) else self.p[g][j]) for g in group]))
+                tmp.append(" AND ".join([
+                    "{} = {}".format(
+                        g,
+                        repr(self.p[g][j])
+                        if isinstance(self.p[g][j], str) else self.p[g][j])
+                    for g in group
+                ]))
         if len(tmp):
             ft.append(' OR '.join([f"({x})" for x in tmp]))
         if len(ft) == 0:
@@ -812,7 +1059,9 @@ class DSC_Module:
         except Exception:
             raise FormatError(f"Invalid @FILTER: ``{raw_rule}``!")
         if exec_env['ret'] == 0:
-            raise FormatError(f"No parameter combination satisfies @FILTER ``{' AND '.join(raw_rule)}``!")
+            raise FormatError(
+                f"No parameter combination satisfies @FILTER ``{' AND '.join(raw_rule)}``!"
+            )
         return ft
 
     def apply_input_operator(self):
@@ -828,9 +1077,13 @@ class DSC_Module:
             for p1 in p:
                 if isinstance(p1, str):
                     if p1.startswith('$') and len(p) > 1:
-                        raise FormatError(f'Module input ``{k}`` cannot contain multiple elements ``{p}``')
+                        raise FormatError(
+                            f'Module input ``{k}`` cannot contain multiple elements ``{p}``'
+                        )
                     if p1.startswith('$') and DSC_GV.search(p1):
-                        raise FormatError(f'Invalid syntax for input module: has to be ``${DSC_GV.search(p1).group(1)}``, not ``{p1}``')
+                        raise FormatError(
+                            f'Invalid syntax for input module: has to be ``${DSC_GV.search(p1).group(1)}``, not ``{p1}``'
+                        )
                     if DSC_ASIS_OP.search(p1):
                         raw_keys.append(k)
                         p1 = DSC_ASIS_OP.search(p1).group(1)
@@ -840,7 +1093,9 @@ class DSC_Module:
                         if k in self.rf:
                             # This file is to be saved as output
                             # FIXME: need support for multiple output
-                            self.plugin.add_input(k, '$[_output:r]' if self.plugin.name == 'bash' else '${_output:r}')
+                            self.plugin.add_input(
+                                k, '$[_output:r]' if self.plugin.name == 'bash'
+                                else '${_output:r}')
                             continue
                         else:
                             # This file is a temp file
@@ -885,17 +1140,20 @@ class DSC_Module:
         return dict2str(self.dump())
 
     def dump(self):
-        return strip_dict(dict([('name', self.name),
-                                ('dependencies', self.depends),
-                                ('command', '+'.join(self.exe['file']) if len(self.exe['file']) else self.exe['content']),
-                                ('input', self.p), ('input_filter', self.ft),
-                                ('output_variables', self.rv),
-                                ('output_files', self.rf),  ('shell_status', len(self.exe['path'])),
-                                ('plugin_status', self.plugin.dump()),
-                                ('runtime_options', dict([('exec_path', self.path),
-                                                          ('workdir', self.workdir),
-                                                          ('library_path', self.libpath)]))]),
-                          mapping = dict, skip_keys = ['input'])
+        return strip_dict(dict([
+            ('name', self.name), ('dependencies', self.depends),
+            ('command', '+'.join(self.exe['file'])
+             if len(self.exe['file']) else self.exe['content']),
+            ('input', self.p), ('input_filter', self.ft),
+            ('output_variables', self.rv), ('output_files', self.rf),
+            ('shell_status', len(self.exe['path'])),
+            ('plugin_status', self.plugin.dump()),
+            ('runtime_options',
+             dict([('exec_path', self.path), ('workdir', self.workdir),
+                   ('library_path', self.libpath)]))
+        ]),
+                          mapping=dict,
+                          skip_keys=['input'])
 
 
 class DSC_Section:
@@ -906,13 +1164,15 @@ class DSC_Section:
                 raise FormatError('Missing required ``DSC::run``.')
             else:
                 self.content['run'] = []
-        self.replicate = replicate if replicate else try_get_value(self.content, 'replicate')
+        self.replicate = replicate if replicate else try_get_value(
+            self.content, 'replicate')
         if isinstance(self.replicate, list):
             self.replicate = self.replicate[0]
         if not isinstance(self.replicate, int) or self.replicate <= 0:
             self.replicate = 1
-        self.replicate = [x+1 for x in range(self.replicate)]
-        self.output = output if output else try_get_value(self.content, 'output')
+        self.replicate = [x + 1 for x in range(self.replicate)]
+        self.output = output if output else try_get_value(
+            self.content, 'output')
         if isinstance(self.output, list):
             self.output = self.output[0]
         self.OP = OperationParser()
@@ -928,7 +1188,8 @@ class DSC_Section:
             self.named_sequence = None
         if sequence is not None:
             for item in sequence:
-                if isinstance(self.content['run'], Mapping) and item in self.content['run']:
+                if isinstance(self.content['run'],
+                              Mapping) and item in self.content['run']:
                     self.sequence.extend(self.content['run'][item])
                 else:
                     self.sequence.append(item)
@@ -940,18 +1201,22 @@ class DSC_Section:
                     self.sequence = flatten_list(self.content['run'].values())
             else:
                 self.sequence = self.content['run']
-        self.sequence = [(x,) if isinstance(x, str) else x
-                         for x in sum([self.OP(self.expand_ensemble(y)) for y in self.sequence], [])]
+        self.sequence = [(x, ) if isinstance(x, str) else x for x in sum(
+            [self.OP(self.expand_ensemble(y)) for y in self.sequence], [])]
         self.sequence = filter_sublist(self.sequence)
         # FIXME: check if modules involved in sequence are indeed defined.
         self.sequence_ordering = self.__merge_sequences(self.sequence)
         self.check_overlaping_groups()
         self.options = dict()
-        self.options['work_dir'] = self.content['work_dir'] if 'work_dir' in self.content else './'
-        self.options['lib_path'] = self.content['lib_path'] if 'lib_path' in self.content else None
-        self.options['exec_path'] = self.content['exec_path'] if 'exec_path' in self.content else None
+        self.options['work_dir'] = self.content[
+            'work_dir'] if 'work_dir' in self.content else './'
+        self.options['lib_path'] = self.content[
+            'lib_path'] if 'lib_path' in self.content else None
+        self.options['exec_path'] = self.content[
+            'exec_path'] if 'exec_path' in self.content else None
         self.rlib = self.content['R_libs'] if 'R_libs' in self.content else []
-        self.pymodule = self.content['python_modules'] if 'python_modules' in self.content else []
+        self.pymodule = self.content[
+            'python_modules'] if 'python_modules' in self.content else []
 
     @staticmethod
     def __merge_sequences(input_sequences):
@@ -986,7 +1251,7 @@ class DSC_Section:
         for lhs, rhs in self.content['define'].items():
             rhs = f"({', '.join(flatten_list(rhs))})"
             for item in reversed(replace_list):
-                rhs =  re.sub(r"\b%s\b" % item[0], item[1], rhs)
+                rhs = re.sub(r"\b%s\b" % item[0], item[1], rhs)
             self.content['define'][lhs] = rhs
             replace_list.append((lhs, rhs))
 
@@ -1013,9 +1278,16 @@ class DSC_Section:
             if '*' not in rhs:
                 # is a valid group
                 # that is, only exists alternating modules not concatenate modules
-                self.groups[lhs] = [x.strip() for x in rhs.replace(')','').replace('(','').split(',')]
+                self.groups[lhs] = [
+                    x.strip()
+                    for x in rhs.replace(')', '').replace('(', '').split(',')
+                ]
             else:
-                self.concats[lhs] = [x.strip() for x in re.split("\,|\*", rhs.replace(')','').replace('(',''))]
+                self.concats[lhs] = [
+                    x.strip()
+                    for x in re.split("\,|\*",
+                                      rhs.replace(')', '').replace('(', ''))
+                ]
             # http://www.regular-expressions.info/wordboundaries.html
             value = re.sub(r"\b%s\b" % lhs, rhs, value)
         return value
@@ -1028,18 +1300,24 @@ class DSC_Section:
                                  'Iteratively executing modules is not yet supported.')
 
     def check_overlaping_groups(self):
-     for i, k1 in enumerate(self.groups.keys()):
+        for i, k1 in enumerate(self.groups.keys()):
             for j, k2 in enumerate(self.groups.keys()):
                 if i > j:
-                    overlap = set(self.groups[k1]).intersection(set(self.groups[k2]))
+                    overlap = set(self.groups[k1]).intersection(
+                        set(self.groups[k2]))
                     if len(overlap):
-                        raise FormatError(f"Overlapping groups ``{k1}: {', '.join(self.groups[k1])}`` and ``{k2}: {', '.join(self.groups[k2])}`` is not allowed!")
+                        raise FormatError(
+                            f"Overlapping groups ``{k1}: {', '.join(self.groups[k1])}`` and ``{k2}: {', '.join(self.groups[k2])}`` is not allowed!"
+                        )
 
     def __str__(self):
-        return dict2str(strip_dict(OrderedDict([('sequences to execute', self.sequence),
-                                                ('sequence ordering', list(self.sequence_ordering.keys())),
-                                                ('R libraries', self.rlib), ( 'Python modules', self.pymodule)]),
-                                   mapping = OrderedDict))
+        return dict2str(
+            strip_dict(OrderedDict([('sequences to execute', self.sequence),
+                                    ('sequence ordering',
+                                     list(self.sequence_ordering.keys())),
+                                    ('R libraries', self.rlib),
+                                    ('Python modules', self.pymodule)]),
+                       mapping=OrderedDict))
 
 
 class DSC_Pipeline:
@@ -1066,7 +1344,9 @@ class DSC_Pipeline:
         '''
         self.pipelines = []
         for sequence in script_data.runtime.sequence:
-            self.add_pipeline(sequence, script_data.modules, list(script_data.runtime.sequence_ordering.keys()))
+            self.add_pipeline(
+                sequence, script_data.modules,
+                list(script_data.runtime.sequence_ordering.keys()))
 
     def add_pipeline(self, sequence, data, ordering):
         pipeline = OrderedDict()
@@ -1076,26 +1356,30 @@ class DSC_Pipeline:
             for k, p in list(module.p.items()):
                 for p1_idx, p1 in enumerate(p):
                     if isinstance(p1, str):
-                        if p1.startswith('$') and not (DSC_GVS.search(p1) or DSC_GV.search(p1)):
-                            id_dependent = self.find_dependent(p1[1:], list(pipeline.values()),
-                                                               module.name)
+                        if p1.startswith('$') and not (DSC_GVS.search(p1)
+                                                       or DSC_GV.search(p1)):
+                            id_dependent = self.find_dependent(
+                                p1[1:], list(pipeline.values()), module.name)
                             if id_dependent[1] not in module.depends:
                                 module.depends.append(id_dependent[1])
-                            if id_dependent[1][2] is None or id_dependent[1][2].split('.')[-1] in ['rds', 'pkl', 'yml']:
+                            if id_dependent[1][2] is None or id_dependent[1][
+                                    2].split('.')[-1] in ['rds', 'pkl', 'yml']:
                                 module.plugin.add_input(k, p1)
                             else:
                                 # FIXME: for multiple output should figure out the index of previous output
-                                file_dependencies.append((id_dependent[0], id_dependent[1], k))
+                                file_dependencies.append(
+                                    (id_dependent[0], id_dependent[1], k))
                             # FIXME: should not delete, but rather transform it, when this
                             # can be properly bypassed on scripts
                             # module.p[k][p1_idx] = repr(p1)
                             module.p[k].pop(p1_idx)
                 if len(module.p[k]) == 0:
                     del module.p[k]
-            module.depends.sort(key = lambda x: ordering.index(x[0]))
+            module.depends.sort(key=lambda x: ordering.index(x[0]))
             if len(file_dependencies):
-                module.plugin.add_input(file_dependencies,
-                                        '$[_input:r]' if module.plugin.name == 'bash' else '${_input:r}')
+                module.plugin.add_input(
+                    file_dependencies, '$[_input:r]'
+                    if module.plugin.name == 'bash' else '${_input:r}')
             pipeline[module.name] = module
         # FIXME: ensure this does not happen
         # Otherwise will have to bring this back
@@ -1106,7 +1390,9 @@ class DSC_Pipeline:
     def find_dependent(variable, pipeline, module_name):
         curr_idx = len(pipeline)
         if curr_idx == 0:
-            raise FormatError(f'``{module_name}`` cannot be the first module in a pipeline because it requires upstream pipeline variable ``${variable}``.')
+            raise FormatError(
+                f'``{module_name}`` cannot be the first module in a pipeline because it requires upstream pipeline variable ``${variable}``.'
+            )
         curr_idx = curr_idx - 1
         dependent = None
         while curr_idx >= 0:
@@ -1116,14 +1402,18 @@ class DSC_Pipeline:
                 dependent = (pipeline[curr_idx].name, variable, None)
             if variable in [x for x in pipeline[curr_idx].rf]:
                 if dependent is not None:
-                    raise FormatError(f'[BUG]: ``{variable}`` cannot be both a variable and a file!')
-                dependent = (pipeline[curr_idx].name, variable, pipeline[curr_idx].rf[variable])
+                    raise FormatError(
+                        f'[BUG]: ``{variable}`` cannot be both a variable and a file!'
+                    )
+                dependent = (pipeline[curr_idx].name, variable,
+                             pipeline[curr_idx].rf[variable])
             if dependent is not None:
                 break
             else:
                 curr_idx = curr_idx - 1
         if dependent is None:
-            upstream_modules = ', '.join([pipeline[i].name for i in range(len(pipeline))])
+            upstream_modules = ', '.join(
+                [pipeline[i].name for i in range(len(pipeline))])
             raise FormatError(f'Output variable ``${variable}`` is required by module ``{module_name}``, but is not available from '\
                               f'any of its upstream modules: ``{upstream_modules}``.')
         return curr_idx, dependent
@@ -1132,15 +1422,18 @@ class DSC_Pipeline:
         res = ''
         for idx, modules in enumerate(self.pipelines):
             res += f'# Pipeline {idx + 1}\n'
-            res += f'## Modules\n' + '\n'.join(['### {x}\n```yaml\n{y}\n```\n' for x, y in modules.items()])
+            res += f'## Modules\n' + '\n'.join(
+                ['### {x}\n```yaml\n{y}\n```\n' for x, y in modules.items()])
         return res
 
 
 def process_based_on(cfg, item):
     if 'based_on' in item:
-        if not isinstance(item['based_on'], (str, list)) or not item['based_on']:
+        if not isinstance(item['based_on'],
+                          (str, list)) or not item['based_on']:
             raise ValueError(
-                f'A string is expected for key based_on. {item["based_on"]} obtained')
+                f'A string is expected for key based_on. {item["based_on"]} obtained'
+            )
 
         referred_keys = [item['based_on']] if isinstance(
             item['based_on'], str) else item['based_on']
@@ -1172,6 +1465,7 @@ def process_based_on(cfg, item):
                 process_based_on(cfg, v)
         return item
 
+
 def remote_config_parser(host, paths):
     conf = None
     for h in [host, f'{host}.yml', f'{host}.yaml']:
@@ -1180,26 +1474,28 @@ def remote_config_parser(host, paths):
     if conf is None:
         raise FormatError(f'Cannot find host configuration file ``{host}``.')
     if 'DSC' not in conf:
-        raise FormatError(f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.')
+        raise FormatError(
+            f'Cannot find required ``DSC`` remote configuration section, in file ``{host}``.'
+        )
     conf['DSC']['localhost'] = {}
     for k, v in conf['DSC'].items():
         if isinstance(v, dict):
             process_based_on(conf['DSC'], v)
         conf['DSC'][k]['address'] = 'localhost'
     default = dict([('queue', list(conf['DSC'].keys())[0]),
-                    ('instances_per_job', 2),
-                    ('nodes_per_job', 1),
-                    ('instances_per_node', 1),
-                    ('cpus_per_instance', 1),
-                    ('mem_per_instance', '2G'),
-                    ('time_per_instance', '5m')])
+                    ('instances_per_job', 2), ('nodes_per_job', 1),
+                    ('instances_per_node', 1), ('cpus_per_instance', 1),
+                    ('mem_per_instance', '2G'), ('time_per_instance', '5m')])
     if len(paths):
         default['prepend_path'] = paths
 
     def check_valid_conf(key):
         for kk in conf[key]:
             if kk not in list(default.keys()):
-                raise FormatError(f"Invalid configuration ``{kk}`` in section ``{key}``. Available configuations are:\n``{', '.join(default.keys())}``.")
+                raise FormatError(
+                    f"Invalid configuration ``{kk}`` in section ``{key}``. Available configuations are:\n``{', '.join(default.keys())}``."
+                )
+
     if 'default' in conf:
         check_valid_conf('default')
         default.update(conf['default'])
@@ -1218,7 +1514,9 @@ def remote_config_parser(host, paths):
         tmp['trunk_size'] = tmp.pop('instances_per_job')
         tmp['trunk_workers'] = f"[{tmp.pop('instances_per_node')}] * {tmp.pop('nodes_per_job')}"
         if tmp['queue'].endswith('.local'):
-            for item in ['walltime', 'mem', 'cores', 'trunk_size', 'trunk_workers']:
+            for item in [
+                    'walltime', 'mem', 'cores', 'trunk_size', 'trunk_workers'
+            ]:
                 tmp.pop(item)
             local_queues.add(tmp['queue'][:-6])
         else:
@@ -1230,23 +1528,34 @@ def remote_config_parser(host, paths):
             del conf[key]
         else:
             conf[key] = tmp
-    undefined_queue = [x for x in queues | local_queues if x not in conf['DSC']]
+    undefined_queue = [
+        x for x in queues | local_queues if x not in conf['DSC']
+    ]
     if len(undefined_queue):
-        raise FormatError(f"Cannot find configuration for queue ``{', '.join(undefined_queue)}`` in ``DSC`` section of file ``{host}``.")
+        raise FormatError(
+            f"Cannot find configuration for queue ``{', '.join(undefined_queue)}`` in ``DSC`` section of file ``{host}``."
+        )
     for k in list(conf['DSC'].keys()):
         if k not in (queues | local_queues) and k != 'localhost':
             del conf['DSC'][k]
             continue
         if 'task_template' in conf['DSC'][k]:
             # SBATCH template has to start from non-space
-            tpl = [x.strip() for x in conf['DSC'][k]['task_template'].split('\n') if x.strip()] + ['sos execute {task} -v {verbosity} -s {sig_mode}']
+            tpl = [
+                x.strip() for x in conf['DSC'][k]['task_template'].split('\n')
+                if x.strip()
+            ] + ['sos execute {task} -v {verbosity} -s {sig_mode}']
             conf['DSC'][k]['task_template'] = '\n'.join(tpl)
         else:
             tpl = None
-        if k in local_queues and 'queue_type' in conf['DSC'][k] and conf['DSC'][k]['queue_type'] != 'process':
-            conf['DSC'][f'{k}.local'] = {'based_on': f'hosts.{k}',
-                                           'queue_type': 'process',
-                                           'status_check_interval': 3}
+        if k in local_queues and 'queue_type' in conf['DSC'][
+                k] and conf['DSC'][k]['queue_type'] != 'process':
+            conf['DSC'][f'{k}.local'] = {
+                'based_on': f'hosts.{k}',
+                'queue_type': 'process',
+                'status_check_interval': 3
+            }
             if tpl is not None:
-                conf['DSC'][f'{k}.local']['task_template'] = '\n'.join([x for x in tpl if not x.startswith('#')])
+                conf['DSC'][f'{k}.local']['task_template'] = '\n'.join(
+                    [x for x in tpl if not x.startswith('#')])
     return conf

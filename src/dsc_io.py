@@ -3,7 +3,6 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-
 '''
 Test rpy2 installation:
 python -m 'rpy2.tests'
@@ -11,28 +10,37 @@ python -m 'rpy2.tests'
 
 from dsc.utils import flatten_list
 
-def load_mpk(mpk_files, jobs = 2):
+
+def load_mpk(mpk_files, jobs=2):
     import msgpack, collections
     from multiprocessing import Process, Manager
     from .utils import chunks
     if isinstance(mpk_files, str):
-        return msgpack.unpackb(open(mpk_files, "rb").read(), encoding = 'utf-8',
-                                     object_pairs_hook = collections.OrderedDict)
+        return msgpack.unpackb(open(mpk_files, "rb").read(),
+                               encoding='utf-8',
+                               object_pairs_hook=collections.OrderedDict)
     d = Manager().dict()
+
     def f(d, x):
         for xx in x:
-            d.update(msgpack.unpackb(open(xx, "rb").read(), encoding = 'utf-8',
-                                     object_pairs_hook = collections.OrderedDict))
+            d.update(
+                msgpack.unpackb(open(xx, "rb").read(),
+                                encoding='utf-8',
+                                object_pairs_hook=collections.OrderedDict))
+
     #
     mpk_files = [x for x in chunks(mpk_files, int(len(mpk_files) / jobs) + 1)]
-    job_pool = [Process(target = f, args = (d, x)) for x in mpk_files]
+    job_pool = [Process(target=f, args=(d, x)) for x in mpk_files]
     for job in job_pool:
         job.start()
     for job in job_pool:
         job.join()
-    return collections.OrderedDict([(x, d[x]) for x in sorted(d.keys(), key = lambda x: int(x.split(':')[0]))])
+    return collections.OrderedDict([
+        (x, d[x]) for x in sorted(d.keys(), key=lambda x: int(x.split(':')[0]))
+    ])
 
-def load_rds(filename, types = None):
+
+def load_rds(filename, types=None):
     import os
     import pandas as pd, numpy as np
     import rpy2.robjects as RO
@@ -42,7 +50,8 @@ def load_rds(filename, types = None):
     numpy2ri.activate()
     from rpy2.robjects import pandas2ri
     pandas2ri.activate()
-    def load(data, types, rpy2_version = 3):
+
+    def load(data, types, rpy2_version=3):
         if types is not None and not isinstance(data, types):
             return np.array([])
         # FIXME: I'm not sure if I should keep two versions here
@@ -56,7 +65,7 @@ def load_rds(filename, types = None):
                 res = None
             elif isinstance(data, RV.BoolVector):
                 data = RO.r['as.integer'](data)
-                res = np.array(data, dtype = int)
+                res = np.array(data, dtype=int)
                 # Handle c(NA, NA) situation
                 if np.sum(np.logical_and(res != 0, res != 1)):
                     res = res.astype(float)
@@ -64,13 +73,13 @@ def load_rds(filename, types = None):
                     res[res > 1] = np.nan
             elif isinstance(data, RV.FactorVector):
                 data = RO.r['as.character'](data)
-                res = np.array(data, dtype = str)
+                res = np.array(data, dtype=str)
             elif isinstance(data, RV.IntVector):
-                res = np.array(data, dtype = int)
+                res = np.array(data, dtype=int)
             elif isinstance(data, RV.FloatVector):
-                res = np.array(data, dtype = float)
+                res = np.array(data, dtype=float)
             elif isinstance(data, RV.StrVector):
-                res = np.array(data, dtype = str)
+                res = np.array(data, dtype=str)
             elif isinstance(data, RV.DataFrame):
                 res = pd.DataFrame(data)
             elif isinstance(data, RV.Matrix):
@@ -86,13 +95,15 @@ def load_rds(filename, types = None):
                 res = None
             else:
                 res = data
-        if isinstance(res, np.ndarray) and res.shape == (1,):
-           res = res[0]
+        if isinstance(res, np.ndarray) and res.shape == (1, ):
+            res = res[0]
         return res
 
     def load_dict(res, data, types):
         '''load data to res'''
-        names = data.names if not isinstance(data.names, RI.NULLType) else [i + 1 for i in range(len(data))]
+        names = data.names if not isinstance(data.names, RI.NULLType) else [
+            i + 1 for i in range(len(data))
+        ]
         for name, value in zip(names, list(data)):
             if isinstance(value, RV.ListVector):
                 res[name] = {}
@@ -100,6 +111,7 @@ def load_rds(filename, types = None):
             else:
                 res[name] = load(value, types)
         return res
+
     #
     if not os.path.isfile(filename):
         raise IOError('Cannot find file ``{}``!'.format(filename))
@@ -109,6 +121,7 @@ def load_rds(filename, types = None):
     else:
         res = load(rds, types)
     return res
+
 
 def save_rds(data, filename):
     import collections, re
@@ -125,18 +138,21 @@ def save_rds(data, filename):
     # numpy matrix and pandas dataframe
     int_type = (int, np.int8, np.int16, np.int32, np.int64)
     float_type = (float, np.float)
+
     def assign(name, value):
         name = re.sub(r'[^\w' + '_.' + ']', '_', name)
         if isinstance(value, (tuple, list)):
-             if all(isinstance(item, int_type) for item in value):
-                  value = np.asarray(value, dtype = int)
-             elif all(isinstance(item, float_type) for item in value):
-                  value = np.asarray(value, dtype = float)
-             else:
-                  value = np.asarray(value)
+            if all(isinstance(item, int_type) for item in value):
+                value = np.asarray(value, dtype=int)
+            elif all(isinstance(item, float_type) for item in value):
+                value = np.asarray(value, dtype=float)
+            else:
+                value = np.asarray(value)
         if isinstance(value, np.matrix):
             value = np.asarray(value)
-        if isinstance(value, tuple(flatten_list((str, float_type, int_type, np.ndarray)))):
+        if isinstance(
+                value,
+                tuple(flatten_list((str, float_type, int_type, np.ndarray)))):
             if isinstance(value, np.ndarray) and value.dtype.kind == "u":
                 value = value.astype(int)
             RO.r.assign(name, value)
@@ -146,7 +162,10 @@ def save_rds(data, filename):
         elif value is None:
             RO.r.assign(name, RI.NULL)
         else:
-            raise ValueError("Saving ``{}`` to RDS file is not supported!".format(str(type(value))))
+            raise ValueError(
+                "Saving ``{}`` to RDS file is not supported!".format(
+                    str(type(value))))
+
     #
     def assign_dict(name, value):
         RO.r('%s <- list()' % name)
@@ -155,16 +174,18 @@ def save_rds(data, filename):
             if k.isdigit():
                 k = str(k)
             if isinstance(v, collections.Mapping):
-                assign_dict('%s$%s' %(name, k), v)
+                assign_dict('%s$%s' % (name, k), v)
             else:
                 assign('item', v)
                 RO.r('%s$%s <- item' % (name, k))
+
     #
     if isinstance(data, collections.Mapping):
         assign_dict('res', data)
     else:
         assign('res', data)
     RO.r("saveRDS(res, '%s')" % filename)
+
 
 def load_dsc(infiles):
     import pickle, yaml
@@ -187,27 +208,31 @@ def load_dsc(infiles):
             return data
     return res
 
-def convert_dsc(pkl_files, jobs = 2):
+
+def convert_dsc(pkl_files, jobs=2):
     import pickle
     from multiprocessing import Process
     from .utils import chunks
+
     def convert(d):
         for ff in d:
             if not ff.endswith('pkl'):
                 raise ValueError(f'``{ff}`` is not supported DSC data format')
             save_rds(pickle.load(open(ff, 'rb')), ff[:-4] + '.rds')
+
     #
     if isinstance(pkl_files, str):
         convert([pkl_files])
         return 0
     #
     pkl_files = [x for x in chunks(pkl_files, int(len(pkl_files) / jobs) + 1)]
-    job_pool = [Process(target = convert, args = (x,)) for x in pkl_files]
+    job_pool = [Process(target=convert, args=(x, )) for x in pkl_files]
     for job in job_pool:
         job.start()
     for job in job_pool:
         job.join()
     return 0
+
 
 def symlink_force(target, link_name):
     import os, errno
@@ -219,6 +244,7 @@ def symlink_force(target, link_name):
             os.symlink(target, link_name)
         else:
             raise e
+
 
 def csv_to_html(infile, outfile):
     import os
@@ -243,7 +269,8 @@ def csv_to_html(infile, outfile):
 
     data = pd.read_csv(infile).applymap(pop_html_img)
     with open(outfile, 'w') as f:
-        f.write(TABLE_HEADER + data.to_html(justify='center', escape = False))
+        f.write(TABLE_HEADER + data.to_html(justify='center', escape=False))
+
 
 def main():
     import os, sys, pickle
@@ -268,9 +295,10 @@ def main():
             sys.exit(1)
     return 0
 
+
 if __name__ == '__main__':
     import warnings
     from rpy2.rinterface import RRuntimeWarning
     with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category = RRuntimeWarning)
+        warnings.filterwarnings("ignore", category=RRuntimeWarning)
         main()

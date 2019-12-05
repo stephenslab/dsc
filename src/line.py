@@ -3,7 +3,6 @@ __author__ = "Gao Wang"
 __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
-
 '''Handle one line in a DSC file, a customized YAML parser'''
 
 import re, collections
@@ -13,6 +12,7 @@ from sos.utils import get_output
 from .utils import FormatError, is_null, str2num, cartesian_list, pairwise_list, uniq_list, \
     get_slice, remove_parens, do_parentheses_match, find_parens, parens_aware_split, flatten_list
 from .syntax import DSC_FILE_OP
+
 
 class YLine:
     '''
@@ -42,7 +42,10 @@ class YLine:
             p2 = list(find_parens(var, start='[', end=']').items())
             if ((len(p1) >= 1 and p1[-1][0] == 0 and p1[-1][1] == len(var) - 1) or \
                (len(p2) >= 1 and p2[-1][0] == 0 and p2[-1][1] == len(var) - 1)):
-                var = [self.decodeVar(x.strip()) for x in self.split(remove_parens(var))]
+                var = [
+                    self.decodeVar(x.strip())
+                    for x in self.split(remove_parens(var))
+                ]
                 if len(var) == 1:
                     var = var[0]
                 else:
@@ -90,7 +93,9 @@ class ExpandVars(YLine):
             var = [var]
         if isinstance(var, (list, tuple)):
             if slice_idx is not None:
-                var = [var[i] for i in get_slice('slice[' + slice_idx + ']')[1]]
+                var = [
+                    var[i] for i in get_slice('slice[' + slice_idx + ']')[1]
+                ]
             # FIXME: For tuple / list will need to make it into a string like "[item1, item2 ...]"
             return ','.join(list(map(str, var)))
         else:
@@ -102,14 +107,22 @@ class ExpandVars(YLine):
             pattern = re.compile(r'\$\{(.*?)\}\[(.*?)\]')
             for m in re.finditer(pattern, value):
                 if m.group(1) not in self.global_var:
-                    raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
-                value = value.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)], m.group(2)))
+                    raise FormatError(
+                        f"Cannot find variable ``{m.group(1)}`` in DSC::global"
+                    )
+                value = value.replace(
+                    m.group(0),
+                    self.encodeVar(self.global_var[m.group(1)], m.group(2)))
             # then pattern without slicing
             pattern = re.compile(r'\$\{(.*?)\}')
             for m in re.finditer(pattern, value):
                 if m.group(1) not in self.global_var:
-                    raise FormatError(f"Cannot find variable ``{m.group(1)}`` in DSC::global")
-                value = value.replace(m.group(0), self.encodeVar(self.global_var[m.group(1)], None))
+                    raise FormatError(
+                        f"Cannot find variable ``{m.group(1)}`` in DSC::global"
+                    )
+                value = value.replace(
+                    m.group(0),
+                    self.encodeVar(self.global_var[m.group(1)], None))
         return value
 
 
@@ -132,12 +145,14 @@ class ExpandActions(YLine):
             'Shell': self.__Shell,
             'each': self.__ForEach,
             'pairs': self.__Pairs
-            }
+        }
 
     def __call__(self, value):
         if isinstance(value, str):
             for name in list(self.method.keys()):
-                pos = [m.end() - 1 for m in re.finditer(f'{name}(\(|\{{)', value)]
+                pos = [
+                    m.end() - 1 for m in re.finditer(f'{name}(\(|\{{)', value)
+                ]
                 p_end = 0
                 replacements = []
                 for p in pos:
@@ -153,11 +168,15 @@ class ExpandActions(YLine):
                         # Run into nested pattern, no problem: eg R(some_function_R())
                         continue
                     try:
-                        p_end = find_parens(value[p:], start = start, end = end)[0]
+                        p_end = find_parens(value[p:], start=start, end=end)[0]
                     except IndexError:
-                        raise FormatError(f"Invalid parentheses pattern in ``{value}``")
-                    replacements.append((f'{name}{value[p:p_end+p+1]}',
-                                         ('(' if not shatter else '') + self.method[name](value[p:p_end+p+1]) + (')' if not shatter else '')))
+                        raise FormatError(
+                            f"Invalid parentheses pattern in ``{value}``")
+                    replacements.append(
+                        (f'{name}{value[p:p_end+p+1]}',
+                         ('(' if not shatter else '') +
+                         self.method[name](value[p:p_end + p + 1]) +
+                         (')' if not shatter else '')))
                 for r in replacements:
                     value = value.replace(r[0], r[1], 1)
         return value
@@ -179,15 +198,22 @@ class ExpandActions(YLine):
     @staticmethod
     def __R(code):
         try:
-            output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
+            output = get_output(
+                f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\""
+            ).strip()
         except Exception:
             from .utils import install_package_interactive
             from .version import __version__
-            install_package_interactive(f'dscrutils@stephenslab/dsc/dscrutils>={__version__}', 'R_library')
+            install_package_interactive(
+                f'dscrutils@stephenslab/dsc/dscrutils>={__version__}',
+                'R_library')
             try:
-                output = get_output(f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\"").strip()
+                output = get_output(
+                    f"R --slave -e \"cat(dscrutils::dscreval({repr(code[1:-1])}))\""
+                ).strip()
             except Exception:
-                raise ValueError(f"Failed to evaluate R expression ``{code[1:-1]}``")
+                raise ValueError(
+                    f"Failed to evaluate R expression ``{code[1:-1]}``")
         return output
 
     @staticmethod
@@ -198,7 +224,9 @@ class ExpandActions(YLine):
         try:
             res = eval(code)
         except Exception as e:
-            raise FormatError(f"Evaluation of the following Python expression failed:\n``{code}``.\nError message: ``{e}``")
+            raise FormatError(
+                f"Evaluation of the following Python expression failed:\n``{code}``.\nError message: ``{e}``"
+            )
         if isinstance(res, (bool, int, float, str)):
             return str(res)
         elif isinstance(res, list):
@@ -206,13 +234,16 @@ class ExpandActions(YLine):
         elif isinstance(res, tuple):
             return f"({','.join(map(str, res))})"
         else:
-            raise FormatError(f"Evaluation of Python expression ``code`` resulted in unsupported type ``{type(res).__name__}``.")
+            raise FormatError(
+                f"Evaluation of Python expression ``code`` resulted in unsupported type ``{type(res).__name__}``."
+            )
 
     @staticmethod
     def __Shell(code):
         # FIXME: is this behavior any good?
         out = get_output(code[1:-1])
-        return ','.join(flatten_list([x.split() for x in out.strip().split("\n")]))
+        return ','.join(
+            flatten_list([x.split() for x in out.strip().split("\n")]))
 
 
 class CastData(YLine):
@@ -236,6 +267,7 @@ class CastData(YLine):
                     res.append(x)
             return uniq_list(res)
 
+
 class CheckFile(YLine):
     def __init__(self):
         YLine.__init__(self)
@@ -245,11 +277,18 @@ class CheckFile(YLine):
             if isinstance(item, tuple):
                 for ii in item:
                     if isinstance(ii, str) and DSC_FILE_OP.search(ii):
-                        raise FormatError(f'File operator inside tuple ``{item}`` is not allowed!')
+                        raise FormatError(
+                            f'File operator inside tuple ``{item}`` is not allowed!'
+                        )
             else:
-                if isinstance(item, str) and DSC_FILE_OP.search(item) and len(value) > 1:
-                    raise FormatError(f'Cannot mix file operator ``{item}`` with other values ``{[i for i in value if i != item]}``!')
+                if isinstance(
+                        item,
+                        str) and DSC_FILE_OP.search(item) and len(value) > 1:
+                    raise FormatError(
+                        f'Cannot mix file operator ``{item}`` with other values ``{[i for i in value if i != item]}``!'
+                    )
         return value
+
 
 class OperationParser(YLine):
     '''
@@ -274,7 +313,8 @@ class OperationParser(YLine):
         if is_null(value):
             return value
         if not isinstance(value, str):
-            raise FormatError("Argument must be string but it is %s." % type(value))
+            raise FormatError("Argument must be string but it is %s." %
+                              type(value))
         value = value.strip()
         if value[-1] in ['+', '*', ',', '=', '/']:
             raise FormatError('The end of operator ``"{}"`` cannot be operator ``{}``!'.\
@@ -284,18 +324,24 @@ class OperationParser(YLine):
             self.reset()
             self.sequence = seq
             #seq = seq.replace(' ', '')
-            for a in [self.cache_symbols,
-                      self.check_syntax,
-                      self.reconstruct]:
+            for a in [self.cache_symbols, self.check_syntax, self.reconstruct]:
                 seq = a(seq)
             res.extend(seq)
-        self.value = '; '.join([' * '.join(item) if not isinstance(item, str) else item for item in res])
+        self.value = '; '.join([
+            ' * '.join(item) if not isinstance(item, str) else item
+            for item in res
+        ])
         return res
 
     def cache_symbols(self, value):
         '''cache all symbols'''
         # split with delimiter kept
-        seq = [y.strip() for y in re.split(r'({})'.format("|".join([re.escape(x) for x in self.operators])), value) if y.strip()]
+        seq = [
+            y.strip() for y in re.split(
+                r'({})'.format("|".join([re.escape(x)
+                                         for x in self.operators])), value)
+            if y.strip()
+        ]
         new_seq = []
         # reconstruct slice wrongfully splitted e.g., sth[2,3,4]
         start_idx = 0
@@ -315,7 +361,9 @@ class OperationParser(YLine):
                         break
                     i += 1
                 if incomplete_sq:
-                    raise FormatError('Incomplete ``[``/``]`` pair near {}'.format(''.join(tmp)))
+                    raise FormatError(
+                        'Incomplete ``[``/``]`` pair near {}'.format(
+                            ''.join(tmp)))
         new_seq.extend(seq[start_idx:len(seq)])
         # cache all symbols
         for idx, item in enumerate(new_seq):
@@ -329,9 +377,13 @@ class OperationParser(YLine):
         '''
         for x in value:
             if x not in self.operators and not x.isalnum() and x != '_':
-                raise FormatError('Invalid symbol ``{}`` in sequence ``{}``'.format(x, self.sequence))
+                raise FormatError(
+                    'Invalid symbol ``{}`` in sequence ``{}``'.format(
+                        x, self.sequence))
         if ')+' in value or '+(' in value:
-            raise FormatError('Pairs operator ``+`` cannot be used to connect multiple variables ')
+            raise FormatError(
+                'Pairs operator ``+`` cannot be used to connect multiple variables '
+            )
         return value
 
     def reconstruct(self, value):
@@ -347,7 +399,8 @@ class OperationParser(YLine):
                                   format(self.sequence))
             # re-construct elements in x
             # complication: the _ operator
-            tmp_1 = dict((y if '_' not in y else y.split('_')[0], y) for y in x)
+            tmp_1 = dict(
+                (y if '_' not in y else y.split('_')[0], y) for y in x)
             if len(tmp_1.keys()) < len(x):
                 raise FormatError("Possibly duplicated elements found in sequence {}".\
                                   format(self.sequence))
@@ -388,8 +441,10 @@ class LogicParser(OperationParser):
         res = []
         for x in str(bool_symexpand(value)).split('|'):
             x = x.strip().strip('(').strip(')').split('&')
-            tmp = [self.cache[y.strip()] if not y.strip().startswith('~') else f'not {self.cache[y.strip()[1:]]}'
-                   for y in x]
+            tmp = [
+                self.cache[y.strip()] if not y.strip().startswith('~') else
+                f'not {self.cache[y.strip()[1:]]}' for y in x
+            ]
             res.append(tuple(tmp) if len(tmp) > 1 else tmp[0])
         return res
 
@@ -402,11 +457,13 @@ class EntryFormatter:
         pass
 
     def __call__(self, data, variables):
-        actions = [ExpandVars(variables),
-                   ExpandActions(),
-                   Str2List(),
-                   CastData(),
-                   CheckFile()]
+        actions = [
+            ExpandVars(variables),
+            ExpandActions(),
+            Str2List(),
+            CastData(),
+            CheckFile()
+        ]
         return self.__Transform(data, actions)
 
     def __Transform(self, cfg, actions):
@@ -418,7 +475,9 @@ class EntryFormatter:
                 self.__Transform(value, actions)
             else:
                 if not do_parentheses_match(str(value)):
-                    raise FormatError(f"Invalid parentheses matching pattern in ``{str(value)}``")
+                    raise FormatError(
+                        f"Invalid parentheses matching pattern in ``{str(value)}``"
+                    )
                 for a in actions:
                     value = a(value)
                 # empty list
@@ -428,13 +487,15 @@ class EntryFormatter:
                     cfg[key] = value
         return cfg
 
+
 def parse_exe(string):
     '''
     input: eg. R(some, code) + (a.R cmd_args, b.R cmd_args) + R(some, code)
     output: (R(some, code), a.R cmd_args, R(some, code)), (R(some, code), b.R cmd_args, R(some, code))
     '''
     if not do_parentheses_match(string):
-        raise FormatError(f"Invalid parentheses matching pattern in ``{string}``")
+        raise FormatError(
+            f"Invalid parentheses matching pattern in ``{string}``")
     #
     def parse_inline(inline, sigil):
         #
@@ -445,6 +506,7 @@ def parse_exe(string):
                 return '{%s}' % item
             else:
                 return item
+
         #
         replaced_inline = []
         # for global variable
@@ -458,6 +520,7 @@ def parse_exe(string):
             inline = inline.replace(m.group(0), get_item(m.group(1)))
             replaced_inline.append((m.group(1), f'${m.group(1)}'))
         return inline, replaced_inline
+
     #
     ext_map = {'R': 'R', 'Python': 'PY', 'Shell': 'SH'}
     action_dict = dict()
@@ -471,7 +534,7 @@ def parse_exe(string):
                 continue
             p_end = find_parens(string[p:])[0]
             key = f'__DSC_INLINE_{idx}__'
-            action_dict[key] = (ext_map[name], string[(p+1):(p_end+p)])
+            action_dict[key] = (ext_map[name], string[(p + 1):(p_end + p)])
             replacements.append((f'{name}{string[p:p_end+p+1]}', key))
             idx += 1
         for r in replacements:
@@ -499,17 +562,21 @@ def parse_exe(string):
             is_typed = False
             for key, value in action_dict.items():
                 if key in x[idx][0]:
-                    content = parse_inline(value[1], '$' if value[0] == 'SH' else None)
+                    content = parse_inline(value[1],
+                                           '$' if value[0] == 'SH' else None)
                     x[idx][0] = x[idx][0].replace(key, content[0], 1)
                     replaced.extend(content[1])
                     exe_type.append(value[0])
                     is_typed = True
                     if all([x in exe_type for x in ext_map.values()]):
-                        raise FormatError(f"Cannot mix executable types ``{[x for x in exe_type if x != 'unknown']}``, near ``{x[idx][0]}``")
+                        raise FormatError(
+                            f"Cannot mix executable types ``{[x for x in exe_type if x != 'unknown']}``, near ``{x[idx][0]}``"
+                        )
             if not is_typed:
                 exe_type.append('unknown')
         res.append(tuple([tuple(exe_type)] + x))
     return res, dict(replaced)
+
 
 def expand_logic(string):
     '''
@@ -551,7 +618,8 @@ def expand_logic(string):
         res.append(tuple(x))
     return res
 
-def parse_filter(condition, groups = None, dotted = True):
+
+def parse_filter(condition, groups=None, dotted=True):
     '''
     parse condition statement
     After expanding, condition is a list of list
@@ -570,9 +638,12 @@ def parse_filter(condition, groups = None, dotted = True):
     cond_tables = []
     symbols = ['=', '==', '!=', '>', '<', '>=', '<=', 'in']
     try:
-        expanded_condition = expand_logic(' and '.join(condition) if isinstance(condition, (list, tuple)) else condition)
+        expanded_condition = expand_logic(' and '.join(
+            condition) if isinstance(condition, (list, tuple)) else condition)
     except Exception:
-        raise FormatError(f"Condition ``{' AND '.join(condition)}`` cannot be properly expanded by logic operators. Please ensure the correct use of logic syntax.")
+        raise FormatError(
+            f"Condition ``{' AND '.join(condition)}`` cannot be properly expanded by logic operators. Please ensure the correct use of logic syntax."
+        )
     for and_list in expanded_condition:
         tmp = []
         for value in and_list:
@@ -582,25 +653,43 @@ def parse_filter(condition, groups = None, dotted = True):
             else:
                 value = value.strip()
                 is_not = False
-            tokens = [token[1] for token in tokenize.generate_tokens(StringIO(value).readline) if token[1]]
+            tokens = [
+                token[1] for token in tokenize.generate_tokens(
+                    StringIO(value).readline) if token[1]
+            ]
             if tokens[1] == 'in':
-                tokens = [tokens[0], tokens[1], f"({remove_parens(''.join(tokens[2:]))})"]
-            if not (len(tokens) == 3 and tokens[1] in symbols) and not (len(tokens) == 5 and tokens[1] == '.' and tokens[3] in symbols):
-                raise FormatError(f"Condition ``{value}`` is not a supported math expression.\nSupported expressions are ``{symbols}``")
+                tokens = [
+                    tokens[0], tokens[1],
+                    f"({remove_parens(''.join(tokens[2:]))})"
+                ]
+            if not (len(tokens) == 3 and tokens[1] in symbols) and not (
+                    len(tokens) == 5 and tokens[1] == '.'
+                    and tokens[3] in symbols):
+                raise FormatError(
+                    f"Condition ``{value}`` is not a supported math expression.\nSupported expressions are ``{symbols}``"
+                )
             if len(tokens) == 5:
                 tokens = [[tokens[0], tokens[2]], tokens[3], tokens[4]]
             if isinstance(tokens[0], str):
                 if dotted:
-                    raise FormatError(f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` ")
+                    raise FormatError(
+                        f"Condition contains invalid module / parameter specification ``{'.'.join(tokens[0])}`` "
+                    )
                 else:
                     tokens[0] = ['', tokens[0]]
             if not tokens[0][0] in groups:
-                tmp.append(('not' if is_not else '', tokens[0], "==" if tokens[1] == "=" else tokens[1], tokens[2]))
+                tmp.append(
+                    ('not' if is_not else '', tokens[0],
+                     "==" if tokens[1] == "=" else tokens[1], tokens[2]))
                 cond_tables.append((tokens[0][0], tokens[0][1]))
             else:
                 # will be connected by OR logic
-                tmp.append([('not' if is_not else '', [x, tokens[0][1]], "==" if tokens[1] == "=" else tokens[1], tokens[2])
-                            for x in groups[tokens[0][0]]])
-                cond_tables.extend([(x, tokens[0][1]) for x in groups[tokens[0][0]]])
+                tmp.append([
+                    ('not' if is_not else '', [x, tokens[0][1]],
+                     "==" if tokens[1] == "=" else tokens[1], tokens[2])
+                    for x in groups[tokens[0][0]]
+                ])
+                cond_tables.extend([(x, tokens[0][1])
+                                    for x in groups[tokens[0][0]]])
         res.append(tmp)
     return res, cond_tables

@@ -12,8 +12,10 @@ from copy import deepcopy
 from .syntax import DSC_FILE_OP
 from .utils import flatten_list
 
+
 def dict2yaml(value):
     return yaml.dump(value, default_flow_style=False).strip()
+
 
 BASH_UTILS = '''
 expandPath() {
@@ -37,8 +39,9 @@ expandPath() {
 }
 '''
 
+
 class BasePlug:
-    def __init__(self, name = 'run', identifier = ''):
+    def __init__(self, name='run', identifier=''):
         self.name = name
         self.identifier = 'DSC_{}'.format(identifier.upper())
         self.reset()
@@ -91,7 +94,9 @@ class BasePlug:
             res = ' '.join(args)
             for m in re.finditer(pattern, res):
                 if m.group(1) not in params:
-                    raise ValueError('Cannot find ``{}`` in parameter list'.format(m.group(1)))
+                    raise ValueError(
+                        'Cannot find ``{}`` in parameter list'.format(
+                            m.group(1)))
                 else:
                     res = res.replace(m.group(0), '{_%s}' % m.group(1))
             return ', args = "{{filename:q}}" + f" {}"\n'.format(res)
@@ -103,31 +108,34 @@ class BasePlug:
         return flatten_list(value)
 
     def dump(self):
-        return dict([
-            ('ID', self.identifier),
-            ('container', self.container),
-                ('container_variables', self.container_vars),
-                ('module_input', self.module_input),
-                ('variable_alias', self.alias_map),
-                ('temp_file', self.tempfile)])
+        return dict([('ID', self.identifier), ('container', self.container),
+                     ('container_variables', self.container_vars),
+                     ('module_input', self.module_input),
+                     ('variable_alias', self.alias_map),
+                     ('temp_file', self.tempfile)])
+
     @staticmethod
     def add_try(content, n_output):
         return ''
 
 
 class Shell(BasePlug):
-    def __init__(self, identifier = ''):
-        super().__init__(name = 'bash', identifier = identifier)
+    def __init__(self, identifier=''):
+        super().__init__(name='bash', identifier=identifier)
         self.output_ext = 'yml'
 
     def get_input(self, params, lib):
         res = 'rm -f $[_output]\n'
         if len(lib):
-            res += '\n'.join([f'for i in `ls {item}/*.sh`; do source $i; done' for item in lib])
+            res += '\n'.join([
+                f'for i in `ls {item}/*.sh`; do source $i; done'
+                for item in lib
+            ])
         # load parameters
         for k in params:
             # FIXME: better idea?
-            res += '\n{0}=$(expandPath $[repr(_{1}) if isinstance(_{1}, list) else _{1}])'.format(self.get_var(k), k)
+            res += '\n{0}=$(expandPath $[repr(_{1}) if isinstance(_{1}, list) else _{1}])'.format(
+                self.get_var(k), k)
         # FIXME: may need a timer
         # seed
         res += '\nRANDOM=$(($DSC_REPLICATE))'
@@ -139,33 +147,43 @@ class Shell(BasePlug):
         accessible as `${_output}`.
         '''
         res = dict([('DSC_OUTPUT', dict())])
-        res['DSC_OUTPUT'] = dict([(k,  f'$[_output:n].{params[k]}') for k in params])
+        res['DSC_OUTPUT'] = dict([(k, f'$[_output:n].{params[k]}')
+                                  for k in params])
         return '\n'.join([f'{k}=$[_output:n].{params[k]}' for k in params]) + \
             f"\ncat >> $[_output:n].yml << EOF\n{dict2yaml(res)}\nEOF"
 
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
             # single value input add
-            self.module_input.append('{}={}'.format(self.get_var(lhs),
-                                                     rhs if (not rhs.startswith('$'))
-                                                     or rhs in ('$[_output:r]', '$[_input:r]')
-                                                     else '{}_{}'.format(self.identifier, repr(rhs[1:]))))
+            self.module_input.append('{}={}'.format(
+                self.get_var(lhs), rhs if (not rhs.startswith('$'))
+                or rhs in ('$[_output:r]', '$[_input:r]') else '{}_{}'.format(
+                    self.identifier, repr(rhs[1:]))))
         elif isinstance(lhs, (list, tuple)):
             # multiple value input add
             for x in lhs:
                 if rhs.startswith("$") and not rhs.startswith("$["):
-                    self.module_input.append('{}=${}_{}'.format(self.get_var(x), self.identifier, repr(rhs[1:])))
+                    self.module_input.append('{}=${}_{}'.format(
+                        self.get_var(x), self.identifier, repr(rhs[1:])))
                 elif not rhs.startswith("$"):
-                    self.module_input.append('{}={}'.format(self.get_var(x), rhs))
+                    self.module_input.append('{}={}'.format(
+                        self.get_var(x), rhs))
                 else:
-                    self.module_input.append('{}={}'.format(self.get_var(x[2]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(x[0], x[1][-1]))))
+                    self.module_input.append('{}={}'.format(
+                        self.get_var(x[2]),
+                        rhs.replace(
+                            ':r', '[{}].with_suffix(\'.{}\'):r'.format(
+                                x[0], x[1][-1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
             self.tempfile.append(f'TMP_{self.identifier[4:]}=`mktemp -d`')
-            self.tempfile.append(f'{self.get_var(lhs)}="""$TMP_{self.identifier[4:]}/$[_output[0]:bn].{lhs}"""')
+            self.tempfile.append(
+                f'{self.get_var(lhs)}="""$TMP_{self.identifier[4:]}/$[_output[0]:bn].{lhs}"""'
+            )
         else:
-            self.tempfile.append('{}="""{}"""'.format(self.get_var(lhs), f'$[_output[0]:n].{lhs}.{rhs}'))
+            self.tempfile.append('{}="""{}"""'.format(
+                self.get_var(lhs), f'$[_output[0]:n].{lhs}.{rhs}'))
 
     def set_container(self, name, value, params):
         value = [v.strip() for v in value.split(',') if v.strip()]
@@ -237,33 +255,43 @@ class Shell(BasePlug):
 
 
 class RPlug(BasePlug):
-    def __init__(self, identifier = ''):
-        super().__init__(name = 'R', identifier = identifier)
+    def __init__(self, identifier=''):
+        super().__init__(name='R', identifier=identifier)
         self.output_ext = 'rds'
 
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
             # single value input add
-            self.module_input.append('{} <- {}'.format(self.get_var(lhs),
-                                                      rhs if (not rhs.startswith('$'))
-                                                      or rhs in ('${_output:r}', '${_input:r}')
-                                                      else '{}{}'.format(self.identifier, rhs)))
+            self.module_input.append('{} <- {}'.format(
+                self.get_var(lhs), rhs if (not rhs.startswith('$'))
+                or rhs in ('${_output:r}', '${_input:r}') else '{}{}'.format(
+                    self.identifier, rhs)))
         elif isinstance(lhs, (list, tuple)):
             # multiple value input add
             for x in lhs:
                 if rhs.startswith("$") and not rhs.startswith("${"):
-                    self.module_input.append('{} <- {}{}'.format(self.get_var(x), self.identifier, rhs))
+                    self.module_input.append('{} <- {}{}'.format(
+                        self.get_var(x), self.identifier, rhs))
                 elif not rhs.startswith("$"):
-                    self.module_input.append('{} <- {}'.format(self.get_var(x), rhs))
+                    self.module_input.append('{} <- {}'.format(
+                        self.get_var(x), rhs))
                 else:
-                    self.module_input.append('{} <- {}'.format(self.get_var(x[2]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(x[0], x[1][-1]))))
+                    self.module_input.append('{} <- {}'.format(
+                        self.get_var(x[2]),
+                        rhs.replace(
+                            ':r', '[{}].with_suffix(\'.{}\'):r'.format(
+                                x[0], x[1][-1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
             self.tempfile.append(f'TMP_{self.identifier[4:]} <- tempdir()')
-            self.tempfile.append(f'{self.get_var(lhs)} <- paste0(TMP_{self.identifier[4:]}, "/", ${{_output[0]:bnr}}, ".{lhs}")')
+            self.tempfile.append(
+                f'{self.get_var(lhs)} <- paste0(TMP_{self.identifier[4:]}, "/", ${{_output[0]:bnr}}, ".{lhs}")'
+            )
         else:
-            self.tempfile.append('{} <- {}'.format(self.get_var(lhs),f'paste0(${{_output[0]:nr}}, ".{lhs}.{rhs}")'))
+            self.tempfile.append('{} <- {}'.format(
+                self.get_var(lhs),
+                f'paste0(${{_output[0]:nr}}, ".{lhs}.{rhs}")'))
 
     def load_env(self, depends_other, depends_self):
         '''
@@ -277,16 +305,26 @@ class RPlug(BasePlug):
             else:
                 depends[x[0]].append((x[1], x[2]))
         res = f'{self.identifier} <- list()' if len(depends) else ''
-        load_idx = [i for i, k in enumerate(depends.keys()) if any([x[1] is None for x in depends[k]])]
-        assign_idx = [(i, k) for i, k in enumerate(depends.keys()) if any([x[1].split('.')[-1] in ['rds', 'pkl', 'yml'] for x in depends[k] if x[1] is not None])]
+        load_idx = [
+            i for i, k in enumerate(depends.keys())
+            if any([x[1] is None for x in depends[k]])
+        ]
+        assign_idx = [(i, k) for i, k in enumerate(depends.keys()) if any([
+            x[1].split('.')[-1] in ['rds', 'pkl', 'yml'] for x in depends[k]
+            if x[1] is not None
+        ])]
         loader = 'dscrutils:::read_dsc'
         # load files
         load_in = f'\n{self.identifier} <- dscrutils:::load_inputs(c(${{paths([_input[i] for i in {load_idx}]):r,}}), {loader})'
         assign_in = ['\n']
         for i, k in assign_idx:
             for j in depends[k]:
-                if j[1] is not None and j[1].split('.')[-1] in ['rds', 'pkl', 'yml']:
-                    assign_in.append(f'{self.identifier}${j[0]} <- {loader}("${{_input[{i}]:n}}.{j[1]}")')
+                if j[1] is not None and j[1].split('.')[-1] in [
+                        'rds', 'pkl', 'yml'
+                ]:
+                    assign_in.append(
+                        f'{self.identifier}${j[0]} <- {loader}("${{_input[{i}]:n}}.{j[1]}")'
+                    )
         assign_in = '\n'.join(assign_in)
         load_out = f'\nif (file.exists("${{_output}}")) attach({loader}("${{_output}}"), warn.conflicts = F)'
         if len(load_idx):
@@ -307,7 +345,8 @@ class RPlug(BasePlug):
         return res
 
     def get_input(self, params, lib):
-        res = 'dscrutils:::source_dirs(c({}))\n'.format(','.join([repr(x) for x in lib])) if len(lib) else ''
+        res = 'dscrutils:::source_dirs(c({}))\n'.format(','.join(
+            [repr(x) for x in lib])) if len(lib) else ''
         # load parameters
         keys = [x for x in params if x not in self.container_vars]
         res += '\n' + '\n'.join(self.container)
@@ -321,7 +360,8 @@ class RPlug(BasePlug):
 
     def get_output(self, params):
         res = dict([('DSC_OUTPUT', dict())])
-        res['DSC_OUTPUT'] = dict([(k,  f'${{_output:n}}.{params[k]}') for k in params])
+        res['DSC_OUTPUT'] = dict([(k, f'${{_output:n}}.{params[k]}')
+                                  for k in params])
         return '\n'.join([f'{k} <- paste0(${{_output:nr}}, ".{params[k]}")' for k in params]) + \
             f"\nwrite({repr(dict2yaml(res))}, paste0(${{_output:nr}}, '.yml'))"
 
@@ -353,9 +393,11 @@ class RPlug(BasePlug):
                 j = None
             if not (isinstance(params[k][0], str) and params[k][0].startswith('$')) \
                and not (isinstance(params[k][0], str) and DSC_FILE_OP.search(params[k][0])):
-                res.append('%s$%s <- ${_%s}' % (name, j if j is not None else k, k))
+                res.append('%s$%s <- ${_%s}' %
+                           (name, j if j is not None else k, k))
             else:
-                res.append('%s$%s <- %s' % (name, j if j is not None else k, k))
+                res.append('%s$%s <- %s' %
+                           (name, j if j is not None else k, k))
             if k not in self.container_vars:
                 self.container_vars[k] = [j]
             else:
@@ -370,16 +412,22 @@ class RPlug(BasePlug):
         content += '    script <- readChar(script, file.info(script)$size)\n'
         content += '    script <- paste0(e, "\\n-----------\\n", script)\n'
         for i in range(n_output):
-            content += '    cat(script, file = "${_output[%s]}.failed")\n    saveRDS(NULL, ${_output[%s]:r})\n' % (i, i)
+            content += '    cat(script, file = "${_output[%s]}.failed")\n    saveRDS(NULL, ${_output[%s]:r})\n' % (
+                i, i)
         content += '})'
         return content
 
     @staticmethod
     def format_tuple(value):
         # this is the best I'd like to do for R ...
-        has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', str(v)) for v in value])
+        has_tuple = any(
+            [re.match(r'(.*?)\((.*?)\)(.*?)', str(v)) for v in value])
         if has_tuple:
-            return 'list({})'.format(','.join([(f'c({",".join([str(vv) for vv in v])})' if len(v) > 1 else v[0]) if isinstance(v, tuple) else v for v in value]))
+            return 'list({})'.format(','.join([
+                (f'c({",".join([str(vv) for vv in v])})'
+                 if len(v) > 1 else v[0]) if isinstance(v, tuple) else v
+                for v in value
+            ]))
         else:
             return 'c({})'.format(','.join(value))
 
@@ -388,33 +436,43 @@ class RPlug(BasePlug):
 
 
 class PyPlug(BasePlug):
-    def __init__(self, identifier = ''):
-        super().__init__(name = 'python', identifier = identifier)
+    def __init__(self, identifier=''):
+        super().__init__(name='python', identifier=identifier)
         self.output_ext = 'pkl'
 
     def add_input(self, lhs, rhs):
         if isinstance(lhs, str):
             # single value input add
-            self.module_input.append('{} = {}'.format(self.get_var(lhs),
-                                                     rhs if (not rhs.startswith('$'))
-                                                     or rhs in ('${_output:r}', '${_input:r}')
-                                                     else '{}[{}]'.format(self.identifier, repr(rhs[1:]))))
+            self.module_input.append('{} = {}'.format(
+                self.get_var(lhs), rhs if (not rhs.startswith('$'))
+                or rhs in ('${_output:r}', '${_input:r}') else '{}[{}]'.format(
+                    self.identifier, repr(rhs[1:]))))
         elif isinstance(lhs, (list, tuple)):
             # multiple value input add
             for x in lhs:
                 if rhs.startswith("$") and not rhs.startswith("${"):
-                    self.module_input.append('{} = {}[{}]'.format(self.get_var(x), self.identifier, repr(rhs[1:])))
+                    self.module_input.append('{} = {}[{}]'.format(
+                        self.get_var(x), self.identifier, repr(rhs[1:])))
                 elif not rhs.startswith("$"):
-                    self.module_input.append('{} = {}'.format(self.get_var(x), rhs))
+                    self.module_input.append('{} = {}'.format(
+                        self.get_var(x), rhs))
                 else:
-                    self.module_input.append('{} = {}'.format(self.get_var(x[2]), rhs.replace(':r', '[{}].with_suffix(\'.{}\'):r'.format(x[0], x[1][-1]))))
+                    self.module_input.append('{} = {}'.format(
+                        self.get_var(x[2]),
+                        rhs.replace(
+                            ':r', '[{}].with_suffix(\'.{}\'):r'.format(
+                                x[0], x[1][-1]))))
 
     def add_tempfile(self, lhs, rhs):
         if rhs == '':
-            self.tempfile.append(f'TMP_{self.identifier[4:]} = tempfile.gettempdir()')
-            self.tempfile.append(f'{self.get_var(lhs)} = os.path.join(TMP_{self.identifier[4:]}, ${{_output[0]:bnr}} + ".{lhs}")')
+            self.tempfile.append(
+                f'TMP_{self.identifier[4:]} = tempfile.gettempdir()')
+            self.tempfile.append(
+                f'{self.get_var(lhs)} = os.path.join(TMP_{self.identifier[4:]}, ${{_output[0]:bnr}} + ".{lhs}")'
+            )
         else:
-            self.tempfile.append('{} = {}'.format(self.get_var(lhs), f'${{_output[0]:nr}} + ".{lhs}.{rhs}"'))
+            self.tempfile.append('{} = {}'.format(
+                self.get_var(lhs), f'${{_output[0]:nr}} + ".{lhs}.{rhs}"'))
 
     def load_env(self, depends_other, depends_self):
         '''
@@ -429,16 +487,26 @@ class PyPlug(BasePlug):
                 depends[x[0]].append((x[1], x[2]))
         if len(depends):
             res += f'{self.identifier} = dict()'
-        load_idx = [i for i, k in enumerate(depends.keys()) if any([x[1] is None for x in depends[k]])]
-        assign_idx = [(i, k) for i, k in enumerate(depends.keys()) if any([x[1].split('.')[-1] in ['rds', 'pkl', 'yml'] for x in depends[k] if x[1] is not None])]
+        load_idx = [
+            i for i, k in enumerate(depends.keys())
+            if any([x[1] is None for x in depends[k]])
+        ]
+        assign_idx = [(i, k) for i, k in enumerate(depends.keys()) if any([
+            x[1].split('.')[-1] in ['rds', 'pkl', 'yml'] for x in depends[k]
+            if x[1] is not None
+        ])]
         # load files
         res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
         load_in = f'\n{self.identifier} = __load_dsc__([${{paths([_input[i] for i in {load_idx}]):r,}}])'
         assign_in = ['\n']
         for i, k in assign_idx:
             for j in depends[k]:
-                if j[1] is not None and j[1].split('.')[-1] in ['rds', 'pkl', 'yml']:
-                    assign_in.append(f'{self.identifier}[{repr(j[0])}] = __load_dsc__("${{_input[{i}]:n}}.{j[1]}")')
+                if j[1] is not None and j[1].split('.')[-1] in [
+                        'rds', 'pkl', 'yml'
+                ]:
+                    assign_in.append(
+                        f'{self.identifier}[{repr(j[0])}] = __load_dsc__("${{_input[{i}]:n}}.{j[1]}")'
+                    )
         assign_in = '\n'.join(assign_in)
         load_out = '\nif os.path.isfile("${_output}"): globals().update(__load_dsc__("${_output}"))'
         if len(load_idx):
@@ -459,7 +527,8 @@ class PyPlug(BasePlug):
         return res
 
     def get_input(self, params, lib):
-        res = '\n'.join([f'sys.path.append(os.path.expanduser("{item}"))' for item in lib])
+        res = '\n'.join(
+            [f'sys.path.append(os.path.expanduser("{item}"))' for item in lib])
         # load parameters
         keys = [x for x in params if not x in self.container_vars]
         res += '\n' + '\n'.join(self.container)
@@ -471,7 +540,8 @@ class PyPlug(BasePlug):
 
     def get_output(self, params):
         res = dict([('DSC_OUTPUT', dict())])
-        res['DSC_OUTPUT'] = dict([(k,  f'${{_output:n}}.{params[k]}') for k in params])
+        res['DSC_OUTPUT'] = dict([(k, f'${{_output:n}}.{params[k]}')
+                                  for k in params])
         return '\n'.join([f'{k} = ${{_output:nr}} + ".{params[k]}"' for k in params]) + \
             f"\nwith open(${{_output:nr}} + '.yml', 'w') as f:\n\tf.write({repr(dict2yaml(res))})"
 
@@ -505,9 +575,11 @@ class PyPlug(BasePlug):
                 j = None
             if not (isinstance(params[k][0], str) and params[k][0].startswith('$')) \
                and not (isinstance(params[k][0], str) and DSC_FILE_OP.search(params[k][0])):
-                res.append('%s[%s] = ${_%s}' % (name, repr(str(j if j is not None else k)), k))
+                res.append('%s[%s] = ${_%s}' %
+                           (name, repr(str(j if j is not None else k)), k))
             else:
-                res.append('%s[%s] = %s' % (name, repr(str(j if j is not None else k)), k))
+                res.append('%s[%s] = %s' %
+                           (name, repr(str(j if j is not None else k)), k))
             if k not in self.container_vars:
                 self.container_vars[k] = [j]
             else:
@@ -520,12 +592,14 @@ class PyPlug(BasePlug):
                   "\nexcept Exception as e:\n"
         content += '    import sys\nscript = open(sys.argv[len(sys.argv)-1]).read()\n'
         for i in range(n_output):
-            content += '    open(${_output[%s]:r}).write("")\n    open("${_output[%s]}.failed").write(str(e) + "\\n-----------\\n" + script)\n' % (i, i)
+            content += '    open(${_output[%s]:r}).write("")\n    open("${_output[%s]}.failed").write(str(e) + "\\n-----------\\n" + script)\n' % (
+                i, i)
         return content
 
     @staticmethod
     def format_tuple(value):
-        has_tuple = any([re.match(r'(.*?)\((.*?)\)(.*?)', str(v)) for v in value])
+        has_tuple = any(
+            [re.match(r'(.*?)\((.*?)\)(.*?)', str(v)) for v in value])
         if has_tuple:
             return '({})'.format(','.join([f"({','.join(v)})" for v in value]))
         else:
@@ -534,12 +608,13 @@ class PyPlug(BasePlug):
     def __str__(self):
         return 'python'
 
-def Plugin(key = None, identifier = ''):
+
+def Plugin(key=None, identifier=''):
     if key is None:
-        return BasePlug(identifier = identifier)
+        return BasePlug(identifier=identifier)
     elif key.upper() == 'R':
-        return RPlug(identifier = identifier)
+        return RPlug(identifier=identifier)
     elif key.upper() == 'PY':
-        return PyPlug(identifier = identifier)
+        return PyPlug(identifier=identifier)
     else:
-        return Shell(identifier = identifier)
+        return Shell(identifier=identifier)

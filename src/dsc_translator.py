@@ -17,14 +17,21 @@ from .utils import uniq_list, dict2str, n2a, remove_log, load_io_db, install_pac
 from .syntax import DSC_CACHE
 __all__ = ['DSC_Translator']
 
+
 class DSC_Translator:
     '''
     Translate preprocessed DSC to SoS pipelines:
       * Each DSC module's name translates to SoS step name
       * Pipelines are executed via nested SoS workflows
     '''
-    def __init__(self, workflows, runtime, rerun = False, n_cpu = 4, try_catch = False,
-                 host_conf = None, debug = False):
+    def __init__(self,
+                 workflows,
+                 runtime,
+                 rerun=False,
+                 n_cpu=4,
+                 try_catch=False,
+                 host_conf=None,
+                 debug=False):
         # FIXME: to be replaced by the R utils package
         self.output = runtime.output
         self.db = os.path.basename(runtime.output)
@@ -54,7 +61,9 @@ class DSC_Translator:
             self.step_map[workflow_id + 1] = dict()
             keys = list(workflow.keys())
             for step in workflow.values():
-                flow = "_".join(['_'.join(keys[:keys.index(step.name)]), step.name]).strip('_')
+                flow = "_".join(
+                    ['_'.join(keys[:keys.index(step.name)]),
+                     step.name]).strip('_')
                 depend = '_'.join(uniq_list([i[0] for i in step.depends]))
                 # beginning of pipeline := module that does not have any dependency
                 if len(step.depends) == 0:
@@ -64,25 +73,32 @@ class DSC_Translator:
                     name = (step.name, workflow_id + 1)
                     self.step_map[workflow_id + 1][step.name] = name
                     # Has the core been processed?
-                    if len([x for x in [k[0] for k in processed_steps.keys()] if x == step.name]) == 0:
-                        job_translator = self.Step_Translator(step, self.db, None,
-                                                              try_catch, host_conf, debug)
+                    if len([
+                            x for x in [k[0] for k in processed_steps.keys()]
+                            if x == step.name
+                    ]) == 0:
+                        job_translator = self.Step_Translator(
+                            step, self.db, None, try_catch, host_conf, debug)
                         job_str.append(job_translator.dump())
                         job_translator.clean()
-                        exe_signatures[step.name] = job_translator.exe_signature
+                        exe_signatures[
+                            step.name] = job_translator.exe_signature
                         self.exe_check.extend(job_translator.exe_check)
                     processed_steps[(step.name, flow, depend)] = name
                     if step.name not in self.depends:
                         self.depends[step.name] = []
-                    if len(step.depends) and step.depends not in self.depends[step.name]:
+                    if len(step.depends) and step.depends not in self.depends[
+                            step.name]:
                         self.depends[step.name].append(step.depends)
-                    conf_translator = self.Step_Translator(step, self.db,
-                                                           self.step_map[workflow_id + 1],
-                                                           try_catch,
-                                                           None)
+                    conf_translator = self.Step_Translator(
+                        step, self.db, self.step_map[workflow_id + 1],
+                        try_catch, None)
                     conf_dict[name] = conf_translator.dump()
                 else:
-                    self.step_map[workflow_id + 1][step.name] = processed_steps[(step.name, flow, depend)]
+                    self.step_map[workflow_id +
+                                  1][step.name] = processed_steps[(step.name,
+                                                                   flow,
+                                                                   depend)]
         # Get workflows executions
         io_info_files = []
         self.last_steps = []
@@ -92,7 +108,9 @@ class DSC_Translator:
         configured_steps = set()
         for workflow_id, sequence in enumerate(runtime.sequence):
             sqn = [self.step_map[workflow_id + 1][x] for x in sequence]
-            new_steps = [conf_dict[x] for x in sqn if x not in configured_steps]
+            new_steps = [
+                conf_dict[x] for x in sqn if x not in configured_steps
+            ]
             configured_steps.update(sqn)
             # Configuration
             if len(new_steps):
@@ -101,11 +119,14 @@ class DSC_Translator:
                                 f'''__pipeline_name__ = '{"+".join([n2a(x[1]).lower()+"_"+x[0] for x in sqn])}'\n''' \
                                 f"# output: '{DSC_CACHE}/{self.db}_{workflow_id + 1}.mpk'\n")
                 conf_str.extend(new_steps)
-                io_info_files.append(f'{DSC_CACHE}/{self.db}_{workflow_id + 1}.mpk')
+                io_info_files.append(
+                    f'{DSC_CACHE}/{self.db}_{workflow_id + 1}.mpk')
             # Execution pool
             ii = 1
             for y in sequence:
-                tmp_str = [f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y} in pipeline #{workflow_id + 1})]\ndata_io = load_io_db(IO_DB, '{workflow_id + 1}', '{y}')"]
+                tmp_str = [
+                    f"\n[{n2a(workflow_id + 1).lower()}_{y} ({y} in pipeline #{workflow_id + 1})]\ndata_io = load_io_db(IO_DB, '{workflow_id + 1}', '{y}')"
+                ]
                 if ii > 1:
                     # use a placeholder string for dependency
                     tmp_str.append("DEPENDS_STR")
@@ -147,17 +168,19 @@ class DSC_Translator:
                             f"Build(script = open('{runtime.output}.html').read(), groups = {runtime.groups}, depends = {self.get_dependency()}, pipelines = {runtime.sequence})"
         #
         self.install_libs(runtime.rlib, "R_library")
-        self.install_libs([x for x in runtime.pymodule if x != 'dsc'], "Python_Module")
+        self.install_libs([x for x in runtime.pymodule if x != 'dsc'],
+                          "Python_Module")
 
     def get_pipeline(self, task, save=False):
         if task == 'prepare':
             res = self.conf_str_sos
-            open(f'{DSC_CACHE}/{self.db}.io.meta.mpk', 'wb').write(msgpack.packb(self.step_map))
+            open(f'{DSC_CACHE}/{self.db}.io.meta.mpk',
+                 'wb').write(msgpack.packb(self.step_map))
         else:
             res = self.job_str
         # clean up previous runs
         if os.path.isfile('.sos/transcript.txt'):
-           os.remove('.sos/transcript.txt')
+            os.remove('.sos/transcript.txt')
         # write explicit SoS script if desired
         if save:
             output = os.path.abspath(f'{DSC_CACHE}/{self.db}_{task}.sos')
@@ -172,7 +195,10 @@ class DSC_Translator:
         for x in self.job_pool:
             if self.step_map[x[1]][x[0]] == x:
                 if self.job_pool[x][1] == 'DEPENDS_STR':
-                    depends_str = [f"sos_step('{n2a(s[1]).lower()}_{s[0]}')" for s in io_db[str(x[1])][x[0]]['depends']]
+                    depends_str = [
+                        f"sos_step('{n2a(s[1]).lower()}_{s[0]}')"
+                        for s in io_db[str(x[1])][x[0]]['depends']
+                    ]
                     self.job_pool[x][1] = f'depends: {", ".join(depends_str)}'
                 self.job_str += "\n" + "\n".join(self.job_pool[x])
                 included_steps.append(x)
@@ -191,9 +217,13 @@ class DSC_Translator:
         libs = uniq_list(libs)
         installed_libs = []
         fn = f'{DSC_CACHE}/{self.db}.{xxh("".join(libs)).hexdigest()}.{lib_type.lower()}-info'
-        for item in glob.glob(f'{DSC_CACHE}/{self.db}.*.{lib_type.lower()}-info'):
+        for item in glob.glob(
+                f'{DSC_CACHE}/{self.db}.*.{lib_type.lower()}-info'):
             if item == fn:
-                installed_libs = [x.strip() for x in open(fn).readlines() if x.strip().split(' ', 1)[1] in libs]
+                installed_libs = [
+                    x.strip() for x in open(fn).readlines()
+                    if x.strip().split(' ', 1)[1] in libs
+                ]
             else:
                 os.remove(item)
         new_libs = []
@@ -205,7 +235,9 @@ class DSC_Translator:
                 if ret:
                     new_libs.append(f'{lib_type} {lib}')
                 else:
-                    raise ModuleNotFoundError(f"Required {lib_type.replace('_', ' ')} ``{lib.split('@')[0]}`` is not available or obsolete. Please install it and try again.")
+                    raise ModuleNotFoundError(
+                        f"Required {lib_type.replace('_', ' ')} ``{lib.split('@')[0]}`` is not available or obsolete. Please install it and try again."
+                    )
 
         with open(fn, 'w') as f:
             f.write('\n'.join(installed_libs + new_libs))
@@ -217,7 +249,13 @@ class DSC_Translator:
         return res
 
     class Step_Translator:
-        def __init__(self, step, db, step_map, try_catch, host_conf = None, debug = False):
+        def __init__(self,
+                     step,
+                     db,
+                     step_map,
+                     try_catch,
+                     host_conf=None,
+                     debug=False):
             '''
             prepare step:
              - will produce source to build config and database for
@@ -237,7 +275,8 @@ class DSC_Translator:
             self.exe_check = []
             self.prepare = 0 if step_map is None else 1
             self.step = step
-            self.current_depends = uniq_list([x[0] for x in step.depends]) if step.depends else []
+            self.current_depends = uniq_list([x[0] for x in step.depends
+                                              ]) if step.depends else []
             self.db = db
             self.conf = host_conf
             self.debug = debug
@@ -278,7 +317,8 @@ class DSC_Translator:
                 self.param_string += '{}{} = {}\n'.\
                                      format('' if self.prepare else "parameter: ", key, repr(self.step.p[key]))
             if self.params:
-                self.loop_string[0] = ' '.join([f'for _{s} in {s}' for s in reversed(self.params)])
+                self.loop_string[0] = ' '.join(
+                    [f'for _{s} in {s}' for s in reversed(self.params)])
             if self.step.ft:
                 self.filter_string = ' if ' + self.step.ft
 
@@ -297,14 +337,16 @@ class DSC_Translator:
                     pass
                 if len(self.current_depends):
                     if len(self.current_depends) > 1:
-                        self.loop_string[1] = f'for __i__ in sos_chunks({self.input_vars}, {len(self.current_depends)})'
+                        self.loop_string[
+                            1] = f'for __i__ in sos_chunks({self.input_vars}, {len(self.current_depends)})'
                     else:
                         self.loop_string[1] = f'for __i__ in {self.input_vars}'
             else:
                 if len(self.current_depends):
                     self.input_string += "parameter: {0}_input_files = list\ninput: dynamic({0}_input_files)".\
                                          format(self.step.name)
-                    self.input_option.append(f'group_by = {len(self.current_depends)}')
+                    self.input_option.append(
+                        f'group_by = {len(self.current_depends)}')
                 else:
                     self.input_string += "input:"
                 if len(self.params):
@@ -314,11 +356,14 @@ class DSC_Translator:
                                                         ' '.join([f'for _{s} in {s}' for s in reversed(self.params)]),
                                                         self.filter_string))
                     else:
-                        self.input_option.append(f'for_each = {repr(self.params)}')
+                        self.input_option.append(
+                            f'for_each = {repr(self.params)}')
 
         def get_output(self):
             if self.prepare:
-                format_string = '.format({})'.format(', '.join([f'_{s}' for s in reversed(self.params)])) if len(self.params) else ''
+                format_string = '.format({})'.format(', '.join([
+                    f'_{s}' for s in reversed(self.params)
+                ])) if len(self.params) else ''
                 output_lhs = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
                 self.output_string += "{3} = sos_hash_output(['{0}'{1} {2}])".\
                                       format(' '.join([self.step.name,
@@ -343,8 +388,8 @@ class DSC_Translator:
                    or (self.step.name not in self.conf and self.conf['default']['queue'] is None):
                     return
                 self.step_option += f"task: {', '.join([str(k) + ' = ' + (repr(v) if isinstance(v, str) and k != 'trunk_workers' else str(v)) for k, v in self.conf[self.step.name if self.step.name in self.conf else 'default'].items()])}, tags = f'{self.step.name}_{{_output:bn}}'"
-                self.step_option += '\n' if path(self.step.workdir).absolute() == path.cwd() else f', workdir = {repr(self.step.workdir)}\n'
-
+                self.step_option += '\n' if path(self.step.workdir).absolute(
+                ) == path.cwd() else f', workdir = {repr(self.step.workdir)}\n'
 
         def get_action(self):
             if self.prepare:
@@ -352,10 +397,13 @@ class DSC_Translator:
                                   format(', '.join([f"('{x}', _{x})" for x in reversed(self.params)]),
                                          None if self.loop_string[1] == '' else ("f\"{' '.join(__i__)}\"" if len(self.current_depends) > 1 else "f'{__i__}'"),
                                          ' '.join(self.loop_string) + self.filter_string)
-                input_str = '[]' if self.input_vars is None else '{0} if {0} is not None else []'.format(self.input_vars)
+                input_str = '[]' if self.input_vars is None else '{0} if {0} is not None else []'.format(
+                    self.input_vars)
                 output_str = f"__{n2a(int(self.step_map[self.step.name][1])).lower()}_{self.step.name}_output__"
                 # FIXME: multiple output to be implemented
-                ext_str = self.step.plugin.output_ext if (len(self.step.exe['path']) == 0 and len(self.step.rv) > 0) else 'yml'
+                ext_str = self.step.plugin.output_ext if (
+                    len(self.step.exe['path']) == 0
+                    and len(self.step.rv) > 0) else 'yml'
                 if len(self.current_depends):
                     self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(' '.join((y, x[1])), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
                 else:
@@ -363,7 +411,8 @@ class DSC_Translator:
             else:
                 # FIXME: have not considered multi-action module (or compound module) yet
                 # Create fake loop for now with idx going around
-                for idx, (plugin, cmd) in enumerate(zip([self.step.plugin], [self.step.exe])):
+                for idx, (plugin, cmd) in enumerate(
+                        zip([self.step.plugin], [self.step.exe])):
                     sigil = '$[ ]' if plugin.name == 'bash' else '${ }'
                     if self.conf is None:
                         self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
@@ -372,43 +421,55 @@ class DSC_Translator:
                         self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
                         self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
-                    self.action += plugin.get_cmd_args(cmd['args'], self.params)
+                    self.action += plugin.get_cmd_args(cmd['args'],
+                                                       self.params)
                     # Add action
                     if len(cmd['path']) == 0:
                         if self.debug:
                             script = plugin.get_return(None)
                         else:
-                            script_begin = plugin.load_env(self.step.depends,
-                                                           idx > 0 and len(self.step.rv))
-                            script_begin += '\n' + plugin.get_input(self.params,
-                                                                    self.step.libpath if self.step.libpath else [])
+                            script_begin = plugin.load_env(
+                                self.step.depends, idx > 0
+                                and len(self.step.rv))
+                            script_begin += '\n' + plugin.get_input(
+                                self.params,
+                                self.step.libpath if self.step.libpath else [])
                             if len(self.step.rf):
-                                script_begin += '\n' + plugin.get_output(self.step.rf)
-                            script_begin = '\n'.join([x for x in script_begin.split('\n') if x])
+                                script_begin += '\n' + plugin.get_output(
+                                    self.step.rf)
+                            script_begin = '\n'.join(
+                                [x for x in script_begin.split('\n') if x])
                             script_begin = f"{cmd['header']}\n{script_begin.strip()}\n\n## BEGIN DSC CORE"
-                            script_end = plugin.get_return(self.step.rv) if len(self.step.rv) else ''
-                            script_end = f'## END DSC CORE\n\n{script_end.strip()}'.strip()
-                            script = '\n'.join([script_begin, cmd['content'], script_end])
+                            script_end = plugin.get_return(
+                                self.step.rv) if len(self.step.rv) else ''
+                            script_end = f'## END DSC CORE\n\n{script_end.strip()}'.strip(
+                            )
+                            script = '\n'.join(
+                                [script_begin, cmd['content'], script_end])
                             if self.try_catch:
-                                script = plugin.add_try(script, len([self.step.rf.values()]))
+                                script = plugin.add_try(
+                                    script, len([self.step.rf.values()]))
                             script = f"""## {str(plugin)} script UUID: ${{DSC_STEP_ID_}}\n{script}\n"""
-                            script = '\n'.join([f'  {x}' for x in script.split('\n')])
+                            script = '\n'.join(
+                                [f'  {x}' for x in script.split('\n')])
                         self.action += script
                         self.exe_signature.append(cmd['signature'])
                     else:
-                        self.exe_check.append(f"executable({repr(cmd['path'])})")
+                        self.exe_check.append(
+                            f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
                 if not self.debug:
                     self.action += "\nremove_log(_output)"
 
         def dump(self):
-            return '\n'.join([x for x in
-                              [self.header,
-                               self.param_string.strip(),
-                               ' '.join([self.input_string,
-                                         (', ' if self.input_string != 'input:' else '') + ', '.join(self.input_option)])
-                               if not self.prepare else self.input_string,
-                               self.output_string,
-                               self.step_option,
-                               self.action]
-                              if x])
+            return '\n'.join([
+                x for x in [
+                    self.header,
+                    self.param_string.strip(), ' '.join([
+                        self.input_string,
+                        (', ' if self.input_string != 'input:' else '') +
+                        ', '.join(self.input_option)
+                    ]) if not self.prepare else self.input_string,
+                    self.output_string, self.step_option, self.action
+                ] if x
+            ])

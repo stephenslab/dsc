@@ -10,6 +10,7 @@ from sqlalchemy.event import listen
 
 __all__ = ['PandaSQL', 'PandaSQLException', 'sqldf']
 
+
 class PandaSQLException(Exception):
     pass
 
@@ -28,7 +29,8 @@ class PandaSQL:
             listen(self.engine, 'connect', self._set_text_factory)
 
         if self.engine.name not in ('sqlite', 'postgresql'):
-            raise PandaSQLException('Currently only sqlite and postgresql are supported.')
+            raise PandaSQLException(
+                'Currently only sqlite and postgresql are supported.')
 
         self.persist = persist
         self.loaded_tables = set()
@@ -112,20 +114,27 @@ def get_outer_frame_variables():
 def extract_table_names(query):
     """ Extract table names from an SQL query. """
     # a good old fashioned regex. turns out this worked better than actually parsing the code
-    tables_blocks = re.findall(r'(?:FROM|JOIN)\s+(\w+(?:\s*,\s*\w+)*)', query, re.IGNORECASE)
-    tables = [tbl
-              for block in tables_blocks
-              for tbl in re.findall(r'\w+', block)]
+    tables_blocks = re.findall(r'(?:FROM|JOIN)\s+(\w+(?:\s*,\s*\w+)*)', query,
+                               re.IGNORECASE)
+    tables = [
+        tbl for block in tables_blocks for tbl in re.findall(r'\w+', block)
+    ]
     return set(tables)
 
 
 def write_table(df, tablename, conn):
     """ Write a dataframe to the database. """
     with catch_warnings():
-        filterwarnings('ignore',
-                       message='The provided table name \'%s\' is not found exactly as such in the database' % tablename)
-        to_sql(df, name=tablename, con=conn,
-               index=not any(name is None for name in df.index.names))  # load index into db if all levels are named
+        filterwarnings(
+            'ignore',
+            message=
+            'The provided table name \'%s\' is not found exactly as such in the database'
+            % tablename)
+        to_sql(df,
+               name=tablename,
+               con=conn,
+               index=not any(name is None for name in df.index.names)
+               )  # load index into db if all levels are named
 
 
 def sqldf(query, env=None, names=None, db_uri='sqlite:///:memory:'):

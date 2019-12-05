@@ -39,16 +39,18 @@ IO_UNPACK = 'DSC_IO_UNPACK'
 IO_ROOT_IS_SNS = 'DSC_ROOT_IS_SNS'
 
 # Types that should be saved as pytables attribute
-ATTR_TYPES = (int, float, bool, str, bytes,
-              np.int8, np.int16, np.int32, np.int64, np.uint8,
-              np.uint16, np.uint32, np.uint64, np.float16, np.float32,
-              np.float64, np.bool_, np.complex64, np.complex128)
+ATTR_TYPES = (int, float, bool, str, bytes, np.int8, np.int16, np.int32,
+              np.int64, np.uint8, np.uint16, np.uint32, np.uint64, np.float16,
+              np.float32, np.float64, np.bool_, np.complex64, np.complex128)
 
 
 class SliceClass(object):
     def __getitem__(self, index):
         return index
+
+
 aslice = SliceClass()
+
 
 class _HDFStoreWithHandle(pd.io.pytables.HDFStore):
     def __init__(self, handle):
@@ -61,8 +63,8 @@ class _HDFStoreWithHandle(pd.io.pytables.HDFStore):
 
 
 def is_pandas_dataframe(level):
-    return ('pandas_version' in level._v_attrs and
-            'pandas_type' in level._v_attrs)
+    return ('pandas_version' in level._v_attrs
+            and 'pandas_type' in level._v_attrs)
 
 
 class ForcePickle(object):
@@ -105,8 +107,8 @@ def _get_compression_filters(compression='blosc'):
     if compression is True:
         compression = 'zlib'
 
-    if (compression is False or compression is None or
-            compression == 'none' or compression == 'None'):
+    if (compression is False or compression is None or compression == 'none'
+            or compression == 'None'):
         ff = None
     else:
         if isinstance(compression, (tuple, list)):
@@ -115,11 +117,13 @@ def _get_compression_filters(compression='blosc'):
             level = 9
 
         try:
-            ff = tables.Filters(complevel=level, complib=compression,
+            ff = tables.Filters(complevel=level,
+                                complib=compression,
                                 shuffle=True)
         except Exception:
-            logger.warning(("(hdf5io.save) Missing compression method {}: "
-                           "no compression will be used.").format(compression))
+            logger.warning(
+                ("(hdf5io.save) Missing compression method {}: "
+                 "no compression will be used.").format(compression))
             ff = None
     return ff
 
@@ -147,8 +151,7 @@ def _save_ndarray(handler, group, name, x, filters=None):
     if x.ndim > 0 and np.min(x.shape) == 0:
         sh = np.array(x.shape)
         atom0 = tables.Atom.from_dtype(np.dtype(np.int64))
-        node = handler.create_array(group, name, atom=atom0,
-                                    shape=(sh.size,))
+        node = handler.create_array(group, name, atom=atom0, shape=(sh.size, ))
         node._v_attrs.zeroarray_dtype = np.dtype(x.dtype).str.encode('ascii')
         node[:] = sh
         return
@@ -164,13 +167,14 @@ def _save_ndarray(handler, group, name, x, filters=None):
     # settings a threshold here. The threshold has been set through
     # experimentation.
     if filters is not None and x.size > 300:
-        node = handler.create_carray(group, name, atom=atom,
+        node = handler.create_carray(group,
+                                     name,
+                                     atom=atom,
                                      shape=x.shape,
                                      chunkshape=None,
                                      filters=filters)
     else:
-        node = handler.create_array(group, name, atom=atom,
-                                    shape=x.shape)
+        node = handler.create_array(group, name, atom=atom, shape=x.shape)
     if strtype is not None:
         node._v_attrs.strtype = strtype
         node._v_attrs.itemsize = itemsize
@@ -206,8 +210,12 @@ def _save_level(handler, group, level, name=None, filters=None, idtable=None):
 
     if isinstance(level, Compression):
         custom_filters = _get_compression_filters(level.compression)
-        return _save_level(handler, group, level.obj, name=name,
-                           filters=custom_filters, idtable=idtable)
+        return _save_level(handler,
+                           group,
+                           level.obj,
+                           name=name,
+                           filters=custom_filters,
+                           idtable=idtable)
 
     elif isinstance(level, ForcePickle):
         _save_pickled(handler, group, level, name=name)
@@ -218,16 +226,25 @@ def _save_level(handler, group, level, name=None, filters=None, idtable=None):
                                          "dict:{}".format(len(level)))
         for k, v in level.items():
             if isinstance(k, str):
-                _save_level(handler, new_group, v, name=k, filters=filters,
+                _save_level(handler,
+                            new_group,
+                            v,
+                            name=k,
+                            filters=filters,
                             idtable=idtable)
 
-    elif isinstance(level, SimpleNamespace) and _dict_native_ok(level.__dict__):
+    elif isinstance(level, SimpleNamespace) and _dict_native_ok(
+            level.__dict__):
         # Create a new group in same manner as for dict
         new_group = handler.create_group(
             group, name, "SimpleNamespace:{}".format(len(level.__dict__)))
         for k, v in level.__dict__.items():
             if isinstance(k, str):
-                _save_level(handler, new_group, v, name=k, filters=filters,
+                _save_level(handler,
+                            new_group,
+                            v,
+                            name=k,
+                            filters=filters,
                             idtable=idtable)
 
     elif isinstance(level, list) and len(level) < 256:
@@ -239,8 +256,12 @@ def _save_level(handler, group, level, name=None, filters=None, idtable=None):
 
         for i, entry in enumerate(level):
             level_name = 'i{}'.format(i)
-            _save_level(handler, new_group, entry,
-                        name=level_name, filters=filters, idtable=idtable)
+            _save_level(handler,
+                        new_group,
+                        entry,
+                        name=level_name,
+                        filters=filters,
+                        idtable=idtable)
 
     elif isinstance(level, tuple) and len(level) < 256:
         # Lists can contain other dictionaries and numpy arrays, so we don't
@@ -251,8 +272,12 @@ def _save_level(handler, group, level, name=None, filters=None, idtable=None):
 
         for i, entry in enumerate(level):
             level_name = 'i{}'.format(i)
-            _save_level(handler, new_group, entry, name=level_name,
-                        filters=filters, idtable=idtable)
+            _save_level(handler,
+                        new_group,
+                        entry,
+                        name=level_name,
+                        filters=filters,
+                        idtable=idtable)
 
     elif isinstance(level, np.ndarray):
         _save_ndarray(handler, group, name, level, filters=filters)
@@ -261,22 +286,26 @@ def _save_level(handler, group, level, name=None, filters=None, idtable=None):
         store = _HDFStoreWithHandle(handler)
         store.put(group._v_pathname + '/' + name, level)
 
-    elif isinstance(level, (sparse.dok_matrix,
-                            sparse.lil_matrix)):
+    elif isinstance(level, (sparse.dok_matrix, sparse.lil_matrix)):
         raise NotImplementedError(
             'hdf5io.save does not support DOK or LIL matrices; '
             'please convert before saving to one of the following supported '
             'types: BSR, COO, CSR, CSC, DIA')
 
-    elif isinstance(level, (sparse.csr_matrix,
-                            sparse.csc_matrix,
-                            sparse.bsr_matrix)):
+    elif isinstance(level,
+                    (sparse.csr_matrix, sparse.csc_matrix, sparse.bsr_matrix)):
         new_group = handler.create_group(group, name, "sparse:")
 
         _save_ndarray(handler, new_group, 'data', level.data, filters=filters)
-        _save_ndarray(handler, new_group, 'indices', level.indices,
+        _save_ndarray(handler,
+                      new_group,
+                      'indices',
+                      level.indices,
                       filters=filters)
-        _save_ndarray(handler, new_group, 'indptr', level.indptr,
+        _save_ndarray(handler,
+                      new_group,
+                      'indptr',
+                      level.indptr,
                       filters=filters)
         _save_ndarray(handler, new_group, 'shape', np.asarray(level.shape))
         new_group._v_attrs.format = level.format
@@ -286,7 +315,10 @@ def _save_level(handler, group, level, name=None, filters=None, idtable=None):
         new_group = handler.create_group(group, name, "sparse:")
 
         _save_ndarray(handler, new_group, 'data', level.data, filters=filters)
-        _save_ndarray(handler, new_group, 'offsets', level.offsets,
+        _save_ndarray(handler,
+                      new_group,
+                      'offsets',
+                      level.offsets,
                       filters=filters)
         _save_ndarray(handler, new_group, 'shape', np.asarray(level.shape))
         new_group._v_attrs.format = level.format
@@ -338,12 +370,18 @@ def _load_specific_level(handler, grp, path, sel=None, pathtable=None):
     else:
         level, rest = vv
         if level == '':
-            return _load_specific_level(handler, grp.root, rest, sel=sel,
+            return _load_specific_level(handler,
+                                        grp.root,
+                                        rest,
+                                        sel=sel,
                                         pathtable=pathtable)
         else:
             if hasattr(grp, level):
-                return _load_specific_level(handler, getattr(grp, level),
-                                            rest, sel=sel, pathtable=pathtable)
+                return _load_specific_level(handler,
+                                            getattr(grp, level),
+                                            rest,
+                                            sel=sel,
+                                            pathtable=pathtable)
             else:
                 raise ValueError('Undefined group "{}"'.format(level))
 
@@ -360,7 +398,8 @@ def _load_nonlink_level(handler, level, pathtable, pathname):
     Loads level and builds appropriate type, without handling softlinks
     """
     if isinstance(level, tables.Group):
-        if level._v_title.startswith('SimpleNamespace:') or IO_ROOT_IS_SNS in level._v_attrs:
+        if level._v_title.startswith(
+                'SimpleNamespace:') or IO_ROOT_IS_SNS in level._v_attrs:
             val = SimpleNamespace()
             dct = val.__dict__
         elif level._v_title.startswith('list:'):
@@ -410,9 +449,11 @@ def _load_nonlink_level(handler, level, pathtable, pathname):
             frm = level._v_attrs.format
             if frm in ('csr', 'csc', 'bsr'):
                 shape = tuple(level.shape[:])
-                cls = {'csr': sparse.csr_matrix,
-                       'csc': sparse.csc_matrix,
-                       'bsr': sparse.bsr_matrix}
+                cls = {
+                    'csr': sparse.csr_matrix,
+                    'csc': sparse.csc_matrix,
+                    'bsr': sparse.bsr_matrix
+                }
                 matrix = cls[frm](shape)
                 matrix.data = level.data[:]
                 matrix.indices = level.indices[:]
@@ -440,7 +481,7 @@ def _load_nonlink_level(handler, level, pathtable, pathname):
             return val
 
     elif isinstance(level, tables.VLArray):
-        if level.shape == (1,):
+        if level.shape == (1, ):
             return _load_pickled(level)
         else:
             return level[:]
@@ -496,7 +537,7 @@ def _load_sliced_level(handler, level, sel):
         level = level()
 
     if isinstance(level, tables.VLArray):
-        if level.shape == (1,):
+        if level.shape == (1, ):
             return _load_pickled(level)
         else:
             return level[sel]
@@ -576,19 +617,32 @@ def save(data, path, compression='blosc'):
         if isinstance(data, dict) and _dict_native_ok(data):
             idtable[id(data)] = '/'
             for key, value in data.items():
-                _save_level(h5file, group, value, name=key,
-                            filters=filters, idtable=idtable)
+                _save_level(h5file,
+                            group,
+                            value,
+                            name=key,
+                            filters=filters,
+                            idtable=idtable)
 
-        elif isinstance(data, SimpleNamespace) and _dict_native_ok(data.__dict__):
+        elif isinstance(data, SimpleNamespace) and _dict_native_ok(
+                data.__dict__):
             idtable[id(data)] = '/'
             group._v_attrs[IO_ROOT_IS_SNS] = True
             for key, value in data.__dict__.items():
-                _save_level(h5file, group, value, name=key,
-                            filters=filters, idtable=idtable)
+                _save_level(h5file,
+                            group,
+                            value,
+                            name=key,
+                            filters=filters,
+                            idtable=idtable)
 
         else:
-            _save_level(h5file, group, data, name='data',
-                        filters=filters, idtable=idtable)
+            _save_level(h5file,
+                        group,
+                        data,
+                        name='data',
+                        filters=filters,
+                        idtable=idtable)
             # Mark this to automatically unpack when loaded
             group._v_attrs[IO_UNPACK] = True
 
@@ -631,23 +685,32 @@ def load(path, group=None, sel=None, unpack=False):
         pathtable = dict()  # dict to keep track of objects already loaded
         if group is not None:
             if isinstance(group, str):
-                data = _load_specific_level(h5file, h5file, group, sel=sel,
+                data = _load_specific_level(h5file,
+                                            h5file,
+                                            group,
+                                            sel=sel,
                                             pathtable=pathtable)
             else:  # Assume group is a list or tuple
                 data = []
                 for g in group:
-                    data_i = _load_specific_level(h5file, h5file, g, sel=sel,
+                    data_i = _load_specific_level(h5file,
+                                                  h5file,
+                                                  g,
+                                                  sel=sel,
                                                   pathtable=pathtable)
                     data.append(data_i)
                 data = tuple(data)
         else:
             grp = h5file.root
-            auto_unpack = (IO_UNPACK in grp._v_attrs and
-                           grp._v_attrs[IO_UNPACK])
+            auto_unpack = (IO_UNPACK in grp._v_attrs
+                           and grp._v_attrs[IO_UNPACK])
             do_unpack = unpack or auto_unpack
             if do_unpack and len(grp._v_children) == 1:
                 name = next(iter(grp._v_children))
-                data = _load_specific_level(h5file, grp, name, sel=sel,
+                data = _load_specific_level(h5file,
+                                            grp,
+                                            name,
+                                            sel=sel,
                                             pathtable=pathtable)
                 do_unpack = False
             elif sel is not None:

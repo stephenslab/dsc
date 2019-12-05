@@ -10,16 +10,18 @@ import re
 from sos.syntax import LazyRegex, SOS_DIRECTIVES
 
 SOS_KW = []
-DSC_KW = ['DSC_OUTPUT', 'DSC_VARS', 'DSC_DEBUG', 'DSC_REPLICATE'] # engineering keywords, reserved
+DSC_KW = ['DSC_OUTPUT', 'DSC_VARS', 'DSC_DEBUG',
+          'DSC_REPLICATE']  # engineering keywords, reserved
 DSC_KW.extend(SOS_DIRECTIVES)
-DSC_MODP = ['@EXEC', '@FILTER', '@ALIAS', '@CONF'] # module properties
+DSC_MODP = ['@EXEC', '@FILTER', '@ALIAS', '@CONF']  # module properties
 
 DSC_DERIVED_BLOCK = LazyRegex(r'^(.*?)\((.*?)\)$', re.VERBOSE)
 DSC_FILE_OP = LazyRegex(r'^file\((.*?)\)$', re.VERBOSE)
 DSC_ASIS_OP = LazyRegex(r'^raw\((.*?)\)$', re.VERBOSE)
 DSC_PACK_OP = LazyRegex(r'(?i)(list|dict)\((.*?)\)', re.VERBOSE)
 DSC_BLOCK_CONTENT = LazyRegex(r'^\s(.*?)', re.VERBOSE)
-DSC_GVS = LazyRegex(r'\$\((.*?)\)\[(.*?)\]', re.VERBOSE) # global variable with slicing
+DSC_GVS = LazyRegex(r'\$\((.*?)\)\[(.*?)\]',
+                    re.VERBOSE)  # global variable with slicing
 DSC_GV = LazyRegex(r'\$\((.*?)\)', re.VERBOSE)
 DSC_RLIB = LazyRegex(r'^\s*(library|require)\((.*?)\)', re.VERBOSE)
 DSC_PYMODULE = LazyRegex(r'(^from|^import)(.*?)', re.VERBOSE)

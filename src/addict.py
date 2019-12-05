@@ -2,7 +2,6 @@ import copy
 
 
 class Dict(dict):
-
     def __init__(__self, *args, **kwargs):
         object.__setattr__(__self, '__parent', kwargs.pop('__parent', None))
         object.__setattr__(__self, '__key', kwargs.pop('__key', None))
@@ -76,8 +75,8 @@ class Dict(dict):
                 base[key] = value.to_dict()
             elif isinstance(value, (list, tuple)):
                 base[key] = type(value)(
-                    item.to_dict() if isinstance(item, type(self)) else
-                    item for item in value)
+                    item.to_dict() if isinstance(item, type(self)) else item
+                    for item in value)
             else:
                 base[key] = value
         return base
@@ -100,9 +99,8 @@ class Dict(dict):
             other.update(args[0])
         other.update(kwargs)
         for k, v in other.items():
-            if ((k not in self) or
-                (not isinstance(self[k], dict)) or
-                (not isinstance(v, dict))):
+            if ((k not in self) or (not isinstance(self[k], dict))
+                    or (not isinstance(v, dict))):
                 self[k] = v
             else:
                 self[k].update(v)
@@ -122,4 +120,3 @@ class Dict(dict):
         else:
             self[key] = default
             return default
-
