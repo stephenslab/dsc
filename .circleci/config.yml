@@ -1,0 +1,74 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: ubuntu:bionic
+    steps:
+      - restore_cache:
+          keys:
+            - r-cache
+      - checkout
+      - run:
+          name: Install Python
+          command: |
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip
+            pip3 install --upgrade pip
+      - run:
+          name: Install Python dependencies
+          command: pip3 install --ignore-installed -r requirements.txt
+      - run:
+          name: Install DSC
+          command: python3 -m pip install . --no-deps -vv
+      - run:
+          name: DSC installation information
+          command: |
+            dsc --help
+            dsc-query --version
+      - run:
+          name: Install R
+          command: |
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive apt-get install -y r-base \
+                                                              r-base-dev \
+                                                              r-cran-data.table \
+                                                              r-cran-devtools \
+                                                              r-cran-dplyr \
+                                                              r-cran-ggplot2 \
+                                                              r-cran-progress \
+                                                              r-cran-r6 \
+                                                              r-cran-rlang \
+                                                              r-cran-shiny \
+                                                              r-cran-testthat \
+                                                              r-cran-tibble \
+                                                              r-cran-yaml
+      - run:
+          name: Install R dependencies
+          command: |
+            Rscript -e 'devtools::install_deps("dscrutils", dependencies = TRUE)'
+            Rscript -e 'install.packages("remotes")'
+      - run:
+          name: Install dscrutils
+          command: |
+            R CMD build --no-manual dscrutils
+            R CMD INSTALL dscrutils_*.tar.gz
+      - run:
+          name: dscrutils installation information
+          command: |
+            Rscript -e 'print(sessionInfo())'
+            Rscript -e 'print(installed.packages()[, c("Package", "Version")])'
+      - run:
+          name: Test dscrutils
+          command: R CMD check --as-cran --no-manual dscrutils_*.tar.gz
+      - run:
+          name: Test DSC
+          command: |
+            cd test/
+            python3 test_parser.py
+            python3 test_query.py
+      - store_artifacts:
+          path: dscrutils.Rcheck/
+      - save_cache:
+          key: r-cache
+          paths:
+            - "/usr/local/lib/R/site-library"
