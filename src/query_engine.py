@@ -144,6 +144,12 @@ class Query_Processor:
                 k] = f"Variable ``{y}`` is both parameter and output in module ``{k}``. Parameter variable ``{y}`` is extracted. To obtain output variable ``{y}`` please use ``{k}.output.{y}`` to specify the query target."
         if not y_low in [i.lower() for i in self.data[k]] and check_field == 2:
             raise DBError(f"Cannot find column ``{y}`` in table ``{k}``")
+        if y_low.startswith('output.'):
+            y_low = y_low[7:]
+        if y_low not in [i.lower() for i in self.data[k]] and y_low not in [
+                i.lower() for i in self.data['.output'][k]
+        ] and check_field == 1:
+            raise DBError(f"Cannot find variable ``{y}`` in module ``{k}``")
         return
 
     @staticmethod
