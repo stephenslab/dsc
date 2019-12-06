@@ -13,10 +13,9 @@ except ImportError:
     from hashlib import md5 as xxh
 from collections import OrderedDict
 from sos.targets import path
-from .utils import uniq_list, dict2str, n2a, remove_log, load_io_db, install_package
+from .utils import uniq_list, dict2str, n2a, load_io_db, install_package
 from .syntax import DSC_CACHE
 __all__ = ['DSC_Translator']
-
 
 class DSC_Translator:
     '''
@@ -44,8 +43,6 @@ class DSC_Translator:
         conf_header = 'from dsc.dsc_database import build_config_db, ResultDB\n'
         job_header = f"[global]\nimport os\n\nIO_DB = '{self.output}/{self.db}.conf.mpk'\n\n"\
                      f"{inspect.getsource(load_io_db)}"
-        if not debug:
-            job_header += f"\n{inspect.getsource(remove_log)}"
         processed_steps = dict()
         self.depends = dict()
         conf_dict = dict()
@@ -458,8 +455,6 @@ class DSC_Translator:
                         self.exe_check.append(
                             f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
-                if not self.debug:
-                    self.action += "\nremove_log(_output)"
 
         def dump(self):
             return '\n'.join([
