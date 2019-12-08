@@ -833,27 +833,6 @@ def locate_file(file_name, file_path):
             res = os.path.join(item, file_name)
     return res
 
-
-def empty_log(fn):
-    if fn.with_suffix('.stderr').exists():
-        open(fn.with_suffix('.stderr'), 'w').close()
-    if fn.with_suffix('.stdout').exists():
-        open(fn.with_suffix('.stdout'), 'w').close()
-
-
-def remove_log(fn):
-    try:
-        if fn.with_suffix('.stderr').stat().st_size == 0:
-            os.remove(fn.with_suffix('.stderr'))
-    except Exception:
-        pass
-    try:
-        if fn.with_suffix('.stdout').stat().st_size == 0:
-            os.remove(fn.with_suffix('.stdout'))
-    except Exception:
-        pass
-
-
 def n2a(col_num, col_abs=False):
     col_str = ''
     col_abs = '$' if col_abs else ''
