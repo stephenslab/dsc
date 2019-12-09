@@ -589,8 +589,8 @@ def expand_logic(string):
     string = string.replace(' OR ', '|')
     string = string.replace(' and ', '&')
     string = string.replace(' AND ', '&')
-    string = string.replace(' not ', '~')
-    string = string.replace(' NOT ', '~')
+    string = string.replace('not ', '~')
+    string = string.replace('NOT ', '~')
     quote_dict = dict()
     for idx, m in enumerate(re.findall(r"\"[^\"]+\"|'[^']+'", string)):
         # - Match either of the following options
