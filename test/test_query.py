@@ -33,6 +33,7 @@ cause_db = 'data/cause_result.db'
 class TestQuery(unittest.TestCase):
     def setUp(self):
         self.temp_files = []
+        self.maxDiff = None
 
     def tearDown(self):
         for f in self.temp_files:
