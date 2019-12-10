@@ -84,8 +84,8 @@ class TestQuery(unittest.TestCase):
         #  handle group merger
         res = Query_Processor(reg_db, 'simulate.scenario analyze score score.error'.split(), [], [])
         q = test_outcome(res, '1.csv')
-        observed = get_output('(head -n 2 1.csv && tail -n +3 1.csv | sort) | head').strip().split('\n')
-        expected = '''
+        observed = sorted(get_output('(head -n 2 1.csv && tail -n +3 1.csv | sort) | head').strip().split('\n'))
+        expected = sorted('''
 DSC,simulate,simulate.scenario,analyze,analyze.output.file,score,score.output.file,score.error:output
 1,en_sim,eg1,lasso,lasso/en_sim_1_lasso_1,sq_err,sq_err/en_sim_1_lasso_1_sq_err_1,sq_err/en_sim_1_lasso_1_sq_err_1
 1,dense,NA,en,en/dense_1_en_1,sq_err,sq_err/dense_1_en_1_sq_err_1,sq_err/dense_1_en_1_sq_err_1
@@ -96,13 +96,13 @@ DSC,simulate,simulate.scenario,analyze,analyze.output.file,score,score.output.fi
 1,en_sim,eg2,en,en/en_sim_2_en_1,sq_err,sq_err/en_sim_2_en_1_sq_err_1,sq_err/en_sim_2_en_1_sq_err_1
 1,en_sim,eg2,lasso,lasso/en_sim_2_lasso_1,sq_err,sq_err/en_sim_2_lasso_1_sq_err_1,sq_err/en_sim_2_lasso_1_sq_err_1
 1,en_sim,eg2,ridge,ridge/en_sim_2_ridge_1,sq_err,sq_err/en_sim_2_ridge_1_sq_err_1,sq_err/en_sim_2_ridge_1_sq_err_1
-'''.strip().split('\n')
+'''.strip().split('\n'))
         self.assertEqual(observed, expected)
         # another group merger test
         res = Query_Processor(cause_db, 'simulate.q cis.ci_lwr cis.ci_upr summ_probs.prob cis'.split())
         q = test_outcome(res, '1.csv')
-        observed = get_output('(head -n 2 1.csv && tail -n +3 1.csv | sort) | head').strip().split('\n')
-        expected = '''
+        observed = sorted(get_output('(head -n 2 1.csv && tail -n +3 1.csv | sort) | head').strip().split('\n'))
+        expected = sorted('''
 DSC,simulate.q,cis,cis.output.file,cis.ci_upr:output,cis.ci_lwr:output,summ_probs,summ_probs.prob:output
 1,0.0,gamma_ci,gamma_ci/simulate_1_cause_grid_adapt_1_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_1_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_1_gamma_ci_1,NA,NA
 1,0.0,gamma_ci,gamma_ci/simulate_1_cause_grid_adapt_2_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_2_gamma_ci_1,gamma_ci/simulate_1_cause_grid_adapt_2_gamma_ci_1,NA,NA
@@ -113,7 +113,7 @@ DSC,simulate.q,cis,cis.output.file,cis.ci_upr:output,cis.ci_lwr:output,summ_prob
 1,0.0,NA,NA,NA,NA,gamma_lfsr,gamma_lfsr/simulate_1_cause_grid_adapt_1_gamma_lfsr_1
 1,0.0,NA,NA,NA,NA,gamma_lfsr,gamma_lfsr/simulate_1_cause_grid_adapt_2_gamma_lfsr_1
 1,0.0,NA,NA,NA,NA,gamma_lfsr,gamma_lfsr/simulate_1_cause_grid_adapt_3_gamma_lfsr_1
-'''.strip().split('\n')
+'''.strip().split('\n'))
         self.assertEqual(observed, expected)
 
 
