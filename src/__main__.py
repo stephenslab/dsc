@@ -182,7 +182,8 @@ def execute(args, unknown_args):
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & running DSC ...")
     try:
-        settings['error_mode'] = args.error_mode
+        if not args.error_mode == 'ignore-safe':
+            settings['error_mode'] = args.error_mode
         settings['verbosity'] = args.verbosity if args.host else max(
             0, args.verbosity - 1)
         settings['output_dag'] = f'{db}.dot' if args.__dag__ else None
@@ -277,7 +278,7 @@ def main():
                    "strict": skips jobs whose input, output and code have not been changed since previous execution.
                    "lenient": skips jobs whose output timestamp are newer than their input.
                    It can be used to avoid re-run when nuisent changes are made to module scripts that should not impact results.
-                   "existing": skips jobs whose output exists, and mark existing output as "up-to-date" for future re-runs. 
+                   "existing": skips jobs whose output exists, and mark existing output as "up-to-date" for future re-runs.
                    It can be used to avoid re-run completely even after file status cache have been deleted
                    (eg, after partially transferring output data from one location to another).
                    "all": skips all modules and only build meta-database required to run `dsc-query` command.
@@ -289,21 +290,21 @@ def main():
                     help=SUPPRESS)
     mt.add_argument('-e',
                     metavar='option',
-                    choices=['default', 'ignore', 'abort'],
+                    choices=['ignore-safe', 'ignore', 'abort'],
                     dest='error_mode',
-                    default="default",
+                    default="ignore-safe",
                     help='''How DSC responds to errors.
-                    "abort": stop all modules immediately after an error occurs.
-                    "ignore": ignore errors and try to complete the benchmark.
-                    "default": stop modules with errors or has errors in their upstream modules.
+                    "abort": stop all module instances immediately after an error occurs.
+                    "ignore": ignore all errors and try to complete the benchmark.
+                    "ignore-safe": only stop module instances with errors or has errors in their upstream modules.
                     ''')
     mt.add_argument('-d',
                     metavar="option",
                     choices=["obsolete", "replace", "all"],
                     dest='to_remove',
                     help='''How DSC deletes benchmark files.
-                   Use option "all" to remove all output from the current benchmark. 
-                   "obsolete", when used without "--target", removes from output folder anything irrelevant 
+                   Use option "all" to remove all output from the current benchmark.
+                   "obsolete", when used without "--target", removes from output folder anything irrelevant
                    to the most recent successful execution of the benchmark.
                    When used with "--target" it deletes specified files, or files from specified modules or module groups.
                    "replace", when used with "--target", deletes files as option "obsolete" does with "--target",

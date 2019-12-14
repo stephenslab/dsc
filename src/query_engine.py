@@ -65,6 +65,8 @@ class Query_Processor:
             ])
         else:
             self.depends = None
+        # https://github.com/stephenslab/dsc/issues/202
+        self.output_checklist = dict(valid={}, invalid={})
         # 1. Check overlapping groups and fix the case when some module in the group has some parameter but others do not
         # changes will be applied to self.data
         self.groups.update(self.get_grouped_tables(groups))
@@ -72,6 +74,7 @@ class Query_Processor:
         self.add_na_group_parameters()
         # 2. Get query targets and conditions
         self.target_tables = self.get_table_fields(self.targets)
+        self.check_output_variables()
         self.condition, self.condition_tables = parse_filter(
             condition, groups=self.groups)
         # 3. only keep tables that do exist in database
@@ -146,11 +149,35 @@ class Query_Processor:
             raise DBError(f"Cannot find column ``{y}`` in table ``{k}``")
         if y_low.startswith('output.'):
             y_low = y_low[7:]
-        if y_low not in [i.lower() for i in self.data[k]] and y_low not in [
-                i.lower() for i in self.data['.output'][k]
-        ] and check_field == 1:
-            raise DBError(f"Cannot find variable ``{y}`` in module ``{k}``")
+        if check_field == 1:
+            if y_low not in [i.lower() for i in self.data[k]] and y_low not in [
+                i.lower() for i in self.data['.output'][k]]:
+                try:
+                    self.output_checklist['invalid'][y].append(k)
+                except Exception:
+                    self.output_checklist['invalid'][y] = [k]
+            else:
+                try:
+                    self.output_checklist['valid'][y].append(k)
+                except Exception:
+                    self.output_checklist['valid'][y] = [k]
         return
+
+    def check_output_variables(self):
+        for k in self.output_checklist['invalid']:
+            if k not in self.output_checklist['valid']:
+                raise DBError(f"Cannot find variable ``{k}`` in module ``{', '.join(self.output_checklist['invalid'][k])}``")
+            # check if the variable is in the same group
+            # eg, {'valid': {'alpha': ['elastic_net'], 'beta': ['ridge', 'elastic_net']}, 'invalid': {'alpha': ['ridge']}}
+            # is okay because of group {'fit': ['ridge', 'elastic_net']}
+            for i in self.output_checklist['invalid'][k]:
+                is_valid = []
+                for j in self.output_checklist['valid'][k]:
+                    is_valid.extend([set([i,j]).issubset(set(s)) for g,s in self.groups.items()])
+                if not any(is_valid):
+                    raise DBError(f"Cannot find variable ``{k}`` in module ``{i}``")
+        return
+
 
     @staticmethod
     def get_grouped_tables(groups):

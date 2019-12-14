@@ -39,7 +39,7 @@
 #' for testing or debugging. Note that any module or module group
 #' included in \code{module.output.files} must also be included in
 #' \code{targets}.
-#' 
+#'
 #' @param conditions Conditions used to filter DSC pipeline results;
 #' rows in which one or more of the conditions evaluate to
 #' \code{FALSE} or \code{NA} are removed from the output (removing
@@ -71,7 +71,7 @@
 #' expert users for testing or to reproduce previous queries since the
 #' \code{dsc-query} output file must exactly agree in the query
 #' arguments, otherwise unexpected errors could occur.
-#' 
+#'
 #' @param return.type If \code{return.type = "data.frame"}, the DSC
 #' outputs are returned in a data frame; if \code{return.type =
 #' "list"}, the DSC output a list. If \code{return.type = "auto"}, a
@@ -81,7 +81,7 @@
 #' limitations) of each. Note that \code{return.type = "data.frame"}
 #' cannot be used when one or more modules or module groups are named
 #' in \code{module.output.files}.
-#' 
+#'
 #' @param ignore.missing.files If \code{ignore.missing.files = TRUE},
 #' all targets corresponding to DSC output files that cannot be found,
 #' or cannot be read (e.g., because they are corrupted), will be
@@ -108,7 +108,7 @@
 #' When \code{return.type = "list"}, the output is a list, with list
 #' elements corresponding to the query targets. Each top-level list
 #' element should have the same length.
-#' 
+#'
 #' When \code{return.type = "auto"}, DSC outputs are extracted into
 #' the columns of the data frame unless one or more outputs are large
 #' or complex objects, in which case the return value is a list.
@@ -138,7 +138,7 @@
 #' This function may not work in Windows.
 #'
 #' @seealso \code{\link{dscread}}
-#' 
+#'
 #' @examples
 #'
 #' # Retrieve the number of samples ("simulate.n") and error summary
@@ -148,7 +148,7 @@
 #'                        "dsc_result",package = "dscrutils")
 #' dat1 <- dscquery(dsc.dir,
 #'                  targets = c("simulate.n","analyze","score.error"))
-#' 
+#'
 #' # Retrieve the results only for simulations in which the "mean" module
 #' # was run. Because this is a condition for a module name, it is
 #' # applied before loading the full set of results into R. Therefore,
@@ -174,7 +174,7 @@
 #'                  targets = c("simulate.n","analyze","score.error"),
 #'                  conditions = c("$(score.error) > 0.2",
 #'                                 "$(analyze) == 'median'"))
-#' 
+#'
 #' # Retrieve some results from the "ash" DSC experiment. In this
 #' # example, the beta estimates are vectors, so the results are
 #' # extracted into a list by default.
@@ -185,7 +185,7 @@
 #'            targets = c("simulate.nsamp","simulate.g","shrink.mixcompdist",
 #'                        "shrink.beta_est","shrink.pi0_est"),
 #'            conditions = "$(simulate.g)=='list(c(2/3,1/3),c(0,0),c(1,2))'")
-#' 
+#'
 #' # This is the same as the previous example, but extracts the results
 #' # into data frame. Since the vectors cannot be stored in a data frame,
 #' # the names of the files storing the vectors are returned instead.
@@ -197,7 +197,7 @@
 #'            return.type = "data.frame")
 #'
 #' # See also example("dscread").
-#' 
+#'
 #' @importFrom data.table fread
 #' @importFrom progress progress_bar
 #'
@@ -215,7 +215,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # Check input argument "dsc.outdir".
   if (!(is.character(dsc.outdir) & length(dsc.outdir) == 1))
     stop("Argument \"dsc.outdir\" should be a character vector of length 1")
-  
+
   # Check and process input argument "targets".
   if (!(is.character(targets) & is.vector(targets) & length(targets) > 0))
     stop(paste("Argument \"targets\" should be a character vector with",
@@ -246,7 +246,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
                  "\"module.output.files\" must also be included in",
                  "\"targets\""))
   }
-  
+
   # Check input argument "conditions".
   if (!is.null(conditions))
     if (!(is.character(conditions) & is.vector(conditions) &
@@ -259,13 +259,13 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
     if (!(is.character(groups) & is.vector(groups) & length(groups) > 0))
       stop(paste("Argument \"groups\" should be \"NULL\", or a character",
                  "vector with at least one element"))
-  
+
   # Check input argument "dsc.outfile".
   if (!is.null(dsc.outfile))
     if (!(is.character(dsc.outfile) & length(dsc.outfile) == 1))
       stop(paste("Argument \"dsc.outfile\" should either be \"NULL\" or a",
                  "character vector of length 1"))
-  
+
   # Check and process input argument "return.type".
   return.type <- match.arg(return.type)
   if (return.type == "data.frame" & length(module.output.all) > 1)
@@ -276,7 +276,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   # Check input argument "ignore.missing.files".
   if (!(is.logical(ignore.missing.files) & length(ignore.missing.files) == 1))
     stop("Argument \"ignore.missing.files\" should be TRUE or FALSE")
-  
+
   # Check input argument "exec".
   if (!(is.character(exec) & length(exec) == 1))
     stop("Argument \"exec\" should be a character vector of length 1")
@@ -327,7 +327,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
                    "command failed (returned a non-zero exit status)"))
     }
   }
-  
+
   # IMPORT DSC QUERY RESULTS
   # ------------------------
   # As a safeguard, we check for any duplicated column (or list
@@ -336,7 +336,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
   class(dat) <- "data.frame"
   if (any(duplicated(names(dat))))
     stop("One or more names in dsc-query output are the same")
-  
+
   # PRE-FILTER BY CONDITIONS
   # ------------------------
   # Filter rows of the data frame by each condition. If one or more
@@ -440,7 +440,7 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
       }
     dat <- as.data.frame(dat,check.names = FALSE,stringsAsFactors = FALSE)
   } else if (return.type == "auto") {
-      
+
     # If all the outputs can be stored in a data frame, do so.
     dat <- flatten.nested.list(dat)
     if (all(!sapply(dat,is.list)))
@@ -458,8 +458,8 @@ dscquery <- function (dsc.outdir, targets = NULL, module.output.all = NULL,
                     "may be more convenient for analyzing these results"))
   }
   rm(dat.unextracted)
-  
-  # POST-FILTER BY CONDITIONS 
+
+  # POST-FILTER BY CONDITIONS
   # -------------------------
   # Filter rows of the data frame (or list) by each condition.
   # This is second filtering step is necessary to take care of any
@@ -570,7 +570,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
 
   # Determine which columns contain names of files that should be
   # read; these are columns of the form "module.variable:output". If
-  # there are no such columns, there is nothing to do here. 
+  # there are no such columns, there is nothing to do here.
   cols <- which(sapply(as.list(names(dat)),is.output.column))
   if (length(cols) == 0)
     return(dat)
@@ -601,7 +601,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
       if (!is.na(j))
         out[[j]][[x]] <- NA
   }
-  
+
   # Extract the outputs.
   if (verbose)
     pb <-
@@ -618,7 +618,8 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
         if (j == "DSC_TIME")
           out[[i]][[j]] <- x$DSC_DEBUG$time$elapsed
         else if (!is.element(j,names(x)))
-          stop(sprintf("Variable \"%s\" unavailable in \"%s\"",j,i))
+          # https://github.com/stephenslab/dsc/issues/202
+          out[[i]][j] <- NA
         else
           out[[i]][j] <- list(x[[j]])
   }
@@ -635,7 +636,7 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
         dat[[i]][j] <- list(out[[file]][[v]])
     }
   }
-  
+
   return(dat)
 }
 
@@ -656,7 +657,7 @@ import.dsc.output <- function (outfile, outdir, ignore.missing.files) {
 flatten.nested.list <- function (x) {
   n <- length(x)
   for (i in 1:n)
-      
+
     # If all the list elements are atomic, not NULL, and scalar
     # (i.e., length of 1), then the values can be "flattened" as a vector.
     # If not, then there is nothing to be done.

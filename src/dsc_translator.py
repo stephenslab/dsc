@@ -340,7 +340,7 @@ class DSC_Translator:
                         self.loop_string[1] = f'for __i__ in {self.input_vars}'
             else:
                 if len(self.current_depends):
-                    self.input_string += "parameter: {0}_input_files = list\ninput: dynamic({0}_input_files)".\
+                    self.input_string += "parameter: {0}_input_files = list\ninput: {0}_input_files".\
                                          format(self.step.name)
                     self.input_option.append(
                         f'group_by = {len(self.current_depends)}')
