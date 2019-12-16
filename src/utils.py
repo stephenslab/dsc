@@ -681,7 +681,7 @@ def dsc2html(dsc_conf,
     modules = dict(modules)
     section_content = [('->'.join(x), [(i, modules[i]) for i in x])
                        for x in sequences]
-    section_content = dict(lib_content + section_content)
+    section_content = dict(section_content)
     languages = {
         'py': 'python',
         'sh': 'bash',
