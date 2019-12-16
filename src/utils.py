@@ -681,7 +681,7 @@ def dsc2html(dsc_conf,
     modules = dict(modules)
     section_content = [('->'.join(x), [(i, modules[i]) for i in x])
                        for x in sequences]
-    section_content = dict(section_content)
+    section_content = dict(section_content + lib_content)
     languages = {
         'py': 'python',
         'sh': 'bash',
@@ -717,7 +717,11 @@ def dsc2html(dsc_conf,
             scripts = []
             seen = []
             for content in contents:
-                module, command = content
+                try:
+                    module, command = content
+                except Exception:
+                    command = content
+                    module = ''
                 if isinstance(command, str):
                     # for libs
                     if command in seen:
