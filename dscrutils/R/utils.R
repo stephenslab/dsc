@@ -51,13 +51,12 @@ save_session <- function (start_time, id) {
 }
 
 #' @export
-run_cmd <- function (cmd_str, shell_exec = "/bin/bash", fout = '', ferr = '',
-                     quit_on_error = TRUE, ...) {
+run_cmd <- function(cmd_str, shell_exec="/bin/bash", fout='', ferr='', quit_on_error=TRUE, ...) {
   if (ferr!=FALSE) {
     write("Running shell command:", stderr())
     write(cmd_str, stderr())
   }
-  out <- system2("",args = c("-c",shQuote(cmd_str)),stdout = fout, stderr=ferr, ...)
+  out <- system2(shell_exec, args = c("-c", shQuote(cmd_str)), stdout = fout, stderr=ferr, ...)
   if (out != 0 && quit_on_error && fout != TRUE && ferr != TRUE)
     stop(paste(strsplit(cmd_str, " +")[[1]][1], "command failed (returned a non-zero exit status)"))
   return(out)
