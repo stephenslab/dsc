@@ -84,7 +84,7 @@ all existing files. We apologize for the inconveniences it incurs.
 
 ## Change Log
 
-### 0.4.x
+### 0.4.0
 
 - Issue #194
 - Issue #202
