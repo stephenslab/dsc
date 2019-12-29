@@ -7,7 +7,7 @@ __license__ = "MIT"
 This file defines methods to load and preprocess DSC scripts
 '''
 
-import os, re, itertools, copy, glob, yaml, warnings
+import os, re, itertools, copy, glob, yaml, warnings, platform
 from collections import Mapping, OrderedDict, Counter
 try:
     from xxhash import xxh32 as xxh
@@ -17,7 +17,8 @@ from sos.utils import env
 from sos.targets import fileMD5, executable
 from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
      try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, \
-     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf, install_package_interactive
+     parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf, install_package_interactive, \
+     dsc2html
 from .syntax import *
 from .line import OperationParser, Str2List, EntryFormatter, parse_filter, parse_exe
 from .plugin import Plugin
@@ -37,7 +38,8 @@ class DSC_Script:
                  sequence=None,
                  global_params=[],
                  truncate=False,
-                 replicate=None):
+                 replicate=None,
+                 host=None):
         self.content = dict()
         if os.path.isfile(content):
             script_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -114,7 +116,7 @@ class DSC_Script:
         if self.runtime.output is None:
             self.runtime.output = script_name
         self.runtime.output = remove_quotes(self.runtime.output)
-
+        self.update_path(host is not None)
         def get_missing_module_message(k):
             if k in self.base_modules:
                 return f"Module ``{k}`` cannot be used directly due to lack of executable specifications."
@@ -488,6 +490,24 @@ class DSC_Script:
                 os.path.basename(self.runtime.output) + '.scripts.html'):
             os.remove(os.path.basename(self.runtime.output) + '.scripts.html')
         update_gitconf()
+
+    def update_path(self, linux=False):
+        # Resolve executable paths
+        self.runtime.options['exec_path'] = [
+            os.path.join(
+                k, 'mac' if platform.system() == 'Darwin' and not linux
+                else 'linux') for k in (self.runtime.options['exec_path'] or [])
+        ] + (self.runtime.options['exec_path'] or [])
+        self.runtime.options['exec_path'] = [x for x in self.runtime.options['exec_path'] if os.path.isdir(x)]
+
+    def to_html(self):
+        lib_content = [(f"From <code>{k}</code>", sorted(glob.glob(f"{k}/*.*")))
+                   for k in self.runtime.options['lib_path'] or []]
+        exec_content = [(k, self.modules[k].exe)
+                    for k in self.runtime.sequence_ordering]
+        dsc2html('\n'.join(self.transcript), self.runtime.output,
+             self.runtime.sequence, exec_content, lib_content,
+             self.print_help(to_html=True))
 
     def dump(self):
         res = dict([
@@ -1466,7 +1486,7 @@ def process_based_on(cfg, item):
         return item
 
 
-def remote_config_parser(host, paths):
+def remote_config_parser(host):
     conf = None
     for h in [host, f'{host}.yml', f'{host}.yaml']:
         if os.path.isfile(h):
@@ -1486,8 +1506,6 @@ def remote_config_parser(host, paths):
                     ('instances_per_job', 2), ('nodes_per_job', 1),
                     ('instances_per_node', 1), ('cpus_per_instance', 1),
                     ('mem_per_instance', '2G'), ('time_per_instance', '5m')])
-    if len(paths):
-        default['prepend_path'] = paths
 
     def check_valid_conf(key):
         for kk in conf[key]:

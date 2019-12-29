@@ -418,6 +418,8 @@ class DSC_Translator:
                         self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
                         self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
+                    if len(self.step.path):
+                        self.action += ", env={'PATH': '%s:' + os.environ['PATH']}" % ":".join(self.step.path)
                     self.action += plugin.get_cmd_args(cmd['args'],
                                                        self.params)
                     # Add action

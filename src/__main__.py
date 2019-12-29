@@ -4,7 +4,7 @@ __copyright__ = "Copyright 2016, Stephens lab"
 __email__ = "gaow@uchicago.edu"
 __license__ = "MIT"
 
-import os, sys, glob, time
+import os, sys, time
 from sos.utils import env, get_traceback
 from .version import __version__
 from .syntax import DSC_CACHE
@@ -48,7 +48,7 @@ def remove(workflows, groups, modules, db, purge=False):
             'tags': None,
             'queue': None,
             'config': None,
-            'verbosity': 0
+            'verbosity': 1
         }
         cmd_purge(dotdict(settings), [])
         # purge all tasks of more than 3 days old
@@ -80,8 +80,7 @@ def execute(args, unknown_args):
         env.logger.info("Load command line DSC sequence: ``{}``".\
                         format(' '.join(', '.join(args.target).split())))
     # Import packages
-    import platform
-    from .utils import workflow2html, dsc2html, transcript2html
+    from .utils import workflow2html, transcript2html
     from sos import execute_workflow
     from .dsc_parser import DSC_Script, DSC_Pipeline, remote_config_parser
     from .dsc_translator import DSC_Translator
@@ -91,9 +90,11 @@ def execute(args, unknown_args):
                         sequence=args.target,
                         global_params=unknown_args,
                         truncate=args.truncate,
-                        replicate=1 if args.truncate else args.replicate)
+                        replicate=1 if args.truncate else args.replicate,
+                        host=args.host)
     script.init_dsc(env)
     pipeline_obj = DSC_Pipeline(script).pipelines
+    db = os.path.basename(script.runtime.output)
     # Apply clean-up
     if args.to_remove:
         if args.to_remove == 'all':
@@ -104,30 +105,15 @@ def execute(args, unknown_args):
                 **script.runtime.groups
             }, rm_objects, script.runtime.output, args.to_remove == 'obsolete')
         return
-    db = os.path.basename(script.runtime.output)
     # Archive scripts
-    lib_content = [(f"From <code>{k}</code>", sorted(glob.glob(f"{k}/*.*")))
-                   for k in script.runtime.options['lib_path'] or []]
-    exec_content = [(k, script.modules[k].exe)
-                    for k in script.runtime.sequence_ordering]
-    dsc2html('\n'.join(script.transcript), script.runtime.output,
-             script.runtime.sequence, exec_content, lib_content,
-             script.print_help(to_html=True))
+    script.to_html()
     env.logger.info(f"DSC script exported to ``{script.runtime.output}.html``")
     if args.debug:
         workflow2html(f'{DSC_CACHE}/{db}_workflow.html', pipeline_obj,
                       list(script.dump().values()))
-    # Resolve executable paths
-    # FIXME: always assume args.host is a Linux machine and not checking it
-    exec_path = [
-        os.path.join(
-            k, 'mac' if platform.system() == 'Darwin' and args.host is None
-            else 'linux') for k in (script.runtime.options['exec_path'] or [])
-    ] + (script.runtime.options['exec_path'] or [])
-    exec_path = [x for x in exec_path if os.path.isdir(x)]
     # Generate remote job configuration settings
     if args.host:
-        conf = remote_config_parser(args.host, exec_path)
+        conf = remote_config_parser(args.host)
         conf_tpl = {'localhost': 'localhost', 'hosts': conf['DSC']}
     else:
         conf = conf_tpl = dict()
@@ -144,16 +130,13 @@ def execute(args, unknown_args):
     settings = {
         'sig_mode': 'default',
         'error_mode': 'default',
-        'workflow_vars': {
-            '__bin_dirs__': exec_path
-        },
         'max_running_jobs': None if args.host else args.__max_jobs__,
         'worker_procs': args.__max_jobs__,
     }
     if args.__construct__ == "none":
         settings['sig_mode'] = "force"
     # Get mapped IO database
-    settings['verbosity'] = args.verbosity if args.debug else 0
+    settings['verbosity'] = args.verbosity if args.debug else 1
     status = execute_workflow(script_prepare,
                               workflow='deploy',
                               options=settings)
@@ -181,11 +164,12 @@ def execute(args, unknown_args):
         return
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
     env.logger.info(f"Building execution graph & running DSC ...")
+    # making verbosity level consistent with before SoS version 0.21.2
+    verbosity_map = {0:1,1:0,2:2 if args.host else 0,3:3,4:4}
     try:
         if not args.error_mode == 'ignore-safe':
             settings['error_mode'] = args.error_mode
-        settings['verbosity'] = args.verbosity if args.host else max(
-            0, args.verbosity - 1)
+        settings['verbosity'] = verbosity_map[args.verbosity]
         settings['output_dag'] = f'{db}.dot' if args.__dag__ else None
         status = execute_workflow(script_run,
                                   workflow='DSC',
@@ -328,8 +312,7 @@ def main():
         type=int,
         choices=list(range(5)),
         default=2,
-        help='''Output error (0), warning (1), info (2), debug (3) and trace (4)
-                   information.''')
+        help='''Various levels of output information to screen.''')
     ro.add_argument(
         '-g',
         dest='__dag__',
