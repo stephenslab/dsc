@@ -13,6 +13,7 @@ except ImportError:
     from hashlib import md5 as xxh
 from collections import OrderedDict
 from sos.targets import path
+from sos import execute_workflow
 from .utils import uniq_list, dict2str, n2a, load_io_db, install_package
 from .syntax import DSC_CACHE
 __all__ = ['DSC_Translator']
@@ -167,6 +168,7 @@ class DSC_Translator:
         self.install_libs(runtime.rlib, "R_library")
         self.install_libs([x for x in runtime.pymodule if x != 'dsc'],
                           "Python_Module")
+        self.pull_images(runtime.container)
 
     def get_pipeline(self, task, save=False):
         if task == 'prepare':
@@ -238,6 +240,13 @@ class DSC_Translator:
 
         with open(fn, 'w') as f:
             f.write('\n'.join(installed_libs + new_libs))
+
+    def pull_images(self, containers):
+        for container, engine in containers:
+            script = f'[container]\nrun: container={repr(container)}'
+            if not engine is None:
+                script += f', engine={repr(engine)}'
+            status = execute_workflow(script, workflow='container', options=dict(verbosity=1))
 
     def get_dependency(self):
         res = dict()
@@ -418,6 +427,10 @@ class DSC_Translator:
                         self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     else:
                         self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
+                    if self.step.container:
+                        self.action += f", container={repr(self.step.container)}"
+                        if self.step.container_engine:
+                            self.action += f", engine={repr(self.step.container_engine)}"
                     if len(self.step.path):
                         self.action += ", env={'PATH': '%s:' + os.environ['PATH']}" % ":".join(self.step.path)
                     self.action += plugin.get_cmd_args(cmd['args'],

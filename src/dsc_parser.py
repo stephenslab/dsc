@@ -156,6 +156,7 @@ class DSC_Script:
         self.runtime.pymodule.extend(
             flatten_list(
                 [x.pymodule for x in self.modules.values() if x.pymodule]))
+        self.runtime.container = [(x.container, x.container_engine) for x in self.modules.values() if x.container]
         # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
@@ -682,6 +683,8 @@ class DSC_Module:
         self.libpath_tracked = None
         self.rlib = None
         self.pymodule = None
+        self.container = None
+        self.container_engine = None
         # dependencies
         self.depends = []
         # check if it runs in shell
@@ -930,12 +933,21 @@ class DSC_Module:
         libpath2 = try_get_value(spec_option, 'lib_path')
         path1 = try_get_value(common_option, 'exec_path')
         path2 = try_get_value(spec_option, 'exec_path')
+        container1 = try_get_value(common_option, 'container', [None])[0]
+        container2 = try_get_value(spec_option, 'container', [None])[0]
+        container_engine1 = try_get_value(common_option, 'container_engine', [None])[0]
+        container_engine2 = try_get_value(spec_option, 'container_engine', [None])[0]
         self.workdir = workdir2 if workdir2 is not None else workdir1
         self.libpath = libpath2 if libpath2 is not None else libpath1
         self.path = path2 if path2 is not None else path1
+        self.container = container2 if container2 is not None else container1
+        self.container_engine = container_engine2 if container_engine2 is not None else container_engine1
         self.rlib = try_get_value(spec_option, 'R_libs', [])
         self.pymodule = try_get_value(spec_option, 'python_modules', [])
+        if not self.container is None and (self.rlib or self.pymodule):
+            raise FormatError(f'Options ``R_libs`` and ``python_modules`` cannot be used for module ``{self.name}`` when option ``container`` is specified.')
         self.libpath_tracked = libpath2
+
 
     def set_input(self, params, alias):
         if params is not None:
@@ -1170,7 +1182,8 @@ class DSC_Module:
             ('plugin_status', self.plugin.dump()),
             ('runtime_options',
              dict([('exec_path', self.path), ('workdir', self.workdir),
-                   ('library_path', self.libpath)]))
+                   ('library_path', self.libpath), ('container', self.container),
+                   ('container_engine', self.container_engine)]))
         ]),
                           mapping=dict,
                           skip_keys=['input'])
@@ -1336,7 +1349,9 @@ class DSC_Section:
                                     ('sequence ordering',
                                      list(self.sequence_ordering.keys())),
                                     ('R libraries', self.rlib),
-                                    ('Python modules', self.pymodule)]),
+                                    ('Python modules', self.pymodule),
+                                    ('Container', self.container),
+                                    ('Container engine', self.container_engine)]),
                        mapping=OrderedDict))
 
 
