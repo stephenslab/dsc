@@ -84,6 +84,11 @@ all existing files. We apologize for the inconveniences it incurs.
 
 ## Change Log
 
+### 0.4.2
+
+- Issue #214 for container support.
+- SoS bumped to version 0.21.5 for container support.
+
 ### 0.4.0
 
 - Issue #194
@@ -99,7 +104,7 @@ all existing files. We apologize for the inconveniences it incurs.
 
 - Issue #154
 - Add a remote job option `nodes_per_job` and provide such mechanism to run on multiple nodes.
-- SoS bumped to version 0.20.2
+- SoS bumped to version 0.20.2.
 
 0.3.9
 

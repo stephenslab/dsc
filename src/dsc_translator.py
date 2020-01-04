@@ -250,7 +250,7 @@ class DSC_Translator:
             try:
                 execute_workflow(script, workflow='container', options=dict(verbosity=1))
             except Exception as e:
-                raise  ModuleNotFoundError(f'Container ``{container}`` must have DSC software (including R package dscrutils) installed in order to be used in DSC environment.')
+                raise  ModuleNotFoundError(f'Please make sure ``{container}`` is available (locally or online) and has DSC software (including R package dscrutils) installed for use in DSC environment.')
 
     def get_dependency(self):
         res = dict()
