@@ -243,10 +243,14 @@ class DSC_Translator:
 
     def pull_images(self, containers):
         for container, engine in containers:
-            script = f'[container]\nrun: container={repr(container)}'
+            script = f'[container]\nrun: stderr=False, stdout=False, container={repr(container)}'
             if not engine is None:
                 script += f', engine={repr(engine)}'
-            status = execute_workflow(script, workflow='container', options=dict(verbosity=1))
+            script += '\n  dsc -h'
+            try:
+                execute_workflow(script, workflow='container', options=dict(verbosity=1))
+            except Exception as e:
+                raise  ModuleNotFoundError(f'Container ``{container}`` must have DSC software (including R package dscrutils) installed in order to be used in DSC environment.')
 
     def get_dependency(self):
         res = dict()
