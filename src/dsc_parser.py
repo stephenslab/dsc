@@ -970,7 +970,9 @@ class DSC_Module:
                                 f'Parameter group ``{p}`` and value ``{item}`` should have same length'
                             )
                         for pp, ii in zip(ps, item):
-                            self.p[pp].append(ii)
+                            # https://github.com/stephenslab/dsc/issues/215
+                            if not ii in self.p[pp]:
+                                self.p[pp].append(ii)
                 else:
                     if p not in self.p:
                         self.p[p] = params[p]
