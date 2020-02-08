@@ -951,9 +951,9 @@ class DSC_Module:
 
     def set_input(self, params, alias):
         if params is not None:
-            # handle input groups (n,p):(1,2)
             for p in params:
                 if ',' in p:
+                    # handle input groups (n,p):(1,2)
                     ps = parens_aware_split(remove_parens(p))
                     self.pg.append(ps)
                     for pp in ps:
@@ -970,9 +970,7 @@ class DSC_Module:
                                 f'Parameter group ``{p}`` and value ``{item}`` should have same length'
                             )
                         for pp, ii in zip(ps, item):
-                            # https://github.com/stephenslab/dsc/issues/215
-                            if not ii in self.p[pp]:
-                                self.p[pp].append(ii)
+                            self.p[pp].append(ii)
                 else:
                     if p not in self.p:
                         self.p[p] = params[p]
@@ -1074,6 +1072,9 @@ class DSC_Module:
                         if isinstance(self.p[g][j], str) else self.p[g][j])
                     for g in group
                 ]))
+            # https://github.com/stephenslab/dsc/issues/215
+            for g in group:
+                self.p[g] = uniq_list(self.p[g])
         if len(tmp):
             ft.append(' OR '.join([f"({x})" for x in tmp]))
         if len(ft) == 0:
