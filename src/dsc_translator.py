@@ -165,10 +165,11 @@ class DSC_Translator:
                             "\nResultDB(f'{_output:n}')."\
                             f"Build(script = open('{runtime.output}.html').read(), groups = {runtime.groups}, depends = {self.get_dependency()}, pipelines = {runtime.sequence})"
         #
-        self.install_libs(runtime.rlib, "R_library")
-        self.install_libs([x for x in runtime.pymodule if x != 'dsc'],
+        if not debug:
+            self.install_libs(runtime.rlib, "R_library")
+            self.install_libs([x for x in runtime.pymodule if x != 'dsc'],
                           "Python_Module")
-        self.pull_images(runtime.container)
+            self.pull_images(runtime.container)
 
     def get_pipeline(self, task, save=False):
         if task == 'prepare':
