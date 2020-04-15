@@ -15,8 +15,8 @@ except ImportError:
     from hashlib import md5 as xxh
 from sos.utils import env
 from sos.targets import fileMD5, executable
-from .utils import FormatError, strip_dict, find_nested_key, recursive_items, merge_lists, flatten_list, uniq_list, \
-     try_get_value, dict2str, set_nested_value, locate_file, filter_sublist, cartesian_list, \
+from .utils import FormatError, strip_dict, recursive_items, merge_lists, flatten_list, uniq_list, \
+     try_get_value, dict2str, locate_file, filter_sublist, cartesian_list, \
      parens_aware_split, remove_parens, remove_quotes, rmd_to_r, update_gitconf, install_package_interactive, \
      dsc2html
 from .syntax import *
@@ -97,7 +97,6 @@ class DSC_Script:
                 self.content['DSC'] = dict()
         self.get_global_params(global_params)
         global_vars = try_get_value(self.content, ('DSC', 'global'))
-        self.set_global_vars(global_vars)
         self.content = EntryFormatter()(self.content, global_vars)
         derived, sorted_blocks = self.get_derived_blocks()
         for block in sorted_blocks:
@@ -265,15 +264,6 @@ class DSC_Script:
                 env.logger.warning(
                     f'Parameter ``--{k}`` is ignored because it is not found in ``DSC::global`` section.'
                 )
-
-    def set_global_vars(self, gvars):
-        if gvars is None:
-            return
-        for v in gvars:
-            for block in self.content:
-                keys = list(find_nested_key(v, self.content[block]))
-                for k in keys:
-                    set_nested_value(self.content[block], k, gvars[v])
 
     @staticmethod
     def validate_var_name(val, is_parameter):
