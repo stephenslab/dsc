@@ -425,13 +425,10 @@ class DSC_Translator:
                 for idx, (plugin, cmd) in enumerate(
                         zip([self.step.plugin], [self.step.exe])):
                     sigil = '$[ ]' if plugin.name == 'bash' else '${ }'
-                    if self.conf is None:
-                        self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
-                        if path(self.step.workdir).absolute() != path.cwd():
-                            self.action += f", workdir = {repr(self.step.workdir)}"
-                        self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
-                    else:
-                        self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
+                    self.action += f'{"python3" if plugin.name == "python" else plugin.name}: expand = "{sigil}"'
+                    if path(self.step.workdir).absolute() != path.cwd():
+                        self.action += f", workdir = {repr(self.step.workdir)}"
+                    self.action += f', stderr = f"{{_output:n}}.stderr", stdout = f"{{_output:n}}.stdout"'
                     if self.step.container:
                         self.action += f", container={repr(self.step.container)}"
                         if self.step.container_engine:
