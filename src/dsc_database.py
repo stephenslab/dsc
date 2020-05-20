@@ -18,7 +18,7 @@ def remove_obsolete_output(output, additional_files=None, rerun=False):
     # Load existing file names
     if os.path.isfile(map_db) and not rerun:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(),
-                                   encoding='utf-8',
+                                   raw=False,
                                    object_pairs_hook=OrderedDict)
     else:
         map_data = OrderedDict()
@@ -222,15 +222,15 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
     #
     if os.path.isfile(map_db) and not vanilla:
         map_data = msgpack.unpackb(open(map_db, 'rb').read(),
-                                   encoding='utf-8',
+                                   raw=False,
                                    object_pairs_hook=OrderedDict)
     else:
         map_data = OrderedDict()
     data = msgpack.unpackb(open(io_db, 'rb').read(),
-                           encoding='utf-8',
+                           raw=False,
                            object_pairs_hook=OrderedDict)
     meta_data = msgpack.unpackb(open(io_db[:-4] + '.meta.mpk', 'rb').read(),
-                                encoding='utf-8',
+                                raw=False,
                                 object_pairs_hook=OrderedDict)
     map_names = get_names()
     update_map(map_names)
@@ -275,7 +275,7 @@ class ResultDB:
         if os.path.isfile(f"{self.prefix}.map.mpk"):
             self.maps = msgpack.unpackb(open(f"{self.prefix}.map.mpk",
                                              "rb").read(),
-                                        encoding='utf-8',
+                                        raw=False,
                                         object_pairs_hook=OrderedDict)
         else:
             raise DBError(
@@ -295,12 +295,12 @@ class ResultDB:
             self.rawdata = msgpack.unpackb(open(
                 f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.mpk',
                 'rb').read(),
-                                           encoding='utf-8',
+                                           raw=False,
                                            object_pairs_hook=OrderedDict)
             self.metadata = msgpack.unpackb(open(
                 f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.meta.mpk',
                 'rb').read(),
-                                            encoding='utf-8',
+                                            raw=False,
                                             object_pairs_hook=OrderedDict)
         except:
             raise DBError('Cannot load source data to build database!')
