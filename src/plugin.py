@@ -124,7 +124,7 @@ class Shell(BasePlug):
         super().__init__(name='bash', identifier=identifier)
         self.output_ext = 'yml'
 
-    def get_input(self, params, lib):
+    def get_input(self, params, lib, seed_option):
         res = 'rm -f $[_output]\n'
         if len(lib):
             res += '\n'.join([
@@ -138,7 +138,10 @@ class Shell(BasePlug):
                 self.get_var(k), k)
         # FIXME: may need a timer
         # seed
-        res += '\nRANDOM=$(($DSC_REPLICATE))'
+        if 'seed_option' == 'REPLICATE':
+            res += '\nRANDOM=$(($DSC_REPLICATE))'
+        else:
+            res += '\nRANDOM=$(($DSC_REPLICATE + $[DSC_STEP_ID_]))'
         return res
 
     def get_output(self, params):
@@ -344,7 +347,7 @@ class RPlug(BasePlug):
             res += '\n' + '\n'.join(sorted(self.tempfile))
         return res
 
-    def get_input(self, params, lib):
+    def get_input(self, params, lib, seed_option):
         res = 'dscrutils:::source_dirs(c({}))\n'.format(','.join(
             [repr(x) for x in lib])) if len(lib) else ''
         # load parameters
@@ -355,7 +358,10 @@ class RPlug(BasePlug):
         # timer
         res += f'\nTIC_{self.identifier[4:]} <- proc.time()'
         # seed
-        res += '\nset.seed(DSC_REPLICATE)'
+        if seed_option == 'REPLICATE':
+            res += '\nset.seed(DSC_REPLICATE)'
+        else:
+            res += '\nset.seed(DSC_REPLICATE + ${DSC_STEP_ID_})'
         return res
 
     def get_output(self, params):
@@ -526,7 +532,7 @@ class PyPlug(BasePlug):
             res += '\n' + '\n'.join(sorted(self.tempfile))
         return res
 
-    def get_input(self, params, lib):
+    def get_input(self, params, lib, seed_option):
         res = '\n'.join(
             [f'sys.path.append(os.path.expanduser("{item}"))' for item in lib])
         # load parameters
@@ -535,7 +541,10 @@ class PyPlug(BasePlug):
         for k in keys:
             res += '\n%s = ${_%s}' % (self.get_var(k), k)
         res += f'\nTIC_{self.identifier[4:]} = timeit.default_timer()'
-        res += '\nimport random\nrandom.seed(DSC_REPLICATE)\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE)\nexcept Exception:\n\tpass'
+        if seed_option == 'REPLICATE':
+            res += '\nimport random\nrandom.seed(DSC_REPLICATE)\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE)\nexcept Exception:\n\tpass'
+        else:
+            res += '\nimport random\nrandom.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\nexcept Exception:\n\tpass'
         return res
 
     def get_output(self, params):

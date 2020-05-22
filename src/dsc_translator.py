@@ -447,7 +447,8 @@ class DSC_Translator:
                                 and len(self.step.rv))
                             script_begin += '\n' + plugin.get_input(
                                 self.params,
-                                self.step.libpath if self.step.libpath else [])
+                                self.step.libpath if self.step.libpath else [],
+                                self.step.seed)
                             if len(self.step.rf):
                                 script_begin += '\n' + plugin.get_output(
                                     self.step.rf)

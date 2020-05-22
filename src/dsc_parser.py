@@ -666,6 +666,8 @@ class DSC_Module:
         self.exe = None
         # script plugin object
         self.plugin = None
+        # script seed option
+        self.seed = None
         # runtime variables
         self.workdir = None
         self.libpath = None
@@ -923,15 +925,18 @@ class DSC_Module:
         libpath2 = try_get_value(spec_option, 'lib_path')
         path1 = try_get_value(common_option, 'exec_path')
         path2 = try_get_value(spec_option, 'exec_path')
-        container1 = try_get_value(common_option, 'container', [None])[0]
-        container2 = try_get_value(spec_option, 'container', [None])[0]
-        container_engine1 = try_get_value(common_option, 'container_engine', [None])[0]
-        container_engine2 = try_get_value(spec_option, 'container_engine', [None])[0]
+        container1 = try_get_value(common_option, 'container')
+        container2 = try_get_value(spec_option, 'container')
+        container_engine1 = try_get_value(common_option, 'container_engine')
+        container_engine2 = try_get_value(spec_option, 'container_engine')
+        seed1 = try_get_value(common_option, 'seed', 'HASH')
+        seed2 = try_get_value(spec_option, 'seed')
         self.workdir = workdir2 if workdir2 is not None else workdir1
         self.libpath = libpath2 if libpath2 is not None else libpath1
         self.path = path2 if path2 is not None else path1
-        self.container = container2 if container2 is not None else container1
-        self.container_engine = container_engine2 if container_engine2 is not None else container_engine1
+        self.seed = seed2[0] if seed2 is not None else seed1
+        self.container = container2[0] if container2 is not None else container1
+        self.container_engine = container_engine2[0] if container_engine2 is not None else container_engine1
         self.rlib = try_get_value(spec_option, 'R_libs', [])
         self.pymodule = try_get_value(spec_option, 'python_modules', [])
         if not self.container is None and (self.rlib or self.pymodule):
