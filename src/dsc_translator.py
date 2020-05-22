@@ -41,7 +41,7 @@ class DSC_Translator:
                     for kk in runtime.groups[k]:
                         host_conf[kk] = host_conf[k]
                     del host_conf[k]
-        conf_header = 'from dsc.dsc_database import build_config_db, ResultDB\n'
+        conf_header = 'import os\nfrom dsc.dsc_database import build_config_db, ResultDB\n'
         job_header = f"[global]\nimport os\n\nIO_DB = '{self.output}/{self.db}.conf.mpk'\n\n"\
                      f"{inspect.getsource(load_io_db)}"
         processed_steps = dict()
@@ -154,11 +154,11 @@ class DSC_Translator:
                                    '\n'.join(['\t' + x for x in conf_str_py.split('\n')])) + \
                             "\n[deploy_2 (Configuring output filenames)]\n"\
                             f"parameter: vanilla = {rerun}\n"\
-                            f"input: '{DSC_CACHE}/{self.db}.io.mpk'\n"\
                             f"output: '{self.output}/{self.db}.map.mpk', "\
                             f"'{self.output}/{self.db}.conf.mpk'"\
                             "\nbuild_config_db(str(_input[0]), str(_output[0]), "\
                             f"str(_output[1]), vanilla = vanilla, jobs = {n_cpu})\n"\
+                            f"if os.path.isfile('{self.output}/{self.db}.db'): os.remove('{self.output}/{self.db}.db')\n"\
                             "\n[build (Build meta-database)]\n"\
                             f"depends: '{DSC_CACHE}/{self.db}.io.mpk', '{self.output}/{self.db}.map.mpk'\n"\
                             f"output: '{self.output}/{self.db}.db'"\
