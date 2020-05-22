@@ -13,5 +13,6 @@ bash: expand = True, workdir = f'{_input:d}'
   fi
 
 [default_2]
+input: group_by = 'all'
 R: workdir = '../dscrutils'
   devtools::test('tests')

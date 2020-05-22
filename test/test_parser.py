@@ -55,7 +55,7 @@ simulate: R()
     @simulate:
         x: 1
         y: 2
-    @ALIAS: 
+    @ALIAS:
         simulate: x_1 = x
     $out: x
 '''
@@ -72,7 +72,7 @@ simulate: R()
     @simulate:
         x: 1
         y: 2
-        @ALIAS: 
+        @ALIAS:
             *: x_1 = x
     $out: x
 '''
@@ -147,9 +147,9 @@ class TestParser(unittest.TestCase):
         self.assertEqual(list(res.modules['simulate'].plugin.alias_map.items()), [('x', 'x_1')])
         # use global variable
         res = DSC_Script(text11)
-        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('x', [2]), ('y', [2])])
+        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('x', [1]), ('y', [2])])
         res = DSC_Script(text12)
-        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('x', [4,3,2,1]), ('y', [2])])
+        self.assertEqual(list(res.modules['simulate'].dump()['input'].items()), [('x', [1]), ('y', [2])])
         # alias partial list / dict
         res = DSC_Script(text13)
         self.assertEqual(list(res.modules['simulate'].plugin.dump()['container_variables'].items()), [('x', [None, 'xvar']), ('y', [None, 'yy'])])
@@ -188,7 +188,7 @@ simulate: R()
         text = '''
 simulate: R()
     .x: 1
-DSC: 
+DSC:
     run: simulate
 '''
         self.assertRaises(FormatError, DSC_Script, text)
@@ -244,7 +244,7 @@ simulate: R()
 base: R(base=1)
     x: 2
     $out: x
-simulate(base): 
+simulate(base):
     x: R(1:5)
 '''
         res = DSC_Script(text)
@@ -266,7 +266,7 @@ normal, t: R(), R()
         y: 5
         n: 6
     $x: x
-    
+
 simulate(normal):
     mu: 1
 '''
@@ -277,7 +277,7 @@ simulate(normal):
     def testModuleDerivationFail(self):
         # missing executable
         text = text0 + '''
-simulate: 
+simulate:
     x: R{1:5}
     $out: x
 '''
@@ -290,8 +290,8 @@ normal, t: R(), R()
         y: 5
         n: 6
     $x: x
-    
-simulate(normal, t): 
+
+simulate(normal, t):
     mu: 1
 DSC:
     run: test
@@ -305,17 +305,17 @@ normal, t (shifted_normal): R(), R()
         y: 5
         n: 6
     $x: x
-    
+
 shifted_normal(normal):
     mu: 1
-'''        
+'''
         self.assertRaises(FormatError, DSC_Script, text)
         # non-existing base
         text = text0 + '''
 base: R()
     x: 2
     $out: x
-simulate(base1): 
+simulate(base1):
     x: R(1:5)
 '''
         self.assertRaises(FormatError, DSC_Script, text)
@@ -409,7 +409,7 @@ simulate: R()
 
 simulate: R()
     $x: 7
-''' 
+'''
         self.assertWarns(UserWarning, DSC_Script, text)
         text = text0 + '''
 simulate: R()
@@ -472,7 +472,7 @@ simulate, t: R(), R()
 simulate, t: R(), R()
     n: 100, 200, 300, 400, 500
     k: 0, 1
-    @FILTER: 
+    @FILTER:
         *: n in [100,200,300]
         t: n = 300
     $x: x

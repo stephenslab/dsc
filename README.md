@@ -84,6 +84,14 @@ all existing files. We apologize for the inconveniences it incurs.
 
 ## Change Log
 
+### 0.4.3
+
+- Issue #94 revisited.
+- [minor] Fix syntax incompatibility with earlier versions of `msgpack`.
+- [minor] Fix a bug of not updating meta-database when `-s existing` is used.
+
+**A file signature clean up is required after this upgrade.**
+
 ### 0.4.2
 
 - Issue #214 for container support.

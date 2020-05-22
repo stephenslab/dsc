@@ -15,7 +15,7 @@ sh: workdir = '.'
 	pandoc --from=markdown --to=rst --output=README.rst README.md
 
 [pip]
-depends: "README.rst"
+depends: "README.rst", Py_Module('twine')
 parameter: version = str
 # check the version of the latest version
 cur_ver = get_output(f"pip{py} show dsc | grep Version | cut -d' ' -f2").strip()
@@ -25,13 +25,7 @@ stop_if(cur_ver == version)
 
 sh:	workdir = '.', expand = True 
 	python{py} setup.py sdist && \
-	rm -rf /tmp/release_dsc && \
-	mkdir /tmp/release_dsc && \
-	cp dist/dsc-{version}.tar.gz /tmp/release_dsc && \
-	cd /tmp/release_dsc && \
-	tar zxf dsc-{version}.tar.gz && \
-	cd dsc-{version} && \
-	python{py} setup.py sdist bdist_wheel upload && \
+	twine upload dist/dsc-{version}.tar.gz && \
 	pip{py} install -U --upgrade-strategy only-if-needed .
 
 [upgrade]

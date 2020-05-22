@@ -8,7 +8,7 @@ import sys, os, re, yaml, itertools, collections, sympy
 from itertools import cycle, chain, islice
 from fnmatch import fnmatch
 from difflib import SequenceMatcher
-from collections.abc import MutableMapping
+from collections.abc import Mapping, MutableMapping
 try:
     from xxhash import xxh32 as xxh
 except ImportError:
@@ -151,7 +151,7 @@ def lower_keys(x, level_start=0, level_end=2, mapping=dict):
         return x
     if isinstance(x, list):
         return [lower_keys(v, level_start, level_end) for v in x]
-    elif isinstance(x, collections.Mapping):
+    elif isinstance(x, Mapping):
         return mapping((k.lower(), lower_keys(v, level_start, level_end))
                        for k, v in x.items())
     else:
@@ -164,7 +164,7 @@ def is_null(var):
     if isinstance(var, str):
         if var.lower() in ['na', 'nan', 'null', 'none', '']:
             return True
-    if isinstance(var, (list, tuple, collections.Mapping)):
+    if isinstance(var, (list, tuple, Mapping)):
         return True if len(var) == 0 else False
     return False
 
@@ -217,11 +217,11 @@ def flatten_list(lst):
 
 
 def flatten_dict(d, mapping=dict):
-    if not isinstance(d, collections.Mapping):
+    if not isinstance(d, Mapping):
         return d
     items = []
     for k, v in d.items():
-        if isinstance(v, collections.Mapping):
+        if isinstance(v, Mapping):
             items.extend(flatten_dict(v).items())
         else:
             items.append((k, v))
@@ -371,19 +371,19 @@ def find_nested_key(key, dictionary):
     for k, v in dictionary.items():
         if k == key:
             yield [k]
-        elif isinstance(v, collections.Mapping):
+        elif isinstance(v, Mapping):
             for result in find_nested_key(key, v):
                 yield [k] + result
         elif isinstance(v, list):
             for d in v:
-                if isinstance(d, collections.Mapping):
+                if isinstance(d, Mapping):
                     for result in find_nested_key(key, d):
                         yield [k] + result
 
 
 def recursive_items(dictionary):
     for key, value in dictionary.items():
-        if isinstance(value, collections.Mapping):
+        if isinstance(value, Mapping):
             yield (key, value)
             yield from recursive_items(value)
         else:
@@ -402,7 +402,7 @@ def dict2str(value):
 
 def update_nested_dict(d, u, mapping=dict):
     for k, v in u.items():
-        if isinstance(v, collections.Mapping):
+        if isinstance(v, Mapping):
             r = update_nested_dict(d.get(k, mapping()), v)
             d[k] = r
         else:
@@ -411,7 +411,7 @@ def update_nested_dict(d, u, mapping=dict):
 
 
 def strip_dict(data, mapping=dict, into_list=False, skip_keys=None):
-    if not isinstance(data, collections.Mapping):
+    if not isinstance(data, Mapping):
         return data
     skip_keys = skip_keys or []
     mapping_null = [dict()]
@@ -420,7 +420,7 @@ def strip_dict(data, mapping=dict, into_list=False, skip_keys=None):
         if k in skip_keys:
             new_data[k] = v
             continue
-        if isinstance(v, collections.Mapping):
+        if isinstance(v, Mapping):
             v = strip_dict(v, mapping, into_list)
         if isinstance(v, list) and into_list:
             v = [strip_dict(x, mapping, into_list) for x in v]
