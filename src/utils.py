@@ -854,7 +854,7 @@ def load_io_db(fn, sequence_id=None, module=None):
     import msgpack
     from collections import OrderedDict
     data = msgpack.unpackb(open(fn, 'rb').read(),
-                           encoding='utf-8',
+                           raw=False,
                            object_pairs_hook=OrderedDict)
     return data[sequence_id][module] if sequence_id and module else data
 

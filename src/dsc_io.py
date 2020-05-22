@@ -17,7 +17,7 @@ def load_mpk(mpk_files, jobs=2):
     from .utils import chunks
     if isinstance(mpk_files, str):
         return msgpack.unpackb(open(mpk_files, "rb").read(),
-                               encoding='utf-8',
+                               raw=False,
                                object_pairs_hook=collections.OrderedDict)
     d = Manager().dict()
 
@@ -25,7 +25,7 @@ def load_mpk(mpk_files, jobs=2):
         for xx in x:
             d.update(
                 msgpack.unpackb(open(xx, "rb").read(),
-                                encoding='utf-8',
+                                raw=False,
                                 object_pairs_hook=collections.OrderedDict))
 
     #
