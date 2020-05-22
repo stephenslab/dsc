@@ -62,15 +62,6 @@ run_cmd <- function(cmd_str, shell_exec="/bin/bash", fout='', ferr='', quit_on_e
   return(out)
 }
 
-#' @importFrom digest digest
-#' @export
-str_to_int = function(x) {
-  h = digest(x,algo='xxhash32')
-  xx = strsplit(tolower(h), "")[[1L]]
-  pos = match(xx, c(0L:9L, letters[1L:6L]))
-  sum((pos - 1L) * 16^(rev(seq_along(xx) - 1)))
-}
-
 # Finds all .R and .r files within a folder and sources them.
 source_dir <- function (folder, recursive = TRUE, ...) {
   files <- list.files(folder, pattern = "[.][rR]$",full.names = TRUE,

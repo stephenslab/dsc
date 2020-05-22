@@ -4,8 +4,13 @@
 \alias{shiny_plot}
 \title{plot results for DSC}
 \usage{
-shiny_plot(res, simulate_col = "simulate", analyze_col = "analyze",
-  score_col = "score", scales = "free")
+shiny_plot(
+  res,
+  simulate_col = "simulate",
+  analyze_col = "analyze",
+  score_col = "score",
+  scales = "free"
+)
 }
 \arguments{
 \item{res}{a dataframe containing results (eg from )}

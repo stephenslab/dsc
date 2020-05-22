@@ -4,10 +4,19 @@
 \alias{dscquery}
 \title{R interface for querying DSC output.}
 \usage{
-dscquery(dsc.outdir, targets = NULL, module.output.all = NULL,
-  module.output.files = NULL, conditions = NULL, groups = NULL,
-  dsc.outfile = NULL, return.type = c("auto", "data.frame", "list"),
-  ignore.missing.files = FALSE, exec = "dsc-query", verbose = TRUE)
+dscquery(
+  dsc.outdir,
+  targets = NULL,
+  module.output.all = NULL,
+  module.output.files = NULL,
+  conditions = NULL,
+  groups = NULL,
+  dsc.outfile = NULL,
+  return.type = c("auto", "data.frame", "list"),
+  ignore.missing.files = FALSE,
+  exec = "dsc-query",
+  verbose = TRUE
+)
 }
 \arguments{
 \item{dsc.outdir}{Directory where the DSC output is stored.}

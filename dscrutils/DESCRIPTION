@@ -32,4 +32,4 @@ NeedsCompilation: no
 LazyData: true
 URL: https://github.com/stephenslab/dsc
 BugReports: https://github.com/stephenslab/dsc/issues
-RoxygenNote: 6.1.1
+RoxygenNote: 7.1.0
