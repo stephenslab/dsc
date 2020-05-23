@@ -1185,13 +1185,6 @@ class DSC_Module:
         ]),
                           mapping=dict,
                           skip_keys=['input'])
-    def module_signature(self):
-        return xxh(
-            dict2str(strip_dict(
-            dict([
-            ('name', self.name), ('dependencies', self.depends),
-            ('input', self.p), ('output_variables', self.rv), ('output_files', self.rf)
-            ])))).hexdigest()
 
 
 class DSC_Section:

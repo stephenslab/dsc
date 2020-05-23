@@ -474,7 +474,6 @@ class DSC_Translator:
                         self.exe_check.append(
                             f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
-                signature.append(self.step.module_signature())
                 self.exe_signature.extend(signature)
 
 

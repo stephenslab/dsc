@@ -43,11 +43,11 @@ load_script <- function() {
 #
 #' @importFrom utils capture.output
 #' @importFrom utils sessionInfo
-save_session <- function (start_time, id) {
+save_session <- function (start_time, id, seed) {
   time    <- as.list(proc.time() - start_time)
   script  <- load_script()
   session <- capture.output(print(sessionInfo()))
-  return(list(time = time,script = script,replicate = id,session = session))
+  return(list(time = time,script = script,replicate = id,seed=seed,session = session))
 }
 
 #' @export

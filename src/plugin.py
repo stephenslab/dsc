@@ -333,7 +333,9 @@ class RPlug(BasePlug):
         if len(load_idx):
             res += load_in
             res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
+            res += f'\nDSC_SEED <- {self.identifier}$DSC_DEBUG$seed' + ' + ${DSC_STEP_ID_} + ${_index}'
         else:
+            res += '\nDSC_SEED <- ${DSC_STEP_ID_} + ${_index}'
             if len(depends):
                 # FIXME: have to find another way to pass this down
                 res += '\nDSC_REPLICATE <- 0'
@@ -359,9 +361,8 @@ class RPlug(BasePlug):
         res += f'\nTIC_{self.identifier[4:]} <- proc.time()'
         # seed
         if seed_option == 'REPLICATE':
-            res += '\nset.seed(DSC_REPLICATE)'
-        else:
-            res += '\nset.seed(DSC_REPLICATE + ${DSC_STEP_ID_})'
+            res += '\nDSC_SEED <- DSC_REPLICATE'
+        res += '\nset.seed(DSC_SEED)'
         return res
 
     def get_output(self, params):
@@ -378,7 +379,7 @@ class RPlug(BasePlug):
             return ''
         res = '\nsaveRDS(list({}), ${{_output:r}})'.\
           format(', '.join(['{}={}'.format(x, output_vars[x]) for x in output_vars] + \
-                           [f"DSC_DEBUG=dscrutils:::save_session(TIC_{self.identifier[4:]}, DSC_REPLICATE)"]))
+                           [f"DSC_DEBUG=dscrutils:::save_session(TIC_{self.identifier[4:]}, DSC_REPLICATE, DSC_SEED)"]))
         return res.strip()
 
     def set_container(self, name, value, params):
@@ -518,7 +519,9 @@ class PyPlug(BasePlug):
         if len(load_idx):
             res += load_in
             res += f'\nDSC_REPLICATE = {self.identifier}["DSC_DEBUG"]["replicate"]'
+            res += f'\nDSC_SEED = {self.identifier}["DSC_DEBUG"]["seed"]' + ' + ${DSC_STEP_ID_} + ${_index}'
         else:
+            res += '\nDSC_SEED = ${DSC_STEP_ID_} + ${_index}'
             if len(depends):
                 # FIXME: have to find another way to pass this down
                 res += '\nDSC_REPLICATE = 0'
@@ -542,9 +545,8 @@ class PyPlug(BasePlug):
             res += '\n%s = ${_%s}' % (self.get_var(k), k)
         res += f'\nTIC_{self.identifier[4:]} = timeit.default_timer()'
         if seed_option == 'REPLICATE':
-            res += '\nimport random\nrandom.seed(DSC_REPLICATE)\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE)\nexcept Exception:\n\tpass'
-        else:
-            res += '\nimport random\nrandom.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\ntry:\n\timport numpy; numpy.random.seed(DSC_REPLICATE + ${DSC_STEP_ID_})\nexcept Exception:\n\tpass'
+            res += '\nDSC_SEED = DSC_REPLICATE'
+        res += '\nimport random\nrandom.seed(DSC_SEED)\ntry:\n\timport numpy; numpy.random.seed(DSC_SEED)\nexcept Exception:\n\tpass'
         return res
 
     def get_output(self, params):
@@ -562,7 +564,7 @@ class PyPlug(BasePlug):
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
                            [f"'DSC_DEBUG': dict([('time', timeit.default_timer() - TIC_{self.identifier[4:]}), " \
-                            "('script', inspect.getsource(inspect.getmodule(inspect.currentframe()))), ('replicate', DSC_REPLICATE)])"]))
+                            "('script', inspect.getsource(inspect.getmodule(inspect.currentframe()))), ('replicate', DSC_REPLICATE, DSC_SEED)])"]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 
