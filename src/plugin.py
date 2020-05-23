@@ -333,6 +333,8 @@ class RPlug(BasePlug):
         if len(load_idx):
             res += load_in
             res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
+            # See https://github.com/stephenslab/dsc/commit/41acc397831d7a0b4d96e69466f5f515539dd549
+            # This is for backward compatibility prior to version 0.4.3.1 and can be removed in the future
             res += f'\nDSC_SEED <- as.integer((ifelse(is.null({self.identifier}$DSC_DEBUG$seed), 0, {self.identifier}$DSC_DEBUG$seed)' + ' + ${DSC_STEP_ID_})/2) + ${_index}'
         else:
             res += '\nDSC_SEED <- ${DSC_STEP_ID_} + ${_index}'
