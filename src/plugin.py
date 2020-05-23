@@ -333,7 +333,7 @@ class RPlug(BasePlug):
         if len(load_idx):
             res += load_in
             res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
-            res += f'\nDSC_SEED <- {self.identifier}$DSC_DEBUG$seed' + ' + ${DSC_STEP_ID_} + ${_index}'
+            res += f'\nDSC_SEED <- as.integer((ifelse(is.null({self.identifier}$DSC_DEBUG$seed), 0, {self.identifier}$DSC_DEBUG$seed)' + ' + ${DSC_STEP_ID_})/2) + ${_index}'
         else:
             res += '\nDSC_SEED <- ${DSC_STEP_ID_} + ${_index}'
             if len(depends):
