@@ -131,7 +131,7 @@ class DSC_Translator:
                 tmp_str.append(f"output: data_io['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = data_io['output'], " + \
                                (f"{y}_input_files = data_io['input'], " if len(self.depends[y]) else "") + \
-                               f"DSC_STEP_ID_ = {abs(int(xxh(repr(exe_signatures[y])).hexdigest(), 16)) % (10**8)})")
+                               f"DSC_STEP_ID_ = {sum([abs(int(x, 16)) % (10**8) for x in exe_signatures[y]])})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))
                 self.job_pool[(y, workflow_id + 1)] = tmp_str
@@ -422,6 +422,7 @@ class DSC_Translator:
             else:
                 # FIXME: have not considered multi-action module (or compound module) yet
                 # Create fake loop for now with idx going around
+                signature = []
                 for idx, (plugin, cmd) in enumerate(
                         zip([self.step.plugin], [self.step.exe])):
                     sigil = '$[ ]' if plugin.name == 'bash' else '${ }'
@@ -437,6 +438,7 @@ class DSC_Translator:
                         self.action += ", env={'PATH': '%s:' + os.environ['PATH']}" % ":".join(self.step.path)
                     self.action += plugin.get_cmd_args(cmd['args'],
                                                        self.params)
+                    signature.append(cmd['signature'])
                     # Add action
                     if len(cmd['path']) == 0:
                         if self.debug:
@@ -468,11 +470,13 @@ class DSC_Translator:
                             script = '\n'.join(
                                 [f'  {x}' for x in script.split('\n')])
                         self.action += script
-                        self.exe_signature.append(cmd['signature'])
                     else:
                         self.exe_check.append(
                             f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
+                signature.append(self.step.module_signature())
+                self.exe_signature.extend(signature)
+
 
         def dump(self):
             return '\n'.join([
