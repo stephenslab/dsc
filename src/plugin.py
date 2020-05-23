@@ -139,9 +139,9 @@ class Shell(BasePlug):
         # FIXME: may need a timer
         # seed
         if 'seed_option' == 'REPLICATE':
-            res += '\nRANDOM=$(($DSC_REPLICATE))'
+            res += '\nRANDOM=$(($DSC_REPLICATE + $[_index]))'
         else:
-            res += '\nRANDOM=$(($DSC_REPLICATE + $[DSC_STEP_ID_]))'
+            res += '\nRANDOM=$(($DSC_REPLICATE + $[DSC_STEP_ID_] + $[_index]))'
         return res
 
     def get_output(self, params):
@@ -334,13 +334,14 @@ class RPlug(BasePlug):
             res += load_in
             res += f'\nDSC_REPLICATE <- {self.identifier}$DSC_DEBUG$replicate'
             # See https://github.com/stephenslab/dsc/commit/41acc397831d7a0b4d96e69466f5f515539dd549
-            # This is for backward compatibility prior to version 0.4.3.1 and can be removed in the future
-            res += f'\nDSC_SEED <- as.integer((ifelse(is.null({self.identifier}$DSC_DEBUG$seed), 0, {self.identifier}$DSC_DEBUG$seed)' + ' + ${DSC_STEP_ID_})/2) + ${_index}'
+            # ifelse statement is for backward compatibility prior to version 0.4.3.1 and can be removed in the future
+            #res += f'\nDSC_SEED <- {self.identifier}$DSC_DEBUG$seed + ${_index}'
+            res += f'\nDSC_SEED <- ifelse(is.null({self.identifier}$DSC_DEBUG$seed), ${{DSC_STEP_ID_}}, {self.identifier}$DSC_DEBUG$seed) + ${{_index}}'
         else:
-            res += '\nDSC_SEED <- ${DSC_STEP_ID_} + ${_index}'
             if len(depends):
                 # FIXME: have to find another way to pass this down
                 res += '\nDSC_REPLICATE <- 0'
+            res += '\nDSC_SEED <- ${DSC_STEP_ID_} + ${_index}'
         if len(assign_idx):
             res += assign_in
         if depends_self:
@@ -364,6 +365,8 @@ class RPlug(BasePlug):
         # seed
         if seed_option == 'REPLICATE':
             res += '\nDSC_SEED <- DSC_REPLICATE'
+        else:
+            res += '\nDSC_SEED <- DSC_SEED + DSC_REPLICATE'
         res += '\nset.seed(DSC_SEED)'
         return res
 
@@ -521,12 +524,12 @@ class PyPlug(BasePlug):
         if len(load_idx):
             res += load_in
             res += f'\nDSC_REPLICATE = {self.identifier}["DSC_DEBUG"]["replicate"]'
-            res += f'\nDSC_SEED = {self.identifier}["DSC_DEBUG"]["seed"]' + ' + ${DSC_STEP_ID_} + ${_index}'
+            res += f'\nDSC_SEED = {self.identifier}["DSC_DEBUG"]["seed"] + ${{_index}}'
         else:
-            res += '\nDSC_SEED = ${DSC_STEP_ID_} + ${_index}'
             if len(depends):
                 # FIXME: have to find another way to pass this down
                 res += '\nDSC_REPLICATE = 0'
+            res += '\nDSC_SEED = ${DSC_STEP_ID_} + ${_index}'
         if len(assign_idx):
             res += assign_in
         if depends_self:
@@ -548,6 +551,8 @@ class PyPlug(BasePlug):
         res += f'\nTIC_{self.identifier[4:]} = timeit.default_timer()'
         if seed_option == 'REPLICATE':
             res += '\nDSC_SEED = DSC_REPLICATE'
+        else:
+            res += '\nDSC_SEED += DSC_REPLICATE'
         res += '\nimport random\nrandom.seed(DSC_SEED)\ntry:\n\timport numpy; numpy.random.seed(DSC_SEED)\nexcept Exception:\n\tpass'
         return res
 

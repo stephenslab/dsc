@@ -929,7 +929,7 @@ class DSC_Module:
         container2 = try_get_value(spec_option, 'container')
         container_engine1 = try_get_value(common_option, 'container_engine')
         container_engine2 = try_get_value(spec_option, 'container_engine')
-        seed1 = try_get_value(common_option, 'seed', 'HASH')
+        seed1 = try_get_value(common_option, 'seed', 'DEFAULT')
         seed2 = try_get_value(spec_option, 'seed')
         self.workdir = workdir2 if workdir2 is not None else workdir1
         self.libpath = libpath2 if libpath2 is not None else libpath1
