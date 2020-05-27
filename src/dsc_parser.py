@@ -1232,12 +1232,18 @@ class DSC_Section:
                     self.sequence = flatten_list(self.content['run'].values())
             else:
                 self.sequence = self.content['run']
+        relevant_groups = []
+        if 'define' in self.content:
+            relevant_groups = re.compile('[,\(\)\*]').sub(' ', ' '.join(self.sequence)).split()
+            relevant_groups = [x for x in self.content['define'].keys() if x in relevant_groups and '*' not in self.content['define'][x]]
         self.sequence = [(x, ) if isinstance(x, str) else x for x in sum(
             [self.OP(self.expand_ensemble(y)) for y in self.sequence], [])]
         self.sequence = filter_sublist(self.sequence)
         # FIXME: check if modules involved in sequence are indeed defined.
         self.sequence_ordering = self.__merge_sequences(self.sequence)
-        self.check_overlaping_groups()
+        if len(relevant_groups):
+            relevant_groups = dict([(k, self.groups[k]) for k in relevant_groups])
+            self.check_overlapping_groups(relevant_groups)
         self.options = dict()
         self.options['work_dir'] = self.content[
             'work_dir'] if 'work_dir' in self.content else './'
@@ -1329,16 +1335,16 @@ class DSC_Section:
             if len(set(seq)) != len(seq):
                 raise ValueError(f'Duplicated module found in DSC sequence ``{seq}``. '\
                                  'Iteratively executing modules is not yet supported.')
-
-    def check_overlaping_groups(self):
-        for i, k1 in enumerate(self.groups.keys()):
-            for j, k2 in enumerate(self.groups.keys()):
+    @staticmethod
+    def check_overlapping_groups(groups):
+        for i, k1 in enumerate(groups.keys()):
+            for j, k2 in enumerate(groups.keys()):
                 if i > j:
-                    overlap = set(self.groups[k1]).intersection(
-                        set(self.groups[k2]))
+                    overlap = set(groups[k1]).intersection(
+                        set(groups[k2]))
                     if len(overlap):
                         raise FormatError(
-                            f"Overlapping groups ``{k1}: {', '.join(self.groups[k1])}`` and ``{k2}: {', '.join(self.groups[k2])}`` is not allowed!"
+                            f"Overlapping groups ``{k1}: {', '.join(groups[k1])}`` and ``{k2}: {', '.join(groups[k2])}`` is not allowed!"
                         )
 
     def __str__(self):
