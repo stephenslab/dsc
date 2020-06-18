@@ -571,7 +571,7 @@ class PyPlug(BasePlug):
         res = '\npickle.dump({{{}}}, open(${{_output:r}}, "wb"))'.\
           format(', '.join(['"{0}": {1}'.format(x, output_vars[x]) for x in output_vars] + \
                            [f"'DSC_DEBUG': dict([('time', timeit.default_timer() - TIC_{self.identifier[4:]}), " \
-                            "('script', inspect.getsource(inspect.getmodule(inspect.currentframe()))), ('replicate', DSC_REPLICATE, DSC_SEED)])"]))
+                            "('script', inspect.getsource(inspect.getmodule(inspect.currentframe()))), ('replicate', DSC_REPLICATE), ('seed', DSC_SEED)])"]))
         # res += '\nfrom os import _exit; _exit(0)'
         return res.strip()
 
