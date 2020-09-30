@@ -508,7 +508,7 @@ class PyPlug(BasePlug):
             if x[1] is not None
         ])]
         # load files
-        res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__'
+        res += '\nfrom dsc.dsc_io import load_dsc as __load_dsc__, source_dirs as __source_dirs__'
         load_in = f'\n{self.identifier} = __load_dsc__([${{paths([_input[i] for i in {load_idx}]):r,}}])'
         assign_in = ['\n']
         for i, k in assign_idx:
@@ -541,8 +541,8 @@ class PyPlug(BasePlug):
         return res
 
     def get_input(self, params, lib, seed_option):
-        res = '\n'.join(
-            [f'sys.path.append(os.path.expanduser("{item}"))' for item in lib])
+        res = '__source_dirs__([{}])\n'.format(','.join(
+            [repr(x) for x in lib])) if len(lib) else ''
         # load parameters
         keys = [x for x in params if not x in self.container_vars]
         res += '\n' + '\n'.join(self.container)
@@ -553,7 +553,7 @@ class PyPlug(BasePlug):
             res += '\nDSC_SEED = DSC_REPLICATE'
         else:
             res += '\nDSC_SEED += DSC_REPLICATE'
-        res += '\nimport random\nrandom.seed(DSC_SEED)\ntry:\n\timport numpy; numpy.random.seed(DSC_SEED)\nexcept Exception:\n\tpass'
+        res += '\nimport random\nrandom.seed(DSC_SEED)\ntry:\n\timport numpy\n\tnumpy.random.seed(DSC_SEED)\nexcept Exception:\n\tpass'
         return res
 
     def get_output(self, params):

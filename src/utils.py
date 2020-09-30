@@ -16,7 +16,6 @@ except ImportError:
 from .constant import HTML_CSS, HTML_JS
 from sos.__main__ import AnswerMachine
 
-
 class Logger:
     def __init__(self):
         self.__width_cache = 1

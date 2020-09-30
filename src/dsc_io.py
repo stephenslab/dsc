@@ -245,7 +245,6 @@ def symlink_force(target, link_name):
         else:
             raise e
 
-
 def csv_to_html(infile, outfile):
     import os
     import pandas as pd
@@ -271,6 +270,17 @@ def csv_to_html(infile, outfile):
     with open(outfile, 'w') as f:
         f.write(TABLE_HEADER + data.to_html(justify='center', escape=False))
 
+def source_dirs(dirs):
+    import sys, os, glob
+    reserved = ['__builtins__', '__cached__', '__doc__', '__file__', '__loader__', '__name__', '__package__', '__spec__']
+    for item in dirs:
+        item = os.path.abspath(os.path.expanduser(item))
+        sys.path.append(item)
+        for module in glob.glob(f'{item}/*.py'):
+            m = __import__(os.path.basename(module)[:-3])
+            for i in dir(m):
+                if not i in reserved:
+                    globals()[i] = getattr(m,i)
 
 def main():
     import os, sys, pickle
