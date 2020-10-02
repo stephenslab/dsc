@@ -10,7 +10,6 @@ python -m 'rpy2.tests'
 
 from dsc.utils import flatten_list
 
-
 def load_mpk(mpk_files, jobs=2):
     import msgpack, collections
     from multiprocessing import Process, Manager
@@ -283,6 +282,11 @@ def source_dirs(dirs):
                 if not i in reserved:
                     functions.append((i, getattr(m,i)))
     return functions
+
+def load_io_db(fn, sequence_id=None, module=None):
+    import pickle
+    data = pickle.load(open(fn, 'rb'))
+    return data[sequence_id][module] if sequence_id and module else data
 
 def main():
     import os, sys, pickle

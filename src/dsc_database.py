@@ -41,8 +41,8 @@ def remove_obsolete_output(output, additional_files=None, rerun=False):
         x_name = os.path.join(os.path.basename(os.path.split(x)[0]),
                               os.path.basename(x))
         if x_name not in map_data.values() and \
-           x not in [f'{output}/{os.path.basename(output)}.{i}.mpk' for i in ['conf', 'map']] and \
-               x != f'{output}/{os.path.basename(output)}.db':
+           x not in [f'{output}/{os.path.basename(output)}.map.mpk',
+                     f'{output}/{os.path.basename(output)}.db']:
             to_remove.append(x + x_ext)
     # Additional files to remove
     for x in additional_files or []:
@@ -51,7 +51,7 @@ def remove_obsolete_output(output, additional_files=None, rerun=False):
     if rerun:
         to_remove = list(
             glob.glob(
-                f'{DSC_CACHE}/{os.path.basename(output)}_*.mpk')) + to_remove
+                f'{DSC_CACHE}/{os.path.basename(output)}*.pkl')) + to_remove
     if len(to_remove):
         open(map_db, "wb").write(msgpack.packb(map_data))
         # Do not limit to tracked or untracked, and do not just remove signature
@@ -227,7 +227,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
     else:
         map_data = OrderedDict()
     data = pickle.load(open(io_db, 'rb'))
-    meta_data = pickle.load(open(io_db[:-4] + '.meta.pkl', 'rb'))
+    meta_data = pickle.load(open(io_db.rsplit('.',2)[0] + '.io.meta.pkl', 'rb'))
     map_names = get_names()
     update_map(map_names)
     fid = os.path.dirname(str(conf_db))
@@ -260,7 +260,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
                 meta_data[key][x] for x in depends_steps
             ]
     #
-    open(conf_db, "wb").write(msgpack.packb(conf))
+    pickle.dump(conf, open(conf_db, "wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
 
 class ResultDB:
@@ -284,12 +284,12 @@ class ResultDB:
         def find_namemap(x):
             if x in self.maps:
                 return self.maps[x][:-len_ext]
-            raise DBError('Cannot find name map for ``{}``'.format(x))
+            raise DBError(f'Cannot find name map for ``{x}``')
 
         #
         try:
             self.rawdata = pickle.load(open(
-                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.pkl',
+                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.cfg.pkl',
                 'rb'))
             self.metadata = pickle.load(open(
                 f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.meta.pkl',

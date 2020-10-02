@@ -14,7 +14,8 @@ except ImportError:
 from collections import OrderedDict
 from sos.targets import path
 from sos import execute_workflow
-from .utils import uniq_list, dict2str, n2a, load_io_db, install_package
+from .utils import uniq_list, dict2str, n2a, install_package
+from .dsc_io import load_io_db
 from .syntax import DSC_CACHE
 __all__ = ['DSC_Translator']
 
@@ -42,7 +43,7 @@ class DSC_Translator:
                         host_conf[kk] = host_conf[k]
                     del host_conf[k]
         conf_header = 'import os\nfrom dsc.dsc_database import build_config_db, ResultDB\n'
-        job_header = f"[global]\nimport os\n\nIO_DB = '{self.output}/{self.db}.conf.mpk'\n\n"\
+        job_header = f"[global]\nimport os\n\nIO_DB = '{DSC_CACHE}/{self.db}.io.pkl'\n\n"\
                      f"{inspect.getsource(load_io_db)}"
         processed_steps = dict()
         self.depends = dict()
@@ -142,25 +143,25 @@ class DSC_Translator:
                       '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
                       f'\n\t__io_db__ = OrderedDict()\n\t' + \
                       '\n\t'.join('\n'.join(conf_str).split('\n')) + \
-                      f"\n\tpickle.dump(__io_db__, open('{DSC_CACHE}/{self.db}.io.pkl', 'wb'))\n\n" + \
+                      f"\n\tpickle.dump(__io_db__, open('{DSC_CACHE}/{self.db}.cfg.pkl', 'wb'))\n\n" + \
                       "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
                             (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \
-                            f"\noutput: '{DSC_CACHE}/{self.db}.io.pkl'" + \
+                            f"\noutput: '{DSC_CACHE}/{self.db}.cfg.pkl'" + \
                             "\nscript: interpreter={}, suffix='.py'\n{}\n".\
                             format(f'{path(sys.executable):er}',
                                    '\n'.join(['\t' + x for x in conf_str_py.split('\n')])) + \
                             "\n[deploy_2 (Configuring output filenames)]\n"\
                             f"parameter: vanilla = {rerun}\n"\
                             f"output: '{self.output}/{self.db}.map.mpk', "\
-                            f"'{self.output}/{self.db}.conf.mpk'"\
+                            f"'{DSC_CACHE}/{self.db}.io.pkl'"\
                             "\nbuild_config_db(str(_input[0]), str(_output[0]), "\
                             f"str(_output[1]), vanilla = vanilla, jobs = {n_cpu})\n"\
                             f"if os.path.isfile('{self.output}/{self.db}.db'): os.remove('{self.output}/{self.db}.db')\n"\
                             "\n[build (Build meta-database)]\n"\
-                            f"depends: '{DSC_CACHE}/{self.db}.io.pkl', '{self.output}/{self.db}.map.mpk'\n"\
+                            f"depends: '{DSC_CACHE}/{self.db}.cfg.pkl', '{self.output}/{self.db}.map.mpk'\n"\
                             f"output: '{self.output}/{self.db}.db'"\
                             "\nResultDB(f'{_output:n}')."\
                             f"Build(script = open('{runtime.output}.html').read(), groups = {runtime.groups}, depends = {self.get_dependency()}, pipelines = {runtime.sequence})"
@@ -189,7 +190,7 @@ class DSC_Translator:
 
     def filter_execution(self, debug=False):
         '''Filter steps removing the ones having common input and output'''
-        io_db = load_io_db(f'{self.output}/{self.db}.conf.mpk')
+        io_db = load_io_db(f'{DSC_CACHE}/{self.db}.io.pkl')
         included_steps = []
         for x in self.job_pool:
             if self.step_map[x[1]][x[0]] == x:
