@@ -1180,7 +1180,8 @@ class DSC_Module:
             ('plugin_status', self.plugin.dump()),
             ('runtime_options',
              dict([('exec_path', self.path), ('workdir', self.workdir),
-                   ('library_path', self.libpath), ('container', self.container),
+                   ('library_path', self.libpath), 
+                   ('container', self.container),
                    ('container_engine', self.container_engine)]))
         ]),
                           mapping=dict,
@@ -1353,9 +1354,7 @@ class DSC_Section:
                                     ('sequence ordering',
                                      list(self.sequence_ordering.keys())),
                                     ('R libraries', self.rlib),
-                                    ('Python modules', self.pymodule),
-                                    ('Container', self.container),
-                                    ('Container engine', self.container_engine)]),
+                                    ('Python modules', self.pymodule)]),
                        mapping=OrderedDict))
 
 

@@ -542,9 +542,9 @@ class PyPlug(BasePlug):
 
     def get_input(self, params, lib, seed_option):
         # import from lib_path
-        res = 'functions = __source_dirs__([{}])\n'.format(','.join(
+        res = '__source_dirs__([{}])'.format(','.join(
             [repr(x) for x in lib])) if len(lib) else ''
-        res += 'for name, func in functions:\n'
+        res = f'for name, func in {res}:\n'
         res += '    globals()[name] = func'
         # load parameters
         keys = [x for x in params if not x in self.container_vars]
