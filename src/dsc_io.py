@@ -273,6 +273,7 @@ def csv_to_html(infile, outfile):
 def source_dirs(dirs):
     import sys, os, glob
     reserved = ['__builtins__', '__cached__', '__doc__', '__file__', '__loader__', '__name__', '__package__', '__spec__']
+    functions = list()
     for item in dirs:
         item = os.path.abspath(os.path.expanduser(item))
         sys.path.append(item)
@@ -280,7 +281,8 @@ def source_dirs(dirs):
             m = __import__(os.path.basename(module)[:-3])
             for i in dir(m):
                 if not i in reserved:
-                    globals()[i] = getattr(m,i)
+                    functions.append((i, getattr(m,i)))
+    return functions
 
 def main():
     import os, sys, pickle
