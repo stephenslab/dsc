@@ -230,7 +230,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
     meta_data = pickle.load(open(io_db.rsplit('.',2)[0] + '.io.meta.pkl', 'rb'))
     map_names = get_names()
     update_map(map_names)
-    fid = os.path.dirname(str(conf_db))
+    fid = os.path.dirname(str(map_db))
     conf = OrderedDict()
     for key in meta_data:
         workflow_id = str(key)
