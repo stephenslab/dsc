@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 This file defines methods to translate DSC into pipeline in SoS language
 '''
-import os, sys, msgpack, glob, inspect
+import os, sys, pickle, glob, inspect
 try:
     from xxhash import xxh32 as xxh
 except ImportError:
@@ -113,12 +113,12 @@ class DSC_Translator:
             # Configuration
             if len(new_steps):
                 conf_str.append(f"###\n# [{n2a(workflow_id + 1)}]\n###\n" \
-                                f"__pipeline_id__ = '{workflow_id + 1}'\n"\
+                                f"__pipeline_id__ = {workflow_id + 1}\n"\
                                 f'''__pipeline_name__ = '{"+".join([n2a(x[1]).lower()+"_"+x[0] for x in sqn])}'\n''' \
-                                f"# output: '{DSC_CACHE}/{self.db}_{workflow_id + 1}.mpk'\n")
+                                f"# output: '{DSC_CACHE}/{self.db}_{workflow_id + 1}.pkl'\n")
                 conf_str.extend(new_steps)
                 io_info_files.append(
-                    f'{DSC_CACHE}/{self.db}_{workflow_id + 1}.mpk')
+                    f'{DSC_CACHE}/{self.db}_{workflow_id + 1}.pkl')
             # Execution pool
             ii = 1
             for y in sequence:
@@ -136,19 +136,19 @@ class DSC_Translator:
                     self.last_steps.append((y, workflow_id + 1))
                 self.job_pool[(y, workflow_id + 1)] = tmp_str
                 ii += 1
-        conf_str_py = 'import msgpack\nfrom collections import OrderedDict\n' + \
+        conf_str_py = 'import pickle\nfrom collections import OrderedDict\n' + \
                       'from dsc.utils import sos_hash_output, sos_group_input, chunks as sos_chunks\n' + \
                       '\n'.join([f'## {x}' for x in dict2str(self.step_map).split('\n')]) + \
                       '@profile #via "kernprof -l" and "python -m line_profiler"\ndef prepare_io():\n\t'+ \
                       f'\n\t__io_db__ = OrderedDict()\n\t' + \
                       '\n\t'.join('\n'.join(conf_str).split('\n')) + \
-                      f"\n\topen('{DSC_CACHE}/{self.db}.io.mpk', 'wb').write(msgpack.packb(__io_db__))\n\n" + \
+                      f"\n\tpickle.dump(__io_db__, open('{DSC_CACHE}/{self.db}.io.pkl', 'wb'))\n\n" + \
                       "if __name__ == '__main__':\n\tprepare_io()"
         self.job_str = job_header + "\n{}".format('\n'.join(job_str))
         self.conf_str_sos = conf_header + \
                             "\n[deploy_1 (Hashing output files)]" + \
                             (f'\ndepends: {", ".join(uniq_list(self.exe_check))}' if len(self.exe_check) and host_conf is None else '') + \
-                            f"\noutput: '{DSC_CACHE}/{self.db}.io.mpk'" + \
+                            f"\noutput: '{DSC_CACHE}/{self.db}.io.pkl'" + \
                             "\nscript: interpreter={}, suffix='.py'\n{}\n".\
                             format(f'{path(sys.executable):er}',
                                    '\n'.join(['\t' + x for x in conf_str_py.split('\n')])) + \
@@ -160,7 +160,7 @@ class DSC_Translator:
                             f"str(_output[1]), vanilla = vanilla, jobs = {n_cpu})\n"\
                             f"if os.path.isfile('{self.output}/{self.db}.db'): os.remove('{self.output}/{self.db}.db')\n"\
                             "\n[build (Build meta-database)]\n"\
-                            f"depends: '{DSC_CACHE}/{self.db}.io.mpk', '{self.output}/{self.db}.map.mpk'\n"\
+                            f"depends: '{DSC_CACHE}/{self.db}.io.pkl', '{self.output}/{self.db}.map.mpk'\n"\
                             f"output: '{self.output}/{self.db}.db'"\
                             "\nResultDB(f'{_output:n}')."\
                             f"Build(script = open('{runtime.output}.html').read(), groups = {runtime.groups}, depends = {self.get_dependency()}, pipelines = {runtime.sequence})"
@@ -174,8 +174,7 @@ class DSC_Translator:
     def get_pipeline(self, task, save=False):
         if task == 'prepare':
             res = self.conf_str_sos
-            open(f'{DSC_CACHE}/{self.db}.io.meta.mpk',
-                 'wb').write(msgpack.packb(self.step_map))
+            pickle.dump(self.step_map, open(f'{DSC_CACHE}/{self.db}.io.meta.pkl', 'wb'))
         else:
             res = self.job_str
         # clean up previous runs
@@ -270,9 +269,7 @@ class DSC_Translator:
             '''
             prepare step:
              - will produce source to build config and database for
-            parameters and file names. The result is one binary json file (via msgpack)
-            with keys "X:Y:Z" where X = DSC sequence ID, Y = DSC subsequence ID, Z = DSC step name
-                (name of indexed DSC block corresponding to a computational routine).
+            parameters and file names. The result is a dictionary (key-value database) saved in pickle
             run step:
              - will construct the actual script to run
             '''
@@ -416,9 +413,9 @@ class DSC_Translator:
                     len(self.step.exe['path']) == 0
                     and len(self.step.rv) > 0) else 'yml'
                 if len(self.current_depends):
-                    self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(' '.join((y, x[1])), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
+                    self.action += f"__io_db__[('{self.step.name}', __pipeline_id__)] = dict([(' '.join((y, x[1])), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
                 else:
-                    self.action += f"__io_db__['{self.step.name}:' + str(__pipeline_id__)] = dict([(y, dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
+                    self.action += f"__io_db__[('{self.step.name}', __pipeline_id__)] = dict([(y, dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
             else:
                 # FIXME: have not considered multi-action module (or compound module) yet
                 # Create fake loop for now with idx going around

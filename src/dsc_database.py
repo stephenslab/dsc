@@ -226,12 +226,8 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
                                    object_pairs_hook=OrderedDict)
     else:
         map_data = OrderedDict()
-    data = msgpack.unpackb(open(io_db, 'rb').read(),
-                           raw=False,
-                           object_pairs_hook=OrderedDict)
-    meta_data = msgpack.unpackb(open(io_db[:-4] + '.meta.mpk', 'rb').read(),
-                                raw=False,
-                                object_pairs_hook=OrderedDict)
+    data = pickle.load(open(io_db, 'rb'))
+    meta_data = pickle.load(open(io_db[:-4] + '.meta.pkl', 'rb'))
     map_names = get_names()
     update_map(map_names)
     fid = os.path.dirname(str(conf_db))
@@ -241,9 +237,9 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
         if workflow_id not in conf:
             conf[workflow_id] = OrderedDict()
         for module in meta_data[key]:
-            k = f'{module}:{key}'
+            k = (module, key)
             if k not in data:
-                k = f'{meta_data[key][module][0]}:{meta_data[key][module][1]}'
+                k = (meta_data[key][module][0], meta_data[key][module][1])
                 # FIXME: this will be a bug if ever triggered
                 if k not in data:
                     raise DBError(
@@ -279,7 +275,7 @@ class ResultDB:
                                         object_pairs_hook=OrderedDict)
         else:
             raise DBError(
-                f"Cannot build DSC meta-data: hash table ``{self.prefix}.map.mpk`` is missing!"
+                f"Cannot build DSC result database: hash table ``{self.prefix}.map.mpk`` is missing!"
             )
         self.meta_kws = ['__id__', '__output__', '__parent__', '__out_vars__']
 
@@ -292,16 +288,12 @@ class ResultDB:
 
         #
         try:
-            self.rawdata = msgpack.unpackb(open(
-                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.mpk',
-                'rb').read(),
-                                           raw=False,
-                                           object_pairs_hook=OrderedDict)
-            self.metadata = msgpack.unpackb(open(
-                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.meta.mpk',
-                'rb').read(),
-                                            raw=False,
-                                            object_pairs_hook=OrderedDict)
+            self.rawdata = pickle.load(open(
+                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.pkl',
+                'rb'))
+            self.metadata = pickle.load(open(
+                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.meta.pkl',
+                'rb'))
         except:
             raise DBError('Cannot load source data to build database!')
         KWS = [
@@ -311,7 +303,7 @@ class ResultDB:
         seen = set()
         for workflow in self.metadata.values():
             for module in list(workflow.keys()):
-                pipeline_module = f"{workflow[module][0]}:{workflow[module][1]}"
+                pipeline_module = (workflow[module][0], workflow[module][1])
                 if pipeline_module in seen:
                     continue
                 seen.add(pipeline_module)
