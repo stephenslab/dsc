@@ -414,9 +414,9 @@ class DSC_Translator:
                     len(self.step.exe['path']) == 0
                     and len(self.step.rv) > 0) else 'yml'
                 if len(self.current_depends):
-                    self.action += f"__io_db__[('{self.step.name}', __pipeline_id__)] = dict([(' '.join((y, x[1])), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
+                    self.action += f"__io_db__[('{self.step.name}', __pipeline_id__)] = dict([(tuple(' '.join((y, x[1])).split()), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
                 else:
-                    self.action += f"__io_db__[('{self.step.name}', __pipeline_id__)] = dict([(y, dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
+                    self.action += f"__io_db__[('{self.step.name}', __pipeline_id__)] = dict([((y,), dict([('__pipeline_id__', __pipeline_id__), ('__pipeline_name__', __pipeline_name__), ('__module__', '{self.step.name}'), ('__out_vars__', __out_vars__)] + x[0])) for x, y in zip({combined_params}, {output_str})] + [('__input_output___', ({input_str}, {output_str})), ('__ext__', '{ext_str}')])\n"
             else:
                 # FIXME: have not considered multi-action module (or compound module) yet
                 # Create fake loop for now with idx going around

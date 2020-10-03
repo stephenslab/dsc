@@ -156,7 +156,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
             for kk in data[k]:
                 if kk in ["__ext__", "__input_output___"]:
                     continue
-                kk = kk.split(' ')[0]
+                kk = kk[0]
                 if kk in names:
                     raise ValueError(
                         f'\nIdentical instances found in module ``{kk.split(":")[0]}``!'
@@ -318,9 +318,8 @@ class ResultDB:
                                                   for x in self.meta_kws])
                         self.data[module]['__out_vars__'] = v['__out_vars__']
                     # each v is a dict of a module instances
-                    # each key reads like
-                    # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
-                    k = k.split(' ')
+                    # each key is a tuple
+                    # ("shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6, simulate:bd4946c8e9f6dcb6)"
                     # ID numbers all module instances
                     num_parents = 1
                     if len(k) > 1:
