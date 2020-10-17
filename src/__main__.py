@@ -91,7 +91,8 @@ def execute(args, unknown_args):
                         global_params=unknown_args,
                         truncate=args.truncate,
                         replicate=1 if args.truncate else args.replicate,
-                        host=args.host)
+                        host=args.host,
+                        debug = args.debug)
     script.init_dsc(env)
     pipeline_obj = DSC_Pipeline(script).pipelines
     db = os.path.basename(script.runtime.output)

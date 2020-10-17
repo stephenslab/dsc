@@ -39,7 +39,8 @@ class DSC_Script:
                  global_params=[],
                  truncate=False,
                  replicate=None,
-                 host=None):
+                 host=None,
+                 debug=False):
         self.content = dict()
         if os.path.isfile(content):
             script_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -143,19 +144,22 @@ class DSC_Script:
                                          truncate))
                              for x in self.runtime.sequence_ordering.keys()])
         script_types = [m.exe['type'] for m in self.modules.values()]
-        if 'R' in script_types:
+        if 'R' in script_types and not debug:
             install_package_interactive(
                 f'dscrutils@stephenslab/dsc/dscrutils>={__version__}',
                 'R_library')
-        if 'R' in script_types and 'PY' in script_types:
+        if 'R' in script_types and 'PY' in script_types and not debug:
             install_package_interactive('reticulate', 'R_library')
             install_package_interactive('rpy2>=3.0.1', 'Python_Module')
-        self.runtime.rlib.extend(
-            flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
-        self.runtime.pymodule.extend(
-            flatten_list(
-                [x.pymodule for x in self.modules.values() if x.pymodule]))
-        self.runtime.container = [(x.container, x.container_engine) for x in self.modules.values() if x.container]
+        if not debug:
+            self.runtime.rlib.extend(
+                flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
+            self.runtime.pymodule.extend(
+                flatten_list(
+                    [x.pymodule for x in self.modules.values() if x.pymodule]))
+            self.runtime.container = [(x.container, x.container_engine) for x in self.modules.values() if x.container]
+        else:
+            self.runtime.rlib = self.runtime.pymodule = self.runtime.container = []
         # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
