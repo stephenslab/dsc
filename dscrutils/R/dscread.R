@@ -75,7 +75,7 @@ dscread <- function (outdir, outfile) {
     out <- rapply(out,reticulate::py_to_r,classes = "python.builtin.object",
                   how = "replace")
   } else {
-    warning(sprintf(paste("Unable to read from DSC output file %s as one or",
+    warning(sprintf(paste("Unable to read from %s as one or",
                           "more files may be missing; returning NULL"),
                     outfile))
     out <- NULL
