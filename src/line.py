@@ -241,7 +241,8 @@ class ExpandActions(YLine):
     @staticmethod
     def __Shell(code):
         # FIXME: is this behavior any good?
-        out = get_output(code[1:-1])
+        import shutil
+        out = get_output(code[1:-1], executable=shutil.which('bash'), shell=True)
         return ','.join(
             flatten_list([x.split() for x in out.strip().split("\n")]))
 
