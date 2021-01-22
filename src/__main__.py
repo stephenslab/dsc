@@ -63,7 +63,6 @@ def remove(workflows, groups, modules, db, purge=False):
 def plain_remove(outdir):
     import shutil
     shutil.rmtree(outdir, ignore_errors=True)
-    shutil.rmtree(".sos", ignore_errors=True)
     to_remove = [outdir + '.html', outdir + '.scripts.html']
     for item in to_remove:
         if os.path.isfile(item):
@@ -179,7 +178,7 @@ def execute(args, unknown_args):
         env.verbosity = args.verbosity
     except Exception as e:
         if args.host is None:
-            transcript2html('.sos/transcript.txt',
+            transcript2html('~/.sos/transcript.txt',
                             f'{db}.scripts.html',
                             title=db)
             env.logger.warning(f"Please examine ``stderr`` files below and/or run commands ``in green`` to reproduce " \

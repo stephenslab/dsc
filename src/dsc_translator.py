@@ -79,7 +79,6 @@ class DSC_Translator:
                         job_translator = self.Step_Translator(
                             step, self.db, None, try_catch, host_conf, debug)
                         job_str.append(job_translator.dump())
-                        job_translator.clean()
                         exe_signatures[
                             step.name] = job_translator.exe_signature
                         self.exe_check.extend(job_translator.exe_check)
@@ -178,9 +177,6 @@ class DSC_Translator:
             pickle.dump(self.step_map, open(f'{DSC_CACHE}/{self.db}.io.meta.pkl', 'wb'))
         else:
             res = self.job_str
-        # clean up previous runs
-        if os.path.isfile('.sos/transcript.txt'):
-            os.remove('.sos/transcript.txt')
         # write explicit SoS script if desired
         if save:
             output = os.path.abspath(f'{DSC_CACHE}/{self.db}_{task}.sos')
@@ -305,11 +301,6 @@ class DSC_Translator:
             self.get_output()
             self.get_step_option()
             self.get_action()
-
-        def clean(self):
-            # Remove temp scripts
-            for item in glob.glob(f'.sos/{self.step.name}_*'):
-                os.remove(item)
 
         def get_header(self):
             if self.prepare:
