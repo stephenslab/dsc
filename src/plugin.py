@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-import yaml, re
+import yaml, re, glob
 from collections import OrderedDict
 from copy import deepcopy
 from .syntax import DSC_FILE_OP
@@ -129,6 +129,7 @@ class Shell(BasePlug):
         if len(lib):
             res += '\n'.join([
                 f'for i in `ls {item}/*.sh`; do source $i; done'
+                if len(glob.glob(f'{item}/*.sh'))>0 else ''
                 for item in lib
             ])
         # load parameters
