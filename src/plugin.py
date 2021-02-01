@@ -14,8 +14,7 @@ from .utils import flatten_list
 
 
 def dict2yaml(value):
-    return yaml.dump(value, default_flow_style=False).strip()
-
+    return yaml.safe_dump(dict(value), default_flow_style=False).strip()
 
 BASH_UTILS = '''
 expandPath() {

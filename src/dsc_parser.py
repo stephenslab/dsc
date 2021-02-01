@@ -867,16 +867,17 @@ class DSC_Module:
                 for p in in_input:
                     if not isinstance(p, str):
                         continue
-                    groups = DSC_FILE_OP.search(p)
-                    if groups:
-                        if len(groups.group(1).strip('.')) == 0:
-                            raise FormatError(
-                                f'Parameter ``{value}``, when used as output file ``{key}``, must have an extension specified!'
-                            )
-                        self.rf[key] = '{}.{}'.format(
-                            value,
-                            groups.group(1).strip('.').strip())
-                        break
+                    # FIXME: since 0.4.3.4 I disabled output to a file and the self.rf variable
+                    #groups = DSC_FILE_OP.search(p)
+                    #if groups:
+                    #    if len(groups.group(1).strip('.')) == 0:
+                    #        raise FormatError(
+                    #            f'Parameter ``{value}``, when used as output file ``{key}``, must have an extension specified!'
+                    #        )
+                    #    self.rf[key] = '{}.{}'.format(
+                    #        value,
+                    #        groups.group(1).strip('.').strip())
+                    #    break
             if key in self.rf:
                 continue
             # now decide this new variable is a file or else
