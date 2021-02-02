@@ -163,6 +163,8 @@ def execute(args, unknown_args):
                            default_flow_style=False)
         return
     env.logger.debug(f"Running command ``{' '.join(sys.argv)}``")
+    if os.path.isfile(f'{env.exec_dir}/transcript.txt'):
+        os.remove(f'{env.exec_dir}/transcript.txt')
     env.logger.info(f"Building execution graph & running DSC ...")
     # making verbosity level consistent with before SoS version 0.21.2
     verbosity_map = {0:1,1:0,2:2 if args.host else 0,3:3,4:4}
@@ -178,10 +180,10 @@ def execute(args, unknown_args):
         env.verbosity = args.verbosity
     except Exception as e:
         if args.host is None:
-            transcript2html('~/.sos/transcript.txt',
+            transcript2html(f'{env.exec_dir}/transcript.txt',
                             f'{db}.scripts.html',
                             title=db)
-            env.logger.warning(f"Please examine ``stderr`` files below and/or run commands ``in green`` to reproduce " \
+            env.logger.error(f"Please examine ``stderr`` files below and/or run commands ``in green`` to reproduce " \
                                "the errors;\nadditional scripts upstream of the error can be found in " \
                                f"``{db}.scripts.html``.\n" + '=' * 75)
         raise Exception(e)
