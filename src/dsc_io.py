@@ -10,7 +10,6 @@ python -m 'rpy2.tests'
 
 from dsc.utils import flatten_list
 
-
 def load_mpk(mpk_files, jobs=2):
     import msgpack, collections
     from multiprocessing import Process, Manager
@@ -273,6 +272,7 @@ def csv_to_html(infile, outfile):
 def source_dirs(dirs):
     import sys, os, glob
     reserved = ['__builtins__', '__cached__', '__doc__', '__file__', '__loader__', '__name__', '__package__', '__spec__']
+    functions = list()
     for item in dirs:
         item = os.path.abspath(os.path.expanduser(item))
         sys.path.append(item)
@@ -280,7 +280,13 @@ def source_dirs(dirs):
             m = __import__(os.path.basename(module)[:-3])
             for i in dir(m):
                 if not i in reserved:
-                    globals()[i] = getattr(m,i)
+                    functions.append((i, getattr(m,i)))
+    return functions
+
+def load_io_db(fn, sequence_id=None, module=None):
+    import pickle
+    data = pickle.load(open(fn, 'rb'))
+    return data[sequence_id][module] if sequence_id and module else data
 
 def main():
     import os, sys, pickle

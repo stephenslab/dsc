@@ -33,28 +33,12 @@ DSC is closely developed in parallel with
 version of DSC (maintained in the `master` branch of the GitHub
 repository) typically requires the development version of SoS.
 
-#### Install the latest SoS
+To update,
 
-```
-git clone https://github.com/vatlab/SoS.git
-cd SoS
-pip install . 
-```
 
-#### Install DSC from source
-
-```
-git clone https://github.com/stephenslab/dsc.git
-cd dsc
-pip install .
-```
-
-Or, if you have cloned the repository before,
-
-```
-cd dsc
-git pull
-pip install .
+```bash
+pip install git+https://github.com/vatlab/sos -U
+pip install git+https://github.com/stephenslab/dsc -U
 ```
 
 #### Install dscrutils from source

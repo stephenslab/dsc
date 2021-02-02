@@ -6,7 +6,7 @@ __license__ = "MIT"
 '''
 Process R and Python plugin codes to DSC
 '''
-import yaml, re
+import yaml, re, glob
 from collections import OrderedDict
 from copy import deepcopy
 from .syntax import DSC_FILE_OP
@@ -14,8 +14,7 @@ from .utils import flatten_list
 
 
 def dict2yaml(value):
-    return yaml.dump(value, default_flow_style=False).strip()
-
+    return yaml.safe_dump(dict(value), default_flow_style=False).strip()
 
 BASH_UTILS = '''
 expandPath() {
@@ -129,6 +128,7 @@ class Shell(BasePlug):
         if len(lib):
             res += '\n'.join([
                 f'for i in `ls {item}/*.sh`; do source $i; done'
+                if len(glob.glob(f'{item}/*.sh'))>0 else ''
                 for item in lib
             ])
         # load parameters
@@ -541,8 +541,11 @@ class PyPlug(BasePlug):
         return res
 
     def get_input(self, params, lib, seed_option):
-        res = '__source_dirs__([{}])\n'.format(','.join(
+        # import from lib_path
+        res = '__source_dirs__([{}])'.format(','.join(
             [repr(x) for x in lib])) if len(lib) else ''
+        res = f'for name, func in {res}:\n'
+        res += '    globals()[name] = func'
         # load parameters
         keys = [x for x in params if not x in self.container_vars]
         res += '\n' + '\n'.join(self.container)

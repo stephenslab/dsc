@@ -39,7 +39,8 @@ class DSC_Script:
                  global_params=[],
                  truncate=False,
                  replicate=None,
-                 host=None):
+                 host=None,
+                 debug=False):
         self.content = dict()
         if os.path.isfile(content):
             script_name = os.path.split(os.path.splitext(content)[0])[-1]
@@ -143,19 +144,22 @@ class DSC_Script:
                                          truncate))
                              for x in self.runtime.sequence_ordering.keys()])
         script_types = [m.exe['type'] for m in self.modules.values()]
-        if 'R' in script_types:
+        if 'R' in script_types and not debug:
             install_package_interactive(
                 f'dscrutils@stephenslab/dsc/dscrutils>={__version__}',
                 'R_library')
-        if 'R' in script_types and 'PY' in script_types:
+        if 'R' in script_types and 'PY' in script_types and not debug:
             install_package_interactive('reticulate', 'R_library')
             install_package_interactive('rpy2>=3.0.1', 'Python_Module')
-        self.runtime.rlib.extend(
-            flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
-        self.runtime.pymodule.extend(
-            flatten_list(
-                [x.pymodule for x in self.modules.values() if x.pymodule]))
-        self.runtime.container = [(x.container, x.container_engine) for x in self.modules.values() if x.container]
+        if not debug:
+            self.runtime.rlib.extend(
+                flatten_list([x.rlib for x in self.modules.values() if x.rlib]))
+            self.runtime.pymodule.extend(
+                flatten_list(
+                    [x.pymodule for x in self.modules.values() if x.pymodule]))
+            self.runtime.container = [(x.container, x.container_engine) for x in self.modules.values() if x.container]
+        else:
+            self.runtime.rlib = self.runtime.pymodule = self.runtime.container = []
         # FIXME: maybe this should be allowed in the future
         self.runtime.check_looped_computation()
 
@@ -863,16 +867,17 @@ class DSC_Module:
                 for p in in_input:
                     if not isinstance(p, str):
                         continue
-                    groups = DSC_FILE_OP.search(p)
-                    if groups:
-                        if len(groups.group(1).strip('.')) == 0:
-                            raise FormatError(
-                                f'Parameter ``{value}``, when used as output file ``{key}``, must have an extension specified!'
-                            )
-                        self.rf[key] = '{}.{}'.format(
-                            value,
-                            groups.group(1).strip('.').strip())
-                        break
+                    # FIXME: since 0.4.3.4 I disabled output to a file and the self.rf variable
+                    #groups = DSC_FILE_OP.search(p)
+                    #if groups:
+                    #    if len(groups.group(1).strip('.')) == 0:
+                    #        raise FormatError(
+                    #            f'Parameter ``{value}``, when used as output file ``{key}``, must have an extension specified!'
+                    #        )
+                    #    self.rf[key] = '{}.{}'.format(
+                    #        value,
+                    #        groups.group(1).strip('.').strip())
+                    #    break
             if key in self.rf:
                 continue
             # now decide this new variable is a file or else
@@ -1180,7 +1185,8 @@ class DSC_Module:
             ('plugin_status', self.plugin.dump()),
             ('runtime_options',
              dict([('exec_path', self.path), ('workdir', self.workdir),
-                   ('library_path', self.libpath), ('container', self.container),
+                   ('library_path', self.libpath), 
+                   ('container', self.container),
                    ('container_engine', self.container_engine)]))
         ]),
                           mapping=dict,
@@ -1353,9 +1359,7 @@ class DSC_Section:
                                     ('sequence ordering',
                                      list(self.sequence_ordering.keys())),
                                     ('R libraries', self.rlib),
-                                    ('Python modules', self.pymodule),
-                                    ('Container', self.container),
-                                    ('Container engine', self.container_engine)]),
+                                    ('Python modules', self.pymodule)]),
                        mapping=OrderedDict))
 
 

@@ -41,8 +41,8 @@ def remove_obsolete_output(output, additional_files=None, rerun=False):
         x_name = os.path.join(os.path.basename(os.path.split(x)[0]),
                               os.path.basename(x))
         if x_name not in map_data.values() and \
-           x not in [f'{output}/{os.path.basename(output)}.{i}.mpk' for i in ['conf', 'map']] and \
-               x != f'{output}/{os.path.basename(output)}.db':
+           x not in [f'{output}/{os.path.basename(output)}.map.mpk',
+                     f'{output}/{os.path.basename(output)}.db']:
             to_remove.append(x + x_ext)
     # Additional files to remove
     for x in additional_files or []:
@@ -51,7 +51,7 @@ def remove_obsolete_output(output, additional_files=None, rerun=False):
     if rerun:
         to_remove = list(
             glob.glob(
-                f'{DSC_CACHE}/{os.path.basename(output)}_*.mpk')) + to_remove
+                f'{DSC_CACHE}/{os.path.basename(output)}*.pkl')) + to_remove
     if len(to_remove):
         open(map_db, "wb").write(msgpack.packb(map_data))
         # Do not limit to tracked or untracked, and do not just remove signature
@@ -156,7 +156,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
             for kk in data[k]:
                 if kk in ["__ext__", "__input_output___"]:
                     continue
-                kk = kk.split(' ')[0]
+                kk = kk[0]
                 if kk in names:
                     raise ValueError(
                         f'\nIdentical instances found in module ``{kk.split(":")[0]}``!'
@@ -226,24 +226,20 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
                                    object_pairs_hook=OrderedDict)
     else:
         map_data = OrderedDict()
-    data = msgpack.unpackb(open(io_db, 'rb').read(),
-                           raw=False,
-                           object_pairs_hook=OrderedDict)
-    meta_data = msgpack.unpackb(open(io_db[:-4] + '.meta.mpk', 'rb').read(),
-                                raw=False,
-                                object_pairs_hook=OrderedDict)
+    data = pickle.load(open(io_db, 'rb'))
+    meta_data = pickle.load(open(io_db.rsplit('.',2)[0] + '.io.meta.pkl', 'rb'))
     map_names = get_names()
     update_map(map_names)
-    fid = os.path.dirname(str(conf_db))
+    fid = os.path.dirname(str(map_db))
     conf = OrderedDict()
     for key in meta_data:
         workflow_id = str(key)
         if workflow_id not in conf:
             conf[workflow_id] = OrderedDict()
         for module in meta_data[key]:
-            k = f'{module}:{key}'
+            k = (module, key)
             if k not in data:
-                k = f'{meta_data[key][module][0]}:{meta_data[key][module][1]}'
+                k = (meta_data[key][module][0], meta_data[key][module][1])
                 # FIXME: this will be a bug if ever triggered
                 if k not in data:
                     raise DBError(
@@ -264,7 +260,7 @@ def build_config_db(io_db, map_db, conf_db, vanilla=False, jobs=4):
                 meta_data[key][x] for x in depends_steps
             ]
     #
-    open(conf_db, "wb").write(msgpack.packb(conf))
+    pickle.dump(conf, open(conf_db, "wb"), protocol=pickle.HIGHEST_PROTOCOL)
 
 
 class ResultDB:
@@ -279,7 +275,7 @@ class ResultDB:
                                         object_pairs_hook=OrderedDict)
         else:
             raise DBError(
-                f"Cannot build DSC meta-data: hash table ``{self.prefix}.map.mpk`` is missing!"
+                f"Cannot build DSC result database: hash table ``{self.prefix}.map.mpk`` is missing!"
             )
         self.meta_kws = ['__id__', '__output__', '__parent__', '__out_vars__']
 
@@ -288,20 +284,16 @@ class ResultDB:
         def find_namemap(x):
             if x in self.maps:
                 return self.maps[x][:-len_ext]
-            raise DBError('Cannot find name map for ``{}``'.format(x))
+            raise DBError(f'Cannot find name map for ``{x}``')
 
         #
         try:
-            self.rawdata = msgpack.unpackb(open(
-                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.mpk',
-                'rb').read(),
-                                           raw=False,
-                                           object_pairs_hook=OrderedDict)
-            self.metadata = msgpack.unpackb(open(
-                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.meta.mpk',
-                'rb').read(),
-                                            raw=False,
-                                            object_pairs_hook=OrderedDict)
+            self.rawdata = pickle.load(open(
+                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.cfg.pkl',
+                'rb'))
+            self.metadata = pickle.load(open(
+                f'{DSC_CACHE}/{os.path.basename(self.prefix)}.io.meta.pkl',
+                'rb'))
         except:
             raise DBError('Cannot load source data to build database!')
         KWS = [
@@ -311,7 +303,7 @@ class ResultDB:
         seen = set()
         for workflow in self.metadata.values():
             for module in list(workflow.keys()):
-                pipeline_module = f"{workflow[module][0]}:{workflow[module][1]}"
+                pipeline_module = (workflow[module][0], workflow[module][1])
                 if pipeline_module in seen:
                     continue
                 seen.add(pipeline_module)
@@ -326,9 +318,8 @@ class ResultDB:
                                                   for x in self.meta_kws])
                         self.data[module]['__out_vars__'] = v['__out_vars__']
                     # each v is a dict of a module instances
-                    # each key reads like
-                    # "shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6 simulate:bd4946c8e9f6dcb6"
-                    k = k.split(' ')
+                    # each key is a tuple
+                    # ("shrink:a8bd873083994102:simulate:bd4946c8e9f6dcb6, simulate:bd4946c8e9f6dcb6)"
                     # ID numbers all module instances
                     num_parents = 1
                     if len(k) > 1:

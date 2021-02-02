@@ -623,6 +623,7 @@ def yaml2html(content, to_file, title=''):
 
 
 def transcript2html(content, to_file, title=''):
+    content = os.path.expanduser(content)
     if os.path.isfile(content):
         content = open(content).readlines()
     if not os.path.splitext(to_file)[1] == '.html':
@@ -847,16 +848,6 @@ def n2a(col_num, col_abs=False):
         col_str = col_letter + col_str
         col_num = int((col_num - 1) / 26)
     return col_abs + col_str
-
-
-def load_io_db(fn, sequence_id=None, module=None):
-    import msgpack
-    from collections import OrderedDict
-    data = msgpack.unpackb(open(fn, 'rb').read(),
-                           raw=False,
-                           object_pairs_hook=OrderedDict)
-    return data[sequence_id][module] if sequence_id and module else data
-
 
 def is_sublist(sub, lst):
     ln = len(sub)
@@ -1091,7 +1082,7 @@ def update_gitconf():
     repo_path = find_git_repo()
     if repo_path is None:
         return
-    add_to_file('**/.sos', os.path.join(repo_path, '.gitignore'))
+    add_to_file('**/.dsc', os.path.join(repo_path, '.gitignore'))
     add_to_file('*.dsc linguist-language=YAML',
                 os.path.join(repo_path, '.gitattributes'))
 
