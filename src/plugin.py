@@ -544,8 +544,9 @@ class PyPlug(BasePlug):
         # import from lib_path
         res = '__source_dirs__([{}])'.format(','.join(
             [repr(x) for x in lib])) if len(lib) else ''
-        res = f'for name, func in {res}:\n'
-        res += '    globals()[name] = func'
+        if len(res):
+            res = f'for name, func in {res}:\n'
+            res += '    globals()[name] = func'
         # load parameters
         keys = [x for x in params if not x in self.container_vars]
         res += '\n' + '\n'.join(self.container)
