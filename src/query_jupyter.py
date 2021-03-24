@@ -70,20 +70,28 @@ def get_query_notebook(db,
     jc.add("# {}\n{}".format(title, get_home_doc(db, description)))
     jc.add('''
 import pandas as pd
-xls = pd.ExcelFile('{}')
-info = [xls.parse(x) for x in xls.sheet_names]
+xls = pd.read_excel('{}', engine='openpyxl', sheet_name = None)
+info = [v for k, v in xls.items()]
     '''.format(os.path.expanduser(db)),
            cell="code",
            out=False)
     if len(queries) > 1:
         jc.add("## Merged")
-        jc.add(f"%preview -n info[0] --limit {limit}", cell="code")
+        #jc.add(f"%preview -n info[0] --limit {limit}", cell="code")
+        jc.add('''
+%preview -n xlsdf --limit {}
+xlsdf = info[0]
+        '''.format(limit), cell="code")
     for i, q in enumerate(queries):
         jc.add(f"## Pipeline {i+1}" if len(queries) > 1 else "## Merged")
         jc.add("```sql\n{}\n```".format(q), out=False)
-        jc.add(
-            f"%preview -n info[{i+1 if len(queries) > 1 else 0}] --limit {limit}",
-            cell="code")
+        #jc.add(
+        #    f"%preview -n info[{i+1 if len(queries) > 1 else 0}] --limit {limit}",
+        #    cell="code")
+        jc.add('''
+%preview -n xlsdf --limit {}
+xlsdf = info[{}]
+        '''.format(limit, i+1 if len(queries) > 1 else 0), cell="code")
     if language is not None:
         if language == 'R':
             jc.add("%use R\ninfo <- readxl::read_excel('{}')".format(db),
