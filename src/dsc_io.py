@@ -8,7 +8,7 @@ Test rpy2 installation:
 python -m 'rpy2.tests'
 '''
 
-from dsc.utils import flatten_list
+from .utils import flatten_list
 
 def load_mpk(mpk_files, jobs=2):
     import msgpack, collections
@@ -248,7 +248,7 @@ def csv_to_html(infile, outfile):
     import os
     import pandas as pd
     pd.set_option('display.max_colwidth', -1)
-    from dsc.constant import TABLE_HEADER
+    from .constant import TABLE_HEADER
 
     def pop_html_img(x):
         if not isinstance(x, str):
