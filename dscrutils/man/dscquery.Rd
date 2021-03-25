@@ -31,7 +31,8 @@ or a module output. Targets that are not assigned are set to
 be the names of the columns in the data frame if a data frame is
 returned, or the names of the list elements if a list is returned.
 This input argument specifies the \code{--target} option in the
-\code{dsc-query} call.}
+\code{dsc-query} call. A special target is \code{<module>.DSC_TIME}
+which will extract the runtime of the module.}
 
 \item{module.output.all}{Character vector specifying names of
 modules or module groups in the DSC. For each specified module or
