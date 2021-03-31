@@ -50,7 +50,7 @@ class DSC_Translator:
         conf_dict = dict()
         conf_str = []
         job_str = []
-        exe_signatures = dict()
+        module_signatures = dict()
         # name map for steps, very important
         # to be used to expand IO_DB after load
         self.step_map = dict()
@@ -79,8 +79,8 @@ class DSC_Translator:
                         job_translator = self.Step_Translator(
                             step, self.db, None, try_catch, host_conf, debug)
                         job_str.append(job_translator.dump())
-                        exe_signatures[
-                            step.name] = job_translator.exe_signature
+                        module_signatures[
+                            step.name] = job_translator.module_signature
                         self.exe_check.extend(job_translator.exe_check)
                     processed_steps[(step.name, flow, depend)] = name
                     if step.name not in self.depends:
@@ -131,7 +131,7 @@ class DSC_Translator:
                 tmp_str.append(f"output: data_io['output']")
                 tmp_str.append(f"sos_run('{y}', {y}_output_files = data_io['output'], " + \
                                (f"{y}_input_files = data_io['input'], " if len(self.depends[y]) else "") + \
-                               f"DSC_STEP_ID_ = {sum([abs(int(x, 16)) % (10**8) for x in exe_signatures[y]])})")
+                               f"DSC_STEP_ID_ = {sum([abs(int(x, 16)) % (10**8) for x in module_signatures[y]])})")
                 if ii == len(sequence):
                     self.last_steps.append((y, workflow_id + 1))
                 self.job_pool[(y, workflow_id + 1)] = tmp_str
@@ -276,7 +276,7 @@ class DSC_Translator:
             #                     'Rigorous support of multiple output files is not yet implemented in current version of DSC.\n')
             self.step_map = step_map
             self.try_catch = try_catch
-            self.exe_signature = []
+            self.module_signature = []
             self.exe_check = []
             self.prepare = 0 if step_map is None else 1
             self.step = step
@@ -427,7 +427,7 @@ class DSC_Translator:
                         self.action += ", env={'PATH': '%s:' + os.environ['PATH']}" % ":".join(self.step.path)
                     self.action += plugin.get_cmd_args(cmd['args'],
                                                        self.params)
-                    signature.append(cmd['signature'])
+                    signature.append(cmd['signature'] + xxh(self.param_string + self.input_string + self.output_string).hexdigest())
                     # Add action
                     if len(cmd['path']) == 0:
                         if self.debug:
@@ -463,7 +463,7 @@ class DSC_Translator:
                         self.exe_check.append(
                             f"executable({repr(cmd['path'])})")
                         self.action += f"\t{cmd['path']} {'$*' if cmd['args'] else ''}\n"
-                self.exe_signature.extend(signature)
+                self.module_signature.extend(signature)
 
 
         def dump(self):
