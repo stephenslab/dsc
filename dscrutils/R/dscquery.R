@@ -616,8 +616,13 @@ read.dsc.outputs <- function (dat, dsc.outdir, ignore.missing.files, verbose) {
     x <- import.dsc.output(i,dsc.outdir,ignore.missing.files)
     if (!is.null(x))
       for (j in names(out[[i]]))
-        if (j == "DSC_TIME")
-          out[[i]][[j]] <- x$DSC_DEBUG$time$elapsed
+        if (j == "DSC_TIME"){
+          if ('elapsed' %in% names(x$DSC_DEBUG$time)){
+            out[[i]][[j]] <- x$DSC_DEBUG$time$elapsed
+          }else{
+            out[[i]][[j]] <- x$DSC_DEBUG$time
+          }
+        }
         else if (!is.element(j,names(x)))
           # https://github.com/stephenslab/dsc/issues/202
           out[[i]][j] <- NA
