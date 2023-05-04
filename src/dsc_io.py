@@ -92,6 +92,8 @@ def load_rds(filename, types=None):
         else:
             if isinstance(data, RI.NULLType):
                 res = None
+            elif isinstance(data, RV.IntVector):
+                res = np.array(data, dtype=int)
             else:
                 res = data
         if isinstance(res, np.ndarray) and res.shape == (1, ):
@@ -123,7 +125,11 @@ def load_rds(filename, types=None):
 
 
 def save_rds(data, filename):
-    import collections, re
+    import re
+    try:
+        from collections.abc import Mapping
+    except ImportError:
+        from collections import Mapping
     import pandas as pd
     import numpy as np
     import rpy2.robjects as RO
@@ -172,14 +178,14 @@ def save_rds(data, filename):
             k = re.sub(r'[^\w' + '_.' + ']', '_', str(k))
             if k.isdigit():
                 k = str(k)
-            if isinstance(v, collections.Mapping):
+            if isinstance(v, Mapping):
                 assign_dict('%s$%s' % (name, k), v)
             else:
                 assign('item', v)
                 RO.r('%s$%s <- item' % (name, k))
 
     #
-    if isinstance(data, collections.Mapping):
+    if isinstance(data, Mapping):
         assign_dict('res', data)
     else:
         assign('res', data)

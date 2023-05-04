@@ -12,6 +12,10 @@ from sos.utils import get_output
 from .utils import FormatError, is_null, str2num, cartesian_list, pairwise_list, uniq_list, \
     get_slice, remove_parens, do_parentheses_match, find_parens, parens_aware_split, flatten_list
 from .syntax import DSC_FILE_OP
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 
 
 class YLine:
@@ -68,7 +72,7 @@ class Str2List(YLine):
             # Have to do it the hard way ...
             return self.split(value)
         else:
-            if not isinstance(value, (collections.Mapping, list, tuple)):
+            if not isinstance(value, (Mapping, list, tuple)):
                 return [value]
             else:
                 return value
@@ -472,7 +476,7 @@ class EntryFormatter:
         for key, value in list(cfg.items()):
             if isinstance(value, str):
                 value = value.strip().strip(',')
-            if isinstance(value, collections.Mapping):
+            if isinstance(value, Mapping):
                 self.__Transform(value, actions)
             else:
                 if not do_parentheses_match(str(value)):
