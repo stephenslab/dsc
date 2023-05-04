@@ -8,7 +8,11 @@ This file defines methods to load and preprocess DSC scripts
 '''
 
 import os, re, itertools, copy, glob, yaml, warnings, platform
-from collections import Mapping, OrderedDict, Counter
+from collections import OrderedDict, Counter
+try:
+    from collections.abc import Mapping
+except ImportError:
+    from collections import Mapping
 try:
     from xxhash import xxh32 as xxh
 except ImportError:

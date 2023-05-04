@@ -8,7 +8,10 @@ import sys, os, re, yaml, itertools, collections, sympy
 from itertools import cycle, chain, islice
 from fnmatch import fnmatch
 from difflib import SequenceMatcher
-from collections.abc import Mapping, MutableMapping
+try: 
+    from collections.abc import Mapping, MutableMapping
+except ImportError:
+    from collections import Mapping, MutableMapping
 try:
     from xxhash import xxh32 as xxh
 except ImportError:
