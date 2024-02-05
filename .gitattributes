@@ -1,2 +1,2 @@
-
 *.dsc linguist-language=YAML
+vignettes/* linguist-documentation=true
