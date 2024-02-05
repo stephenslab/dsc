@@ -1,2 +1,6 @@
+# https://docs.github.com/en/repositories/working-with-files/managing-files/customizing-how-changed-files-appear-on-github
 *.dsc linguist-language=YAML
-vignettes/* linguist-documentation=true
+vignettes/* linguist-generated=true
+dscrutils/man/*.Rd linguist-generated=true
+scrutils/inst/* linguist-generated=true
+release.sos linguist-generated=true
